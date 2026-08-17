@@ -9,7 +9,7 @@
 # User-specific files
 *.suo
 *.user
-
+**/appsettings.Development.json
 # Debug symbols
 *.pdb
 
