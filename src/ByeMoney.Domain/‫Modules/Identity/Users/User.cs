@@ -1,9 +1,9 @@
 using ByeMoney.Domain.Common;
-using ByeMoney.Domain.Enums;
+using ByeMoney.Domain.Common.Exceptions;
 
-namespace ByeMoney.Domain.Entities;
+namespace ByeMoney.Domain.Modules.Identity.Users;
 
-public class User : BaseEntity<Guid>
+public class User : BaseEntity<UserId>
 {
     public int StrapiUserId { get; private set; }
     public string DisplayName { get; private set; } = string.Empty;
@@ -19,16 +19,18 @@ public class User : BaseEntity<Guid>
 
     public static User Create(int strapiUserId, string displayName, string phone, string role,UserType userType)
     {
+        if (string.IsNullOrWhiteSpace(displayName))
+            throw new DomainException("نام کاربر نمی‌تواند خالی باشد.");
         return new User
         {
-            Id = Guid.NewGuid(),
+            Id = UserId.New(),
             StrapiUserId = strapiUserId,
             DisplayName = displayName,
             Phone = phone,
             Role = role,
-            ProfileSyncedAt = DateTime.Now,
+            ProfileSyncedAt = DateTime.UtcNow,
             Status = UserStatus.Active,
-            UserType= userType
+            UserType = userType
         };
     }
 
@@ -37,15 +39,15 @@ public class User : BaseEntity<Guid>
         DisplayName = displayName;
         Phone = phone;
         Role = role;
-        ProfileSyncedAt = DateTime.Now;
-        UpdatedAt = DateTime.Now; // اگه UpdatedAt رو protected set داری
+        ProfileSyncedAt = DateTime.UtcNow;
+        UpdatedAt = DateTime.UtcNow; 
     }
 
     public void Suspend() => Status = UserStatus.Suspended;
     public void Activate() => Status = UserStatus.Active;
 
     public bool NeedsProfileSync()
-        => (DateTime.Now - ProfileSyncedAt).TotalHours > 24;
+        => (DateTime.UtcNow - ProfileSyncedAt).TotalHours > 24;
 }
 
 

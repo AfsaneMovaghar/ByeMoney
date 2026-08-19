@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
+﻿using ByeMoney.Application.Modules.Identity.Users.Commands.CreateUser;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 
@@ -30,6 +31,7 @@ public static class DependencyInjection
                 ClockSkew = TimeSpan.Zero
             };
         });
+       
 
         services.AddAuthorization();
         services.AddControllers();

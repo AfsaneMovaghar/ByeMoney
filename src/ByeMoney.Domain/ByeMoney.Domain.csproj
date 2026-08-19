@@ -7,4 +7,10 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <Folder Include="‫Modules\Wallet\Accounts\" />
+    <Folder Include="‫Modules\‫Deal\" />
+    <Folder Include="‫Modules\‫Catalog\" />
+  </ItemGroup>
+
 </Project>

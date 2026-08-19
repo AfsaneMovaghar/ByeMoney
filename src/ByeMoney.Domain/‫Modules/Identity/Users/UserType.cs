@@ -1,4 +1,4 @@
-namespace ByeMoney.Domain.Enums;
+namespace ByeMoney.Domain.Modules.Identity.Users;
 
 public enum UserType
 {
