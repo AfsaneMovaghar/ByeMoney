@@ -1,6 +1,6 @@
 using ByeMoney.Domain.Common;
+using ByeMoney.Domain.Common._Resources;
 using ByeMoney.Domain.Common.Exceptions;
-
 namespace ByeMoney.Domain.Modules.Identity.Users;
 
 public class User : BaseEntity<UserId>
@@ -20,7 +20,7 @@ public class User : BaseEntity<UserId>
     public static User Create(int strapiUserId, string displayName, string phone, string role,UserType userType)
     {
         if (string.IsNullOrWhiteSpace(displayName))
-            throw new DomainException("نام کاربر نمی‌تواند خالی باشد.");
+            throw new DomainException(DomainMessages.UserDisplayNameRequired);
         return new User
         {
             Id = UserId.New(),
@@ -49,8 +49,4 @@ public class User : BaseEntity<UserId>
     public bool NeedsProfileSync()
         => (DateTime.UtcNow - ProfileSyncedAt).TotalHours > 24;
 }
-
-
-
-    
 

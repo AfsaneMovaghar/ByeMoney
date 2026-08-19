@@ -1,26 +1,36 @@
-﻿using FluentValidation;
+﻿using ByeMoney.Domain.Common._Resources;
+using FluentValidation;
 
-namespace ByeMoney.Application.Modules.Identity.Users.Commands.CreateUser;
-
-public class CreateUserCommandValidator : AbstractValidator<CreateUserCommand>
+namespace ByeMoney.Application.Modules.Identity.Users.Commands.CreateUser
 {
-    public CreateUserCommandValidator()
+    public class CreateUserCommandValidator : AbstractValidator<CreateUserCommand>
     {
-        RuleFor(x => x.StrapiUserId)
-            .GreaterThan(0);
+        public CreateUserCommandValidator()
+        {
+            RuleFor(x => x.StrapiUserId)
+                .GreaterThan(0)
+                .WithMessage(ValidationMessages.StrapiUserIdInvalid);
 
-        RuleFor(x => x.DisplayName)
-            .NotEmpty()
-            .MaximumLength(100);
+            RuleFor(x => x.DisplayName)
+                .NotEmpty()
+                .WithMessage(ValidationMessages.DisplayNameRequired)
+                .MaximumLength(100)
+                .WithMessage(ValidationMessages.DisplayNameMaxLength);
 
-        RuleFor(x => x.Phone)
-            .NotEmpty()
-            .Matches(@"^09\d{9}$")
-            .WithMessage("شماره موبایل معتبر نیست.");
-        
-        RuleFor(x => x.Role).NotEmpty();
-        
-        RuleFor(x => x.UserType)
-                  .IsInEnum();
+            RuleFor(x => x.Phone)
+                .NotEmpty()
+                .WithMessage(ValidationMessages.PhoneRequired)
+                .Matches(@"^09\\d{9}$")
+                .WithMessage(ValidationMessages.PhoneInvalidFormat);
+
+            RuleFor(x => x.Role)
+                .NotEmpty()
+                .WithMessage(ValidationMessages.RoleRequired);
+
+            RuleFor(x => x.UserType)
+                      .IsInEnum()
+                      .WithMessage(ValidationMessages.UserTypeInvalid);
+        }
     }
 }
+
