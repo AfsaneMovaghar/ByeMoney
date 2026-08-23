@@ -9,7 +9,7 @@ builder.Services.AddInfrastructureServices(builder.Configuration);
 builder.Services.AddPresentationServices(builder.Configuration);
 
 var app = builder.Build();
-
+app.UseMiddleware<ByeMoney.API.Middleware.GlobalExceptionHandlingMiddleware>();
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();

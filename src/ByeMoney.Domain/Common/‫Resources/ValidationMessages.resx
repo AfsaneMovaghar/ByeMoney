@@ -132,6 +132,9 @@
   <data name="RoleRequired" xml:space="preserve">
     <value>نقش کاربر الزامی است</value>
   </data>
+  <data name="StrapiIdAlreadyExists" xml:space="preserve">
+    <value> کاربری با این شناسه Strapi قبلاً ثبت شده است.</value>
+  </data>
   <data name="StrapiUserIdInvalid" xml:space="preserve">
     <value>شناسه کاربر Strapi باید بزرگتر از صفر باشد.</value>
   </data>

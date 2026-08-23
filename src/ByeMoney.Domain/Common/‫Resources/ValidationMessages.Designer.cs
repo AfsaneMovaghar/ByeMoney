@@ -106,6 +106,15 @@ namespace ByeMoney.Domain.Common._Resources {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to  کاربری با این شناسه Strapi قبلاً ثبت شده است..
+        /// </summary>
+        public static string StrapiIdAlreadyExists {
+            get {
+                return ResourceManager.GetString("StrapiIdAlreadyExists", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to شناسه کاربر Strapi باید بزرگتر از صفر باشد..
         /// </summary>
         public static string StrapiUserIdInvalid {

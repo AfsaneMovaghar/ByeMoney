@@ -1,9 +1,9 @@
-using ByeMoney.Domain.Modules.Identity.Users;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
-namespace ByeMoney.Infrastructure.Modules.Identity.Persistence;
+namespace ByeMoney.Infrastructure.Modules.Identity.Persistence.User;
 
+using ByeMoney.Domain.Modules.Identity.Users;
 public class UserConfiguration : IEntityTypeConfiguration<User>
 {
     public void Configure(EntityTypeBuilder<User> builder)

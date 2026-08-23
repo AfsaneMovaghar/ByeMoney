@@ -16,6 +16,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\ByeMoney.Application\ByeMoney.Application.csproj" />
+    <ProjectReference Include="..\ByeMoney.Domain\ByeMoney.Domain.csproj" />
   </ItemGroup>
 
   <PropertyGroup>

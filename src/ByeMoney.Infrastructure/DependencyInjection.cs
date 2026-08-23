@@ -1,8 +1,10 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using ByeMoney.Application.Common.Interfaces;
+using ByeMoney.Application.Modules.Identity.Users.Interface;
+using ByeMoney.Infrastructure.Modules.Identity.Persistence.User;
+using ByeMoney.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using ByeMoney.Application.Common.Interfaces;
-using ByeMoney.Infrastructure.Persistence;
 
 namespace ByeMoney.Infrastructure;
 
@@ -19,7 +21,7 @@ public static class DependencyInjection
 
         services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<ApplicationDbContext>());
         services.AddScoped(typeof(IRepository<,>), typeof(BaseRepository<,>));
-        //services.AddIdentityModule();
+        services.AddScoped<IUserRepository, UserRepository>();
         return services;
     }
 }
