@@ -8,4 +8,7 @@ public class UserRepository(ApplicationDbContext context) : BaseRepository<User,
 {
     public async Task<bool> ExistsByStrapiUserIdAsync(int strapiUserId, CancellationToken ct)
         => await Context.Set<User>().AnyAsync(u => u.StrapiUserId == strapiUserId, ct);
+
+    public async Task<User?> GetByStrapiUserIdAsync(int strapiUserId, CancellationToken ct)
+        => await Context.Set<User>().FirstOrDefaultAsync(u => u.StrapiUserId == strapiUserId, ct);
 }

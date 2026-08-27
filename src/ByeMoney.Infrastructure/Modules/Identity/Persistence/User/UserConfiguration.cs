@@ -21,14 +21,15 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
             .IsRequired();
 
         builder.Property(u => u.DisplayName)
-            .HasMaxLength(100)
-            .IsRequired();
+            .HasMaxLength(100);
 
         builder.Property(u => u.Phone)
-            .HasMaxLength(15)
-            .IsRequired();
+            .HasMaxLength(15);
 
         builder.HasIndex(u => u.StrapiUserId)
+            .IsUnique();
+
+        builder.HasIndex(u => u.Phone)
             .IsUnique();
        
        builder.Property(u => u.Role)

@@ -6,14 +6,13 @@ namespace ByeMoney.Domain.Modules.Identity.Users;
 public class User : BaseEntity<UserId>
 {
     public int StrapiUserId { get; private set; }
-    public string DisplayName { get; private set; } = string.Empty;
-    public string Phone { get; private set; } = string.Empty;
+    public string? DisplayName { get; private set; }
+    public string? Phone { get; private set; }
     public string Role { get; private set; } = string.Empty;
     public DateTime ProfileSyncedAt { get; private set; }
     public UserStatus Status { get; private set; }
     public UserType UserType { get; private set; }
 
-    // public Account? Account { get; private set; }
 
     private User() { }
 
@@ -41,6 +40,27 @@ public class User : BaseEntity<UserId>
         Role = role;
         ProfileSyncedAt = DateTime.UtcNow;
         UpdatedAt = DateTime.UtcNow; 
+    }
+
+    public void MarkProfileSynced()
+    {
+        ProfileSyncedAt = DateTime.UtcNow;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    public static User CreateFromStrapi(int strapiUserId)
+    {
+        return new User
+        {
+            Id = UserId.New(),
+            StrapiUserId = strapiUserId,
+            DisplayName = null,
+            Phone = null,
+            Role = string.Empty,
+            ProfileSyncedAt = DateTime.UtcNow,
+            Status = UserStatus.Active,
+            UserType = UserType.Normal
+        };
     }
 
     public void Suspend() => Status = UserStatus.Suspended;
