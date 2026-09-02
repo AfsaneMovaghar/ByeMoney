@@ -27,7 +27,7 @@ public class CreateUserCommandHandler : IRequestHandler<CreateUserCommand, UserI
                                request.UserType);
 
         await _userRepository.AddAsync(user, ct);
-        await _unitOfWork.SaveChangesAsync(ct);   // اینجا واقعاً به دیتابیس نوشته می‌شه
+        await _unitOfWork.SaveChangesAsync(ct);   
 
         return user.Id;
     }
