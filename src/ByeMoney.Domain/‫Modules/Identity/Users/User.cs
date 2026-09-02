@@ -57,7 +57,7 @@ public class User : BaseEntity<UserId>
             DisplayName = null,
             Phone = null,
             Role = string.Empty,
-            ProfileSyncedAt = DateTime.UtcNow,
+            ProfileSyncedAt = DateTime.MinValue,
             Status = UserStatus.Active,
             UserType = UserType.Normal
         };

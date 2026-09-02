@@ -1,4 +1,4 @@
-﻿using ByeMoney.Application.Common.Interfaces;
+using ByeMoney.Application.Common.Interfaces;
 using ByeMoney.Application.Modules.Identity.Users.Commands.SyncUserFromStrapi;
 using ByeMoney.Application.Modules.Identity.Users.Interface;
 using ByeMoney.Domain.Modules.Identity.Users;
@@ -24,7 +24,7 @@ public class SyncUserFromStrapiTests
         user.Role.Should().Be(string.Empty);
         user.Status.Should().Be(UserStatus.Active);
         user.UserType.Should().Be(UserType.Normal);
-        user.ProfileSyncedAt.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(2));
+        user.ProfileSyncedAt.Should().Be(DateTime.MinValue);
     }
 
     [Fact]
