@@ -83,7 +83,3 @@ x86/
 
 # Built Visual Studio Code Extensions
 *.vsix
-/src/ByeMoney.API/logs
-/AGENTS.md
-/src/ByeMoney.API/appsettings.Development.json
-/src/ByeMoney.API/appsettings.Development.json
