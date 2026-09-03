@@ -1,6 +1,7 @@
-﻿using ByeMoney.Application.Common.Interfaces;
+using ByeMoney.Application.Common.Interfaces;
 using ByeMoney.Application.Modules.Identity.Users.Interface;
 using ByeMoney.Infrastructure.Modules.Identity.Persistence.User;
+using ByeMoney.Infrastructure.Modules.Wallet.Persistence;
 using ByeMoney.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -22,6 +23,7 @@ public static class DependencyInjection
         services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<ApplicationDbContext>());
         services.AddScoped(typeof(IRepository<,>), typeof(BaseRepository<,>));
         services.AddScoped<IUserRepository, UserRepository>();
+        services.AddWalletModule();
         return services;
     }
 }
