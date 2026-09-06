@@ -1,6 +1,6 @@
 using ByeMoney.Application.Common.Interfaces;
 using ByeMoney.Application.Modules.Wallet.Interfaces;
-using ByeMoney.Domain.Common.Exceptions;
+using ByeMoney.Domain.Common;
 using ByeMoney.Domain.Modules.Wallet.Accounts;
 using ByeMoney.Domain.Modules.Wallet.Ledgers;
 using ByeMoney.Domain.Modules.Wallet.TopUps;
@@ -10,7 +10,7 @@ using WalletEntity = ByeMoney.Domain.Modules.Wallet.Wallets.Wallet;
 
 namespace ByeMoney.Application.Modules.Wallet.Commands.ConfirmTopUp;
 
-public class ConfirmTopUpCommandHandler : IRequestHandler<ConfirmTopUpCommand, bool>
+public class ConfirmTopUpCommandHandler : IRequestHandler<ConfirmTopUpCommand, Result>
 {
     private readonly ITopUpRequestRepository _topUpRequestRepository;
     private readonly IAccountRepository _accountRepository;
@@ -32,66 +32,78 @@ public class ConfirmTopUpCommandHandler : IRequestHandler<ConfirmTopUpCommand, b
         _unitOfWork = unitOfWork;
     }
 
-    public async Task<bool> Handle(ConfirmTopUpCommand request, CancellationToken cancellationToken)
+    public async Task<Result> Handle(ConfirmTopUpCommand request, CancellationToken cancellationToken)
     {
-        var topUpId = new TopUpRequestId(request.TopUpRequestId);
-        var topUp = await _topUpRequestRepository.GetByIdAsync(topUpId, cancellationToken);
-
+        var topUp = await _topUpRequestRepository.GetByIdAsync(request.TopUpRequestId, cancellationToken);
         if (topUp is null)
-            throw new NotFoundException(nameof(TopUpRequest), request.TopUpRequestId);
-
-        // 1. تغییر وضعیت دامنه به Confirmed
-        topUp.Confirm(request.ExternalTransactionId);
-
-        // 2. یافتن یا ایجاد حساب کاربری (UserAccount)
-        var userAccount = await _accountRepository.GetByUserIdAsync(topUp.UserId, cancellationToken);
-        if (userAccount is null)
         {
-            userAccount = Account.CreateUserAccount(topUp.UserId);
-            await _accountRepository.AddAsync(userAccount, cancellationToken);
+            return Result.NotFound($"Top-up request with ID '{request.TopUpRequestId.Value}' was not found.");
         }
 
-        // 3. یافتن یا ایجاد حساب سیستم (SystemAccount) جهت تراز صفر دفتر کل
-        var systemAccount = await _accountRepository.GetSystemAccountAsync(cancellationToken);
-        if (systemAccount is null)
+        // 2. If ConfirmedAmount != TopUpRequest.Amount -> Result.Failure, checked BEFORE calling Confirm().
+        if (request.ConfirmedAmount != topUp.Amount)
         {
-            systemAccount = Account.CreateSystemAccount();
-            await _accountRepository.AddAsync(systemAccount, cancellationToken);
+            return Result.Failure($"Confirmed amount ({request.ConfirmedAmount}) does not match top-up request amount ({topUp.Amount}).");
         }
 
-        // 4. ثبت دو ردیف متقارن در دفتر کل (Zero-net Double-entry ledger entries)
-        var transactionId = Guid.NewGuid();
-        var userLedgerEntry = LedgerEntry.Create(
-            userAccount.Id,
-            topUp.Amount, // بستانکار (+Amount)
-            transactionId,
-            topUp.Id.ToString());
-
-        var systemLedgerEntry = LedgerEntry.Create(
-            systemAccount.Id,
-            -topUp.Amount, // بدهکار (-Amount)
-            transactionId,
-            topUp.Id.ToString());
-
-        await _ledgerRepository.AddAsync(userLedgerEntry, cancellationToken);
-        await _ledgerRepository.AddAsync(systemLedgerEntry, cancellationToken);
-
-        // 5. به‌روزرسانی اسنپ‌شات کیف پول کاربر
-        var wallet = await _walletRepository.GetByAccountIdAsync(userAccount.Id, cancellationToken);
-        if (wallet is null)
+        // 3. Call topUpRequest.Confirm(externalTransactionId). If it returns Failure, propagate failure.
+        var wasPending = topUp.Status == TopUpStatus.Pending;
+        var confirmResult = topUp.Confirm(request.ExternalTransactionId);
+        if (confirmResult.IsFailure)
         {
-            wallet = WalletEntity.Create(userAccount.Id, topUp.UserId);
-            await _walletRepository.AddAsync(wallet, cancellationToken);
+            return confirmResult;
         }
 
-        wallet.ApplyCredit(topUp.Amount);
-        _walletRepository.Update(wallet);
-        _topUpRequestRepository.Update(topUp);
+        // 4. If Confirm() succeeds AND first-time confirmation -> write two balanced LedgerEntry records
+        if (wasPending)
+        {
+            var userAccount = await _accountRepository.GetByUserIdAsync(topUp.UserId, cancellationToken);
+            if (userAccount is null)
+            {
+                userAccount = Account.CreateUserAccount(topUp.UserId);
+                await _accountRepository.AddAsync(userAccount, cancellationToken);
+            }
 
-        // 6. ذخیره اتمیک همه تغییرات
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+            var systemAccount = await _accountRepository.GetSystemAccountAsync(cancellationToken);
+            if (systemAccount is null)
+            {
+                systemAccount = Account.CreateSystemAccount();
+                await _accountRepository.AddAsync(systemAccount, cancellationToken);
+            }
 
-        return true;
+            var transactionId = Guid.NewGuid();
+            var userLedgerEntry = LedgerEntry.Create(
+                userAccount.Id,
+                topUp.Amount, // بستانکار (+Amount)
+                transactionId,
+                topUp.Id.ToString());
+
+            var systemLedgerEntry = LedgerEntry.Create(
+                systemAccount.Id,
+                -topUp.Amount, // بدهکار (-Amount)
+                transactionId,
+                topUp.Id.ToString());
+
+            await _ledgerRepository.AddAsync(userLedgerEntry, cancellationToken);
+            await _ledgerRepository.AddAsync(systemLedgerEntry, cancellationToken);
+
+            var wallet = await _walletRepository.GetByAccountIdAsync(userAccount.Id, cancellationToken);
+            if (wallet is null)
+            {
+                wallet = WalletEntity.Create(userAccount.Id, topUp.UserId);
+                await _walletRepository.AddAsync(wallet, cancellationToken);
+            }
+
+            wallet.ApplyCredit(topUp.Amount);
+            _walletRepository.Update(wallet);
+            _topUpRequestRepository.Update(topUp);
+
+            // 6. Persist all changes in a single UnitOfWork/transaction
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+        }
+
+        // 5. If idempotent no-op (already Confirmed with same ExternalTransactionId) -> return Success without writing LedgerEntries
+        return Result.Success();
     }
 }
 

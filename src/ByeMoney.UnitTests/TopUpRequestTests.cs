@@ -47,15 +47,16 @@ public class TopUpRequestTests
     }
 
     [Fact]
-    public void Confirm_ShouldTransitionStatusToConfirmed()
+    public void Confirm_ShouldTransitionStatusToConfirmed_WhenPending()
     {
         // Arrange
         var request = TopUpRequest.Create(UserId.New(), 1000m, PaymentMethod.Gateway);
 
         // Act
-        request.Confirm("bank_ref_999");
+        var result = request.Confirm("bank_ref_999");
 
         // Assert
+        result.IsSuccess.Should().BeTrue();
         request.Status.Should().Be(TopUpStatus.Confirmed);
         request.ExternalTransactionId.Should().Be("bank_ref_999");
         request.ConfirmedAtUtc.Should().NotBeNull();
@@ -63,18 +64,50 @@ public class TopUpRequestTests
     }
 
     [Fact]
-    public void Confirm_ShouldThrowDomainException_WhenNotPending()
+    public void Confirm_ShouldReturnSuccess_WhenAlreadyConfirmedWithSameExternalTransactionId()
     {
         // Arrange
         var request = TopUpRequest.Create(UserId.New(), 1000m, PaymentMethod.Gateway);
-        request.Confirm();
+        request.Confirm("ref_123");
 
         // Act
-        var act = () => request.Confirm();
+        var result = request.Confirm("ref_123");
 
         // Assert
-        act.Should().Throw<DomainException>()
-            .WithMessage("*Only pending*");
+        result.IsSuccess.Should().BeTrue();
+        request.Status.Should().Be(TopUpStatus.Confirmed);
+        request.ExternalTransactionId.Should().Be("ref_123");
+    }
+
+    [Fact]
+    public void Confirm_ShouldReturnFailure_WhenAlreadyConfirmedWithDifferentExternalTransactionId()
+    {
+        // Arrange
+        var request = TopUpRequest.Create(UserId.New(), 1000m, PaymentMethod.Gateway);
+        request.Confirm("ref_123");
+
+        // Act
+        var result = request.Confirm("ref_456_different");
+
+        // Assert
+        result.IsFailure.Should().BeTrue();
+        request.Status.Should().Be(TopUpStatus.Confirmed);
+        request.ExternalTransactionId.Should().Be("ref_123");
+    }
+
+    [Fact]
+    public void Confirm_ShouldReturnFailure_WhenStatusIsRejected()
+    {
+        // Arrange
+        var request = TopUpRequest.Create(UserId.New(), 1000m, PaymentMethod.CardToCard);
+        request.Reject("Payment not found");
+
+        // Act
+        var result = request.Confirm("bank_ref_999");
+
+        // Assert
+        result.IsFailure.Should().BeTrue();
+        request.Status.Should().Be(TopUpStatus.Rejected);
     }
 
     [Fact]
@@ -98,7 +131,7 @@ public class TopUpRequestTests
     {
         // Arrange
         var request = TopUpRequest.Create(UserId.New(), 1000m, PaymentMethod.CardToCard);
-        request.Confirm();
+        request.Confirm("ref_123");
 
         // Act
         var act = () => request.Reject("Late rejection");

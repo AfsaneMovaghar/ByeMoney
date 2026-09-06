@@ -38,6 +38,10 @@ public class TopUpRequestConfiguration : IEntityTypeConfiguration<TopUpRequest>
             .HasMaxLength(20)
             .IsRequired();
 
+        builder.Property(t => t.ClientReferenceCode)
+            .HasMaxLength(32)
+            .IsRequired();
+
         builder.Property(t => t.ExternalTransactionId)
             .HasMaxLength(100);
 
@@ -50,6 +54,9 @@ public class TopUpRequestConfiguration : IEntityTypeConfiguration<TopUpRequest>
         builder.HasIndex(t => new { t.UserId, t.Status });
 
         builder.HasIndex(t => t.ExternalTransactionId);
+
+        builder.HasIndex(t => t.ClientReferenceCode)
+            .IsUnique();
     }
 }
 

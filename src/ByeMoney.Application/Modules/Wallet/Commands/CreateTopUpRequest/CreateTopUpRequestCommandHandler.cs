@@ -6,7 +6,7 @@ using MediatR;
 
 namespace ByeMoney.Application.Modules.Wallet.Commands.CreateTopUpRequest;
 
-public class CreateTopUpRequestCommandHandler : IRequestHandler<CreateTopUpRequestCommand, Guid>
+public class CreateTopUpRequestCommandHandler : IRequestHandler<CreateTopUpRequestCommand, CreateTopUpRequestResponse>
 {
     private readonly ITopUpRequestRepository _topUpRequestRepository;
     private readonly IUnitOfWork _unitOfWork;
@@ -19,7 +19,7 @@ public class CreateTopUpRequestCommandHandler : IRequestHandler<CreateTopUpReque
         _unitOfWork = unitOfWork;
     }
 
-    public async Task<Guid> Handle(CreateTopUpRequestCommand request, CancellationToken cancellationToken)
+    public async Task<CreateTopUpRequestResponse> Handle(CreateTopUpRequestCommand request, CancellationToken cancellationToken)
     {
         var topUp = TopUpRequest.Create(
             new UserId(request.UserId),
@@ -30,7 +30,7 @@ public class CreateTopUpRequestCommandHandler : IRequestHandler<CreateTopUpReque
         await _topUpRequestRepository.AddAsync(topUp, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        return topUp.Id.Value;
+        return new CreateTopUpRequestResponse(topUp.Id.Value, topUp.ClientReferenceCode);
     }
 }
 

@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using ByeMoney.Domain.Common;
 using ByeMoney.Domain.Common.Exceptions;
 using ByeMoney.Domain.Modules.Identity.Users;
@@ -6,9 +7,12 @@ namespace ByeMoney.Domain.Modules.Wallet.TopUps;
 
 public class TopUpRequest : BaseEntity<TopUpRequestId>
 {
+    private static readonly char[] Base32Chars = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ".ToCharArray();
+
     public UserId UserId { get; private set; }
     public decimal Amount { get; private set; }
     public PaymentMethod PaymentMethod { get; private set; }
+    public string ClientReferenceCode { get; private set; } = null!;
     public TopUpStatus Status { get; private set; }
     public string? ExternalTransactionId { get; private set; }
     public string? RejectionReason { get; private set; }
@@ -18,14 +22,24 @@ public class TopUpRequest : BaseEntity<TopUpRequestId>
 
     private TopUpRequest() { }
 
+    public static string GenerateClientReferenceCode()
+    {
+        return $"TR-{RandomNumberGenerator.GetString(Base32Chars, 8)}";
+    }
+
     public static TopUpRequest Create(
         UserId userId,
         decimal amount,
         PaymentMethod paymentMethod,
-        string? externalTransactionId = null)
+        string? externalTransactionId = null,
+        string? clientReferenceCode = null)
     {
         if (amount <= 0)
             throw new DomainException("Top-up amount must be greater than zero.");
+
+        var refCode = string.IsNullOrWhiteSpace(clientReferenceCode)
+            ? GenerateClientReferenceCode()
+            : clientReferenceCode.Trim();
 
         return new TopUpRequest
         {
@@ -33,6 +47,7 @@ public class TopUpRequest : BaseEntity<TopUpRequestId>
             UserId = userId,
             Amount = amount,
             PaymentMethod = paymentMethod,
+            ClientReferenceCode = refCode,
             Status = TopUpStatus.Pending,
             ExternalTransactionId = externalTransactionId,
             CreatedAtUtc = DateTime.UtcNow,
@@ -40,19 +55,34 @@ public class TopUpRequest : BaseEntity<TopUpRequestId>
         };
     }
 
-    public void Confirm(string? externalTransactionId = null)
+    public Result Confirm(string externalTransactionId)
     {
-        if (Status != TopUpStatus.Pending)
-            throw new DomainException($"Cannot confirm top-up request in status '{Status}'. Only pending requests can be confirmed.");
-
-        Status = TopUpStatus.Confirmed;
-        ConfirmedAtUtc = DateTime.UtcNow;
-        UpdatedAt = DateTime.UtcNow;
-
-        if (!string.IsNullOrWhiteSpace(externalTransactionId))
+        if (Status == TopUpStatus.Confirmed)
         {
-            ExternalTransactionId = externalTransactionId;
+            if (ExternalTransactionId == externalTransactionId)
+            {
+                return Result.Success();
+            }
+
+            return Result.Conflict("Top-up request is already confirmed with a different external transaction ID.");
         }
+
+        if (Status == TopUpStatus.Rejected)
+        {
+            return Result.Failure("Cannot confirm a rejected top-up request.");
+        }
+
+        if (Status == TopUpStatus.Pending)
+        {
+            Status = TopUpStatus.Confirmed;
+            ExternalTransactionId = externalTransactionId;
+            ConfirmedAtUtc = DateTime.UtcNow;
+            UpdatedAt = DateTime.UtcNow;
+
+            return Result.Success();
+        }
+
+        return Result.Failure($"Cannot confirm top-up request with status '{Status}'.");
     }
 
     public void Reject(string reason)

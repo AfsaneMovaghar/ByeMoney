@@ -1,7 +1,7 @@
 using ByeMoney.Application.Common.Interfaces;
 using ByeMoney.Application.Modules.Wallet.Commands.ConfirmTopUp;
 using ByeMoney.Application.Modules.Wallet.Interfaces;
-using ByeMoney.Domain.Common.Exceptions;
+using ByeMoney.Domain.Common;
 using ByeMoney.Domain.Modules.Identity.Users;
 using ByeMoney.Domain.Modules.Wallet.Accounts;
 using ByeMoney.Domain.Modules.Wallet.Ledgers;
@@ -17,7 +17,7 @@ namespace ByeMoney.UnitTests;
 public class ConfirmTopUpCommandHandlerTests
 {
     [Fact]
-    public async Task Handle_ShouldCreateBalancedDoubleEntryLedgerEntriesAndCreditWallet()
+    public async Task Handle_ShouldConfirmPendingRequest_AndWriteBalancedLedgerEntries_WhenFirstTimeConfirmation()
     {
         // Arrange
         var userId = UserId.New();
@@ -65,11 +65,11 @@ public class ConfirmTopUpCommandHandlerTests
 
         // Act
         var result = await handler.Handle(
-            new ConfirmTopUpCommand(topUp.Id.Value, "gateway_tx_777"),
+            new ConfirmTopUpCommand(topUp.Id, "gateway_tx_777", amount),
             CancellationToken.None);
 
         // Assert
-        result.Should().BeTrue();
+        result.IsSuccess.Should().BeTrue();
         topUp.Status.Should().Be(TopUpStatus.Confirmed);
         topUp.ExternalTransactionId.Should().Be("gateway_tx_777");
 
@@ -94,7 +94,158 @@ public class ConfirmTopUpCommandHandlerTests
     }
 
     [Fact]
-    public async Task Handle_ShouldThrowNotFoundException_WhenTopUpRequestDoesNotExist()
+    public async Task Handle_ShouldReturnSuccess_WithoutWritingNewLedgerEntries_WhenRetryWithSameExternalTransactionId()
+    {
+        // Arrange
+        var userId = UserId.New();
+        var amount = 50_000m;
+        var topUp = TopUpRequest.Create(userId, amount, PaymentMethod.Gateway);
+        topUp.Confirm("tx_idempotent_123");
+
+        var topUpRepoMock = new Mock<ITopUpRequestRepository>();
+        var accountRepoMock = new Mock<IAccountRepository>();
+        var walletRepoMock = new Mock<IWalletRepository>();
+        var ledgerRepoMock = new Mock<IRepository<LedgerEntry, LedgerEntryId>>();
+        var unitOfWorkMock = new Mock<IUnitOfWork>();
+
+        topUpRepoMock
+            .Setup(r => r.GetByIdAsync(topUp.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(topUp);
+
+        var handler = new ConfirmTopUpCommandHandler(
+            topUpRepoMock.Object,
+            accountRepoMock.Object,
+            walletRepoMock.Object,
+            ledgerRepoMock.Object,
+            unitOfWorkMock.Object);
+
+        // Act
+        var result = await handler.Handle(
+            new ConfirmTopUpCommand(topUp.Id, "tx_idempotent_123", amount),
+            CancellationToken.None);
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+        ledgerRepoMock.Verify(r => r.AddAsync(It.IsAny<LedgerEntry>(), It.IsAny<CancellationToken>()), Times.Never);
+        unitOfWorkMock.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task Handle_ShouldReturnFailure_WithoutWritingLedgerEntries_WhenRetryWithDifferentExternalTransactionId()
+    {
+        // Arrange
+        var userId = UserId.New();
+        var amount = 50_000m;
+        var topUp = TopUpRequest.Create(userId, amount, PaymentMethod.Gateway);
+        topUp.Confirm("tx_original_123");
+
+        var topUpRepoMock = new Mock<ITopUpRequestRepository>();
+        var accountRepoMock = new Mock<IAccountRepository>();
+        var walletRepoMock = new Mock<IWalletRepository>();
+        var ledgerRepoMock = new Mock<IRepository<LedgerEntry, LedgerEntryId>>();
+        var unitOfWorkMock = new Mock<IUnitOfWork>();
+
+        topUpRepoMock
+            .Setup(r => r.GetByIdAsync(topUp.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(topUp);
+
+        var handler = new ConfirmTopUpCommandHandler(
+            topUpRepoMock.Object,
+            accountRepoMock.Object,
+            walletRepoMock.Object,
+            ledgerRepoMock.Object,
+            unitOfWorkMock.Object);
+
+        // Act
+        var result = await handler.Handle(
+            new ConfirmTopUpCommand(topUp.Id, "tx_different_456", amount),
+            CancellationToken.None);
+
+        // Assert
+        result.IsFailure.Should().BeTrue();
+        result.Status.Should().Be(ResultStatus.Conflict);
+        ledgerRepoMock.Verify(r => r.AddAsync(It.IsAny<LedgerEntry>(), It.IsAny<CancellationToken>()), Times.Never);
+        unitOfWorkMock.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task Handle_ShouldReturnFailure_WithoutConfirmingOrWritingLedgerEntries_WhenConfirmedAmountMismatches()
+    {
+        // Arrange
+        var userId = UserId.New();
+        var amount = 100_000m;
+        var topUp = TopUpRequest.Create(userId, amount, PaymentMethod.Gateway);
+
+        var topUpRepoMock = new Mock<ITopUpRequestRepository>();
+        var accountRepoMock = new Mock<IAccountRepository>();
+        var walletRepoMock = new Mock<IWalletRepository>();
+        var ledgerRepoMock = new Mock<IRepository<LedgerEntry, LedgerEntryId>>();
+        var unitOfWorkMock = new Mock<IUnitOfWork>();
+
+        topUpRepoMock
+            .Setup(r => r.GetByIdAsync(topUp.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(topUp);
+
+        var handler = new ConfirmTopUpCommandHandler(
+            topUpRepoMock.Object,
+            accountRepoMock.Object,
+            walletRepoMock.Object,
+            ledgerRepoMock.Object,
+            unitOfWorkMock.Object);
+
+        // Act
+        var result = await handler.Handle(
+            new ConfirmTopUpCommand(topUp.Id, "tx_123", 50_000m), // Mismatch
+            CancellationToken.None);
+
+        // Assert
+        result.IsFailure.Should().BeTrue();
+        topUp.Status.Should().Be(TopUpStatus.Pending); // Confirm was never called
+        topUp.ExternalTransactionId.Should().BeNull();
+        ledgerRepoMock.Verify(r => r.AddAsync(It.IsAny<LedgerEntry>(), It.IsAny<CancellationToken>()), Times.Never);
+        unitOfWorkMock.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task Handle_ShouldReturnFailure_WithoutWritingLedgerEntries_WhenTopUpRequestIsRejected()
+    {
+        // Arrange
+        var userId = UserId.New();
+        var amount = 100_000m;
+        var topUp = TopUpRequest.Create(userId, amount, PaymentMethod.Gateway);
+        topUp.Reject("Invalid receipt");
+
+        var topUpRepoMock = new Mock<ITopUpRequestRepository>();
+        var accountRepoMock = new Mock<IAccountRepository>();
+        var walletRepoMock = new Mock<IWalletRepository>();
+        var ledgerRepoMock = new Mock<IRepository<LedgerEntry, LedgerEntryId>>();
+        var unitOfWorkMock = new Mock<IUnitOfWork>();
+
+        topUpRepoMock
+            .Setup(r => r.GetByIdAsync(topUp.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(topUp);
+
+        var handler = new ConfirmTopUpCommandHandler(
+            topUpRepoMock.Object,
+            accountRepoMock.Object,
+            walletRepoMock.Object,
+            ledgerRepoMock.Object,
+            unitOfWorkMock.Object);
+
+        // Act
+        var result = await handler.Handle(
+            new ConfirmTopUpCommand(topUp.Id, "tx_123", amount),
+            CancellationToken.None);
+
+        // Assert
+        result.IsFailure.Should().BeTrue();
+        topUp.Status.Should().Be(TopUpStatus.Rejected);
+        ledgerRepoMock.Verify(r => r.AddAsync(It.IsAny<LedgerEntry>(), It.IsAny<CancellationToken>()), Times.Never);
+        unitOfWorkMock.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task Handle_ShouldReturnNotFound_WhenTopUpRequestDoesNotExist()
     {
         // Arrange
         var topUpRepoMock = new Mock<ITopUpRequestRepository>();
@@ -115,12 +266,15 @@ public class ConfirmTopUpCommandHandlerTests
             unitOfWorkMock.Object);
 
         // Act
-        var act = () => handler.Handle(
-            new ConfirmTopUpCommand(Guid.NewGuid()),
+        var result = await handler.Handle(
+            new ConfirmTopUpCommand(TopUpRequestId.New(), "tx_123", 100_000m),
             CancellationToken.None);
 
         // Assert
-        await act.Should().ThrowAsync<NotFoundException>();
+        result.IsFailure.Should().BeTrue();
+        result.Status.Should().Be(ResultStatus.NotFound);
+        ledgerRepoMock.Verify(r => r.AddAsync(It.IsAny<LedgerEntry>(), It.IsAny<CancellationToken>()), Times.Never);
+        unitOfWorkMock.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
     }
 }
 

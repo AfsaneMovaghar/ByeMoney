@@ -7,5 +7,5 @@ public record CreateTopUpRequestCommand(
     Guid UserId,
     decimal Amount,
     PaymentMethod PaymentMethod,
-    string? ExternalTransactionId = null) : IRequest<Guid>;
+    string? ExternalTransactionId = null) : IRequest<CreateTopUpRequestResponse>;
 
