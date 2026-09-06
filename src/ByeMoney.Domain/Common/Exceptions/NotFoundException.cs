@@ -1,8 +1,10 @@
-﻿namespace ByeMoney.Domain.Common.Exceptions;
+using ByeMoney.Domain.Resources;
+
+namespace ByeMoney.Domain.Common.Exceptions;
 
 public class NotFoundException : Exception
 {
     public NotFoundException(string entityName, object key) :
-        base($"«{entityName}» با شناسهٔ «{key}» یافت نشد.")
+        base(string.Format(DomainErrors.Common_NotFound, entityName, key))
     { }
 }

@@ -1,6 +1,6 @@
 using ByeMoney.Domain.Common;
-using ByeMoney.Domain.Common._Resources;
 using ByeMoney.Domain.Common.Exceptions;
+using ByeMoney.Domain.Resources;
 namespace ByeMoney.Domain.Modules.Identity.Users;
 
 public class User : BaseEntity<UserId>
@@ -19,7 +19,7 @@ public class User : BaseEntity<UserId>
     public static User Create(int strapiUserId, string displayName, string phone, string role,UserType userType)
     {
         if (string.IsNullOrWhiteSpace(displayName))
-            throw new DomainException(DomainMessages.UserDisplayNameRequired);
+            throw new DomainException(DomainErrors.User_DisplayNameRequired);
         return new User
         {
             Id = UserId.New(),

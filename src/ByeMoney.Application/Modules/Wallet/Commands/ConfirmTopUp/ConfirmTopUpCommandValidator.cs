@@ -1,3 +1,4 @@
+using ByeMoney.Application.Resources;
 using FluentValidation;
 
 namespace ByeMoney.Application.Modules.Wallet.Commands.ConfirmTopUp;
@@ -8,15 +9,15 @@ public class ConfirmTopUpCommandValidator : AbstractValidator<ConfirmTopUpComman
     {
         RuleFor(x => x.TopUpRequestId.Value)
             .NotEmpty()
-            .WithMessage("شناسه درخواست افزایش موجودی الزامی است.");
+            .WithMessage(ApplicationErrors.TopUpRequest_IdRequired);
 
         RuleFor(x => x.ExternalTransactionId)
             .NotEmpty()
-            .WithMessage("شناسه تراکنش خارجی الزامی است.");
+            .WithMessage(ApplicationErrors.TopUpRequest_ExternalTransactionIdRequired);
 
         RuleFor(x => x.ConfirmedAmount)
             .GreaterThan(0)
-            .WithMessage("مبلغ تأیید شده باید بزرگتر از صفر باشد.");
+            .WithMessage(ApplicationErrors.TopUpRequest_ConfirmedAmountMustBeGreaterThanZero);
     }
 }
 

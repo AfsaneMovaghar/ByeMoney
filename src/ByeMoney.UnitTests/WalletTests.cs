@@ -54,7 +54,7 @@ public class WalletTests
 
         // Assert
         act.Should().Throw<DomainException>()
-            .WithMessage("*greater than zero*");
+            .WithMessage("*بزرگتر از صفر*");
     }
 
     [Fact]
@@ -83,7 +83,7 @@ public class WalletTests
 
         // Assert
         act.Should().Throw<DomainException>()
-            .WithMessage("*Insufficient*");
+            .WithMessage("*کافی نیست*");
     }
 }
 

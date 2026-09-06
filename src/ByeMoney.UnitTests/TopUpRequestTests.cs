@@ -43,7 +43,7 @@ public class TopUpRequestTests
 
         // Assert
         act.Should().Throw<DomainException>()
-            .WithMessage("*greater than zero*");
+            .WithMessage("*بزرگتر از صفر*");
     }
 
     [Fact]
@@ -138,7 +138,7 @@ public class TopUpRequestTests
 
         // Assert
         act.Should().Throw<DomainException>()
-            .WithMessage("*Only pending*");
+            .WithMessage("*در انتظار*");
     }
 }
 

@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly">
+            <xsd:complexType>
+              <xsd:attribute name="alias" type="xsd:string" />
+              <xsd:attribute name="name" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="0" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="TopUpRequest_AmountMismatch" xml:space="preserve">
+    <value>مبلغ تأیید شده ({0}) با مبلغ درخواست افزایش موجودی ({1}) مطابقت ندارد.</value>
+  </data>
+  <data name="TopUpRequest_AmountMustBeGreaterThanZero" xml:space="preserve">
+    <value>مبلغ افزایش موجودی باید بزرگتر از صفر باشد.</value>
+  </data>
+  <data name="TopUpRequest_ConfirmedAmountMustBeGreaterThanZero" xml:space="preserve">
+    <value>مبلغ تأیید شده باید بزرگتر از صفر باشد.</value>
+  </data>
+  <data name="TopUpRequest_ExternalTransactionIdRequired" xml:space="preserve">
+    <value>شناسه تراکنش خارجی الزامی است.</value>
+  </data>
+  <data name="TopUpRequest_IdRequired" xml:space="preserve">
+    <value>شناسه درخواست افزایش موجودی الزامی است.</value>
+  </data>
+  <data name="TopUpRequest_NotFound" xml:space="preserve">
+    <value>درخواست افزایش موجودی با شناسه «{0}» یافت نشد.</value>
+  </data>
+  <data name="TopUpRequest_PaymentMethodInvalid" xml:space="preserve">
+    <value>روش پرداخت نامعتبر است.</value>
+  </data>
+  <data name="TopUpRequest_RejectionReasonRequired" xml:space="preserve">
+    <value>دلیل رد درخواست الزامی است.</value>
+  </data>
+  <data name="TopUpRequest_UserIdRequired" xml:space="preserve">
+    <value>شناسه کاربر الزامی است.</value>
+  </data>
+  <data name="User_DisplayNameMaxLength" xml:space="preserve">
+    <value>نام کاربر نباید بیشتر از ۱۰۰ کاراکتر باشد.</value>
+  </data>
+  <data name="User_DisplayNameRequired" xml:space="preserve">
+    <value>نام کاربر الزامی است.</value>
+  </data>
+  <data name="User_PhoneInvalidFormat" xml:space="preserve">
+    <value>شماره موبایل معتبر نیست.</value>
+  </data>
+  <data name="User_PhoneRequired" xml:space="preserve">
+    <value>شماره موبایل الزامی است.</value>
+  </data>
+  <data name="User_RoleRequired" xml:space="preserve">
+    <value>نقش کاربر الزامی است.</value>
+  </data>
+  <data name="User_StrapiIdAlreadyExists" xml:space="preserve">
+    <value>کاربری با این شناسه Strapi قبلاً ثبت شده است.</value>
+  </data>
+  <data name="User_StrapiUserIdInvalid" xml:space="preserve">
+    <value>شناسه کاربر Strapi باید بزرگتر از صفر باشد.</value>
+  </data>
+  <data name="User_UserTypeInvalid" xml:space="preserve">
+    <value>نوع کاربر نامعتبر است.</value>
+  </data>
+  <data name="Wallet_UserIdRequired" xml:space="preserve">
+    <value>شناسه کاربر الزامی است.</value>
+  </data>
+</root>

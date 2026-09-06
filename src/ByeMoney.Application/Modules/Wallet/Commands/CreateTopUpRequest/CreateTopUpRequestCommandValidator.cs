@@ -1,3 +1,4 @@
+using ByeMoney.Application.Resources;
 using FluentValidation;
 
 namespace ByeMoney.Application.Modules.Wallet.Commands.CreateTopUpRequest;
@@ -8,15 +9,15 @@ public class CreateTopUpRequestCommandValidator : AbstractValidator<CreateTopUpR
     {
         RuleFor(x => x.UserId)
             .NotEmpty()
-            .WithMessage("شناسه کاربر الزامی است.");
+            .WithMessage(ApplicationErrors.TopUpRequest_UserIdRequired);
 
         RuleFor(x => x.Amount)
             .GreaterThan(0)
-            .WithMessage("مبلغ افزایش موجودی باید بزرگتر از صفر باشد.");
+            .WithMessage(ApplicationErrors.TopUpRequest_AmountMustBeGreaterThanZero);
 
         RuleFor(x => x.PaymentMethod)
             .IsInEnum()
-            .WithMessage("روش پرداخت نامعتبر است.");
+            .WithMessage(ApplicationErrors.TopUpRequest_PaymentMethodInvalid);
     }
 }
 

@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using ByeMoney.Domain.Common;
 using ByeMoney.Domain.Common.Exceptions;
 using ByeMoney.Domain.Modules.Identity.Users;
+using ByeMoney.Domain.Resources;
 
 namespace ByeMoney.Domain.Modules.Wallet.TopUps;
 
@@ -35,7 +36,7 @@ public class TopUpRequest : BaseEntity<TopUpRequestId>
         string? clientReferenceCode = null)
     {
         if (amount <= 0)
-            throw new DomainException("Top-up amount must be greater than zero.");
+            throw new DomainException(DomainErrors.TopUpRequest_AmountMustBeGreaterThanZero);
 
         var refCode = string.IsNullOrWhiteSpace(clientReferenceCode)
             ? GenerateClientReferenceCode()
@@ -64,12 +65,12 @@ public class TopUpRequest : BaseEntity<TopUpRequestId>
                 return Result.Success();
             }
 
-            return Result.Conflict("Top-up request is already confirmed with a different external transaction ID.");
+            return Result.Conflict(DomainErrors.TopUpRequest_AlreadyConfirmedDifferentExternalId);
         }
 
         if (Status == TopUpStatus.Rejected)
         {
-            return Result.Failure("Cannot confirm a rejected top-up request.");
+            return Result.Failure(DomainErrors.TopUpRequest_CannotConfirmRejected);
         }
 
         if (Status == TopUpStatus.Pending)
@@ -82,16 +83,16 @@ public class TopUpRequest : BaseEntity<TopUpRequestId>
             return Result.Success();
         }
 
-        return Result.Failure($"Cannot confirm top-up request with status '{Status}'.");
+        return Result.Failure(string.Format(DomainErrors.TopUpRequest_CannotConfirmStatus, Status));
     }
 
     public void Reject(string reason)
     {
         if (Status != TopUpStatus.Pending)
-            throw new DomainException($"Cannot reject top-up request in status '{Status}'. Only pending requests can be rejected.");
+            throw new DomainException(string.Format(DomainErrors.TopUpRequest_CannotRejectStatus, Status));
 
         if (string.IsNullOrWhiteSpace(reason))
-            throw new DomainException("Rejection reason is required.");
+            throw new DomainException(DomainErrors.TopUpRequest_RejectionReasonRequired);
 
         Status = TopUpStatus.Rejected;
         RejectionReason = reason;

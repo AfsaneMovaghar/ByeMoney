@@ -1,6 +1,6 @@
-﻿
+
 using ByeMoney.Application.Modules.Identity.Users.Interface;
-using ByeMoney.Domain.Common._Resources;
+using ByeMoney.Application.Resources;
 using FluentValidation;
 
 namespace ByeMoney.Application.Modules.Identity.Users.Commands.CreateUser;
@@ -15,31 +15,31 @@ public class CreateUserCommandValidator : AbstractValidator<CreateUserCommand>
 
         RuleFor(x => x.StrapiUserId)
             .GreaterThan(0)
-            .WithMessage(ValidationMessages.StrapiUserIdInvalid);
+            .WithMessage(ApplicationErrors.User_StrapiUserIdInvalid);
 
         RuleFor(x => x.DisplayName)
             .NotEmpty()
-            .WithMessage(ValidationMessages.DisplayNameRequired)
+            .WithMessage(ApplicationErrors.User_DisplayNameRequired)
             .MaximumLength(100)
-            .WithMessage(ValidationMessages.DisplayNameMaxLength);
+            .WithMessage(ApplicationErrors.User_DisplayNameMaxLength);
 
         RuleFor(x => x.Phone)
             .NotEmpty()
-            .WithMessage(ValidationMessages.PhoneRequired)
+            .WithMessage(ApplicationErrors.User_PhoneRequired)
             .Matches(@"^09\d{9}$")
-            .WithMessage(ValidationMessages.PhoneInvalidFormat);
+            .WithMessage(ApplicationErrors.User_PhoneInvalidFormat);
 
         RuleFor(x => x.Role)
             .NotEmpty()
-            .WithMessage(ValidationMessages.RoleRequired);
+            .WithMessage(ApplicationErrors.User_RoleRequired);
 
         RuleFor(x => x.UserType)
             .IsInEnum()
-            .WithMessage(ValidationMessages.UserTypeInvalid);
+            .WithMessage(ApplicationErrors.User_UserTypeInvalid);
 
         RuleFor(x => x.StrapiUserId)
             .MustAsync(BeUniqueStrapiId)
-            .WithMessage(ValidationMessages.StrapiIdAlreadyExists)
+            .WithMessage(ApplicationErrors.User_StrapiIdAlreadyExists)
             .WhenAsync((command, ct) => Task.FromResult(command.StrapiUserId > 0));
     }
 

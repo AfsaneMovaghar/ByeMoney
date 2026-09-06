@@ -2,6 +2,7 @@ using ByeMoney.Domain.Common;
 using ByeMoney.Domain.Common.Exceptions;
 using ByeMoney.Domain.Modules.Identity.Users;
 using ByeMoney.Domain.Modules.Wallet.Accounts;
+using ByeMoney.Domain.Resources;
 
 namespace ByeMoney.Domain.Modules.Wallet.Wallets;
 
@@ -30,7 +31,7 @@ public class Wallet : BaseEntity<WalletId>
     public void ApplyCredit(decimal amount)
     {
         if (amount <= 0)
-            throw new DomainException("Credit amount must be greater than zero.");
+            throw new DomainException(DomainErrors.Wallet_CreditMustBeGreaterThanZero);
 
         Balance += amount;
         LastUpdatedAtUtc = DateTime.UtcNow;
@@ -40,10 +41,10 @@ public class Wallet : BaseEntity<WalletId>
     public void ApplyDebit(decimal amount)
     {
         if (amount <= 0)
-            throw new DomainException("Debit amount must be greater than zero.");
+            throw new DomainException(DomainErrors.Wallet_DebitMustBeGreaterThanZero);
 
         if (Balance < amount)
-            throw new DomainException("Insufficient wallet balance.");
+            throw new DomainException(DomainErrors.Wallet_InsufficientBalance);
 
         Balance -= amount;
         LastUpdatedAtUtc = DateTime.UtcNow;

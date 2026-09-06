@@ -1,4 +1,4 @@
-using ByeMoney.Domain.Common._Resources;
+using ByeMoney.Application.Resources;
 using FluentValidation;
 
 namespace ByeMoney.Application.Modules.Identity.Users.Commands.SyncUserFromStrapi;
@@ -9,6 +9,6 @@ public class SyncUserFromStrapiCommandValidator : AbstractValidator<SyncUserFrom
     {
         RuleFor(x => x.StrapiUserId)
             .GreaterThan(0)
-            .WithMessage(ValidationMessages.StrapiUserIdInvalid);
+            .WithMessage(ApplicationErrors.User_StrapiUserIdInvalid);
     }
 }

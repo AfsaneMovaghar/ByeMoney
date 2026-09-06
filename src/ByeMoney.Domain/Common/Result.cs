@@ -1,3 +1,5 @@
+using ByeMoney.Domain.Resources;
+
 namespace ByeMoney.Domain.Common;
 
 public enum ResultStatus
@@ -24,7 +26,7 @@ public class Result
 
     public static Result Success() => new(true, null, ResultStatus.Success);
     public static Result Failure(string errorMessage) => new(false, errorMessage, ResultStatus.Failure);
-    public static Result NotFound(string errorMessage = "Entity not found.") => new(false, errorMessage, ResultStatus.NotFound);
+    public static Result NotFound(string? errorMessage = null) => new(false, errorMessage ?? DomainErrors.Common_EntityNotFound, ResultStatus.NotFound);
     public static Result Conflict(string errorMessage) => new(false, errorMessage, ResultStatus.Conflict);
 }
 

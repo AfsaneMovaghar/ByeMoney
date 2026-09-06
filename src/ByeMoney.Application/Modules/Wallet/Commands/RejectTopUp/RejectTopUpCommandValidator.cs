@@ -1,3 +1,4 @@
+using ByeMoney.Application.Resources;
 using FluentValidation;
 
 namespace ByeMoney.Application.Modules.Wallet.Commands.RejectTopUp;
@@ -8,11 +9,11 @@ public class RejectTopUpCommandValidator : AbstractValidator<RejectTopUpCommand>
     {
         RuleFor(x => x.TopUpRequestId)
             .NotEmpty()
-            .WithMessage("شناسه درخواست افزایش موجودی الزامی است.");
+            .WithMessage(ApplicationErrors.TopUpRequest_IdRequired);
 
         RuleFor(x => x.Reason)
             .NotEmpty()
-            .WithMessage("دلیل رد درخواست الزامی است.");
+            .WithMessage(ApplicationErrors.TopUpRequest_RejectionReasonRequired);
     }
 }
 

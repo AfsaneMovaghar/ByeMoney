@@ -1,5 +1,6 @@
-﻿using System.Net;
+using System.Net;
 using System.Text.Json;
+using ByeMoney.API.Resources;
 using ByeMoney.Domain.Common.Exceptions;
 using FluentValidation;
 
@@ -38,23 +39,23 @@ public class GlobalExceptionHandlingMiddleware
         {
             ValidationException validationEx => (
                 HttpStatusCode.BadRequest,
-                "خطای اعتبارسنجی",
+                ApiErrors.Middleware_ValidationErrorTitle,
                 validationEx.Errors.Select(e => e.ErrorMessage).ToList()
             ),
             NotFoundException notFoundEx => (
                 HttpStatusCode.NotFound,
-                "یافت نشد",
+                ApiErrors.Middleware_NotFoundTitle,
                 new List<string> { notFoundEx.Message }
             ),
             DomainException domainEx => (
                 HttpStatusCode.BadRequest,
-                "خطای قانون کسب‌وکار",
+                ApiErrors.Middleware_BusinessRuleViolationTitle,
                 new List<string> { domainEx.Message }
             ),
             _ => (
                 HttpStatusCode.InternalServerError,
-                "خطای داخلی سرور",
-                new List<string> { "خطایی غیرمنتظره رخ داد." }
+                ApiErrors.Middleware_InternalServerErrorTitle,
+                new List<string> { ApiErrors.Middleware_UnexpectedErrorMessage }
             )
         };
 

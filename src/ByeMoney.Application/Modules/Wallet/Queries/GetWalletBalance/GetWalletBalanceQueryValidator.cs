@@ -1,3 +1,4 @@
+using ByeMoney.Application.Resources;
 using FluentValidation;
 
 namespace ByeMoney.Application.Modules.Wallet.Queries.GetWalletBalance;
@@ -8,7 +9,7 @@ public class GetWalletBalanceQueryValidator : AbstractValidator<GetWalletBalance
     {
         RuleFor(x => x.UserId)
             .NotEmpty()
-            .WithMessage("شناسه کاربر الزامی است.");
+            .WithMessage(ApplicationErrors.Wallet_UserIdRequired);
     }
 }
 

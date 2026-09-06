@@ -1,3 +1,4 @@
+using ByeMoney.API.Resources;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
@@ -14,7 +15,7 @@ public static class DependencyInjection
         var strapiJwtSecret = configuration["Strapi:JwtSecret"];
         if (string.IsNullOrEmpty(strapiJwtSecret))
         {
-            throw new InvalidOperationException("Strapi JWT Secret is missing from configuration. Please set 'Strapi:JwtSecret'.");
+            throw new InvalidOperationException(ApiErrors.Auth_JwtSecretMissing);
         }
 
         services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)

@@ -1,5 +1,6 @@
 using ByeMoney.Application.Common.Interfaces;
 using ByeMoney.Application.Modules.Wallet.Interfaces;
+using ByeMoney.Application.Resources;
 using ByeMoney.Domain.Common;
 using ByeMoney.Domain.Modules.Wallet.Accounts;
 using ByeMoney.Domain.Modules.Wallet.Ledgers;
@@ -37,13 +38,13 @@ public class ConfirmTopUpCommandHandler : IRequestHandler<ConfirmTopUpCommand, R
         var topUp = await _topUpRequestRepository.GetByIdAsync(request.TopUpRequestId, cancellationToken);
         if (topUp is null)
         {
-            return Result.NotFound($"Top-up request with ID '{request.TopUpRequestId.Value}' was not found.");
+            return Result.NotFound(string.Format(ApplicationErrors.TopUpRequest_NotFound, request.TopUpRequestId.Value));
         }
 
         // 2. If ConfirmedAmount != TopUpRequest.Amount -> Result.Failure, checked BEFORE calling Confirm().
         if (request.ConfirmedAmount != topUp.Amount)
         {
-            return Result.Failure($"Confirmed amount ({request.ConfirmedAmount}) does not match top-up request amount ({topUp.Amount}).");
+            return Result.Failure(string.Format(ApplicationErrors.TopUpRequest_AmountMismatch, request.ConfirmedAmount, topUp.Amount));
         }
 
         // 3. Call topUpRequest.Confirm(externalTransactionId). If it returns Failure, propagate failure.

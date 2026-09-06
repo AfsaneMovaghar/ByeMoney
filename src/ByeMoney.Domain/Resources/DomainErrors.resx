@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly">
+            <xsd:complexType>
+              <xsd:attribute name="alias" type="xsd:string" />
+              <xsd:attribute name="name" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="0" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="Common_EntityNotFound" xml:space="preserve">
+    <value>موجودیت مورد نظر یافت نشد.</value>
+  </data>
+  <data name="Common_NotFound" xml:space="preserve">
+    <value>«{0}» با شناسهٔ «{1}» یافت نشد.</value>
+  </data>
+  <data name="TopUpRequest_AlreadyConfirmedDifferentExternalId" xml:space="preserve">
+    <value>درخواست افزایش موجودی قبلاً با شناسه تراکنش خارجی متفاوتی تأیید شده است.</value>
+  </data>
+  <data name="TopUpRequest_AmountMustBeGreaterThanZero" xml:space="preserve">
+    <value>مبلغ افزایش موجودی باید بزرگتر از صفر باشد.</value>
+  </data>
+  <data name="TopUpRequest_CannotConfirmRejected" xml:space="preserve">
+    <value>امکان تأیید درخواست افزایش موجودی ردشده وجود ندارد.</value>
+  </data>
+  <data name="TopUpRequest_CannotConfirmStatus" xml:space="preserve">
+    <value>امکان تأیید درخواست افزایش موجودی با وضعیت «{0}» وجود ندارد.</value>
+  </data>
+  <data name="TopUpRequest_CannotRejectStatus" xml:space="preserve">
+    <value>امکان رد درخواست افزایش موجودی در وضعیت «{0}» وجود ندارد. تنها درخواست‌های در انتظار قابل رد شدن هستند.</value>
+  </data>
+  <data name="TopUpRequest_RejectionReasonRequired" xml:space="preserve">
+    <value>دلیل رد درخواست الزامی است.</value>
+  </data>
+  <data name="User_DisplayNameRequired" xml:space="preserve">
+    <value>نام کاربر نمی‌تواند خالی باشد.</value>
+  </data>
+  <data name="User_PhoneRequired" xml:space="preserve">
+    <value>شماره موبایل نمی‌تواند خالی باشد.</value>
+  </data>
+  <data name="User_StrapiInvalid" xml:space="preserve">
+    <value>شناسه کاربر Strapi نامعتبر است.</value>
+  </data>
+  <data name="Wallet_CreditMustBeGreaterThanZero" xml:space="preserve">
+    <value>مبلغ افزایش اعتبار باید بزرگتر از صفر باشد.</value>
+  </data>
+  <data name="Wallet_DebitMustBeGreaterThanZero" xml:space="preserve">
+    <value>مبلغ کسر اعتبار باید بزرگتر از صفر باشد.</value>
+  </data>
+  <data name="Wallet_InsufficientBalance" xml:space="preserve">
+    <value>موجودی کیف پول کافی نیست.</value>
+  </data>
+</root>
