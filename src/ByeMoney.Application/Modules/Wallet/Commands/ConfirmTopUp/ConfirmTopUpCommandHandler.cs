@@ -42,7 +42,6 @@ public class ConfirmTopUpCommandHandler : IRequestHandler<ConfirmTopUpCommand, R
             return Result.NotFound(string.Format(ApplicationErrors.TopUpRequest_NotFound, request.TopUpRequestId.Value));
         }
 
-        // If ConfirmedAmount != TopUpRequest.Amount -> Result.Failure, checked BEFORE calling Confirm().
         if (request.ConfirmedAmount != topUp.Amount)
         {
             return Result.Failure(string.Format(ApplicationErrors.TopUpRequest_AmountMismatch, request.ConfirmedAmount, topUp.Amount));
