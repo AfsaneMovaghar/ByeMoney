@@ -33,6 +33,20 @@ Always give explanations, plan descriptions, and comments in **Persian**. Code i
 - Cross-entity uniqueness checks belong in the Validator via `MustAsync`, placed after cheaper rules — never duplicated in the Handler.
 - For `.resx` resources, use Visual Studio's built-in resource designer/code generation rather than hand-editing the XML.
 
+## Handler Design Rules:
+
+Handlers must follow SOLID principles, especially Single Responsibility.
+Handlers must not become bloated. If a handler contains substantial logic (e.g., multiple validation steps, calculations, or multi-step orchestration), that logic should be extracted into small, clearly named private methods within the same handler class.
+The main Handle() method should read like a high-level list of steps, not a place where implementation details live.
+If logic is duplicated across multiple handlers (not just within one), it must be extracted into a shared Service or Helper class — never copy-pasted.
+Private methods should each have a single clear responsibility (e.g., ValidateBusinessRulesAsync, BuildLedgerEntries, MapToResponse).
+
+## Existence / Duplicate Checks Belong in Validators:
+
+Any check whose sole purpose is confirming a record exists or does not exist (e.g., preventing duplicate insertion, verifying a referenced Id is valid) — and where the result is not used for further processing beyond pass/fail — must be implemented in the corresponding FluentValidation validator using MustAsync, not in the Handler.
+This applies specifically to checks that only query the database to answer a yes/no validation question, without fetching the record for reuse afterward in a subsequent operation. If the handler actually needs to load and act on the record it just checked, plain validation is not enough — fetch it once in the Handler and act on it there.
+Rationale: keeps Handlers focused on orchestration/business logic, keeps input/business-rule validation centralized and testable in Validators, and avoids duplicate database round-trips for the same check.
+
 ## Phase-one scope discipline
 
 Do not introduce infrastructure, abstractions, or generalization that is only justified by "we may need it later." If you're tempted to add something for future-proofing, flag it explicitly as "Not needed right now — [reason]" instead of adding it. Always implement the smallest thing that satisfies the current use case.

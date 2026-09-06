@@ -2,6 +2,7 @@ using ByeMoney.Application.Common.Interfaces;
 using ByeMoney.Application.Modules.Wallet.Interfaces;
 using ByeMoney.Application.Resources;
 using ByeMoney.Domain.Common;
+using ByeMoney.Domain.Modules.Identity.Users;
 using ByeMoney.Domain.Modules.Wallet.Accounts;
 using ByeMoney.Domain.Modules.Wallet.Ledgers;
 using ByeMoney.Domain.Modules.Wallet.TopUps;
@@ -41,13 +42,12 @@ public class ConfirmTopUpCommandHandler : IRequestHandler<ConfirmTopUpCommand, R
             return Result.NotFound(string.Format(ApplicationErrors.TopUpRequest_NotFound, request.TopUpRequestId.Value));
         }
 
-        // 2. If ConfirmedAmount != TopUpRequest.Amount -> Result.Failure, checked BEFORE calling Confirm().
+        // If ConfirmedAmount != TopUpRequest.Amount -> Result.Failure, checked BEFORE calling Confirm().
         if (request.ConfirmedAmount != topUp.Amount)
         {
             return Result.Failure(string.Format(ApplicationErrors.TopUpRequest_AmountMismatch, request.ConfirmedAmount, topUp.Amount));
         }
 
-        // 3. Call topUpRequest.Confirm(externalTransactionId). If it returns Failure, propagate failure.
         var wasPending = topUp.Status == TopUpStatus.Pending;
         var confirmResult = topUp.Confirm(request.ExternalTransactionId);
         if (confirmResult.IsFailure)
@@ -55,56 +55,92 @@ public class ConfirmTopUpCommandHandler : IRequestHandler<ConfirmTopUpCommand, R
             return confirmResult;
         }
 
-        // 4. If Confirm() succeeds AND first-time confirmation -> write two balanced LedgerEntry records
+        // If Confirm() succeeds AND first-time confirmation -> write two balanced LedgerEntry records & credit wallet
         if (wasPending)
         {
-            var userAccount = await _accountRepository.GetByUserIdAsync(topUp.UserId, cancellationToken);
-            if (userAccount is null)
-            {
-                userAccount = Account.CreateUserAccount(topUp.UserId);
-                await _accountRepository.AddAsync(userAccount, cancellationToken);
-            }
-
-            var systemAccount = await _accountRepository.GetSystemAccountAsync(cancellationToken);
-            if (systemAccount is null)
-            {
-                systemAccount = Account.CreateSystemAccount();
-                await _accountRepository.AddAsync(systemAccount, cancellationToken);
-            }
-
-            var transactionId = Guid.NewGuid();
-            var userLedgerEntry = LedgerEntry.Create(
-                userAccount.Id,
-                topUp.Amount, // بستانکار (+Amount)
-                transactionId,
-                topUp.Id.ToString());
-
-            var systemLedgerEntry = LedgerEntry.Create(
-                systemAccount.Id,
-                -topUp.Amount, // بدهکار (-Amount)
-                transactionId,
-                topUp.Id.ToString());
-
-            await _ledgerRepository.AddAsync(userLedgerEntry, cancellationToken);
-            await _ledgerRepository.AddAsync(systemLedgerEntry, cancellationToken);
-
-            var wallet = await _walletRepository.GetByAccountIdAsync(userAccount.Id, cancellationToken);
-            if (wallet is null)
-            {
-                wallet = WalletEntity.Create(userAccount.Id, topUp.UserId);
-                await _walletRepository.AddAsync(wallet, cancellationToken);
-            }
-
-            wallet.ApplyCredit(topUp.Amount);
-            _walletRepository.Update(wallet);
-            _topUpRequestRepository.Update(topUp);
-
-            // 6. Persist all changes in a single UnitOfWork/transaction
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await ProcessFirstTimeConfirmationAsync(topUp, cancellationToken);
         }
 
-        // 5. If idempotent no-op (already Confirmed with same ExternalTransactionId) -> return Success without writing LedgerEntries
+        // If idempotent no-op (already Confirmed with same ExternalTransactionId) -> return Success without writing LedgerEntries
         return Result.Success();
+    }
+
+    private async Task ProcessFirstTimeConfirmationAsync(TopUpRequest topUp, CancellationToken cancellationToken)
+    {
+        var userAccount = await GetOrCreateUserAccountAsync(topUp.UserId, cancellationToken);
+        var systemAccount = await GetOrCreateSystemAccountAsync(cancellationToken);
+
+        await RecordBalancedLedgerEntriesAsync(userAccount.Id, systemAccount.Id, topUp, cancellationToken);
+        await CreditUserWalletAsync(userAccount.Id, topUp.UserId, topUp.Amount, cancellationToken);
+
+        _topUpRequestRepository.Update(topUp);
+
+        // Persist all changes in a single UnitOfWork/transaction
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+    }
+
+    private async Task<Account> GetOrCreateUserAccountAsync(UserId userId, CancellationToken cancellationToken)
+    {
+        var userAccount = await _accountRepository.GetByUserIdAsync(userId, cancellationToken);
+        if (userAccount is null)
+        {
+            userAccount = Account.CreateUserAccount(userId);
+            await _accountRepository.AddAsync(userAccount, cancellationToken);
+        }
+
+        return userAccount;
+    }
+
+    private async Task<Account> GetOrCreateSystemAccountAsync(CancellationToken cancellationToken)
+    {
+        var systemAccount = await _accountRepository.GetSystemAccountAsync(cancellationToken);
+        if (systemAccount is null)
+        {
+            systemAccount = Account.CreateSystemAccount();
+            await _accountRepository.AddAsync(systemAccount, cancellationToken);
+        }
+
+        return systemAccount;
+    }
+
+    private async Task RecordBalancedLedgerEntriesAsync(
+        AccountId userAccountId,
+        AccountId systemAccountId,
+        TopUpRequest topUp,
+        CancellationToken cancellationToken)
+    {
+        var transactionId = Guid.NewGuid();
+        var userLedgerEntry = LedgerEntry.Create(
+            userAccountId,
+            topUp.Amount, // بستانکار (+Amount)
+            transactionId,
+            topUp.Id.ToString());
+
+        var systemLedgerEntry = LedgerEntry.Create(
+            systemAccountId,
+            -topUp.Amount, // بدهکار (-Amount)
+            transactionId,
+            topUp.Id.ToString());
+
+        await _ledgerRepository.AddAsync(userLedgerEntry, cancellationToken);
+        await _ledgerRepository.AddAsync(systemLedgerEntry, cancellationToken);
+    }
+
+    private async Task CreditUserWalletAsync(
+        AccountId accountId,
+        UserId userId,
+        decimal amount,
+        CancellationToken cancellationToken)
+    {
+        var wallet = await _walletRepository.GetByAccountIdAsync(accountId, cancellationToken);
+        if (wallet is null)
+        {
+            wallet = WalletEntity.Create(accountId, userId);
+            await _walletRepository.AddAsync(wallet, cancellationToken);
+        }
+
+        wallet.ApplyCredit(amount);
+        _walletRepository.Update(wallet);
     }
 }
 
