@@ -2,12 +2,9 @@ using MediatR;
 
 namespace ByeMoney.Application.Modules.Wallet.Queries.GetWalletBalance;
 
-public record WalletBalanceDto(
-    Guid WalletId,
-    Guid AccountId,
-    Guid UserId,
+public record WalletBalanceResponse(
     decimal Balance,
-    DateTime LastUpdatedAtUtc);
+    string Currency = "Noor");
 
-public record GetWalletBalanceQuery(Guid UserId) : IRequest<WalletBalanceDto?>;
+public record GetWalletBalanceQuery : IRequest<WalletBalanceResponse>;
 

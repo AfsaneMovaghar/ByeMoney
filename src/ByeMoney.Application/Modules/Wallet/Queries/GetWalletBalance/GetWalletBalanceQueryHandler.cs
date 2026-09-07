@@ -1,30 +1,38 @@
+using ByeMoney.Application.Common.Interfaces;
 using ByeMoney.Application.Modules.Wallet.Interfaces;
 using ByeMoney.Domain.Modules.Identity.Users;
 using MediatR;
 
 namespace ByeMoney.Application.Modules.Wallet.Queries.GetWalletBalance;
 
-public class GetWalletBalanceQueryHandler : IRequestHandler<GetWalletBalanceQuery, WalletBalanceDto?>
+public class GetWalletBalanceQueryHandler : IRequestHandler<GetWalletBalanceQuery, WalletBalanceResponse>
 {
     private readonly IWalletRepository _walletRepository;
+    private readonly ICurrentUserService _currentUserService;
 
-    public GetWalletBalanceQueryHandler(IWalletRepository walletRepository)
+    public GetWalletBalanceQueryHandler(
+        IWalletRepository walletRepository,
+        ICurrentUserService currentUserService)
     {
         _walletRepository = walletRepository;
+        _currentUserService = currentUserService;
     }
 
-    public async Task<WalletBalanceDto?> Handle(GetWalletBalanceQuery request, CancellationToken cancellationToken)
+    public async Task<WalletBalanceResponse> Handle(GetWalletBalanceQuery request, CancellationToken cancellationToken)
     {
-        var wallet = await _walletRepository.GetByUserIdAsync(new UserId(request.UserId), cancellationToken);
-        if (wallet is null)
-            return null;
+        var currentUserId = _currentUserService.UserId;
+        if (!currentUserId.HasValue)
+        {
+            throw new UnauthorizedAccessException("User is not authenticated or user id is missing.");
+        }
 
-        return new WalletBalanceDto(
-            wallet.Id.Value,
-            wallet.AccountId.Value,
-            wallet.UserId.Value,
-            wallet.Balance,
-            wallet.LastUpdatedAtUtc);
+        var wallet = await _walletRepository.GetByUserIdAsync(new UserId(currentUserId.Value), cancellationToken);
+        if (wallet is null)
+        {
+            return new WalletBalanceResponse(0m);
+        }
+
+        return new WalletBalanceResponse(wallet.Balance);
     }
 }
 

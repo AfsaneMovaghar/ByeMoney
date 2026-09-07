@@ -2,6 +2,8 @@ using System.Text;
 using ByeMoney.API.Authentication;
 using ByeMoney.API.Authorization;
 using ByeMoney.API.Resources;
+using ByeMoney.API.Services;
+using ByeMoney.Application.Common.Interfaces;
 using ByeMoney.Domain.Modules.Identity.Permissions;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -38,6 +40,8 @@ public static class DependencyInjection
                 };
             });
 
+        services.AddHttpContextAccessor();
+        services.AddScoped<ICurrentUserService, CurrentUserService>();
         services.AddScoped<IClaimsTransformation, RbacClaimsTransformation>();
         services.AddSingleton<IAuthorizationHandler, PermissionAuthorizationHandler>();
 
