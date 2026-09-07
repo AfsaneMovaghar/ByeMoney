@@ -1,8 +1,13 @@
+using System.Text;
+using ByeMoney.API.Authentication;
+using ByeMoney.API.Authorization;
 using ByeMoney.API.Resources;
+using ByeMoney.Domain.Modules.Identity.Permissions;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
-using System.Text;
 
 namespace ByeMoney.API;
 
@@ -33,7 +38,14 @@ public static class DependencyInjection
                 };
             });
 
-        services.AddAuthorization();
+        services.AddScoped<IClaimsTransformation, RbacClaimsTransformation>();
+        services.AddSingleton<IAuthorizationHandler, PermissionAuthorizationHandler>();
+
+        services.AddAuthorization(options =>
+        {
+            options.AddPolicy("RequireNoorInject", policy =>
+                policy.Requirements.Add(new PermissionRequirement(Permissions.Noor.Inject)));
+        });
 
         services.AddControllers();
         services.AddEndpointsApiExplorer();

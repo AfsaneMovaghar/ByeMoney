@@ -57,7 +57,18 @@ Do not introduce infrastructure, abstractions, or generalization that is only ju
 - For everything else (Identity, simple CRUD, etc.), do not write automated tests — manual verification via Swagger is sufficient.
 - If a task's scope is ambiguous about whether it touches financial logic, ask before deciding on tests.
 
-## Workflow
+## Database Migrations
+
+Whenever a task adds, removes, or modifies an entity property (or adds a new entity) 
+that maps to the database, the agent MUST generate and apply the corresponding EF Core 
+migration as part of the same task — never leave a schema-affecting change without its 
+migration. This applies both to Plan-mode prompts (mention the migration step explicitly 
+in the plan) and Execute-mode prompts (actually run `dotnet ef migrations add` and 
+`dotnet ef database update`, or the project's equivalent workflow).
+
+Do not consider a task "done" if it changed the persistence model but the migration 
+was not generated/applied — this is a hard requirement, not optional cleanup.
+<!-- ## Workflow
 
 - At the start of any new feature or vertical slice, propose a Git branch name (e.g. `feature/xxx`) before starting work.
-- Follow the standard Plan Mode flow: explore relevant code → produce an implementation plan artifact (files touched, key classes/interfaces, validation approach) → wait for approval/comments → only then execute.
+- Follow the standard Plan Mode flow: explore relevant code → produce an implementation plan artifact (files touched, key classes/interfaces, validation approach) → wait for approval/comments → only then execute. -->
