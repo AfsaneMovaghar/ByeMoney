@@ -1,12 +1,13 @@
 using ByeMoney.Application.Common.Interfaces;
 using ByeMoney.Application.Modules.Wallet.Interfaces;
-using ByeMoney.Domain.Common.Exceptions;
+using ByeMoney.Application.Resources;
+using ByeMoney.Domain.Common;
 using ByeMoney.Domain.Modules.Wallet.TopUps;
 using MediatR;
 
 namespace ByeMoney.Application.Modules.Wallet.Commands.RejectTopUp;
 
-public class RejectTopUpCommandHandler : IRequestHandler<RejectTopUpCommand, bool>
+public class RejectTopUpCommandHandler : IRequestHandler<RejectTopUpCommand, Result>
 {
     private readonly ITopUpRequestRepository _topUpRequestRepository;
     private readonly IUnitOfWork _unitOfWork;
@@ -19,19 +20,19 @@ public class RejectTopUpCommandHandler : IRequestHandler<RejectTopUpCommand, boo
         _unitOfWork = unitOfWork;
     }
 
-    public async Task<bool> Handle(RejectTopUpCommand request, CancellationToken cancellationToken)
+    public async Task<Result> Handle(RejectTopUpCommand request, CancellationToken cancellationToken)
     {
         var topUpId = new TopUpRequestId(request.TopUpRequestId);
         var topUp = await _topUpRequestRepository.GetByIdAsync(topUpId, cancellationToken);
 
         if (topUp is null)
-            throw new NotFoundException(nameof(TopUpRequest), request.TopUpRequestId);
+            return Result.NotFound(string.Format(
+                ApplicationErrors.TopUpRequest_NotFound, request.TopUpRequestId));
 
         topUp.Reject(request.Reason);
         _topUpRequestRepository.Update(topUp);
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
-        return true;
+        return Result.Success();
     }
 }
-

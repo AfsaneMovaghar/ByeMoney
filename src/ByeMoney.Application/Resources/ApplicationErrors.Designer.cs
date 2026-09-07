@@ -79,6 +79,15 @@ namespace ByeMoney.Application.Resources {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to کد پیگیری کاربر الزامی است..
+        /// </summary>
+        public static string TopUpRequest_ClientReferenceCodeRequired {
+            get {
+                return ResourceManager.GetString("TopUpRequest_ClientReferenceCodeRequired", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to مبلغ تأیید شده باید بزرگتر از صفر باشد..
         /// </summary>
         public static string TopUpRequest_ConfirmedAmountMustBeGreaterThanZero {

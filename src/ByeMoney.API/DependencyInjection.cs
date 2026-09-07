@@ -45,6 +45,9 @@ public static class DependencyInjection
         {
             options.AddPolicy("RequireNoorInject", policy =>
                 policy.Requirements.Add(new PermissionRequirement(Permissions.Noor.Inject)));
+
+            options.AddPolicy("RequireTopUpReview", policy =>
+                policy.Requirements.Add(new PermissionRequirement(Permissions.TopUp.Review)));
         });
 
         services.AddControllers();

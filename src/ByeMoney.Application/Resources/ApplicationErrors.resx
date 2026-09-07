@@ -64,6 +64,9 @@
   <data name="TopUpRequest_AmountMustBeGreaterThanZero" xml:space="preserve">
     <value>مبلغ افزایش موجودی باید بزرگتر از صفر باشد.</value>
   </data>
+  <data name="TopUpRequest_ClientReferenceCodeRequired" xml:space="preserve">
+    <value>کد پیگیری کاربر الزامی است.</value>
+  </data>
   <data name="TopUpRequest_ConfirmedAmountMustBeGreaterThanZero" xml:space="preserve">
     <value>مبلغ تأیید شده باید بزرگتر از صفر باشد.</value>
   </data>

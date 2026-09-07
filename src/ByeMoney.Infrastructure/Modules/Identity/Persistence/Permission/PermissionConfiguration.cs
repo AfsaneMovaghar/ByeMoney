@@ -7,6 +7,7 @@ namespace ByeMoney.Infrastructure.Modules.Identity.Persistence.Permission;
 public class PermissionConfiguration : IEntityTypeConfiguration<Domain.Modules.Identity.Permissions.Permission>
 {
     public static readonly PermissionId NoorInjectPermissionId = new(Guid.Parse("22222222-2222-2222-2222-222222222222"));
+    public static readonly PermissionId TopUpReviewPermissionId = new(Guid.Parse("33333333-3333-3333-3333-333333333333"));
 
     public void Configure(EntityTypeBuilder<Domain.Modules.Identity.Permissions.Permission> builder)
     {
@@ -32,14 +33,23 @@ public class PermissionConfiguration : IEntityTypeConfiguration<Domain.Modules.I
         builder.Property(p => p.CreatedAt)
             .IsRequired();
 
-        builder.HasData(new
-        {
-            Id = NoorInjectPermissionId,
-            Code = Permissions.Noor.Inject,
-            Description = "Permission to inject Noor currency",
-            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc),
-            UpdatedAt = (DateTime?)null
-        });
+        builder.HasData(
+            new
+            {
+                Id = NoorInjectPermissionId,
+                Code = Permissions.Noor.Inject,
+                Description = "Permission to inject Noor currency",
+                CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+                UpdatedAt = (DateTime?)null
+            },
+            new
+            {
+                Id = TopUpReviewPermissionId,
+                Code = Permissions.TopUp.Review,
+                Description = "Permission to review (confirm/reject) top-up requests",
+                CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+                UpdatedAt = (DateTime?)null
+            });
     }
 }
 

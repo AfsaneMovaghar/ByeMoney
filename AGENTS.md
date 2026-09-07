@@ -68,7 +68,7 @@ in the plan) and Execute-mode prompts (actually run `dotnet ef migrations add` a
 
 Do not consider a task "done" if it changed the persistence model but the migration 
 was not generated/applied — this is a hard requirement, not optional cleanup.
-<!-- ## Workflow
+## Workflow
 
 - At the start of any new feature or vertical slice, propose a Git branch name (e.g. `feature/xxx`) before starting work.
-- Follow the standard Plan Mode flow: explore relevant code → produce an implementation plan artifact (files touched, key classes/interfaces, validation approach) → wait for approval/comments → only then execute. -->
+- Follow the standard Plan Mode flow: explore relevant code → produce an implementation plan artifact (files touched, key classes/interfaces, validation approach) → wait for approval/comments → only then execute.

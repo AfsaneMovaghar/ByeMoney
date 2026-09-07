@@ -15,5 +15,10 @@ public class TopUpRequestRepository : BaseRepository<TopUpRequest, TopUpRequestI
     {
         return await DbSet.FirstOrDefaultAsync(t => t.ExternalTransactionId == externalTransactionId, ct);
     }
+
+    public async Task<TopUpRequest?> GetByClientReferenceCodeAsync(string clientReferenceCode, CancellationToken ct = default)
+    {
+        return await DbSet.FirstOrDefaultAsync(t => t.ClientReferenceCode == clientReferenceCode, ct);
+    }
 }
 

@@ -37,12 +37,19 @@ public class RolePermissionConfiguration : IEntityTypeConfiguration<RolePermissi
         builder.Property(rp => rp.CreatedAt)
             .IsRequired();
 
-        builder.HasData(new
-        {
-            RoleId = RoleConfiguration.AdminRoleId,
-            PermissionId = PermissionConfiguration.NoorInjectPermissionId,
-            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc)
-        });
+        builder.HasData(
+            new
+            {
+                RoleId = RoleConfiguration.AdminRoleId,
+                PermissionId = PermissionConfiguration.NoorInjectPermissionId,
+                CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc)
+            },
+            new
+            {
+                RoleId = RoleConfiguration.AdminRoleId,
+                PermissionId = PermissionConfiguration.TopUpReviewPermissionId,
+                CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc)
+            });
     }
 }
 
