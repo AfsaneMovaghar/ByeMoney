@@ -1,5 +1,6 @@
 using ByeMoney.Application.Common.Interfaces;
 using ByeMoney.Application.Modules.Wallet.Interfaces;
+using ByeMoney.Application.Resources;
 using ByeMoney.Domain.Modules.Identity.Users;
 using MediatR;
 
@@ -23,7 +24,7 @@ public class GetWalletBalanceQueryHandler : IRequestHandler<GetWalletBalanceQuer
         var currentUserId = _currentUserService.UserId;
         if (!currentUserId.HasValue)
         {
-            throw new UnauthorizedAccessException("User is not authenticated or user id is missing.");
+            throw new UnauthorizedAccessException(ApplicationErrors.Wallet_UserNotAuthenticated);
         }
 
         var wallet = await _walletRepository.GetByUserIdAsync(new UserId(currentUserId.Value), cancellationToken);

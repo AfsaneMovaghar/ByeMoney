@@ -1,5 +1,6 @@
 using ByeMoney.Domain.Common;
 using ByeMoney.Domain.Common.Exceptions;
+using ByeMoney.Domain.Resources;
 
 namespace ByeMoney.Domain.Modules.Identity.Permissions;
 
@@ -13,7 +14,7 @@ public class Permission : BaseEntity<PermissionId>
     public static Permission Create(string code, string? description = null, PermissionId? id = null)
     {
         if (string.IsNullOrWhiteSpace(code))
-            throw new DomainException("Permission code cannot be empty.");
+            throw new DomainException(DomainErrors.Permission_CodeRequired);
 
         return new Permission
         {

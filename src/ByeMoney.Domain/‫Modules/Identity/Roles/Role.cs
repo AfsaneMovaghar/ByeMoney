@@ -1,5 +1,6 @@
 using ByeMoney.Domain.Common;
 using ByeMoney.Domain.Common.Exceptions;
+using ByeMoney.Domain.Resources;
 
 namespace ByeMoney.Domain.Modules.Identity.Roles;
 
@@ -15,7 +16,7 @@ public class Role : BaseEntity<RoleId>
     public static Role Create(string name, RoleId? id = null)
     {
         if (string.IsNullOrWhiteSpace(name))
-            throw new DomainException("Role name cannot be empty.");
+            throw new DomainException(DomainErrors.Role_NameRequired);
 
         return new Role
         {

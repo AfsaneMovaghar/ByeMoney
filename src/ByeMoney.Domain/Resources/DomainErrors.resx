@@ -97,6 +97,12 @@
   <data name="Wallet_DebitMustBeGreaterThanZero" xml:space="preserve">
     <value>مبلغ کسر اعتبار باید بزرگتر از صفر باشد.</value>
   </data>
+  <data name="Permission_CodeRequired" xml:space="preserve">
+    <value>کد دسترسی نمی‌تواند خالی باشد.</value>
+  </data>
+  <data name="Role_NameRequired" xml:space="preserve">
+    <value>نام نقش نمی‌تواند خالی باشد.</value>
+  </data>
   <data name="Wallet_InsufficientBalance" xml:space="preserve">
     <value>موجودی کیف پول کافی نیست.</value>
   </data>

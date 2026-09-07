@@ -48,3 +48,4 @@ Any persistence change **must** include EF Core migration. Task incomplete witho
 
 ## Localization
 Never hard-code user-facing text. Use `.resx` via generated Resource class.
+The text of the messages should be in Persian.

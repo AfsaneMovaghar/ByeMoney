@@ -115,4 +115,7 @@
   <data name="Wallet_UserIdRequired" xml:space="preserve">
     <value>شناسه کاربر الزامی است.</value>
   </data>
+  <data name="Wallet_UserNotAuthenticated" xml:space="preserve">
+    <value>کاربر احراز هویت نشده است یا شناسه کاربر وجود ندارد.</value>
+  </data>
 </root>
