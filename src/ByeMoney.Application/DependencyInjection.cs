@@ -1,4 +1,6 @@
-﻿using ByeMoney.Application.Common.Behaviors;
+using ByeMoney.Application.Common.Behaviors;
+using ByeMoney.Application.Modules.Wallet.Interfaces;
+using ByeMoney.Application.Modules.Wallet.Services;
 using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
 using System.Reflection;
@@ -19,6 +21,9 @@ public static class DependencyInjection
         services.AddValidatorsFromAssembly(Assembly.GetExecutingAssembly());
         ValidatorOptions.Global.DefaultRuleLevelCascadeMode = CascadeMode.Stop;
         ValidatorOptions.Global.DefaultClassLevelCascadeMode = CascadeMode.Stop;
+
+        services.AddScoped<IUserWalletProvisioningService, UserWalletProvisioningService>();
+
         return services;
     }
 }

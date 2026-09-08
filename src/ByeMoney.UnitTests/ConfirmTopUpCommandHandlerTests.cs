@@ -29,7 +29,7 @@ public class ConfirmTopUpCommandHandlerTests
         var wallet = WalletEntity.Create(userAccount.Id, userId);
 
         var topUpRepoMock = new Mock<ITopUpRequestRepository>();
-        var accountRepoMock = new Mock<IAccountRepository>();
+        var walletProvisioningMock = new Mock<IUserWalletProvisioningService>();
         var walletRepoMock = new Mock<IWalletRepository>();
         var ledgerRepoMock = new Mock<IRepository<LedgerEntry, LedgerEntryId>>();
         var unitOfWorkMock = new Mock<IUnitOfWork>();
@@ -38,17 +38,13 @@ public class ConfirmTopUpCommandHandlerTests
             .Setup(r => r.GetByIdAsync(topUp.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(topUp);
 
-        accountRepoMock
-            .Setup(r => r.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(userAccount);
+        walletProvisioningMock
+            .Setup(s => s.GetOrCreateUserWalletAsync(userId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ProvisionedUserWallet(userAccount, wallet));
 
-        accountRepoMock
-            .Setup(r => r.GetSystemAccountAsync(It.IsAny<CancellationToken>()))
+        walletProvisioningMock
+            .Setup(s => s.GetOrCreateSystemAccountAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(systemAccount);
-
-        walletRepoMock
-            .Setup(r => r.GetByAccountIdAsync(userAccount.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(wallet);
 
         var savedLedgerEntries = new List<LedgerEntry>();
         ledgerRepoMock
@@ -58,7 +54,7 @@ public class ConfirmTopUpCommandHandlerTests
 
         var handler = new ConfirmTopUpCommandHandler(
             topUpRepoMock.Object,
-            accountRepoMock.Object,
+            walletProvisioningMock.Object,
             walletRepoMock.Object,
             ledgerRepoMock.Object,
             unitOfWorkMock.Object);
@@ -88,6 +84,7 @@ public class ConfirmTopUpCommandHandlerTests
 
         // اسنپ‌شات کیف پول کاربر باید به میزان شارژ افزایش یافته باشد
         wallet.Balance.Should().Be(amount);
+        walletRepoMock.Verify(r => r.Update(wallet), Times.Once);
 
         // تغییرات باید ذخیره شده باشند
         unitOfWorkMock.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
@@ -103,7 +100,7 @@ public class ConfirmTopUpCommandHandlerTests
         topUp.Confirm("tx_idempotent_123");
 
         var topUpRepoMock = new Mock<ITopUpRequestRepository>();
-        var accountRepoMock = new Mock<IAccountRepository>();
+        var walletProvisioningMock = new Mock<IUserWalletProvisioningService>();
         var walletRepoMock = new Mock<IWalletRepository>();
         var ledgerRepoMock = new Mock<IRepository<LedgerEntry, LedgerEntryId>>();
         var unitOfWorkMock = new Mock<IUnitOfWork>();
@@ -114,7 +111,7 @@ public class ConfirmTopUpCommandHandlerTests
 
         var handler = new ConfirmTopUpCommandHandler(
             topUpRepoMock.Object,
-            accountRepoMock.Object,
+            walletProvisioningMock.Object,
             walletRepoMock.Object,
             ledgerRepoMock.Object,
             unitOfWorkMock.Object);
@@ -140,7 +137,7 @@ public class ConfirmTopUpCommandHandlerTests
         topUp.Confirm("tx_original_123");
 
         var topUpRepoMock = new Mock<ITopUpRequestRepository>();
-        var accountRepoMock = new Mock<IAccountRepository>();
+        var walletProvisioningMock = new Mock<IUserWalletProvisioningService>();
         var walletRepoMock = new Mock<IWalletRepository>();
         var ledgerRepoMock = new Mock<IRepository<LedgerEntry, LedgerEntryId>>();
         var unitOfWorkMock = new Mock<IUnitOfWork>();
@@ -151,7 +148,7 @@ public class ConfirmTopUpCommandHandlerTests
 
         var handler = new ConfirmTopUpCommandHandler(
             topUpRepoMock.Object,
-            accountRepoMock.Object,
+            walletProvisioningMock.Object,
             walletRepoMock.Object,
             ledgerRepoMock.Object,
             unitOfWorkMock.Object);
@@ -177,7 +174,7 @@ public class ConfirmTopUpCommandHandlerTests
         var topUp = TopUpRequest.Create(userId, amount, PaymentMethod.Gateway);
 
         var topUpRepoMock = new Mock<ITopUpRequestRepository>();
-        var accountRepoMock = new Mock<IAccountRepository>();
+        var walletProvisioningMock = new Mock<IUserWalletProvisioningService>();
         var walletRepoMock = new Mock<IWalletRepository>();
         var ledgerRepoMock = new Mock<IRepository<LedgerEntry, LedgerEntryId>>();
         var unitOfWorkMock = new Mock<IUnitOfWork>();
@@ -188,7 +185,7 @@ public class ConfirmTopUpCommandHandlerTests
 
         var handler = new ConfirmTopUpCommandHandler(
             topUpRepoMock.Object,
-            accountRepoMock.Object,
+            walletProvisioningMock.Object,
             walletRepoMock.Object,
             ledgerRepoMock.Object,
             unitOfWorkMock.Object);
@@ -216,7 +213,7 @@ public class ConfirmTopUpCommandHandlerTests
         topUp.Reject("Invalid receipt");
 
         var topUpRepoMock = new Mock<ITopUpRequestRepository>();
-        var accountRepoMock = new Mock<IAccountRepository>();
+        var walletProvisioningMock = new Mock<IUserWalletProvisioningService>();
         var walletRepoMock = new Mock<IWalletRepository>();
         var ledgerRepoMock = new Mock<IRepository<LedgerEntry, LedgerEntryId>>();
         var unitOfWorkMock = new Mock<IUnitOfWork>();
@@ -227,7 +224,7 @@ public class ConfirmTopUpCommandHandlerTests
 
         var handler = new ConfirmTopUpCommandHandler(
             topUpRepoMock.Object,
-            accountRepoMock.Object,
+            walletProvisioningMock.Object,
             walletRepoMock.Object,
             ledgerRepoMock.Object,
             unitOfWorkMock.Object);
@@ -249,7 +246,7 @@ public class ConfirmTopUpCommandHandlerTests
     {
         // Arrange
         var topUpRepoMock = new Mock<ITopUpRequestRepository>();
-        var accountRepoMock = new Mock<IAccountRepository>();
+        var walletProvisioningMock = new Mock<IUserWalletProvisioningService>();
         var walletRepoMock = new Mock<IWalletRepository>();
         var ledgerRepoMock = new Mock<IRepository<LedgerEntry, LedgerEntryId>>();
         var unitOfWorkMock = new Mock<IUnitOfWork>();
@@ -260,7 +257,7 @@ public class ConfirmTopUpCommandHandlerTests
 
         var handler = new ConfirmTopUpCommandHandler(
             topUpRepoMock.Object,
-            accountRepoMock.Object,
+            walletProvisioningMock.Object,
             walletRepoMock.Object,
             ledgerRepoMock.Object,
             unitOfWorkMock.Object);
@@ -277,4 +274,3 @@ public class ConfirmTopUpCommandHandlerTests
         unitOfWorkMock.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
     }
 }
-
