@@ -41,6 +41,7 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
             .HasFilter("\"Phone\" IS NOT NULL");
 
         builder.Property(u => u.IsActive)
+            .HasDefaultValue(true)
             .IsRequired();
 
         builder.Property(u => u.ProfileSyncedAt)

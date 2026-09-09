@@ -21,6 +21,23 @@ public class User : BaseEntity<UserId>
 
     private User() { }
 
+    public static User CreateInitial(
+        string externalUserId,
+        UserType userType = UserType.Normal)
+    {
+        if (string.IsNullOrWhiteSpace(externalUserId))
+            throw new DomainException(DomainErrors.User_ExternalUserIdRequired);
+
+        return new User
+        {
+            Id = UserId.New(),
+            ExternalUserId = externalUserId,
+            IsActive = true,
+            ProfileSyncedAt = DateTime.MinValue,
+            UserType = userType
+        };
+    }
+
     public static User CreateFromStrapi(
         string externalUserId,
         string? phone = null,

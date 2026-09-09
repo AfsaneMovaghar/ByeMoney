@@ -28,7 +28,7 @@ public class SyncUserFromStrapiCommandHandler : IRequestHandler<SyncUserFromStra
             return user.Id.Value;
         }
 
-        var newUser = User.CreateFromStrapi(request.ExternalUserId);
+        var newUser = User.CreateInitial(request.ExternalUserId);
         await _userRepository.AddAsync(newUser, ct);
         await _unitOfWork.SaveChangesAsync(ct);
         return newUser.Id.Value;

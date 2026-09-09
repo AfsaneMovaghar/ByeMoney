@@ -12,10 +12,10 @@ namespace ByeMoney.UnitTests;
 public class SyncUserFromStrapiTests
 {
     [Fact]
-    public void CreateFromStrapi_ShouldInitializeUserWithDefaultValuesAndNullPhoneAndDisplayName()
+    public void CreateInitial_ShouldInitializeUserWithDefaultValuesAndIsActiveTrue()
     {
         // Act
-        var user = User.CreateFromStrapi("strapi-doc-123");
+        var user = User.CreateInitial("strapi-doc-123");
 
         // Assert
         user.ExternalUserId.Should().Be("strapi-doc-123");
@@ -24,9 +24,31 @@ public class SyncUserFromStrapiTests
         user.LastName.Should().BeNull();
         user.Phone.Should().BeNull();
         user.Email.Should().BeNull();
-        user.IsActive.Should().BeFalse();
+        user.IsActive.Should().BeTrue();
         user.UserType.Should().Be(UserType.Normal);
         user.ProfileSyncedAt.Should().Be(DateTime.MinValue);
+    }
+
+    [Theory]
+    [InlineData(true, false, true)]
+    [InlineData(true, true, false)]
+    [InlineData(false, false, false)]
+    [InlineData(false, true, false)]
+    public void CreateFromStrapi_ShouldCalculateIsActive_BasedOnConfirmedAndBlocked(
+        bool confirmed, bool blocked, bool expectedIsActive)
+    {
+        // Act
+        var user = User.CreateFromStrapi(
+            "strapi-doc-123",
+            phone: "09123456789",
+            email: "test@example.com",
+            firstName: "Ali",
+            lastName: "Rezaei",
+            confirmed: confirmed,
+            blocked: blocked);
+
+        // Assert
+        user.IsActive.Should().Be(expectedIsActive);
     }
 
     [Fact]
@@ -42,6 +64,30 @@ public class SyncUserFromStrapiTests
         user.ProfileSyncedAt.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(2));
         user.UpdatedAt.Should().NotBeNull();
         user.UpdatedAt!.Value.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(2));
+    }
+
+    [Fact]
+    public void SyncProfile_ShouldUpdateIsActiveBasedOnConfirmedAndBlocked()
+    {
+        // Arrange
+        var user = User.CreateInitial("strapi-doc-123");
+        user.IsActive.Should().BeTrue();
+
+        // Act - user blocked
+        user.SyncProfile("09123456789", "test@example.com", "Ali", "Rezaei", confirmed: true, blocked: true);
+
+        // Assert
+        user.IsActive.Should().BeFalse();
+        user.FirstName.Should().Be("Ali");
+        user.LastName.Should().Be("Rezaei");
+        user.Phone.Should().Be("09123456789");
+        user.Email.Should().Be("test@example.com");
+
+        // Act - user unblocked and confirmed
+        user.SyncProfile("09123456789", "test@example.com", "Ali", "Rezaei", confirmed: true, blocked: false);
+
+        // Assert
+        user.IsActive.Should().BeTrue();
     }
 
     [Fact]
