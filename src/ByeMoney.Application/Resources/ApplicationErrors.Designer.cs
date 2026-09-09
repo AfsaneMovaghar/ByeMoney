@@ -151,23 +151,68 @@ namespace ByeMoney.Application.Resources {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to شناسه خارجی کاربر الزامی است..
+        /// </summary>
+        public static string User_ExternalUserIdRequired {
+            get {
+                return ResourceManager.GetString("User_ExternalUserIdRequired", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to شناسه خارجی کاربر نباید بیشتر از ۱۰۰ کاراکتر باشد..
+        /// </summary>
+        public static string User_ExternalUserIdMaxLength {
+            get {
+                return ResourceManager.GetString("User_ExternalUserIdMaxLength", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to کاربری با این شناسه خارجی قبلاً ثبت شده است..
+        /// </summary>
+        public static string User_ExternalUserIdAlreadyExists {
+            get {
+                return ResourceManager.GetString("User_ExternalUserIdAlreadyExists", resourceCulture);
+            }
+        }
+
+        /// <summary>
         ///   Looks up a localized string similar to نام کاربر نباید بیشتر از ۱۰۰ کاراکتر باشد..
         /// </summary>
-        public static string User_DisplayNameMaxLength {
+        public static string User_FirstNameMaxLength {
             get {
-                return ResourceManager.GetString("User_DisplayNameMaxLength", resourceCulture);
+                return ResourceManager.GetString("User_FirstNameMaxLength", resourceCulture);
             }
         }
-        
+
         /// <summary>
-        ///   Looks up a localized string similar to نام کاربر الزامی است..
+        ///   Looks up a localized string similar to نام خانوادگی کاربر نباید بیشتر از ۱۰۰ کاراکتر باشد..
         /// </summary>
-        public static string User_DisplayNameRequired {
+        public static string User_LastNameMaxLength {
             get {
-                return ResourceManager.GetString("User_DisplayNameRequired", resourceCulture);
+                return ResourceManager.GetString("User_LastNameMaxLength", resourceCulture);
             }
         }
-        
+
+        /// <summary>
+        ///   Looks up a localized string similar to فرمت ایمیل نامعتبر است..
+        /// </summary>
+        public static string User_EmailInvalidFormat {
+            get {
+                return ResourceManager.GetString("User_EmailInvalidFormat", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to ایمیل نباید بیشتر از ۲۵۵ کاراکتر باشد..
+        /// </summary>
+        public static string User_EmailMaxLength {
+            get {
+                return ResourceManager.GetString("User_EmailMaxLength", resourceCulture);
+            }
+        }
+
         /// <summary>
         ///   Looks up a localized string similar to شماره موبایل معتبر نیست..
         /// </summary>
@@ -176,40 +221,13 @@ namespace ByeMoney.Application.Resources {
                 return ResourceManager.GetString("User_PhoneInvalidFormat", resourceCulture);
             }
         }
-        
+
         /// <summary>
         ///   Looks up a localized string similar to شماره موبایل الزامی است..
         /// </summary>
         public static string User_PhoneRequired {
             get {
                 return ResourceManager.GetString("User_PhoneRequired", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to نقش کاربر الزامی است..
-        /// </summary>
-        public static string User_RoleRequired {
-            get {
-                return ResourceManager.GetString("User_RoleRequired", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to کاربری با این شناسه Strapi قبلاً ثبت شده است..
-        /// </summary>
-        public static string User_StrapiIdAlreadyExists {
-            get {
-                return ResourceManager.GetString("User_StrapiIdAlreadyExists", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to شناسه کاربر Strapi باید بزرگتر از صفر باشد..
-        /// </summary>
-        public static string User_StrapiUserIdInvalid {
-            get {
-                return ResourceManager.GetString("User_StrapiUserIdInvalid", resourceCulture);
             }
         }
         

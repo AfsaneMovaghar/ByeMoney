@@ -73,6 +73,12 @@
   <data name="Middleware_UnexpectedErrorMessage" xml:space="preserve">
     <value>خطایی غیرمنتظره رخ داد.</value>
   </data>
+  <data name="Auth_DocumentIdClaimMissing" xml:space="preserve">
+    <value>شناسه سند کاربر (documentId) در توکن یافت نشد.</value>
+  </data>
+  <data name="Middleware_UnauthorizedTitle" xml:space="preserve">
+    <value>عدم احراز هویت</value>
+  </data>
   <data name="Middleware_ValidationErrorTitle" xml:space="preserve">
     <value>خطای اعتبارسنجی</value>
   </data>

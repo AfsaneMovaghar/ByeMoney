@@ -52,6 +52,11 @@ public class GlobalExceptionHandlingMiddleware
                 ApiErrors.Middleware_BusinessRuleViolationTitle,
                 new List<string> { domainEx.Message }
             ),
+            UnauthorizedAccessException unauthorizedEx => (
+                HttpStatusCode.Unauthorized,
+                ApiErrors.Middleware_UnauthorizedTitle,
+                new List<string> { unauthorizedEx.Message }
+            ),
             _ => (
                 HttpStatusCode.InternalServerError,
                 ApiErrors.Middleware_InternalServerErrorTitle,

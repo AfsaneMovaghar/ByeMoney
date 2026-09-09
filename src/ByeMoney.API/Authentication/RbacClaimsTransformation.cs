@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using ByeMoney.API.Resources;
 using ByeMoney.Application.Modules.Identity.Authorization;
 using Microsoft.AspNetCore.Authentication;
 
@@ -21,13 +22,14 @@ public class RbacClaimsTransformation(IUserAuthorizationService userAuthorizatio
             return principal;
         }
 
-        var strapiIdClaim = principal.FindFirst("id")?.Value;
-        if (string.IsNullOrEmpty(strapiIdClaim) || !int.TryParse(strapiIdClaim, out var strapiUserId))
+        var externalUserId = principal.FindFirst("documentId")?.Value;
+
+        if (string.IsNullOrWhiteSpace(externalUserId))
         {
-            return principal;
+            throw new UnauthorizedAccessException(ApiErrors.Auth_DocumentIdClaimMissing);
         }
 
-        var userAuth = await _userAuthorizationService.GetPermissionsByStrapiUserIdAsync(strapiUserId);
+        var userAuth = await _userAuthorizationService.GetPermissionsByExternalUserIdAsync(externalUserId);
         if (userAuth is null)
         {
             return principal;

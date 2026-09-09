@@ -88,26 +88,32 @@
   <data name="TopUpRequest_UserIdRequired" xml:space="preserve">
     <value>شناسه کاربر الزامی است.</value>
   </data>
-  <data name="User_DisplayNameMaxLength" xml:space="preserve">
+  <data name="User_ExternalUserIdRequired" xml:space="preserve">
+    <value>شناسه خارجی کاربر الزامی است.</value>
+  </data>
+  <data name="User_ExternalUserIdMaxLength" xml:space="preserve">
+    <value>شناسه خارجی کاربر نباید بیشتر از ۱۰۰ کاراکتر باشد.</value>
+  </data>
+  <data name="User_ExternalUserIdAlreadyExists" xml:space="preserve">
+    <value>کاربری با این شناسه خارجی قبلاً ثبت شده است.</value>
+  </data>
+  <data name="User_FirstNameMaxLength" xml:space="preserve">
     <value>نام کاربر نباید بیشتر از ۱۰۰ کاراکتر باشد.</value>
   </data>
-  <data name="User_DisplayNameRequired" xml:space="preserve">
-    <value>نام کاربر الزامی است.</value>
+  <data name="User_LastNameMaxLength" xml:space="preserve">
+    <value>نام خانوادگی کاربر نباید بیشتر از ۱۰۰ کاراکتر باشد.</value>
+  </data>
+  <data name="User_EmailInvalidFormat" xml:space="preserve">
+    <value>فرمت ایمیل نامعتبر است.</value>
+  </data>
+  <data name="User_EmailMaxLength" xml:space="preserve">
+    <value>ایمیل نباید بیشتر از ۲۵۵ کاراکتر باشد.</value>
   </data>
   <data name="User_PhoneInvalidFormat" xml:space="preserve">
     <value>شماره موبایل معتبر نیست.</value>
   </data>
   <data name="User_PhoneRequired" xml:space="preserve">
     <value>شماره موبایل الزامی است.</value>
-  </data>
-  <data name="User_RoleRequired" xml:space="preserve">
-    <value>نقش کاربر الزامی است.</value>
-  </data>
-  <data name="User_StrapiIdAlreadyExists" xml:space="preserve">
-    <value>کاربری با این شناسه Strapi قبلاً ثبت شده است.</value>
-  </data>
-  <data name="User_StrapiUserIdInvalid" xml:space="preserve">
-    <value>شناسه کاربر Strapi باید بزرگتر از صفر باشد.</value>
   </data>
   <data name="User_UserTypeInvalid" xml:space="preserve">
     <value>نوع کاربر نامعتبر است.</value>

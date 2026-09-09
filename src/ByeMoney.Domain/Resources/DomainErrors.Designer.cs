@@ -133,29 +133,11 @@ namespace ByeMoney.Domain.Resources {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to نام کاربر نمی‌تواند خالی باشد..
+        ///   Looks up a localized string similar to شناسه خارجی کاربر نمی‌تواند خالی باشد..
         /// </summary>
-        public static string User_DisplayNameRequired {
+        public static string User_ExternalUserIdRequired {
             get {
-                return ResourceManager.GetString("User_DisplayNameRequired", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to شماره موبایل نمی‌تواند خالی باشد..
-        /// </summary>
-        public static string User_PhoneRequired {
-            get {
-                return ResourceManager.GetString("User_PhoneRequired", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to شناسه کاربر Strapi نامعتبر است..
-        /// </summary>
-        public static string User_StrapiInvalid {
-            get {
-                return ResourceManager.GetString("User_StrapiInvalid", resourceCulture);
+                return ResourceManager.GetString("User_ExternalUserIdRequired", resourceCulture);
             }
         }
         

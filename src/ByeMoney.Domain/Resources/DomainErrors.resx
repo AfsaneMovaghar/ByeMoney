@@ -82,14 +82,8 @@
   <data name="TopUpRequest_RejectionReasonRequired" xml:space="preserve">
     <value>دلیل رد درخواست الزامی است.</value>
   </data>
-  <data name="User_DisplayNameRequired" xml:space="preserve">
-    <value>نام کاربر نمی‌تواند خالی باشد.</value>
-  </data>
-  <data name="User_PhoneRequired" xml:space="preserve">
-    <value>شماره موبایل نمی‌تواند خالی باشد.</value>
-  </data>
-  <data name="User_StrapiInvalid" xml:space="preserve">
-    <value>شناسه کاربر Strapi نامعتبر است.</value>
+  <data name="User_ExternalUserIdRequired" xml:space="preserve">
+    <value>شناسه خارجی کاربر نمی‌تواند خالی باشد.</value>
   </data>
   <data name="Wallet_CreditMustBeGreaterThanZero" xml:space="preserve">
     <value>مبلغ افزایش اعتبار باید بزرگتر از صفر باشد.</value>

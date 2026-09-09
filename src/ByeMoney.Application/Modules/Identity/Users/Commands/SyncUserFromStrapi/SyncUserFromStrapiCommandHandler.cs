@@ -18,7 +18,7 @@ public class SyncUserFromStrapiCommandHandler : IRequestHandler<SyncUserFromStra
 
     public async Task<Guid> Handle(SyncUserFromStrapiCommand request, CancellationToken ct)
     {
-        var user = await _userRepository.GetByStrapiUserIdAsync(request.StrapiUserId, ct);
+        var user = await _userRepository.GetByExternalUserIdAsync(request.ExternalUserId, ct);
 
         if (user is not null)
         {
@@ -28,7 +28,7 @@ public class SyncUserFromStrapiCommandHandler : IRequestHandler<SyncUserFromStra
             return user.Id.Value;
         }
 
-        var newUser = User.CreateFromStrapi(request.StrapiUserId);
+        var newUser = User.CreateFromStrapi(request.ExternalUserId);
         await _userRepository.AddAsync(newUser, ct);
         await _unitOfWork.SaveChangesAsync(ct);
         return newUser.Id.Value;

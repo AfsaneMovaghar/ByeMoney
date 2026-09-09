@@ -9,11 +9,11 @@ public class UserAuthorizationService(ApplicationDbContext context) : IUserAutho
 {
     private readonly ApplicationDbContext _context = context;
 
-    public async Task<UserPermissionsDto?> GetPermissionsByStrapiUserIdAsync(int strapiUserId, CancellationToken ct = default)
+    public async Task<UserPermissionsDto?> GetPermissionsByExternalUserIdAsync(string externalUserId, CancellationToken ct = default)
     {
         var user = await _context.Set<User>()
             .AsNoTracking()
-            .FirstOrDefaultAsync(u => u.StrapiUserId == strapiUserId, ct);
+            .FirstOrDefaultAsync(u => u.ExternalUserId == externalUserId, ct);
 
         if (user is null)
             return null;

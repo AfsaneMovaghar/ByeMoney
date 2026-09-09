@@ -13,36 +13,43 @@ public class CreateUserCommandValidator : AbstractValidator<CreateUserCommand>
     {
         _userRepository = userRepository;
 
-        RuleFor(x => x.StrapiUserId)
-            .GreaterThan(0)
-            .WithMessage(ApplicationErrors.User_StrapiUserIdInvalid);
+        RuleLevelCascadeMode = CascadeMode.Stop;
 
-        RuleFor(x => x.DisplayName)
+        RuleFor(x => x.ExternalUserId)
             .NotEmpty()
-            .WithMessage(ApplicationErrors.User_DisplayNameRequired)
+            .WithMessage(ApplicationErrors.User_ExternalUserIdRequired)
             .MaximumLength(100)
-            .WithMessage(ApplicationErrors.User_DisplayNameMaxLength);
+            .WithMessage(ApplicationErrors.User_ExternalUserIdMaxLength)
+            .MustAsync(BeUniqueExternalUserId)
+            .WithMessage(ApplicationErrors.User_ExternalUserIdAlreadyExists);
+
+        RuleFor(x => x.FirstName)
+            .MaximumLength(100)
+            .WithMessage(ApplicationErrors.User_FirstNameMaxLength)
+            .When(x => !string.IsNullOrEmpty(x.FirstName));
+
+        RuleFor(x => x.LastName)
+            .MaximumLength(100)
+            .WithMessage(ApplicationErrors.User_LastNameMaxLength)
+            .When(x => !string.IsNullOrEmpty(x.LastName));
 
         RuleFor(x => x.Phone)
-            .NotEmpty()
-            .WithMessage(ApplicationErrors.User_PhoneRequired)
             .Matches(@"^09\d{9}$")
-            .WithMessage(ApplicationErrors.User_PhoneInvalidFormat);
+            .WithMessage(ApplicationErrors.User_PhoneInvalidFormat)
+            .When(x => !string.IsNullOrEmpty(x.Phone));
 
-        RuleFor(x => x.Role)
-            .NotEmpty()
-            .WithMessage(ApplicationErrors.User_RoleRequired);
+        RuleFor(x => x.Email)
+            .EmailAddress()
+            .WithMessage(ApplicationErrors.User_EmailInvalidFormat)
+            .MaximumLength(255)
+            .WithMessage(ApplicationErrors.User_EmailMaxLength)
+            .When(x => !string.IsNullOrEmpty(x.Email));
 
         RuleFor(x => x.UserType)
             .IsInEnum()
             .WithMessage(ApplicationErrors.User_UserTypeInvalid);
-
-        RuleFor(x => x.StrapiUserId)
-            .MustAsync(BeUniqueStrapiId)
-            .WithMessage(ApplicationErrors.User_StrapiIdAlreadyExists)
-            .WhenAsync((command, ct) => Task.FromResult(command.StrapiUserId > 0));
     }
 
-    private async Task<bool> BeUniqueStrapiId(int strapiUserId, CancellationToken ct)
-        => !await _userRepository.ExistsByStrapiUserIdAsync(strapiUserId, ct);
+    private async Task<bool> BeUniqueExternalUserId(string externalUserId, CancellationToken ct)
+        => !await _userRepository.ExistsByExternalUserIdAsync(externalUserId, ct);
 }

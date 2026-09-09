@@ -1,4 +1,4 @@
-﻿using MediatR;
+using MediatR;
 using ByeMoney.Application.Common.Interfaces;
 using ByeMoney.Domain.Modules.Identity.Users;
 
@@ -19,12 +19,15 @@ public class CreateUserCommandHandler : IRequestHandler<CreateUserCommand, UserI
 
     public async Task<UserId> Handle(CreateUserCommand request, CancellationToken ct)
     {
-        var user = User.Create(
-                               request.StrapiUserId,
-                               request.DisplayName,
-                               request.Phone,
-                               request.Role,
-                               request.UserType);
+        var user = User.CreateFromStrapi(
+            request.ExternalUserId,
+            request.Phone,
+            request.Email,
+            request.FirstName,
+            request.LastName,
+            request.Confirmed,
+            request.Blocked,
+            request.UserType);
 
         await _userRepository.AddAsync(user, ct);
         await _unitOfWork.SaveChangesAsync(ct);   

@@ -5,41 +5,64 @@ namespace ByeMoney.Domain.Modules.Identity.Users;
 
 public class User : BaseEntity<UserId>
 {
-    public int StrapiUserId { get; private set; }
-    public string? DisplayName { get; private set; }
+    public string ExternalUserId { get; private set; } = string.Empty;
+    public string? FirstName { get; private set; }
+    public string? LastName { get; private set; }
     public string? Phone { get; private set; }
-    public string Role { get; private set; } = string.Empty;
+    public string? Email { get; private set; }
+    public bool IsActive { get; private set; }
     public DateTime ProfileSyncedAt { get; private set; }
-    public UserStatus Status { get; private set; }
     public UserType UserType { get; private set; }
 
+    public string? DisplayName =>
+        string.IsNullOrWhiteSpace($"{FirstName} {LastName}")
+            ? null
+            : $"{FirstName} {LastName}".Trim();
 
     private User() { }
 
-    public static User Create(int strapiUserId, string displayName, string phone, string role,UserType userType)
+    public static User CreateFromStrapi(
+        string externalUserId,
+        string? phone = null,
+        string? email = null,
+        string? firstName = null,
+        string? lastName = null,
+        bool confirmed = false,
+        bool blocked = false,
+        UserType userType = UserType.Normal)
     {
-        if (string.IsNullOrWhiteSpace(displayName))
-            throw new DomainException(DomainErrors.User_DisplayNameRequired);
+        if (string.IsNullOrWhiteSpace(externalUserId))
+            throw new DomainException(DomainErrors.User_ExternalUserIdRequired);
+
         return new User
         {
             Id = UserId.New(),
-            StrapiUserId = strapiUserId,
-            DisplayName = displayName,
+            ExternalUserId = externalUserId,
             Phone = phone,
-            Role = role,
-            ProfileSyncedAt = DateTime.UtcNow,
-            Status = UserStatus.Active,
+            Email = email,
+            FirstName = firstName,
+            LastName = lastName,
+            IsActive = confirmed && !blocked,
+            ProfileSyncedAt = DateTime.MinValue,
             UserType = userType
         };
     }
 
-    public void SyncProfile(string displayName, string phone, string role)
+    public void SyncProfile(
+        string? phone,
+        string? email,
+        string? firstName,
+        string? lastName,
+        bool confirmed,
+        bool blocked)
     {
-        DisplayName = displayName;
         Phone = phone;
-        Role = role;
+        Email = email;
+        FirstName = firstName;
+        LastName = lastName;
+        IsActive = confirmed && !blocked;
         ProfileSyncedAt = DateTime.UtcNow;
-        UpdatedAt = DateTime.UtcNow; 
+        UpdatedAt = DateTime.UtcNow;
     }
 
     public void MarkProfileSynced()
@@ -47,24 +70,6 @@ public class User : BaseEntity<UserId>
         ProfileSyncedAt = DateTime.UtcNow;
         UpdatedAt = DateTime.UtcNow;
     }
-
-    public static User CreateFromStrapi(int strapiUserId)
-    {
-        return new User
-        {
-            Id = UserId.New(),
-            StrapiUserId = strapiUserId,
-            DisplayName = null,
-            Phone = null,
-            Role = string.Empty,
-            ProfileSyncedAt = DateTime.MinValue,
-            Status = UserStatus.Active,
-            UserType = UserType.Normal
-        };
-    }
-
-    public void Suspend() => Status = UserStatus.Suspended;
-    public void Activate() => Status = UserStatus.Active;
 
     public bool NeedsProfileSync()
         => (DateTime.UtcNow - ProfileSyncedAt).TotalHours > 24;

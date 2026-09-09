@@ -7,8 +7,8 @@ public class SyncUserFromStrapiCommandValidator : AbstractValidator<SyncUserFrom
 {
     public SyncUserFromStrapiCommandValidator()
     {
-        RuleFor(x => x.StrapiUserId)
-            .GreaterThan(0)
-            .WithMessage(ApplicationErrors.User_StrapiUserIdInvalid);
+        RuleFor(x => x.ExternalUserId)
+            .NotEmpty()
+            .WithMessage(ApplicationErrors.User_ExternalUserIdRequired);
     }
 }
