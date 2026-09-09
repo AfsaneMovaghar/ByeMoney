@@ -9,6 +9,9 @@ public class UserRepository(ApplicationDbContext context) : BaseRepository<User,
     public async Task<bool> ExistsByExternalUserIdAsync(string externalUserId, CancellationToken ct)
         => await Context.Set<User>().AnyAsync(u => u.ExternalUserId == externalUserId, ct);
 
+    public async Task<bool> ExistsByPhoneAsync(string phone, CancellationToken ct)
+        => await Context.Set<User>().AnyAsync(u => u.Phone == phone, ct);
+
     public async Task<User?> GetByExternalUserIdAsync(string externalUserId, CancellationToken ct)
         => await Context.Set<User>().FirstOrDefaultAsync(u => u.ExternalUserId == externalUserId, ct);
 }

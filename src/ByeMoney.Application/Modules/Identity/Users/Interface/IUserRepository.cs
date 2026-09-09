@@ -5,5 +5,6 @@ namespace ByeMoney.Application.Modules.Identity.Users.Interface;
 public interface IUserRepository : IRepository<User, UserId>
 {
     Task<bool> ExistsByExternalUserIdAsync(string externalUserId, CancellationToken ct);
+    Task<bool> ExistsByPhoneAsync(string phone, CancellationToken ct);
     Task<User?> GetByExternalUserIdAsync(string externalUserId, CancellationToken ct);
 }

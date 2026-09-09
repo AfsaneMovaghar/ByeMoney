@@ -115,6 +115,9 @@
   <data name="User_PhoneRequired" xml:space="preserve">
     <value>شماره موبایل الزامی است.</value>
   </data>
+  <data name="User_PhoneAlreadyExists" xml:space="preserve">
+    <value>کاربری با این شماره موبایل قبلاً ثبت شده است.</value>
+  </data>
   <data name="User_UserTypeInvalid" xml:space="preserve">
     <value>نوع کاربر نامعتبر است.</value>
   </data>

@@ -131,5 +131,23 @@ namespace ByeMoney.API.Resources {
                 return ResourceManager.GetString("Middleware_UnauthorizedTitle", resourceCulture);
             }
         }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to تعارض اطلاعات.
+        /// </summary>
+        public static string Middleware_ConflictTitle {
+            get {
+                return ResourceManager.GetString("Middleware_ConflictTitle", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to اطلاعات وارد شده تکراری است..
+        /// </summary>
+        public static string Middleware_DuplicateRecordMessage {
+            get {
+                return ResourceManager.GetString("Middleware_DuplicateRecordMessage", resourceCulture);
+            }
+        }
     }
 }

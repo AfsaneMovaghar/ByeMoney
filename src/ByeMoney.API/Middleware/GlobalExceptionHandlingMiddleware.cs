@@ -1,8 +1,10 @@
 using System.Net;
 using System.Text.Json;
 using ByeMoney.API.Resources;
+using ByeMoney.Application.Resources;
 using ByeMoney.Domain.Common.Exceptions;
 using FluentValidation;
+using Microsoft.EntityFrameworkCore;
 
 namespace ByeMoney.API.Middleware;
 
@@ -41,6 +43,11 @@ public class GlobalExceptionHandlingMiddleware
                 HttpStatusCode.BadRequest,
                 ApiErrors.Middleware_ValidationErrorTitle,
                 validationEx.Errors.Select(e => e.ErrorMessage).ToList()
+            ),
+            DbUpdateException dbUpdateEx when dbUpdateEx.InnerException is Npgsql.PostgresException pgEx && pgEx.SqlState == "23505" => (
+                HttpStatusCode.Conflict,
+                ApiErrors.Middleware_ConflictTitle,
+                new List<string> { GetDuplicateConstraintMessage(pgEx.ConstraintName) }
             ),
             NotFoundException notFoundEx => (
                 HttpStatusCode.NotFound,
@@ -85,4 +92,11 @@ public class GlobalExceptionHandlingMiddleware
 
         await context.Response.WriteAsync(JsonSerializer.Serialize(response));
     }
+
+    private static string GetDuplicateConstraintMessage(string? constraintName) => constraintName switch
+    {
+        "IX_Users_Phone" => ApplicationErrors.User_PhoneAlreadyExists,
+        "IX_Users_ExternalUserId" => ApplicationErrors.User_ExternalUserIdAlreadyExists,
+        _ => ApiErrors.Middleware_DuplicateRecordMessage
+    };
 }

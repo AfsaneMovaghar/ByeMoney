@@ -36,6 +36,9 @@ public class CreateUserCommandValidator : AbstractValidator<CreateUserCommand>
         RuleFor(x => x.Phone)
             .Matches(@"^09\d{9}$")
             .WithMessage(ApplicationErrors.User_PhoneInvalidFormat)
+
+            .MustAsync(BeUniquePhone)
+            .WithMessage(ApplicationErrors.User_PhoneAlreadyExists)
             .When(x => !string.IsNullOrEmpty(x.Phone));
 
         RuleFor(x => x.Email)
@@ -52,4 +55,12 @@ public class CreateUserCommandValidator : AbstractValidator<CreateUserCommand>
 
     private async Task<bool> BeUniqueExternalUserId(string externalUserId, CancellationToken ct)
         => !await _userRepository.ExistsByExternalUserIdAsync(externalUserId, ct);
+
+    private async Task<bool> BeUniquePhone(string? phone, CancellationToken ct)
+    {
+        if (string.IsNullOrEmpty(phone))
+            return true;
+
+        return !await _userRepository.ExistsByPhoneAsync(phone, ct);
+    }
 }

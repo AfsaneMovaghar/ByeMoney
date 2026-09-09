@@ -232,6 +232,15 @@ namespace ByeMoney.Application.Resources {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to کاربری با این شماره موبایل قبلاً ثبت شده است..
+        /// </summary>
+        public static string User_PhoneAlreadyExists {
+            get {
+                return ResourceManager.GetString("User_PhoneAlreadyExists", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to نوع کاربر نامعتبر است..
         /// </summary>
         public static string User_UserTypeInvalid {

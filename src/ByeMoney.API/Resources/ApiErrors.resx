@@ -82,4 +82,10 @@
   <data name="Middleware_ValidationErrorTitle" xml:space="preserve">
     <value>خطای اعتبارسنجی</value>
   </data>
+  <data name="Middleware_ConflictTitle" xml:space="preserve">
+    <value>تعارض اطلاعات</value>
+  </data>
+  <data name="Middleware_DuplicateRecordMessage" xml:space="preserve">
+    <value>اطلاعات وارد شده تکراری است.</value>
+  </data>
 </root>
