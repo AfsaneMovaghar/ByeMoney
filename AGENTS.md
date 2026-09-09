@@ -49,3 +49,23 @@ Any persistence change **must** include EF Core migration. Task incomplete witho
 ## Localization
 Never hard-code user-facing text. Use `.resx` via generated Resource class.
 The text of the messages should be in Persian.
+
+## Project Architecture and Integration Contracts
+
+Before implementing or modifying any code related to TarhElahi / Strapi,
+you MUST read:
+
+- `docs/integration/ByeMoney-Strapi-Integration.md`
+- `docs/architecture/ByeMoney-Decisions.md`
+
+Rules:
+
+1. `ByeMoney-Strapi-Integration.md` is the authoritative integration contract.
+2. Do not guess Strapi fields, DTOs, identifiers, API responses, or authentication behavior.
+3. If the implementation requires a field or behavior that is not defined in the integration contract, stop and explicitly report the missing contract instead of inventing one.
+4. Do not use the frontend implementation as the source of truth for Strapi contracts.
+5. Do not introduce Strapi-specific concepts into the ByeMoney Domain layer.
+6. For conflicting information:
+   - Integration contract wins for API/DTO/integration behavior.
+   - ByeMoney-Decisions.md wins for architecture and business boundaries.
+7. Any proposed DTO must map explicitly to fields defined in the integration contract.

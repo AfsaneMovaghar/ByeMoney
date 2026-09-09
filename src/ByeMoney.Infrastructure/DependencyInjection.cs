@@ -3,6 +3,7 @@ using ByeMoney.Application.Modules.Identity.Authorization;
 using ByeMoney.Application.Modules.Identity.Users.Interface;
 using ByeMoney.Infrastructure.Modules.Identity.Persistence.User;
 using ByeMoney.Infrastructure.Modules.Identity.Services;
+using ByeMoney.Infrastructure.Modules.TarhElahiIntegration;
 using ByeMoney.Infrastructure.Modules.Wallet.Persistence;
 using ByeMoney.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -27,6 +28,7 @@ public static class DependencyInjection
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IUserAuthorizationService, UserAuthorizationService>();
         services.AddWalletModule();
+        services.AddTarhElahiIntegration(configuration);
         return services;
     }
 }
