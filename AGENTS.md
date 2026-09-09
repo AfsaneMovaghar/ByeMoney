@@ -40,7 +40,7 @@ Never add for "future needs." Smallest thing that satisfies current use case.
 Auto-tests **only** for financial logic (Ledger, Wallet, TopUp, Purchase). Others → Swagger manual. If scope ambiguous → ask before deciding.
 
 ## Migrations
-Any persistence change **must** include EF Core migration. Task incomplete without it.
+Any persistence change **must** include EF Core migration and update to database. Task incomplete without it.
 
 ## Workflow
 - Propose branch name first (`feature/xxx`).
