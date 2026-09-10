@@ -1,3 +1,4 @@
+using ByeMoney.API.Contracts.Auth;
 using ByeMoney.API.Resources;
 using ByeMoney.Application.Modules.Identity.Users.Commands.SyncUserFromStrapi;
 using ByeMoney.Domain.Modules.Identity.Constants;
@@ -15,7 +16,7 @@ public class AuthController(ISender sender) : ControllerBase
 
     [Authorize]
     [HttpPost("sync")]
-    public async Task<IActionResult> Sync(CancellationToken ct)
+    public async Task<ActionResult<SyncUserResponse>> Sync(CancellationToken ct)
     {
         var externalUserId = User.FindFirst(AppClaimTypes.DocumentId)?.Value;
 
@@ -24,6 +25,6 @@ public class AuthController(ISender sender) : ControllerBase
 
         var cmd = new SyncUserFromStrapiCommand(externalUserId);
         var userId = await _sender.Send(cmd, ct);
-        return Ok(userId);
+        return Ok(new SyncUserResponse(userId));
     }
 }

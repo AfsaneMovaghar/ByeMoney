@@ -1,6 +1,7 @@
 using System.Text;
 using ByeMoney.API.Authentication;
 using ByeMoney.API.Authorization;
+using ByeMoney.API.Constants;
 using ByeMoney.API.Resources;
 using ByeMoney.API.Services;
 using ByeMoney.Application.Common.Interfaces;
@@ -20,6 +21,26 @@ public static class DependencyInjection
         this IServiceCollection services,
         IConfiguration configuration)
     {
+        var allowedOrigins = configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
+
+        services.AddCors(options =>
+        {
+            options.AddPolicy(CorsPolicies.TarhElahi, policy =>
+            {
+                if (allowedOrigins.Length > 0)
+                {
+                    policy.WithOrigins(allowedOrigins);
+                }
+                else
+                {
+                    policy.AllowAnyOrigin();
+                }
+
+                policy.AllowAnyHeader()
+                      .AllowAnyMethod();
+            });
+        });
+
         var strapiJwtSecret = configuration["Strapi:JwtSecret"];
         if (string.IsNullOrEmpty(strapiJwtSecret))
         {

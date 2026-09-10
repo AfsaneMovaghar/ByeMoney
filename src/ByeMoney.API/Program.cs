@@ -1,4 +1,5 @@
 using ByeMoney.API;
+using ByeMoney.API.Constants;
 using ByeMoney.Application;
 using ByeMoney.Infrastructure;
 using Serilog;
@@ -37,6 +38,8 @@ try
     }
 
     app.UseHttpsRedirection();
+
+    app.UseCors(CorsPolicies.TarhElahi);
 
     app.UseAuthentication();
     app.UseAuthorization();
