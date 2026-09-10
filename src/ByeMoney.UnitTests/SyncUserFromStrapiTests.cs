@@ -1,9 +1,12 @@
 using ByeMoney.Application.Common.Interfaces;
 using ByeMoney.Application.Modules.Identity.Users.Commands.SyncUserFromStrapi;
 using ByeMoney.Application.Modules.Identity.Users.Interface;
+using ByeMoney.Application.Modules.TarhElahiIntegration.DTOs;
+using ByeMoney.Application.Modules.TarhElahiIntegration.Interfaces;
 using ByeMoney.Domain.Modules.Identity.Users;
 using FluentAssertions;
 using FluentValidation.TestHelper;
+using Microsoft.Extensions.Logging;
 using Moq;
 using Xunit;
 
@@ -108,47 +111,120 @@ public class SyncUserFromStrapiTests
     }
 
     [Fact]
-    public async Task Handler_ShouldUpdateAndSync_WhenUserExists()
+    public async Task Handler_ShouldReturnExistingUser_WhenUserExistsAndProfileIsFresh()
     {
         // Arrange
         var userRepositoryMock = new Mock<IUserRepository>();
         var unitOfWorkMock = new Mock<IUnitOfWork>();
+        var tarhElahiClientMock = new Mock<ITarhElahiIntegrationClient>();
+        var loggerMock = new Mock<ILogger<SyncUserFromStrapiCommandHandler>>();
 
         var existingUser = User.CreateFromStrapi("user-42");
         userRepositoryMock
             .Setup(r => r.GetByExternalUserIdAsync("user-42", It.IsAny<CancellationToken>()))
             .ReturnsAsync(existingUser);
 
-        var handler = new SyncUserFromStrapiCommandHandler(userRepositoryMock.Object, unitOfWorkMock.Object);
+        var handler = new SyncUserFromStrapiCommandHandler(
+            userRepositoryMock.Object,
+            unitOfWorkMock.Object,
+            tarhElahiClientMock.Object,
+            loggerMock.Object);
 
         // Act
         var result = await handler.Handle(new SyncUserFromStrapiCommand("user-42"), CancellationToken.None);
 
         // Assert
         result.Should().Be(existingUser.Id.Value);
+        tarhElahiClientMock.Verify(c => c.GetUserAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        userRepositoryMock.Verify(r => r.Update(It.IsAny<User>()), Times.Never);
+        unitOfWorkMock.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task Handler_ShouldRefreshProfile_WhenUserExistsAndSyncIsNeeded()
+    {
+        // Arrange
+        var userRepositoryMock = new Mock<IUserRepository>();
+        var unitOfWorkMock = new Mock<IUnitOfWork>();
+        var tarhElahiClientMock = new Mock<ITarhElahiIntegrationClient>();
+        var loggerMock = new Mock<ILogger<SyncUserFromStrapiCommandHandler>>();
+
+        var existingUser = User.CreateInitial("user-42"); // ProfileSyncedAt = MinValue -> NeedsProfileSync = true
+        userRepositoryMock
+            .Setup(r => r.GetByExternalUserIdAsync("user-42", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(existingUser);
+
+        var strapiDto = new TarhElahiUserDto
+        {
+            ExternalUserId = "user-42",
+            FirstName = "Ali",
+            LastName = "Rezaei",
+            PhoneNumber = "09123456789",
+            Confirmed = true,
+            Blocked = false
+        };
+
+        tarhElahiClientMock
+            .Setup(c => c.GetUserAsync("user-42", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(strapiDto);
+
+        var handler = new SyncUserFromStrapiCommandHandler(
+            userRepositoryMock.Object,
+            unitOfWorkMock.Object,
+            tarhElahiClientMock.Object,
+            loggerMock.Object);
+
+        // Act
+        var result = await handler.Handle(new SyncUserFromStrapiCommand("user-42"), CancellationToken.None);
+
+        // Assert
+        result.Should().Be(existingUser.Id.Value);
+        existingUser.FirstName.Should().Be("Ali");
+        existingUser.LastName.Should().Be("Rezaei");
+        existingUser.Phone.Should().Be("09123456789");
         userRepositoryMock.Verify(r => r.Update(existingUser), Times.Once);
         unitOfWorkMock.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
-    public async Task Handler_ShouldCreateNewUser_WhenUserDoesNotExist()
+    public async Task Handler_ShouldCreateNewUser_WhenUserDoesNotExistAndStrapiReturnsUser()
     {
         // Arrange
         var userRepositoryMock = new Mock<IUserRepository>();
         var unitOfWorkMock = new Mock<IUnitOfWork>();
+        var tarhElahiClientMock = new Mock<ITarhElahiIntegrationClient>();
+        var loggerMock = new Mock<ILogger<SyncUserFromStrapiCommandHandler>>();
 
         userRepositoryMock
             .Setup(r => r.GetByExternalUserIdAsync("user-99", It.IsAny<CancellationToken>()))
             .ReturnsAsync((User?)null);
 
-        var handler = new SyncUserFromStrapiCommandHandler(userRepositoryMock.Object, unitOfWorkMock.Object);
+        var strapiDto = new TarhElahiUserDto
+        {
+            ExternalUserId = "user-99",
+            FirstName = "Reza",
+            LastName = "Ahmadi",
+            PhoneNumber = "09987654321",
+            Confirmed = true,
+            Blocked = false
+        };
+
+        tarhElahiClientMock
+            .Setup(c => c.GetUserAsync("user-99", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(strapiDto);
+
+        var handler = new SyncUserFromStrapiCommandHandler(
+            userRepositoryMock.Object,
+            unitOfWorkMock.Object,
+            tarhElahiClientMock.Object,
+            loggerMock.Object);
 
         // Act
         var result = await handler.Handle(new SyncUserFromStrapiCommand("user-99"), CancellationToken.None);
 
         // Assert
         result.Should().NotBeEmpty();
-        userRepositoryMock.Verify(r => r.AddAsync(It.Is<User>(u => u.ExternalUserId == "user-99" && u.DisplayName == null && u.Phone == null), It.IsAny<CancellationToken>()), Times.Once);
+        userRepositoryMock.Verify(r => r.AddAsync(It.Is<User>(u => u.ExternalUserId == "user-99" && u.FirstName == "Reza" && u.Phone == "09987654321"), It.IsAny<CancellationToken>()), Times.Once);
         unitOfWorkMock.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 }

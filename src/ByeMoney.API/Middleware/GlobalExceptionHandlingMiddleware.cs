@@ -2,6 +2,7 @@ using System.Net;
 using System.Text.Json;
 using ByeMoney.API.Resources;
 using ByeMoney.Application.Resources;
+using ByeMoney.Application.Modules.TarhElahiIntegration.Exceptions;
 using ByeMoney.Domain.Common.Exceptions;
 using FluentValidation;
 using Microsoft.EntityFrameworkCore;
@@ -63,6 +64,11 @@ public class GlobalExceptionHandlingMiddleware
                 HttpStatusCode.Unauthorized,
                 ApiErrors.Middleware_UnauthorizedTitle,
                 new List<string> { unauthorizedEx.Message }
+            ),
+            TarhElahiUnavailableException _ => (
+                HttpStatusCode.ServiceUnavailable,
+                ApiErrors.Middleware_TarhElahiUnavailableTitle,
+                new List<string> { ApiErrors.TarhElahi_UnavailableMessage }
             ),
             _ => (
                 HttpStatusCode.InternalServerError,

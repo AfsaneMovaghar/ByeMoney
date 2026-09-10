@@ -266,5 +266,14 @@ namespace ByeMoney.Application.Resources {
                 return ResourceManager.GetString("Wallet_UserNotAuthenticated", resourceCulture);
             }
         }
+
+        /// <summary>
+        ///   Looks up a localized string similar to کاربر با شناسه خارجی «{0}» در سامانه طرح الهی یافت نشد..
+        /// </summary>
+        public static string User_NotFoundInTarhElahi {
+            get {
+                return ResourceManager.GetString("User_NotFoundInTarhElahi", resourceCulture);
+            }
+        }
     }
 }

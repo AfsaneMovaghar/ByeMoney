@@ -60,7 +60,7 @@ public class User : BaseEntity<UserId>
             FirstName = firstName,
             LastName = lastName,
             IsActive = confirmed && !blocked,
-            ProfileSyncedAt = DateTime.MinValue,
+            ProfileSyncedAt = DateTime.UtcNow,
             UserType = userType
         };
     }

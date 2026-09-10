@@ -88,4 +88,10 @@
   <data name="Middleware_DuplicateRecordMessage" xml:space="preserve">
     <value>اطلاعات وارد شده تکراری است.</value>
   </data>
+  <data name="Middleware_TarhElahiUnavailableTitle" xml:space="preserve">
+    <value>عدم دسترسی به سرویس خارجی</value>
+  </data>
+  <data name="TarhElahi_UnavailableMessage" xml:space="preserve">
+    <value>سرویس طرح الهی در حال حاضر در دسترس نیست. لطفاً بعداً تلاش فرمایید.</value>
+  </data>
 </root>

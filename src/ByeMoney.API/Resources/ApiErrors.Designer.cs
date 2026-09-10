@@ -149,5 +149,23 @@ namespace ByeMoney.API.Resources {
                 return ResourceManager.GetString("Middleware_DuplicateRecordMessage", resourceCulture);
             }
         }
+
+        /// <summary>
+        ///   Looks up a localized string similar to عدم دسترسی به سرویس خارجی.
+        /// </summary>
+        public static string Middleware_TarhElahiUnavailableTitle {
+            get {
+                return ResourceManager.GetString("Middleware_TarhElahiUnavailableTitle", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to سرویس طرح الهی در حال حاضر در دسترس نیست. لطفاً بعداً تلاش فرمایید..
+        /// </summary>
+        public static string TarhElahi_UnavailableMessage {
+            get {
+                return ResourceManager.GetString("TarhElahi_UnavailableMessage", resourceCulture);
+            }
+        }
     }
 }
