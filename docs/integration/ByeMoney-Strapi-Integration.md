@@ -1,4 +1,4 @@
-# ByeMoney ↔ TarhElahi Strapi Integration
+# ByeMoney ↔ TarhElahi / Strapi Integration
 
 ## 1. Purpose
 
@@ -7,15 +7,15 @@ This document defines the integration contract between **ByeMoney** and **TarhEl
 The two systems remain independent:
 
 - **TarhElahi / Strapi** owns user identity, educational catalog, Rial prices, publication state, educational access, and legacy Rial sales.
-- **ByeMoney** owns Noor, Wallet, Ledger, TopUp, Rial→Noor conversion, Purchase/Deal, financial snapshots, and unified reporting.
+- **ByeMoney** owns Noor, Wallet, Ledger, TopUp, Rial → Noor conversion, Purchase/Deal, financial snapshots, and unified financial reporting.
 
-No system may directly access or modify the other system's database.
+> Neither system may directly access or modify the other system's database.
 
 ---
 
 ## 2. Ownership Boundaries
 
-### Strapi owns
+### TarhElahi / Strapi owns
 
 - User authentication and external identity
 - Course
@@ -38,12 +38,11 @@ No system may directly access or modify the other system's database.
 - Financial purchase snapshot
 - New financial reporting
 
-Important:
+### Core rules
 
-```text
-Strapi must contain no Noor balance or Noor transaction logic.
-Frontend prices are never authoritative for purchase.
-```
+- Strapi must contain **no Noor balance or Noor transaction logic**.
+- Frontend prices are **never authoritative** for purchase.
+- ByeMoney must use its own internal `UserId` in domain logic.
 
 ---
 
@@ -58,11 +57,9 @@ ExternalUserId = Strapi User documentId
 Phone = attribute
 ```
 
-`documentId` was verified in the current Strapi database and is populated for existing users.
+`documentId` has been verified in the current Strapi database and is populated for existing users.
 
-ByeMoney domain logic must use its own internal `UserId`.
-
-Do not use as permanent integration identity:
+Do **not** use these as permanent integration identities:
 
 ```text
 numeric database id
@@ -70,6 +67,16 @@ phone number
 email
 username
 ```
+
+### User activity rule
+
+ByeMoney calculates user activity during synchronization:
+
+```text
+IsActive = confirmed && !blocked
+```
+
+This value is derived in ByeMoney, not stored or calculated by Strapi for the integration contract.
 
 ---
 
@@ -81,7 +88,7 @@ Canonical Course identifier:
 ExternalId = Strapi Course documentId
 ```
 
-Do not use:
+Do **not** use the following as integration or financial identity:
 
 ```text
 numeric database id
@@ -90,13 +97,11 @@ title
 display order
 ```
 
-as the integration or financial identity.
-
 ---
 
 ## 5. Service-to-Service Authentication
 
-Integration endpoints do not use the end-user Bearer JWT.
+Integration endpoints do **not** use the end-user Bearer JWT.
 
 Required header:
 
@@ -112,22 +117,20 @@ BYEMONEY_SERVICE_KEY
 
 Requirements:
 
-- `auth: false` on integration routes
-- route protected by `global::is-service-authenticated`
-- cryptographically secure key, at least 32 random bytes
-- no hardcoded production secrets
-- production secret stored in environment/secret configuration
-- no key/header logging
-- missing or invalid credential → `401`
-- constant-time comparison using SHA-256 + `crypto.timingSafeEqual`
+- Integration routes use `auth: false`.
+- Routes are protected by `global::is-service-authenticated`.
+- The key must contain at least 32 cryptographically secure random bytes.
+- Production secrets must never be hardcoded, committed, or logged.
+- Production secrets must be stored in environment/secret configuration.
+- Missing or invalid credentials return `401`.
+- Key comparison uses SHA-256 with `crypto.timingSafeEqual`.
+- No duplicate global authentication middleware is required.
 
 Canonical policy:
 
 ```text
 src/policies/is-service-authenticated.js
 ```
-
-No duplicate global authentication middleware is required.
 
 Current key rotation is standard manual environment rotation, not zero-downtime rotation.
 
@@ -141,7 +144,7 @@ Base namespace:
 /api/integrations/byemoney/v1/
 ```
 
-Current implemented endpoints:
+Currently implemented endpoints:
 
 ```text
 GET /api/integrations/byemoney/v1/users/:externalUserId
@@ -154,7 +157,7 @@ Numeric database IDs are not accepted as fallback identifiers.
 
 ## 7. User Read Contract
 
-Example:
+Example response:
 
 ```json
 {
@@ -173,7 +176,7 @@ Example:
 
 The response is whitelist-only.
 
-Sensitive fields must never be returned, including:
+Fields such as the following must never be returned:
 
 ```text
 password
@@ -182,6 +185,7 @@ confirmationToken
 otpCode
 otpExpiresAt
 cartData
+username
 ```
 
 Missing user → `404`.
@@ -190,7 +194,7 @@ Missing user → `404`.
 
 ## 8. Course Catalog Contract
 
-Example:
+Example response:
 
 ```json
 {
@@ -214,16 +218,18 @@ priceRial = authoritative price from Strapi
 Rial → Noor conversion = ByeMoney responsibility
 ```
 
-The frontend must not provide the trusted purchase price.
+`priceRial` must be handled as a **decimal-compatible value**, not forced into `long`/`int`, because Strapi does not guarantee integer rounding.
 
-Current Course schema has no separate purchasability flag, therefore currently:
+The frontend must never provide the trusted purchase price.
+
+The current Course schema has no separate purchasability flag, therefore:
 
 ```text
 published = publishedAt != null
 available = published
 ```
 
-If Strapi later adds a real purchasability rule, the external contract should keep the same `available` field while its internal calculation changes.
+If Strapi later introduces a real purchasability rule, the external contract should keep the same `available` field while only its internal calculation changes.
 
 Missing course → `404`.
 
@@ -255,9 +261,10 @@ Strapi Purchase Confirmation API
 Grant educational entitlement
 ```
 
-Strapi must only receive the purchase result after the ByeMoney financial transaction succeeds.
+Rules:
 
-Do not create a normal pending Strapi Order before charging Noor.
+- Strapi receives the purchase result only **after** the ByeMoney financial transaction succeeds.
+- Do not create a normal pending Strapi Order before charging Noor.
 
 ---
 
@@ -277,7 +284,7 @@ PriceInNoorAtPurchaseTime
 PurchasedAt
 ```
 
-Later Strapi changes must not alter historical financial truth.
+Later changes in Strapi must not alter historical financial truth.
 
 ---
 
@@ -311,13 +318,13 @@ eventId = UNIQUE
 dealId = UNIQUE
 ```
 
-Duplicate completed events should return success/no-op rather than create duplicate access.
+If an already-completed event is received again, Strapi should return success/no-op instead of granting duplicate access.
 
 ---
 
-## 12. Entitlement
+## 12. Educational Entitlement
 
-ByeMoney sends domain-level commands only.
+ByeMoney sends **domain-level commands only**.
 
 Examples:
 
@@ -347,7 +354,7 @@ Recommended:
 integrationId: UUID
 ```
 
-Do not use:
+Do **not** use:
 
 ```text
 component numeric id
@@ -356,7 +363,7 @@ display order
 slug
 ```
 
-Chapter purchase contract must contain:
+Chapter purchase contract:
 
 ```text
 type = course_chapter
@@ -366,36 +373,33 @@ parentExternalId = course documentId
 
 ---
 
-## 14. Product
+## 14. Product Ownership and Identity
 
-Products owned by TarhElahi remain in Strapi.
-
-Products/services created by ByeMoney users belong to ByeMoney.
-
-For Strapi Products, a stable external identifier and catalog DTO must be defined before purchase integration.
-
-Physical-product inventory is outside the initial scope unless explicitly implemented.
+- Products owned by TarhElahi remain in Strapi.
+- Products/services created by ByeMoney users belong to ByeMoney.
+- For Strapi Products, a stable external identifier and catalog DTO must be defined before purchase integration.
+- Physical-product inventory is outside the initial scope unless explicitly implemented.
 
 ---
 
-## 15. Reliability
+## 15. Reliability and Outbox
 
 Financial success must not depend on Strapi being online at the same moment.
 
-Expected behavior:
+Expected temporary state:
 
 ```text
 Ledger = Successful
 Entitlement = Pending
 ```
 
-Then retry through Outbox until:
+The entitlement operation is then retried through the Outbox until:
 
 ```text
 Entitlement = Completed
 ```
 
-Do not rollback a successful Ledger transaction because Strapi is temporarily unavailable.
+A successful Ledger transaction must **not** be rolled back merely because Strapi is temporarily unavailable.
 
 ---
 
@@ -409,23 +413,23 @@ GET /api/integrations/byemoney/v1/purchases/:dealId
 
 Purpose:
 
-- verify entitlement status
-- recover from retries/failures
-- support operational reconciliation
+- Verify entitlement status.
+- Recover from retries or failures.
+- Support operational reconciliation.
 
 Use `DealId` and `CorrelationId` in logs across both systems.
 
 ---
 
-## 17. Legacy Sales
+## 17. Legacy Rial Sales
 
 Legacy Rial sales remain owned by TarhElahi.
 
 They:
 
-- are used only for reporting
-- do not create Noor Ledger entries
-- must be separated by an exact Go-Live cutoff timestamp
+- are used only for reporting,
+- do not create Noor Ledger entries,
+- must be separated using an exact Go-Live cutoff timestamp.
 
 Planned secure endpoint:
 
@@ -433,18 +437,18 @@ Planned secure endpoint:
 GET /api/integrations/byemoney/v1/legacy-sales
 ```
 
-with pagination and date/update filters.
+The endpoint should support pagination and date/update filters.
 
 ---
 
 ## 18. Explicitly Forbidden
 
 ```text
-ByeMoney → direct Strapi DB
-Strapi → direct ByeMoney DB
+ByeMoney → direct Strapi DB access
+Strapi → direct ByeMoney DB access
 Strapi → modify Noor balance
 Strapi → calculate Noor
-Frontend → trusted purchase price
+Frontend → provide trusted purchase price
 ByeMoney → create pending normal Strapi Order
 Use slug as financial external ID
 Use numeric DB id as integration identity
@@ -458,23 +462,21 @@ Move card-to-card payment into ByeMoney
 
 ## 19. Current Completed Scope
 
-The Strapi read-side foundation is implemented and tested:
+The Strapi read-side integration foundation is implemented and tested:
 
-```text
-✓ Service-to-service authentication
-✓ Versioned Integration API
-✓ Stable User external identity
-✓ Stable Course external identity
-✓ Strict User DTO
-✓ Authoritative Course DTO
-✓ Authoritative Rial price
-✓ published / available
-✓ Numeric ID rejection
-✓ Sensitive field exclusion
-✓ 404 handling
-✓ Automated verification
-✓ Documentation
-```
+- [x] Service-to-service authentication
+- [x] Versioned Integration API
+- [x] Stable User external identity using `documentId`
+- [x] Stable Course external identity using `documentId`
+- [x] Strict User DTO
+- [x] Authoritative Course DTO
+- [x] Authoritative Rial price
+- [x] `published` / `available`
+- [x] Numeric ID rejection
+- [x] Sensitive-field exclusion
+- [x] `404` handling
+- [x] Automated verification
+- [x] Documentation
 
 ---
 
@@ -482,22 +484,20 @@ The Strapi read-side foundation is implemented and tested:
 
 Recommended order:
 
-```text
-1. Stable CourseChapter integrationId
-2. Product stable ExternalId
-3. Chapter/Product catalog contracts
-4. Purchase Confirmation API
-5. eventId + dealId idempotency
-6. Grant Course / Chapter
-7. Integration event/audit record
-8. Purchase Status / Reconciliation
-9. Outbox + Retry
-10. Legacy Sales API
-```
+1. Add stable `CourseChapter.integrationId`.
+2. Define stable Product `ExternalId`.
+3. Define Chapter/Product catalog contracts.
+4. Implement Purchase Confirmation API.
+5. Add `eventId` + `dealId` idempotency.
+6. Implement Grant Course / Chapter.
+7. Add integration event/audit record.
+8. Implement Purchase Status / Reconciliation.
+9. Implement Outbox + Retry.
+10. Implement Legacy Sales API.
 
 ---
 
-## 21. Final Rule
+## 21. Final Responsibility Rule
 
 ```text
 TarhElahi tells ByeMoney:
