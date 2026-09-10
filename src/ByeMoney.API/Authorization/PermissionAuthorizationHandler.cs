@@ -1,3 +1,4 @@
+using ByeMoney.Domain.Modules.Identity.Constants;
 using Microsoft.AspNetCore.Authorization;
 
 namespace ByeMoney.API.Authorization;
@@ -8,7 +9,7 @@ public class PermissionAuthorizationHandler : AuthorizationHandler<PermissionReq
         AuthorizationHandlerContext context,
         PermissionRequirement requirement)
     {
-        if (context.User.HasClaim(c => c.Type == "permission" && c.Value == requirement.Permission))
+        if (context.User.HasClaim(c => c.Type == AppClaimTypes.Permission && c.Value == requirement.Permission))
         {
             context.Succeed(requirement);
         }

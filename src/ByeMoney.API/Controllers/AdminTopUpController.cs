@@ -3,6 +3,7 @@ using ByeMoney.Application.Modules.Wallet.Commands.ConfirmTopUp;
 using ByeMoney.Application.Modules.Wallet.Commands.RejectTopUp;
 using ByeMoney.Application.Modules.Wallet.Queries.GetTopUpByClientReferenceCode;
 using ByeMoney.Domain.Common;
+using ByeMoney.Domain.Modules.Identity.Constants;
 using ByeMoney.Domain.Modules.Wallet.TopUps;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -12,7 +13,7 @@ namespace ByeMoney.API.Controllers;
 
 [ApiController]
 [Route("api/admin/topups")]
-[Authorize(Policy = "RequireTopUpReview")]
+[Authorize(Policy = PolicyNames.RequireTopUpReview)]
 public class AdminTopUpController(ISender sender) : ControllerBase
 {
     private readonly ISender _sender = sender;

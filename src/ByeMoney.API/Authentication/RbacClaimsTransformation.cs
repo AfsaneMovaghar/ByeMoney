@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using ByeMoney.API.Resources;
 using ByeMoney.Application.Modules.Identity.Authorization;
+using ByeMoney.Domain.Modules.Identity.Constants;
 using Microsoft.AspNetCore.Authentication;
 
 namespace ByeMoney.API.Authentication;
@@ -8,7 +9,6 @@ namespace ByeMoney.API.Authentication;
 public class RbacClaimsTransformation(IUserAuthorizationService userAuthorizationService) : IClaimsTransformation
 {
     private readonly IUserAuthorizationService _userAuthorizationService = userAuthorizationService;
-    private const string TransformedMarkerClaimType = "urn:byemoney:transformed";
 
     public async Task<ClaimsPrincipal> TransformAsync(ClaimsPrincipal principal)
     {
@@ -17,12 +17,12 @@ public class RbacClaimsTransformation(IUserAuthorizationService userAuthorizatio
             return principal;
         }
 
-        if (principal.HasClaim(c => c.Type == TransformedMarkerClaimType))
+        if (principal.HasClaim(c => c.Type == AppClaimTypes.TransformedMarker))
         {
             return principal;
         }
 
-        var externalUserId = principal.FindFirst("documentId")?.Value;
+        var externalUserId = principal.FindFirst(AppClaimTypes.DocumentId)?.Value;
 
         if (string.IsNullOrWhiteSpace(externalUserId))
         {
@@ -36,9 +36,9 @@ public class RbacClaimsTransformation(IUserAuthorizationService userAuthorizatio
         }
 
         var claimsIdentity = new ClaimsIdentity();
-        claimsIdentity.AddClaim(new Claim(TransformedMarkerClaimType, "true"));
+        claimsIdentity.AddClaim(new Claim(AppClaimTypes.TransformedMarker, "true"));
         claimsIdentity.AddClaim(new Claim(ClaimTypes.NameIdentifier, userAuth.UserId.ToString()));
-        claimsIdentity.AddClaim(new Claim("internal_user_id", userAuth.UserId.ToString()));
+        claimsIdentity.AddClaim(new Claim(AppClaimTypes.InternalUserId, userAuth.UserId.ToString()));
 
         foreach (var role in userAuth.Roles)
         {
@@ -47,7 +47,7 @@ public class RbacClaimsTransformation(IUserAuthorizationService userAuthorizatio
 
         foreach (var permission in userAuth.Permissions)
         {
-            claimsIdentity.AddClaim(new Claim("permission", permission));
+            claimsIdentity.AddClaim(new Claim(AppClaimTypes.Permission, permission));
         }
 
         principal.AddIdentity(claimsIdentity);

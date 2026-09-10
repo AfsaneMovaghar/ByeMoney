@@ -1,5 +1,6 @@
 using ByeMoney.API.Resources;
 using ByeMoney.Application.Modules.Identity.Users.Commands.SyncUserFromStrapi;
+using ByeMoney.Domain.Modules.Identity.Constants;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -16,7 +17,7 @@ public class AuthController(ISender sender) : ControllerBase
     [HttpPost("sync")]
     public async Task<IActionResult> Sync(CancellationToken ct)
     {
-        var externalUserId = User.FindFirst("documentId")?.Value;
+        var externalUserId = User.FindFirst(AppClaimTypes.DocumentId)?.Value;
 
         if (string.IsNullOrWhiteSpace(externalUserId))
             throw new UnauthorizedAccessException(ApiErrors.Auth_DocumentIdClaimMissing);

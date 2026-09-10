@@ -4,6 +4,7 @@ using ByeMoney.API.Authorization;
 using ByeMoney.API.Resources;
 using ByeMoney.API.Services;
 using ByeMoney.Application.Common.Interfaces;
+using ByeMoney.Domain.Modules.Identity.Constants;
 using ByeMoney.Domain.Modules.Identity.Permissions;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -36,7 +37,7 @@ public static class DependencyInjection
                     ValidateIssuerSigningKey = true,
                     IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(strapiJwtSecret)),
                     ClockSkew = TimeSpan.FromMinutes(2),
-                    NameClaimType = "id"
+                    NameClaimType = AppClaimTypes.StrapiId
                 };
             });
 
@@ -47,10 +48,10 @@ public static class DependencyInjection
 
         services.AddAuthorization(options =>
         {
-            options.AddPolicy("RequireNoorInject", policy =>
+            options.AddPolicy(PolicyNames.RequireNoorInject, policy =>
                 policy.Requirements.Add(new PermissionRequirement(Permissions.Noor.Inject)));
 
-            options.AddPolicy("RequireTopUpReview", policy =>
+            options.AddPolicy(PolicyNames.RequireTopUpReview, policy =>
                 policy.Requirements.Add(new PermissionRequirement(Permissions.TopUp.Review)));
         });
 
