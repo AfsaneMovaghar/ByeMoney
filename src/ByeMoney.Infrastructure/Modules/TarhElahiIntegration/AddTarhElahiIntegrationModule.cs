@@ -16,27 +16,25 @@ public static class AddTarhElahiIntegrationModule
             .GetSection(TarhElahiOptions.SectionName)
             .Get<TarhElahiOptions>() ?? new TarhElahiOptions();
 
-        // Fallback to BYEMONEY_SERVICE_KEY environment variable if ServiceKey is not configured in section
-        if (string.IsNullOrWhiteSpace(options.ServiceKey))
+        // Support BYEMONEY_SERVICE_KEY environment variable override/fallback
+        var envServiceKey = configuration["BYEMONEY_SERVICE_KEY"];
+        if (!string.IsNullOrWhiteSpace(envServiceKey))
         {
-            var envServiceKey = configuration["BYEMONEY_SERVICE_KEY"];
-            if (!string.IsNullOrWhiteSpace(envServiceKey))
-            {
-                options.ServiceKey = envServiceKey;
-            }
+            options.ServiceKey = envServiceKey;
         }
 
         services.AddHttpClient<ITarhElahiIntegrationClient, TarhElahiIntegrationClient>(client =>
         {
             if (!string.IsNullOrWhiteSpace(options.BaseUrl))
             {
-                var baseUrl = options.BaseUrl.TrimEnd('/') + "/";
+                var baseUrl = options.BaseUrl.Trim().TrimEnd('/') + "/";
                 client.BaseAddress = new Uri(baseUrl);
             }
 
             if (!string.IsNullOrWhiteSpace(options.ServiceKey))
             {
-                client.DefaultRequestHeaders.Add("X-Service-Key", options.ServiceKey);
+                client.DefaultRequestHeaders.Remove("X-Service-Key");
+                client.DefaultRequestHeaders.Add("X-Service-Key", options.ServiceKey.Trim());
             }
 
             var timeoutSeconds = options.TimeoutSeconds > 0 ? options.TimeoutSeconds : 10;
