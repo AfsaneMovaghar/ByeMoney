@@ -85,4 +85,4 @@ x86/
 *.vsix
 src/ByeMoney.API/logs
 /AGENTS.md
-/AGENTS.md
+/docs/
