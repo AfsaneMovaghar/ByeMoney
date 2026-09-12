@@ -30,7 +30,7 @@ public class PermissionConfiguration : IEntityTypeConfiguration<Domain.Modules.I
         builder.HasIndex(p => p.Code)
             .IsUnique();
 
-        builder.Property(p => p.CreatedAt)
+        builder.Property(p => p.CreatedAtUtc)
             .IsRequired();
 
         builder.HasData(
@@ -39,7 +39,7 @@ public class PermissionConfiguration : IEntityTypeConfiguration<Domain.Modules.I
                 Id = NoorInjectPermissionId,
                 Code = Permissions.Noor.Inject,
                 Description = "Permission to inject Noor currency",
-                CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+                CreatedAtUtc = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc),
                 UpdatedAt = (DateTime?)null
             },
             new
@@ -47,7 +47,7 @@ public class PermissionConfiguration : IEntityTypeConfiguration<Domain.Modules.I
                 Id = TopUpReviewPermissionId,
                 Code = Permissions.TopUp.Review,
                 Description = "Permission to review (confirm/reject) top-up requests",
-                CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+                CreatedAtUtc = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc),
                 UpdatedAt = (DateTime?)null
             });
     }

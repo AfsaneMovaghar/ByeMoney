@@ -9,7 +9,6 @@ public class LedgerEntry : BaseEntity<LedgerEntryId>
     public decimal Amount { get; private set; }
     public Guid TransactionId { get; private set; }
     public string? ReferenceId { get; private set; }
-    public DateTime CreatedAtUtc { get; private set; }
 
     private LedgerEntry() { }
 
@@ -25,9 +24,7 @@ public class LedgerEntry : BaseEntity<LedgerEntryId>
             AccountId = accountId,
             Amount = amount,
             TransactionId = transactionId,
-            ReferenceId = referenceId,
-            CreatedAtUtc = DateTime.UtcNow,
-            CreatedAt = DateTime.UtcNow
+            ReferenceId = referenceId
         };
     }
 }

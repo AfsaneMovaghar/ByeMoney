@@ -23,7 +23,6 @@ public class Wallet : BaseEntity<WalletId>
             AccountId = accountId,
             UserId = userId,
             Balance = 0m,
-            CreatedAt = DateTime.UtcNow,
             LastUpdatedAtUtc = DateTime.UtcNow
         };
     }

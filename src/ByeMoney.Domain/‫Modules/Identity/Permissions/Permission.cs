@@ -20,8 +20,7 @@ public class Permission : BaseEntity<PermissionId>
         {
             Id = id ?? PermissionId.New(),
             Code = code.Trim(),
-            Description = description?.Trim(),
-            CreatedAt = DateTime.UtcNow
+            Description = description?.Trim()
         };
     }
 }

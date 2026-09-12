@@ -26,14 +26,14 @@ public class RoleConfiguration : IEntityTypeConfiguration<Domain.Modules.Identit
         builder.HasIndex(r => r.Name)
             .IsUnique();
 
-        builder.Property(r => r.CreatedAt)
+        builder.Property(r => r.CreatedAtUtc)
             .IsRequired();
 
         builder.HasData(new
         {
             Id = AdminRoleId,
             Name = "Admin",
-            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+            CreatedAtUtc = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc),
             UpdatedAt = (DateTime?)null
         });
     }

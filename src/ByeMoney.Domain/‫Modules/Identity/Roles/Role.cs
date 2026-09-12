@@ -21,8 +21,7 @@ public class Role : BaseEntity<RoleId>
         return new Role
         {
             Id = id ?? RoleId.New(),
-            Name = name.Trim(),
-            CreatedAt = DateTime.UtcNow
+            Name = name.Trim()
         };
     }
 }

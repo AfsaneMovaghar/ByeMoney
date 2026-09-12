@@ -17,7 +17,6 @@ public class TopUpRequest : BaseEntity<TopUpRequestId>
     public TopUpStatus Status { get; private set; }
     public string? ExternalTransactionId { get; private set; }
     public string? RejectionReason { get; private set; }
-    public DateTime CreatedAtUtc { get; private set; }
     public DateTime? ConfirmedAtUtc { get; private set; }
     public DateTime? RejectedAtUtc { get; private set; }
 
@@ -50,9 +49,7 @@ public class TopUpRequest : BaseEntity<TopUpRequestId>
             PaymentMethod = paymentMethod,
             ClientReferenceCode = refCode,
             Status = TopUpStatus.Pending,
-            ExternalTransactionId = externalTransactionId,
-            CreatedAtUtc = DateTime.UtcNow,
-            CreatedAt = DateTime.UtcNow
+            ExternalTransactionId = externalTransactionId
         };
     }
 

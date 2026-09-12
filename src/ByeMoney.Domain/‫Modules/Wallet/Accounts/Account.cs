@@ -21,8 +21,7 @@ public class Account : BaseEntity<AccountId>
             Id = AccountId.New(),
             Type = AccountType.User,
             UserId = userId,
-            Status = AccountStatus.Active,
-            CreatedAt = DateTime.UtcNow
+            Status = AccountStatus.Active
         };
     }
 
@@ -33,8 +32,7 @@ public class Account : BaseEntity<AccountId>
             Id = id ?? SystemAccountId,
             Type = AccountType.System,
             UserId = null,
-            Status = AccountStatus.Active,
-            CreatedAt = DateTime.UtcNow
+            Status = AccountStatus.Active
         };
     }
 
