@@ -28,6 +28,14 @@ public class GlobalExceptionHandlingMiddleware
         {
             await _next(context);
         }
+        catch (OperationCanceledException) when (context.RequestAborted.IsCancellationRequested)
+        {
+            _logger.LogInformation("درخواست توسط کلاینت لغو شد: {Path}", context.Request.Path);
+            if (!context.Response.HasStarted)
+            {
+                context.Response.StatusCode = 499; // Client Closed Request
+            }
+        }
         catch (Exception ex)
         {
             await HandleExceptionAsync(context, ex);

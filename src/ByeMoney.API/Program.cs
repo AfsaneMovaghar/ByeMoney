@@ -2,6 +2,8 @@ using ByeMoney.API;
 using ByeMoney.API.Constants;
 using ByeMoney.Application;
 using ByeMoney.Infrastructure;
+using ByeMoney.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
 using Serilog;
 
 Log.Logger = new LoggerConfiguration()
@@ -30,6 +32,15 @@ try
     builder.Services.AddPresentationServices(builder.Configuration);
 
     var app = builder.Build();
+
+    using (var scope = app.Services.CreateScope())
+    {
+        var dbContext = scope.ServiceProvider
+            .GetRequiredService<ApplicationDbContext>();
+
+        dbContext.Database.Migrate();
+    }
+
     app.UseMiddleware<ByeMoney.API.Middleware.GlobalExceptionHandlingMiddleware>();
     if (app.Environment.IsDevelopment())
     {
@@ -47,6 +58,7 @@ try
     app.UseAuthorization();
 
     app.MapControllers();
+
 
     app.Run();
 }

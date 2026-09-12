@@ -141,6 +141,51 @@ public class SyncUserFromStrapiTests
     }
 
     [Fact]
+    public async Task Handler_ShouldRefreshProfile_WhenUserExistsAndProfileIsFresh_IfForceSyncIsTrue()
+    {
+        // Arrange
+        var userRepositoryMock = new Mock<IUserRepository>();
+        var unitOfWorkMock = new Mock<IUnitOfWork>();
+        var tarhElahiClientMock = new Mock<ITarhElahiIntegrationClient>();
+        var loggerMock = new Mock<ILogger<SyncUserFromStrapiCommandHandler>>();
+
+        var existingUser = User.CreateFromStrapi("user-42"); // ProfileSyncedAt is fresh -> NeedsProfileSync = false
+        userRepositoryMock
+            .Setup(r => r.GetByExternalUserIdAsync("user-42", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(existingUser);
+
+        var strapiDto = new TarhElahiUserDto
+        {
+            ExternalUserId = "user-42",
+            FirstName = "UpdatedName",
+            LastName = "UpdatedFamily",
+            PhoneNumber = "09123456789",
+            Confirmed = true,
+            Blocked = false
+        };
+
+        tarhElahiClientMock
+            .Setup(c => c.GetUserAsync("user-42", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(strapiDto);
+
+        var handler = new SyncUserFromStrapiCommandHandler(
+            userRepositoryMock.Object,
+            unitOfWorkMock.Object,
+            tarhElahiClientMock.Object,
+            loggerMock.Object);
+
+        // Act
+        var result = await handler.Handle(new SyncUserFromStrapiCommand("user-42", ForceSync: true), CancellationToken.None);
+
+        // Assert
+        result.Should().Be(existingUser.Id.Value);
+        existingUser.FirstName.Should().Be("UpdatedName");
+        tarhElahiClientMock.Verify(c => c.GetUserAsync("user-42", It.IsAny<CancellationToken>()), Times.Once);
+        userRepositoryMock.Verify(r => r.Update(existingUser), Times.Once);
+        unitOfWorkMock.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
     public async Task Handler_ShouldRefreshProfile_WhenUserExistsAndSyncIsNeeded()
     {
         // Arrange

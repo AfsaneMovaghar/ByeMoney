@@ -6,6 +6,8 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
+using Microsoft.AspNetCore.Mvc.ModelBinding;
+
 namespace ByeMoney.API.Controllers;
 
 [ApiController]
@@ -16,14 +18,17 @@ public class AuthController(ISender sender) : ControllerBase
 
     [Authorize]
     [HttpPost("sync")]
-    public async Task<ActionResult<SyncUserResponse>> Sync(CancellationToken ct)
+    public async Task<ActionResult<SyncUserResponse>> Sync(
+        [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] SyncUserRequest? request,
+        CancellationToken ct)
     {
         var externalUserId = User.FindFirst(AppClaimTypes.DocumentId)?.Value;
 
         if (string.IsNullOrWhiteSpace(externalUserId))
             throw new UnauthorizedAccessException(ApiErrors.Auth_DocumentIdClaimMissing);
 
-        var cmd = new SyncUserFromStrapiCommand(externalUserId);
+        var forceSync = request?.ForceSync ?? false;
+        var cmd = new SyncUserFromStrapiCommand(externalUserId, forceSync);
         var userId = await _sender.Send(cmd, ct);
         return Ok(new SyncUserResponse(userId));
     }

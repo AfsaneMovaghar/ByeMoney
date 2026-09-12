@@ -38,7 +38,7 @@ public class SyncUserFromStrapiCommandHandler : IRequestHandler<SyncUserFromStra
             return await CreateUserFromTarhElahiAsync(request.ExternalUserId, ct);
         }
 
-        return await UpdateUserIfNeededAsync(user, request.ExternalUserId, ct);
+        return await UpdateUserIfNeededAsync(user, request.ExternalUserId, request.ForceSync, ct);
     }
 
     private async Task<Guid> CreateUserFromTarhElahiAsync(string externalUserId, CancellationToken ct)
@@ -67,9 +67,9 @@ public class SyncUserFromStrapiCommandHandler : IRequestHandler<SyncUserFromStra
         return newUser.Id.Value;
     }
 
-    private async Task<Guid> UpdateUserIfNeededAsync(User user, string externalUserId, CancellationToken ct)
+    private async Task<Guid> UpdateUserIfNeededAsync(User user, string externalUserId, bool forceSync, CancellationToken ct)
     {
-        if (!user.NeedsProfileSync())
+        if (!forceSync && !user.NeedsProfileSync())
         {
             return user.Id.Value;
         }
