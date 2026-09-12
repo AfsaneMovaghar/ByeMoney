@@ -36,10 +36,12 @@ try
         app.UseSwagger();
         app.UseSwaggerUI();
     }
-
-    app.UseHttpsRedirection();
-
     app.UseCors(CorsPolicies.TarhElahi);
+
+    if (!app.Environment.IsDevelopment())
+    {
+        app.UseHttpsRedirection();
+    }
 
     app.UseAuthentication();
     app.UseAuthorization();
