@@ -1,4 +1,4 @@
-﻿using ByeMoney.Application.Common.Interfaces;
+using ByeMoney.Application.Common.Interfaces;
 using ByeMoney.Domain.Common;
 using Microsoft.EntityFrameworkCore;
 
@@ -27,7 +27,13 @@ public class BaseRepository<TEntity, TId> : IRepository<TEntity, TId>
         => await DbSet.AddAsync(entity, ct);
 
     public void Update(TEntity entity)
-        => DbSet.Update(entity);
+    {
+        var entry = Context.Entry(entity);
+        if (entry.State == EntityState.Detached)
+        {
+            DbSet.Update(entity);
+        }
+    }
 
     public void Remove(TEntity entity)
         => DbSet.Remove(entity);
