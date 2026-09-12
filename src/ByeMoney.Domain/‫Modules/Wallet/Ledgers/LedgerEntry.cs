@@ -1,3 +1,4 @@
+using ByeMoney.Domain._Modules.Wallet.Ledgers;
 using ByeMoney.Domain.Common;
 using ByeMoney.Domain.Modules.Wallet.Accounts;
 
@@ -9,6 +10,7 @@ public class LedgerEntry : BaseEntity<LedgerEntryId>
     public decimal Amount { get; private set; }
     public Guid TransactionId { get; private set; }
     public string? ReferenceId { get; private set; }
+    public LedgerReferenceType ReferenceType { get; private set; }
 
     private LedgerEntry() { }
 
@@ -16,6 +18,7 @@ public class LedgerEntry : BaseEntity<LedgerEntryId>
         AccountId accountId,
         decimal amount,
         Guid transactionId,
+        LedgerReferenceType refrenceType,
         string? referenceId = null)
     {
         return new LedgerEntry
@@ -24,7 +27,8 @@ public class LedgerEntry : BaseEntity<LedgerEntryId>
             AccountId = accountId,
             Amount = amount,
             TransactionId = transactionId,
-            ReferenceId = referenceId
+            ReferenceId = referenceId,
+            ReferenceType = refrenceType
         };
     }
 }

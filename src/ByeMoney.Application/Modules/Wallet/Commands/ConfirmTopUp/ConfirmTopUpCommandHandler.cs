@@ -1,6 +1,7 @@
 using ByeMoney.Application.Common.Interfaces;
 using ByeMoney.Application.Modules.Wallet.Interfaces;
 using ByeMoney.Application.Resources;
+using ByeMoney.Domain._Modules.Wallet.Ledgers;
 using ByeMoney.Domain.Common;
 using ByeMoney.Domain.Modules.Identity.Users;
 using ByeMoney.Domain.Modules.Wallet.Accounts;
@@ -89,12 +90,14 @@ public class ConfirmTopUpCommandHandler : IRequestHandler<ConfirmTopUpCommand, R
             userAccountId,
             topUp.Amount, // بستانکار (+Amount)
             transactionId,
+            LedgerReferenceType.TopUp,
             topUp.Id.ToString());
 
         var systemLedgerEntry = LedgerEntry.Create(
             systemAccountId,
             -topUp.Amount, // بدهکار (-Amount)
             transactionId,
+            LedgerReferenceType.TopUp,
             topUp.Id.ToString());
 
         await _ledgerRepository.AddAsync(userLedgerEntry, cancellationToken);
