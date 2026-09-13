@@ -40,6 +40,43 @@ public class TarhElahiIntegrationClient : ITarhElahiIntegrationClient
         return await SendAndDeserializeAsync<TarhElahiCourseDto>(requestUri, externalId, "course", ct);
     }
 
+    public async Task<bool> NotifyCoursePurchaseAsync(CoursePurchaseNotificationDto payload, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(payload);
+
+        var requestUri = "api/integrations/byemoney/v1/purchases/confirm";
+        try
+        {
+            var response = await _httpClient.PostAsJsonAsync(requestUri, payload, ct);
+            if (response.IsSuccessStatusCode)
+            {
+                _logger.LogInformation(
+                    "Successfully notified TarhElahi of course purchase {PurchaseId} for external user {ExternalUserId}.",
+                    payload.PurchaseId,
+                    payload.BuyerExternalUserId);
+                return true;
+            }
+
+            _logger.LogWarning(
+                "TarhElahi purchase notification returned non-success status code {StatusCode} for purchase {PurchaseId}.",
+                (int)response.StatusCode,
+                payload.PurchaseId);
+            return false;
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Error notifying TarhElahi of course purchase {PurchaseId}.",
+                payload.PurchaseId);
+            return false;
+        }
+    }
+
     private async Task<T?> SendAndDeserializeAsync<T>(
         string requestUri,
         string identifier,

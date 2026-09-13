@@ -78,6 +78,8 @@ public class ConfirmTopUpCommandHandlerTests
         userEntry.Amount.Should().Be(amount);
         systemEntry.Amount.Should().Be(-amount);
         userEntry.TransactionId.Should().Be(systemEntry.TransactionId);
+        userEntry.ReferenceType.Should().Be(LedgerReferenceType.TopUp);
+        systemEntry.ReferenceType.Should().Be(LedgerReferenceType.TopUp);
 
         // مجموع تراکنش‌ها باید دقیقاً صفر باشد
         savedLedgerEntries.Sum(e => e.Amount).Should().Be(0m);

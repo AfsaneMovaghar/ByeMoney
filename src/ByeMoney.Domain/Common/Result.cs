@@ -30,3 +30,20 @@ public class Result
     public static Result Conflict(string errorMessage) => new(false, errorMessage, ResultStatus.Conflict);
 }
 
+public class Result<T> : Result
+{
+    public T Value => IsSuccess ? _value! : throw new InvalidOperationException("Cannot access Value of failed result.");
+    private readonly T? _value;
+
+    protected Result(bool isSuccess, T? value, string? errorMessage, ResultStatus status)
+        : base(isSuccess, errorMessage, status)
+    {
+        _value = value;
+    }
+
+    public static Result<T> Success(T value) => new(true, value, null, ResultStatus.Success);
+    public new static Result<T> Failure(string errorMessage) => new(false, default, errorMessage, ResultStatus.Failure);
+    public new static Result<T> NotFound(string? errorMessage = null) => new(false, default, errorMessage ?? DomainErrors.Common_EntityNotFound, ResultStatus.NotFound);
+    public new static Result<T> Conflict(string errorMessage) => new(false, default, errorMessage, ResultStatus.Conflict);
+}
+

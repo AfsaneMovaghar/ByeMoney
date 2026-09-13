@@ -185,5 +185,86 @@ namespace ByeMoney.Domain.Resources {
                 return ResourceManager.GetString("Wallet_InsufficientBalance", resourceCulture);
             }
         }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to امکان کسر هزینه تنها برای خریدهای در وضعیت در انتظار وجود دارد. وضعیت فعلی: «{0}»..
+        /// </summary>
+        public static string CoursePurchase_CannotDebitNonPending {
+            get {
+                return ResourceManager.GetString("CoursePurchase_CannotDebitNonPending", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to امکان ارسال نوتیفیکیشن دسترسی تنها برای خریدهای کسر شده از حساب وجود دارد. وضعیت فعلی: «{0}»..
+        /// </summary>
+        public static string CoursePurchase_CannotNotifyNonDebited {
+            get {
+                return ResourceManager.GetString("CoursePurchase_CannotNotifyNonDebited", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to قیمت دوره آموزشی باید بزرگتر از صفر باشد..
+        /// </summary>
+        public static string CoursePurchase_InvalidPrice {
+            get {
+                return ResourceManager.GetString("CoursePurchase_InvalidPrice", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to نرخ تبدیل ریال به نور باید بزرگتر از صفر باشد..
+        /// </summary>
+        public static string CoursePurchase_InvalidConversionRate {
+            get {
+                return ResourceManager.GetString("CoursePurchase_InvalidConversionRate", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to شناسه تراکنش دفتر کل نامعتبر است..
+        /// </summary>
+        public static string CoursePurchase_InvalidLedgerTransactionId {
+            get {
+                return ResourceManager.GetString("CoursePurchase_InvalidLedgerTransactionId", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to شناسه خارجی محصول الزامی است..
+        /// </summary>
+        public static string ProductSnapshot_ExternalProductIdRequired {
+            get {
+                return ResourceManager.GetString("ProductSnapshot_ExternalProductIdRequired", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to عنوان محصول الزامی است..
+        /// </summary>
+        public static string ProductSnapshot_ProductTitleRequired {
+            get {
+                return ResourceManager.GetString("ProductSnapshot_ProductTitleRequired", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to کلید تنظیم سیستم الزامی است..
+        /// </summary>
+        public static string SystemSetting_KeyRequired {
+            get {
+                return ResourceManager.GetString("SystemSetting_KeyRequired", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to مقدار تنظیم سیستم الزامی است..
+        /// </summary>
+        public static string SystemSetting_ValueRequired {
+            get {
+                return ResourceManager.GetString("SystemSetting_ValueRequired", resourceCulture);
+            }
+        }
     }
 }

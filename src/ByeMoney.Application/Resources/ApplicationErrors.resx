@@ -130,4 +130,37 @@
   <data name="User_NotFoundInTarhElahi" xml:space="preserve">
     <value>کاربر با شناسه خارجی «{0}» در سامانه طرح الهی یافت نشد.</value>
   </data>
+  <data name="CoursePurchase_BuyerUserIdRequired" xml:space="preserve">
+    <value>شناسه کاربر خریدار الزامی است.</value>
+  </data>
+  <data name="CoursePurchase_ExternalCourseIdRequired" xml:space="preserve">
+    <value>شناسه دوره آموزشی الزامی است.</value>
+  </data>
+  <data name="CoursePurchase_ExternalCourseIdMaxLength" xml:space="preserve">
+    <value>شناسه دوره آموزشی نباید بیشتر از ۱۰۰ کاراکتر باشد.</value>
+  </data>
+  <data name="CoursePurchase_AlreadyPurchased" xml:space="preserve">
+    <value>شما قبلاً این دوره آموزشی را خریداری کرده‌اید.</value>
+  </data>
+  <data name="CoursePurchase_InsufficientBalance" xml:space="preserve">
+    <value>موجودی کیف پول برای خرید این دوره کافی نیست. موجودی: {0}، مبلغ مورد نیاز: {1}.</value>
+  </data>
+  <data name="CoursePurchase_CourseNotFound" xml:space="preserve">
+    <value>دوره آموزشی مورد نظر یافت نشد.</value>
+  </data>
+  <data name="CoursePurchase_CourseNotAvailable" xml:space="preserve">
+    <value>دوره آموزشی در حال حاضر برای خرید در دسترس نیست.</value>
+  </data>
+  <data name="CoursePurchase_FreeCourseNotPurchasable" xml:space="preserve">
+    <value>دوره‌های رایگان امکان خرید از طریق جریان نور را ندارند.</value>
+  </data>
+  <data name="CoursePurchase_UserNotActive" xml:space="preserve">
+    <value>حساب کاربری خریدار فعال نمی‌باشد.</value>
+  </data>
+  <data name="CoursePurchase_UserNotFound" xml:space="preserve">
+    <value>کاربر خریدار در سامانه یافت نشد.</value>
+  </data>
+  <data name="CoursePurchase_InvalidConversionRate" xml:space="preserve">
+    <value>نرخ تبدیل ریال به نور باید بزرگتر از صفر باشد.</value>
+  </data>
 </root>

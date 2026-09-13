@@ -275,5 +275,105 @@ namespace ByeMoney.Application.Resources {
                 return ResourceManager.GetString("User_NotFoundInTarhElahi", resourceCulture);
             }
         }
+
+        /// <summary>
+        ///   Looks up a localized string similar to شناسه کاربر خریدار الزامی است..
+        /// </summary>
+        public static string CoursePurchase_BuyerUserIdRequired {
+            get {
+                return ResourceManager.GetString("CoursePurchase_BuyerUserIdRequired", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to شناسه دوره آموزشی الزامی است..
+        /// </summary>
+        public static string CoursePurchase_ExternalCourseIdRequired {
+            get {
+                return ResourceManager.GetString("CoursePurchase_ExternalCourseIdRequired", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to شناسه دوره آموزشی نباید بیشتر از ۱۰۰ کاراکتر باشد..
+        /// </summary>
+        public static string CoursePurchase_ExternalCourseIdMaxLength {
+            get {
+                return ResourceManager.GetString("CoursePurchase_ExternalCourseIdMaxLength", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to شما قبلاً این دوره آموزشی را خریداری کرده‌اید..
+        /// </summary>
+        public static string CoursePurchase_AlreadyPurchased {
+            get {
+                return ResourceManager.GetString("CoursePurchase_AlreadyPurchased", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to موجودی کیف پول برای خرید این دوره کافی نیست. موجودی: {0}، مبلغ مورد نیاز: {1}..
+        /// </summary>
+        public static string CoursePurchase_InsufficientBalance {
+            get {
+                return ResourceManager.GetString("CoursePurchase_InsufficientBalance", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to دوره آموزشی مورد نظر یافت نشد..
+        /// </summary>
+        public static string CoursePurchase_CourseNotFound {
+            get {
+                return ResourceManager.GetString("CoursePurchase_CourseNotFound", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to دوره آموزشی در حال حاضر برای خرید در دسترس نیست..
+        /// </summary>
+        public static string CoursePurchase_CourseNotAvailable {
+            get {
+                return ResourceManager.GetString("CoursePurchase_CourseNotAvailable", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to دوره‌های رایگان امکان خرید از طریق جریان نور را ندارند..
+        /// </summary>
+        public static string CoursePurchase_FreeCourseNotPurchasable {
+            get {
+                return ResourceManager.GetString("CoursePurchase_FreeCourseNotPurchasable", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to حساب کاربری خریدار فعال نمی‌باشد..
+        /// </summary>
+        public static string CoursePurchase_UserNotActive {
+            get {
+                return ResourceManager.GetString("CoursePurchase_UserNotActive", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to کاربر خریدار در سامانه یافت نشد..
+        /// </summary>
+        public static string CoursePurchase_UserNotFound {
+            get {
+                return ResourceManager.GetString("CoursePurchase_UserNotFound", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to نرخ تبدیل ریال به نور باید بزرگتر از صفر باشد..
+        /// </summary>
+        public static string CoursePurchase_InvalidConversionRate {
+            get {
+                return ResourceManager.GetString("CoursePurchase_InvalidConversionRate", resourceCulture);
+            }
+        }
     }
 }
+

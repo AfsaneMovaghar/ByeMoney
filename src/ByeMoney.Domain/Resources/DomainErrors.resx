@@ -100,4 +100,31 @@
   <data name="Wallet_InsufficientBalance" xml:space="preserve">
     <value>موجودی کیف پول کافی نیست.</value>
   </data>
+  <data name="CoursePurchase_CannotDebitNonPending" xml:space="preserve">
+    <value>امکان کسر هزینه تنها برای خریدهای در وضعیت در انتظار وجود دارد. وضعیت فعلی: «{0}».</value>
+  </data>
+  <data name="CoursePurchase_CannotNotifyNonDebited" xml:space="preserve">
+    <value>امکان ارسال نوتیفیکیشن دسترسی تنها برای خریدهای کسر شده از حساب وجود دارد. وضعیت فعلی: «{0}».</value>
+  </data>
+  <data name="CoursePurchase_InvalidPrice" xml:space="preserve">
+    <value>قیمت دوره آموزشی باید بزرگتر از صفر باشد.</value>
+  </data>
+  <data name="CoursePurchase_InvalidConversionRate" xml:space="preserve">
+    <value>نرخ تبدیل ریال به نور باید بزرگتر از صفر باشد.</value>
+  </data>
+  <data name="CoursePurchase_InvalidLedgerTransactionId" xml:space="preserve">
+    <value>شناسه تراکنش دفتر کل نامعتبر است.</value>
+  </data>
+  <data name="ProductSnapshot_ExternalProductIdRequired" xml:space="preserve">
+    <value>شناسه خارجی محصول الزامی است.</value>
+  </data>
+  <data name="ProductSnapshot_ProductTitleRequired" xml:space="preserve">
+    <value>عنوان محصول الزامی است.</value>
+  </data>
+  <data name="SystemSetting_KeyRequired" xml:space="preserve">
+    <value>کلید تنظیم سیستم الزامی است.</value>
+  </data>
+  <data name="SystemSetting_ValueRequired" xml:space="preserve">
+    <value>مقدار تنظیم سیستم الزامی است.</value>
+  </data>
 </root>

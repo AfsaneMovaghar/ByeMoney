@@ -3,17 +3,20 @@ using System;
 using ByeMoney.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
-namespace ByeMoney.Infrastructure.Migrations
+namespace ByeMoney.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260912142311_AddCoursePurchaseAndSettingsAndLedgerTransactionType")]
+    partial class AddCoursePurchaseAndSettingsAndLedgerTransactionType
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -277,7 +280,7 @@ namespace ByeMoney.Infrastructure.Migrations
                         {
                             Key = "ConversionRate:RialToNoor",
                             Description = "Rial to Noor conversion rate (Rials per 1 Noor).",
-                            UpdatedAtUtc = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            UpdatedAtUtc = new DateTime(2026, 9, 12, 14, 23, 11, 106, DateTimeKind.Utc).AddTicks(5029),
                             Value = "1000"
                         });
                 });
@@ -341,14 +344,17 @@ namespace ByeMoney.Infrastructure.Migrations
                     b.Property<Guid>("TransactionId")
                         .HasColumnType("uuid");
 
+                    b.Property<int>("TransactionType")
+                        .HasColumnType("integer");
+
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ReferenceType");
-
                     b.HasIndex("TransactionId");
+
+                    b.HasIndex("TransactionType");
 
                     b.HasIndex("AccountId", "CreatedAtUtc");
 
