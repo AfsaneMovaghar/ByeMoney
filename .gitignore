@@ -10,6 +10,22 @@
 *.suo
 *.user
 **/appsettings.Development.json
+**/appsettings.Local.json
+**/appsettings.*.Local.json
+
+# Local environment and secret files
+.env
+.env.*
+!.env.example
+!.env.template
+**/secrets.json
+*.pfx
+*.p12
+*.pem
+*.key
+*.keystore
+*.jks
+*.publishsettings
 # Debug symbols
 *.pdb
 
