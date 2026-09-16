@@ -102,3 +102,4 @@ x86/
 src/ByeMoney.API/logs
 /AGENTS.md
 /docs/
+*.md
