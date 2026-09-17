@@ -137,5 +137,7 @@ public class CoursePurchaseNotifierTests
         json.Should().Contain("\"course\"");
         json.Should().Contain("\"tarh_elahi\"");
         json.Should().NotContain("\"Course\"");
+        json.Should().Contain("\"strapiUserId\":\"user-123\"");
+        json.Should().Contain("\"courseId\":\"course-abc\"");
     }
 }
