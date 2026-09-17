@@ -18,6 +18,27 @@ public class CreateTopUpRequestCommandValidator : AbstractValidator<CreateTopUpR
         RuleFor(x => x.PaymentMethod)
             .IsInEnum()
             .WithMessage(ApplicationErrors.TopUpRequest_PaymentMethodInvalid);
+
+        When(x => x.PendingItemType.HasValue, () =>
+        {
+            RuleFor(x => x.PendingItemExternalId)
+                .NotEmpty()
+                .WithMessage(ApplicationErrors.TopUpRequest_PendingItemExternalIdRequired)
+                .MaximumLength(100)
+                .WithMessage(ApplicationErrors.CoursePurchase_ExternalCourseIdMaxLength);
+
+            RuleFor(x => x.PendingPriceSnapshot)
+                .NotNull()
+                .WithMessage(ApplicationErrors.TopUpRequest_PendingPriceMustBeGreaterThanZero)
+                .GreaterThan(0)
+                .WithMessage(ApplicationErrors.TopUpRequest_PendingPriceMustBeGreaterThanZero);
+
+            RuleFor(x => x.PendingRateSnapshot)
+                .NotNull()
+                .WithMessage(ApplicationErrors.TopUpRequest_PendingRateMustBeGreaterThanZero)
+                .GreaterThan(0)
+                .WithMessage(ApplicationErrors.TopUpRequest_PendingRateMustBeGreaterThanZero);
+        });
     }
 }
 

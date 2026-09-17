@@ -25,7 +25,11 @@ public class CreateTopUpRequestCommandHandler : IRequestHandler<CreateTopUpReque
             new UserId(request.UserId),
             request.Amount,
             request.PaymentMethod,
-            request.ExternalTransactionId);
+            request.ExternalTransactionId,
+            pendingItemType: request.PendingItemType,
+            pendingItemExternalId: request.PendingItemExternalId,
+            pendingPriceSnapshot: request.PendingPriceSnapshot,
+            pendingRateSnapshot: request.PendingRateSnapshot);
 
         await _topUpRequestRepository.AddAsync(topUp, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);

@@ -1,5 +1,6 @@
 using ByeMoney.Application.Common.Interfaces;
 using ByeMoney.Application.Modules.Wallet.Commands.ConfirmTopUp;
+using ByeMoney.Application.Modules.Wallet.Events;
 using ByeMoney.Application.Modules.Wallet.Interfaces;
 using ByeMoney.Domain.Common;
 using ByeMoney.Domain.Modules.Identity.Users;
@@ -8,6 +9,7 @@ using ByeMoney.Domain.Modules.Wallet.Ledgers;
 using ByeMoney.Domain.Modules.Wallet.TopUps;
 using ByeMoney.Domain.Modules.Wallet.Wallets;
 using FluentAssertions;
+using MediatR;
 using Moq;
 using Xunit;
 using WalletEntity = ByeMoney.Domain.Modules.Wallet.Wallets.Wallet;
@@ -33,6 +35,7 @@ public class ConfirmTopUpCommandHandlerTests
         var walletRepoMock = new Mock<IWalletRepository>();
         var ledgerRepoMock = new Mock<IRepository<LedgerEntry, LedgerEntryId>>();
         var unitOfWorkMock = new Mock<IUnitOfWork>();
+        var publisherMock = new Mock<IPublisher>();
 
         topUpRepoMock
             .Setup(r => r.GetByIdAsync(topUp.Id, It.IsAny<CancellationToken>()))
@@ -57,7 +60,8 @@ public class ConfirmTopUpCommandHandlerTests
             walletProvisioningMock.Object,
             walletRepoMock.Object,
             ledgerRepoMock.Object,
-            unitOfWorkMock.Object);
+            unitOfWorkMock.Object,
+            publisherMock.Object);
 
         // Act
         var result = await handler.Handle(
@@ -90,6 +94,74 @@ public class ConfirmTopUpCommandHandlerTests
 
         // تغییرات باید ذخیره شده باشند
         unitOfWorkMock.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+
+        // Event should NOT be published because pending fields are null
+        publisherMock.Verify(p => p.Publish(It.IsAny<TopUpConfirmed>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task Handle_ShouldPublishTopUpConfirmedEvent_WhenPendingFieldsAreSet()
+    {
+        // Arrange
+        var userId = UserId.New();
+        var amount = 100_000m;
+        var topUp = TopUpRequest.Create(
+            userId,
+            amount,
+            PaymentMethod.Gateway,
+            pendingItemType: PendingItemType.Course,
+            pendingItemExternalId: "course-uuid-999",
+            pendingPriceSnapshot: 1_000_000m,
+            pendingRateSnapshot: 1_000m);
+
+        var userAccount = Account.CreateUserAccount(userId);
+        var systemAccount = Account.CreateSystemAccount();
+        var wallet = WalletEntity.Create(userAccount.Id, userId);
+
+        var topUpRepoMock = new Mock<ITopUpRequestRepository>();
+        var walletProvisioningMock = new Mock<IUserWalletProvisioningService>();
+        var walletRepoMock = new Mock<IWalletRepository>();
+        var ledgerRepoMock = new Mock<IRepository<LedgerEntry, LedgerEntryId>>();
+        var unitOfWorkMock = new Mock<IUnitOfWork>();
+        var publisherMock = new Mock<IPublisher>();
+
+        topUpRepoMock
+            .Setup(r => r.GetByIdAsync(topUp.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(topUp);
+
+        walletProvisioningMock
+            .Setup(s => s.GetOrCreateUserWalletAsync(userId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ProvisionedUserWallet(userAccount, wallet));
+
+        walletProvisioningMock
+            .Setup(s => s.GetOrCreateSystemAccountAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(systemAccount);
+
+        var handler = new ConfirmTopUpCommandHandler(
+            topUpRepoMock.Object,
+            walletProvisioningMock.Object,
+            walletRepoMock.Object,
+            ledgerRepoMock.Object,
+            unitOfWorkMock.Object,
+            publisherMock.Object);
+
+        // Act
+        var result = await handler.Handle(
+            new ConfirmTopUpCommand(topUp.Id, "tx-pending-123", amount),
+            CancellationToken.None);
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+        publisherMock.Verify(p => p.Publish(
+            It.Is<TopUpConfirmed>(e =>
+                e.TopUpRequestId == topUp.Id &&
+                e.UserId == userId &&
+                e.ConfirmedAmount == amount &&
+                e.PendingItemType == PendingItemType.Course &&
+                e.PendingItemExternalId == "course-uuid-999" &&
+                e.PendingPriceSnapshot == 1_000_000m &&
+                e.PendingRateSnapshot == 1_000m),
+            It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -106,6 +178,7 @@ public class ConfirmTopUpCommandHandlerTests
         var walletRepoMock = new Mock<IWalletRepository>();
         var ledgerRepoMock = new Mock<IRepository<LedgerEntry, LedgerEntryId>>();
         var unitOfWorkMock = new Mock<IUnitOfWork>();
+        var publisherMock = new Mock<IPublisher>();
 
         topUpRepoMock
             .Setup(r => r.GetByIdAsync(topUp.Id, It.IsAny<CancellationToken>()))
@@ -116,7 +189,8 @@ public class ConfirmTopUpCommandHandlerTests
             walletProvisioningMock.Object,
             walletRepoMock.Object,
             ledgerRepoMock.Object,
-            unitOfWorkMock.Object);
+            unitOfWorkMock.Object,
+            publisherMock.Object);
 
         // Act
         var result = await handler.Handle(
@@ -127,6 +201,7 @@ public class ConfirmTopUpCommandHandlerTests
         result.IsSuccess.Should().BeTrue();
         ledgerRepoMock.Verify(r => r.AddAsync(It.IsAny<LedgerEntry>(), It.IsAny<CancellationToken>()), Times.Never);
         unitOfWorkMock.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+        publisherMock.Verify(p => p.Publish(It.IsAny<TopUpConfirmed>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
@@ -143,6 +218,7 @@ public class ConfirmTopUpCommandHandlerTests
         var walletRepoMock = new Mock<IWalletRepository>();
         var ledgerRepoMock = new Mock<IRepository<LedgerEntry, LedgerEntryId>>();
         var unitOfWorkMock = new Mock<IUnitOfWork>();
+        var publisherMock = new Mock<IPublisher>();
 
         topUpRepoMock
             .Setup(r => r.GetByIdAsync(topUp.Id, It.IsAny<CancellationToken>()))
@@ -153,7 +229,8 @@ public class ConfirmTopUpCommandHandlerTests
             walletProvisioningMock.Object,
             walletRepoMock.Object,
             ledgerRepoMock.Object,
-            unitOfWorkMock.Object);
+            unitOfWorkMock.Object,
+            publisherMock.Object);
 
         // Act
         var result = await handler.Handle(
@@ -165,6 +242,7 @@ public class ConfirmTopUpCommandHandlerTests
         result.Status.Should().Be(ResultStatus.Conflict);
         ledgerRepoMock.Verify(r => r.AddAsync(It.IsAny<LedgerEntry>(), It.IsAny<CancellationToken>()), Times.Never);
         unitOfWorkMock.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+        publisherMock.Verify(p => p.Publish(It.IsAny<TopUpConfirmed>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
@@ -180,6 +258,7 @@ public class ConfirmTopUpCommandHandlerTests
         var walletRepoMock = new Mock<IWalletRepository>();
         var ledgerRepoMock = new Mock<IRepository<LedgerEntry, LedgerEntryId>>();
         var unitOfWorkMock = new Mock<IUnitOfWork>();
+        var publisherMock = new Mock<IPublisher>();
 
         topUpRepoMock
             .Setup(r => r.GetByIdAsync(topUp.Id, It.IsAny<CancellationToken>()))
@@ -190,7 +269,8 @@ public class ConfirmTopUpCommandHandlerTests
             walletProvisioningMock.Object,
             walletRepoMock.Object,
             ledgerRepoMock.Object,
-            unitOfWorkMock.Object);
+            unitOfWorkMock.Object,
+            publisherMock.Object);
 
         // Act
         var result = await handler.Handle(
@@ -203,6 +283,7 @@ public class ConfirmTopUpCommandHandlerTests
         topUp.ExternalTransactionId.Should().BeNull();
         ledgerRepoMock.Verify(r => r.AddAsync(It.IsAny<LedgerEntry>(), It.IsAny<CancellationToken>()), Times.Never);
         unitOfWorkMock.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+        publisherMock.Verify(p => p.Publish(It.IsAny<TopUpConfirmed>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
@@ -219,6 +300,7 @@ public class ConfirmTopUpCommandHandlerTests
         var walletRepoMock = new Mock<IWalletRepository>();
         var ledgerRepoMock = new Mock<IRepository<LedgerEntry, LedgerEntryId>>();
         var unitOfWorkMock = new Mock<IUnitOfWork>();
+        var publisherMock = new Mock<IPublisher>();
 
         topUpRepoMock
             .Setup(r => r.GetByIdAsync(topUp.Id, It.IsAny<CancellationToken>()))
@@ -229,7 +311,8 @@ public class ConfirmTopUpCommandHandlerTests
             walletProvisioningMock.Object,
             walletRepoMock.Object,
             ledgerRepoMock.Object,
-            unitOfWorkMock.Object);
+            unitOfWorkMock.Object,
+            publisherMock.Object);
 
         // Act
         var result = await handler.Handle(
@@ -241,6 +324,7 @@ public class ConfirmTopUpCommandHandlerTests
         topUp.Status.Should().Be(TopUpStatus.Rejected);
         ledgerRepoMock.Verify(r => r.AddAsync(It.IsAny<LedgerEntry>(), It.IsAny<CancellationToken>()), Times.Never);
         unitOfWorkMock.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+        publisherMock.Verify(p => p.Publish(It.IsAny<TopUpConfirmed>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
@@ -252,6 +336,7 @@ public class ConfirmTopUpCommandHandlerTests
         var walletRepoMock = new Mock<IWalletRepository>();
         var ledgerRepoMock = new Mock<IRepository<LedgerEntry, LedgerEntryId>>();
         var unitOfWorkMock = new Mock<IUnitOfWork>();
+        var publisherMock = new Mock<IPublisher>();
 
         topUpRepoMock
             .Setup(r => r.GetByIdAsync(It.IsAny<TopUpRequestId>(), It.IsAny<CancellationToken>()))
@@ -262,7 +347,8 @@ public class ConfirmTopUpCommandHandlerTests
             walletProvisioningMock.Object,
             walletRepoMock.Object,
             ledgerRepoMock.Object,
-            unitOfWorkMock.Object);
+            unitOfWorkMock.Object,
+            publisherMock.Object);
 
         // Act
         var result = await handler.Handle(
@@ -274,5 +360,7 @@ public class ConfirmTopUpCommandHandlerTests
         result.Status.Should().Be(ResultStatus.NotFound);
         ledgerRepoMock.Verify(r => r.AddAsync(It.IsAny<LedgerEntry>(), It.IsAny<CancellationToken>()), Times.Never);
         unitOfWorkMock.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+        publisherMock.Verify(p => p.Publish(It.IsAny<TopUpConfirmed>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 }
+

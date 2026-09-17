@@ -163,4 +163,13 @@
   <data name="CoursePurchase_InvalidConversionRate" xml:space="preserve">
     <value>نرخ تبدیل ریال به نور باید بزرگتر از صفر باشد.</value>
   </data>
+  <data name="TopUpRequest_PendingItemExternalIdRequired" xml:space="preserve">
+    <value>شناسه خارجی قلم معلق برای شارژ الزامی است.</value>
+  </data>
+  <data name="TopUpRequest_PendingPriceMustBeGreaterThanZero" xml:space="preserve">
+    <value>مبلغ اسنپ‌شات قیمت قلم معلق باید بزرگتر از صفر باشد.</value>
+  </data>
+  <data name="TopUpRequest_PendingRateMustBeGreaterThanZero" xml:space="preserve">
+    <value>اسنپ‌شات نرخ تبدیل برای قلم معلق باید بزرگتر از صفر باشد.</value>
+  </data>
 </root>

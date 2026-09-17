@@ -51,6 +51,19 @@ public class TopUpRequestConfiguration : IEntityTypeConfiguration<TopUpRequest>
         builder.Property(t => t.CreatedAtUtc)
             .IsRequired();
 
+        builder.Property(t => t.PendingItemType)
+            .HasConversion<string>()
+            .HasMaxLength(30);
+
+        builder.Property(t => t.PendingItemExternalId)
+            .HasMaxLength(100);
+
+        builder.Property(t => t.PendingPriceSnapshot)
+            .HasPrecision(18, 4);
+
+        builder.Property(t => t.PendingRateSnapshot)
+            .HasPrecision(18, 4);
+
         builder.HasIndex(t => new { t.UserId, t.Status });
 
         builder.HasIndex(t => t.ExternalTransactionId);

@@ -85,10 +85,27 @@ public class PurchaseCourseCommandValidator : AbstractValidator<PurchaseCourseCo
                 var provisioned = await walletProvisioningService.GetOrCreateUserWalletAsync(buyerUserId, ct);
                 if (provisioned.Wallet.Balance < priceInNoor)
                 {
-                    context.AddFailure("Wallet", string.Format(
+                    var currentBalanceInNoor = provisioned.Wallet.Balance;
+                    var shortfallInNoor = priceInNoor - currentBalanceInNoor;
+                    var shortfallInRial = shortfallInNoor * conversionRate;
+
+                    var failureState = new InsufficientBalanceFailureState(
+                        currentBalanceInNoor,
+                        priceInNoor,
+                        shortfallInNoor,
+                        shortfallInRial,
+                        "INSUFFICIENT_NOOR_BALANCE");
+
+                    var failure = new FluentValidation.Results.ValidationFailure("Wallet", string.Format(
                         ApplicationErrors.CoursePurchase_InsufficientBalance,
-                        provisioned.Wallet.Balance,
-                        priceInNoor));
+                        currentBalanceInNoor,
+                        priceInNoor))
+                    {
+                        ErrorCode = "INSUFFICIENT_NOOR_BALANCE",
+                        CustomState = failureState
+                    };
+
+                    context.AddFailure(failure);
                 }
             });
     }

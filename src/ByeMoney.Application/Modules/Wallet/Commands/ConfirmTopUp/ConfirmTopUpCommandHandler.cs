@@ -1,4 +1,5 @@
 using ByeMoney.Application.Common.Interfaces;
+using ByeMoney.Application.Modules.Wallet.Events;
 using ByeMoney.Application.Modules.Wallet.Interfaces;
 using ByeMoney.Application.Resources;
 using ByeMoney.Domain.Common;
@@ -19,19 +20,22 @@ public class ConfirmTopUpCommandHandler : IRequestHandler<ConfirmTopUpCommand, R
     private readonly IWalletRepository _walletRepository;
     private readonly IRepository<LedgerEntry, LedgerEntryId> _ledgerRepository;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IPublisher _publisher;
 
     public ConfirmTopUpCommandHandler(
         ITopUpRequestRepository topUpRequestRepository,
         IUserWalletProvisioningService walletProvisioningService,
         IWalletRepository walletRepository,
         IRepository<LedgerEntry, LedgerEntryId> ledgerRepository,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        IPublisher publisher)
     {
         _topUpRequestRepository = topUpRequestRepository;
         _walletProvisioningService = walletProvisioningService;
         _walletRepository = walletRepository;
         _ledgerRepository = ledgerRepository;
         _unitOfWork = unitOfWork;
+        _publisher = publisher;
     }
 
     public async Task<Result> Handle(ConfirmTopUpCommand request, CancellationToken cancellationToken)
@@ -58,6 +62,21 @@ public class ConfirmTopUpCommandHandler : IRequestHandler<ConfirmTopUpCommand, R
         if (wasPending)
         {
             await ProcessFirstTimeConfirmationAsync(topUp, cancellationToken);
+
+            if (topUp.PendingItemType.HasValue &&
+                !string.IsNullOrWhiteSpace(topUp.PendingItemExternalId) &&
+                topUp.PendingPriceSnapshot.HasValue &&
+                topUp.PendingRateSnapshot.HasValue)
+            {
+                await _publisher.Publish(new TopUpConfirmed(
+                    topUp.Id,
+                    topUp.UserId,
+                    topUp.Amount,
+                    topUp.PendingItemType.Value,
+                    topUp.PendingItemExternalId,
+                    topUp.PendingPriceSnapshot.Value,
+                    topUp.PendingRateSnapshot.Value), cancellationToken);
+            }
         }
 
         // If idempotent no-op (already Confirmed with same ExternalTransactionId) -> return Success without writing LedgerEntries

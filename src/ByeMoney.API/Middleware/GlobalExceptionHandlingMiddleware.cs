@@ -51,37 +51,37 @@ public class GlobalExceptionHandlingMiddleware
             ValidationException validationEx => (
                 HttpStatusCode.BadRequest,
                 ApiErrors.Middleware_ValidationErrorTitle,
-                validationEx.Errors.Select(e => e.ErrorMessage).ToList()
+                validationEx.Errors.Select(e => e.CustomState ?? (object)e.ErrorMessage).ToList()
             ),
             DbUpdateException dbUpdateEx when dbUpdateEx.InnerException is Npgsql.PostgresException pgEx && pgEx.SqlState == "23505" => (
                 HttpStatusCode.Conflict,
                 ApiErrors.Middleware_ConflictTitle,
-                new List<string> { GetDuplicateConstraintMessage(pgEx.ConstraintName) }
+                new List<object> { GetDuplicateConstraintMessage(pgEx.ConstraintName) }
             ),
             NotFoundException notFoundEx => (
                 HttpStatusCode.NotFound,
                 ApiErrors.Middleware_NotFoundTitle,
-                new List<string> { notFoundEx.Message }
+                new List<object> { notFoundEx.Message }
             ),
             DomainException domainEx => (
                 HttpStatusCode.BadRequest,
                 ApiErrors.Middleware_BusinessRuleViolationTitle,
-                new List<string> { domainEx.Message }
+                new List<object> { domainEx.Message }
             ),
             UnauthorizedAccessException unauthorizedEx => (
                 HttpStatusCode.Unauthorized,
                 ApiErrors.Middleware_UnauthorizedTitle,
-                new List<string> { unauthorizedEx.Message }
+                new List<object> { unauthorizedEx.Message }
             ),
             TarhElahiUnavailableException _ => (
                 HttpStatusCode.ServiceUnavailable,
                 ApiErrors.Middleware_TarhElahiUnavailableTitle,
-                new List<string> { ApiErrors.TarhElahi_UnavailableMessage }
+                new List<object> { ApiErrors.TarhElahi_UnavailableMessage }
             ),
             _ => (
                 HttpStatusCode.InternalServerError,
                 ApiErrors.Middleware_InternalServerErrorTitle,
-                new List<string> { ApiErrors.Middleware_UnexpectedErrorMessage }
+                new List<object> { ApiErrors.Middleware_UnexpectedErrorMessage }
             )
         };
 

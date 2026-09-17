@@ -232,7 +232,7 @@ public class PurchaseCourseCommandValidatorTests
     }
 
     [Fact]
-    public async Task ValidateAsync_WhenWalletBalanceIsInsufficient_ShouldHaveInsufficientBalanceError()
+    public async Task ValidateAsync_WhenWalletBalanceIsInsufficient_ShouldHaveInsufficientBalanceError_WithStructuredFailure()
     {
         var userId = UserId.New();
         var userAccount = Account.CreateUserAccount(userId);
@@ -247,8 +247,18 @@ public class PurchaseCourseCommandValidatorTests
         var result = await _validator.ValidateAsync(command);
 
         result.IsValid.Should().BeFalse();
-        result.Errors.Should().Contain(e =>
-            e.ErrorMessage.Contains("500") && e.ErrorMessage.Contains("1000"));
+
+        var walletError = result.Errors.Should().ContainSingle(e => e.PropertyName == "Wallet").Subject;
+        walletError.ErrorMessage.Should().Contain("500").And.Contain("1000");
+        walletError.ErrorCode.Should().Be("INSUFFICIENT_NOOR_BALANCE");
+        walletError.CustomState.Should().BeOfType<InsufficientBalanceFailureState>();
+
+        var state = (InsufficientBalanceFailureState)walletError.CustomState!;
+        state.CurrentBalanceInNoor.Should().Be(500m);
+        state.PriceInNoor.Should().Be(1000m);
+        state.ShortfallInNoor.Should().Be(500m);
+        state.ShortfallInRial.Should().Be(500_000m); // 500 Noor * 1000 rate = 500,000 Rial
+        state.ErrorCode.Should().Be("INSUFFICIENT_NOOR_BALANCE");
     }
 
     [Fact]

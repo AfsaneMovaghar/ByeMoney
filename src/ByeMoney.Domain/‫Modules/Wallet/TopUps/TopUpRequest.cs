@@ -1,4 +1,4 @@
-using System.Security.Cryptography;
+﻿using System.Security.Cryptography;
 using ByeMoney.Domain.Common;
 using ByeMoney.Domain.Common.Exceptions;
 using ByeMoney.Domain.Modules.Identity.Users;
@@ -20,6 +20,11 @@ public class TopUpRequest : BaseEntity<TopUpRequestId>
     public DateTime? ConfirmedAtUtc { get; private set; }
     public DateTime? RejectedAtUtc { get; private set; }
 
+    public PendingItemType? PendingItemType { get; private set; }
+    public string? PendingItemExternalId { get; private set; }
+    public decimal? PendingPriceSnapshot { get; private set; }
+    public decimal? PendingRateSnapshot { get; private set; }
+
     private TopUpRequest() { }
 
     public static string GenerateClientReferenceCode()
@@ -32,10 +37,26 @@ public class TopUpRequest : BaseEntity<TopUpRequestId>
         decimal amount,
         PaymentMethod paymentMethod,
         string? externalTransactionId = null,
-        string? clientReferenceCode = null)
+        string? clientReferenceCode = null,
+        PendingItemType? pendingItemType = null,
+        string? pendingItemExternalId = null,
+        decimal? pendingPriceSnapshot = null,
+        decimal? pendingRateSnapshot = null)
     {
         if (amount <= 0)
             throw new DomainException(DomainErrors.TopUpRequest_AmountMustBeGreaterThanZero);
+
+        if (pendingItemType.HasValue)
+        {
+            if (string.IsNullOrWhiteSpace(pendingItemExternalId))
+                throw new DomainException(DomainErrors.ProductSnapshot_ExternalProductIdRequired);
+
+            if (!pendingPriceSnapshot.HasValue || pendingPriceSnapshot.Value <= 0)
+                throw new DomainException(DomainErrors.CoursePurchase_InvalidPrice);
+
+            if (!pendingRateSnapshot.HasValue || pendingRateSnapshot.Value <= 0)
+                throw new DomainException(DomainErrors.CoursePurchase_InvalidConversionRate);
+        }
 
         var refCode = string.IsNullOrWhiteSpace(clientReferenceCode)
             ? GenerateClientReferenceCode()
@@ -49,7 +70,11 @@ public class TopUpRequest : BaseEntity<TopUpRequestId>
             PaymentMethod = paymentMethod,
             ClientReferenceCode = refCode,
             Status = TopUpStatus.Pending,
-            ExternalTransactionId = externalTransactionId
+            ExternalTransactionId = externalTransactionId,
+            PendingItemType = pendingItemType,
+            PendingItemExternalId = pendingItemExternalId?.Trim(),
+            PendingPriceSnapshot = pendingPriceSnapshot,
+            PendingRateSnapshot = pendingRateSnapshot
         };
     }
 
@@ -97,4 +122,3 @@ public class TopUpRequest : BaseEntity<TopUpRequestId>
         UpdatedAt = DateTime.UtcNow;
     }
 }
-

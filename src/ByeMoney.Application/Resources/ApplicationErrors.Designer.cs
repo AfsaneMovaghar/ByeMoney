@@ -374,6 +374,33 @@ namespace ByeMoney.Application.Resources {
                 return ResourceManager.GetString("CoursePurchase_InvalidConversionRate", resourceCulture);
             }
         }
+
+        /// <summary>
+        ///   Looks up a localized string similar to شناسه خارجی قلم معلق برای شارژ الزامی است..
+        /// </summary>
+        public static string TopUpRequest_PendingItemExternalIdRequired {
+            get {
+                return ResourceManager.GetString("TopUpRequest_PendingItemExternalIdRequired", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to مبلغ اسنپ‌شات قیمت قلم معلق باید بزرگتر از صفر باشد..
+        /// </summary>
+        public static string TopUpRequest_PendingPriceMustBeGreaterThanZero {
+            get {
+                return ResourceManager.GetString("TopUpRequest_PendingPriceMustBeGreaterThanZero", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to اسنپ‌شات نرخ تبدیل برای قلم معلق باید بزرگتر از صفر باشد..
+        /// </summary>
+        public static string TopUpRequest_PendingRateMustBeGreaterThanZero {
+            get {
+                return ResourceManager.GetString("TopUpRequest_PendingRateMustBeGreaterThanZero", resourceCulture);
+            }
+        }
     }
 }
 
