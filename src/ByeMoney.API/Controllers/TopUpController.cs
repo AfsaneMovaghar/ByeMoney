@@ -35,10 +35,7 @@ public class TopUpController(ISender sender, ICurrentUserService currentUserServ
             request.Amount,
             request.PaymentMethod,
             request.ExternalTransactionId,
-            request.PendingItemType,
-            request.PendingItemExternalId,
-            request.PendingPriceSnapshot,
-            request.PendingRateSnapshot);
+            request.PendingItems);
 
         var result = await _sender.Send(command, ct);
 

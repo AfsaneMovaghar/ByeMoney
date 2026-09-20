@@ -172,4 +172,13 @@
   <data name="TopUpRequest_PendingRateMustBeGreaterThanZero" xml:space="preserve">
     <value>اسنپ‌شات نرخ تبدیل برای قلم معلق باید بزرگتر از صفر باشد.</value>
   </data>
+  <data name="CoursePurchase_CourseIdsListRequired" xml:space="preserve">
+    <value>لیست دوره‌های آموزشی جهت خرید الزامی است.</value>
+  </data>
+  <data name="CoursePurchase_DuplicateCoursesInBasket" xml:space="preserve">
+    <value>سبد خرید نمی‌تواند شامل شناسه‌های تکراری باشد.</value>
+  </data>
+  <data name="CoursePurchase_InsufficientBalanceBasket" xml:space="preserve">
+    <value>موجودی کیف پول برای خرید این سبد کافی نیست. موجودی: {0}، مبلغ مورد نیاز: {1}.</value>
+  </data>
 </root>

@@ -8,8 +8,5 @@ public record TopUpConfirmed(
     TopUpRequestId TopUpRequestId,
     UserId UserId,
     decimal ConfirmedAmount,
-    PendingItemType PendingItemType,
-    string PendingItemExternalId,
-    decimal PendingPriceSnapshot,
-    decimal PendingRateSnapshot) : INotification;
+    IReadOnlyList<PendingItemSnapshot> PendingItems) : INotification;
 

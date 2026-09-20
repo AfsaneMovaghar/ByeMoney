@@ -1,6 +1,6 @@
-﻿using ByeMoney.API.Contracts.Courses;
+using ByeMoney.API.Contracts.Courses;
 using ByeMoney.Application.Common.Interfaces;
-using ByeMoney.Application.Modules.Purchases.Commands.PurchaseCourse;
+using ByeMoney.Application.Modules.Purchases.Commands.PurchaseCourses;
 using ByeMoney.Application.Resources;
 using ByeMoney.Domain.Common;
 using MediatR;
@@ -18,22 +18,22 @@ public class CoursesController(ISender sender, ICurrentUserService currentUserSe
     private readonly ICurrentUserService _currentUserService = currentUserService;
 
     /// <summary>
-    /// Purchases a TarhElahi course using the authenticated user's Noor balance.
+    /// Purchases one or more TarhElahi courses using the authenticated user's Noor balance.
     /// </summary>
     [HttpPost("purchase")]
-    [ProducesResponseType(typeof(PurchaseCourseApiResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(PurchaseCoursesApiResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
-    public async Task<IActionResult> PurchaseCourse(
-        [FromBody] PurchaseCourseApiRequest request,
+    public async Task<IActionResult> PurchaseCourses(
+        [FromBody] PurchaseCoursesApiRequest request,
         CancellationToken ct)
     {
         var userId = _currentUserService.UserId
             ?? throw new UnauthorizedAccessException(ApplicationErrors.Wallet_UserNotAuthenticated);
 
-        var result = await _sender.Send(new PurchaseCourseCommand(userId, request.ExternalCourseId), ct);
+        var result = await _sender.Send(new PurchaseCoursesCommand(userId, request.ExternalCourseIds), ct);
 
         if (result.IsFailure)
         {
@@ -45,12 +45,17 @@ public class CoursesController(ISender sender, ICurrentUserService currentUserSe
             };
         }
 
-        var response = new PurchaseCourseApiResponse(
-            result.Value.PurchaseId,
-            result.Value.ExternalCourseId,
-            result.Value.CourseTitle,
-            result.Value.PriceInNoor,
-            result.Value.Status,
+        var items = result.Value.Items.Select(i => new PurchasedCourseItemApiResponse(
+            i.PurchaseId,
+            i.ExternalCourseId,
+            i.CourseTitle,
+            i.PriceInNoor,
+            i.Status)).ToList();
+
+        var response = new PurchaseCoursesApiResponse(
+            result.Value.TransactionId,
+            result.Value.TotalPriceInNoor,
+            items,
             result.Value.PurchasedAtUtc);
 
         return Ok(response);

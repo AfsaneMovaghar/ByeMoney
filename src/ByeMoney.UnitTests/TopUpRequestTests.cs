@@ -140,5 +140,43 @@ public class TopUpRequestTests
         act.Should().Throw<DomainException>()
             .WithMessage("*در انتظار*");
     }
+
+    [Fact]
+    public void Create_ShouldStorePendingItems_WhenProvided()
+    {
+        // Arrange
+        var userId = UserId.New();
+        var pending = new List<PendingItemSnapshot>
+        {
+            new(PendingItemType.Course, "course-1", 100_000m, 1000m),
+            new(PendingItemType.Course, "course-2", 200_000m, 1000m)
+        };
+
+        // Act
+        var request = TopUpRequest.Create(userId, 300m, PaymentMethod.Gateway, pendingItems: pending);
+
+        // Assert
+        request.PendingItems.Should().HaveCount(2);
+        request.PendingItems[0].ExternalId.Should().Be("course-1");
+        request.PendingItems[1].ExternalId.Should().Be("course-2");
+    }
+
+    [Fact]
+    public void Create_ShouldThrowDomainException_WhenPendingItemHasInvalidValues()
+    {
+        var userId = UserId.New();
+
+        var actEmptyId = () => TopUpRequest.Create(userId, 100m, PaymentMethod.Gateway,
+            pendingItems: new[] { new PendingItemSnapshot(PendingItemType.Course, "", 100m, 1000m) });
+        actEmptyId.Should().Throw<DomainException>();
+
+        var actZeroPrice = () => TopUpRequest.Create(userId, 100m, PaymentMethod.Gateway,
+            pendingItems: new[] { new PendingItemSnapshot(PendingItemType.Course, "c1", 0m, 1000m) });
+        actZeroPrice.Should().Throw<DomainException>();
+
+        var actZeroRate = () => TopUpRequest.Create(userId, 100m, PaymentMethod.Gateway,
+            pendingItems: new[] { new PendingItemSnapshot(PendingItemType.Course, "c1", 100m, 0m) });
+        actZeroRate.Should().Throw<DomainException>();
+    }
 }
 

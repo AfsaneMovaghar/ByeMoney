@@ -8,8 +8,5 @@ public record CreateTopUpRequestCommand(
     decimal Amount,
     PaymentMethod PaymentMethod,
     string? ExternalTransactionId = null,
-    PendingItemType? PendingItemType = null,
-    string? PendingItemExternalId = null,
-    decimal? PendingPriceSnapshot = null,
-    decimal? PendingRateSnapshot = null) : IRequest<CreateTopUpRequestResponse>;
+    IReadOnlyList<PendingItemSnapshot>? PendingItems = null) : IRequest<CreateTopUpRequestResponse>;
 

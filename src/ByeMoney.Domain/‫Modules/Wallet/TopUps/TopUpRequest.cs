@@ -1,4 +1,4 @@
-﻿using System.Security.Cryptography;
+using System.Security.Cryptography;
 using ByeMoney.Domain.Common;
 using ByeMoney.Domain.Common.Exceptions;
 using ByeMoney.Domain.Modules.Identity.Users;
@@ -20,10 +20,7 @@ public class TopUpRequest : BaseEntity<TopUpRequestId>
     public DateTime? ConfirmedAtUtc { get; private set; }
     public DateTime? RejectedAtUtc { get; private set; }
 
-    public PendingItemType? PendingItemType { get; private set; }
-    public string? PendingItemExternalId { get; private set; }
-    public decimal? PendingPriceSnapshot { get; private set; }
-    public decimal? PendingRateSnapshot { get; private set; }
+    public IReadOnlyList<PendingItemSnapshot> PendingItems { get; private set; } = [];
 
     private TopUpRequest() { }
 
@@ -38,23 +35,21 @@ public class TopUpRequest : BaseEntity<TopUpRequestId>
         PaymentMethod paymentMethod,
         string? externalTransactionId = null,
         string? clientReferenceCode = null,
-        PendingItemType? pendingItemType = null,
-        string? pendingItemExternalId = null,
-        decimal? pendingPriceSnapshot = null,
-        decimal? pendingRateSnapshot = null)
+        IReadOnlyList<PendingItemSnapshot>? pendingItems = null)
     {
         if (amount <= 0)
             throw new DomainException(DomainErrors.TopUpRequest_AmountMustBeGreaterThanZero);
 
-        if (pendingItemType.HasValue)
+        var itemsList = pendingItems ?? Array.Empty<PendingItemSnapshot>();
+        foreach (var item in itemsList)
         {
-            if (string.IsNullOrWhiteSpace(pendingItemExternalId))
+            if (string.IsNullOrWhiteSpace(item.ExternalId))
                 throw new DomainException(DomainErrors.ProductSnapshot_ExternalProductIdRequired);
 
-            if (!pendingPriceSnapshot.HasValue || pendingPriceSnapshot.Value <= 0)
+            if (item.PriceSnapshot <= 0)
                 throw new DomainException(DomainErrors.CoursePurchase_InvalidPrice);
 
-            if (!pendingRateSnapshot.HasValue || pendingRateSnapshot.Value <= 0)
+            if (item.RateSnapshot <= 0)
                 throw new DomainException(DomainErrors.CoursePurchase_InvalidConversionRate);
         }
 
@@ -71,10 +66,7 @@ public class TopUpRequest : BaseEntity<TopUpRequestId>
             ClientReferenceCode = refCode,
             Status = TopUpStatus.Pending,
             ExternalTransactionId = externalTransactionId,
-            PendingItemType = pendingItemType,
-            PendingItemExternalId = pendingItemExternalId?.Trim(),
-            PendingPriceSnapshot = pendingPriceSnapshot,
-            PendingRateSnapshot = pendingRateSnapshot
+            PendingItems = itemsList.ToList()
         };
     }
 

@@ -401,6 +401,24 @@ namespace ByeMoney.Application.Resources {
                 return ResourceManager.GetString("TopUpRequest_PendingRateMustBeGreaterThanZero", resourceCulture);
             }
         }
+
+        public static string CoursePurchase_CourseIdsListRequired {
+            get {
+                return ResourceManager.GetString("CoursePurchase_CourseIdsListRequired", resourceCulture);
+            }
+        }
+
+        public static string CoursePurchase_DuplicateCoursesInBasket {
+            get {
+                return ResourceManager.GetString("CoursePurchase_DuplicateCoursesInBasket", resourceCulture);
+            }
+        }
+
+        public static string CoursePurchase_InsufficientBalanceBasket {
+            get {
+                return ResourceManager.GetString("CoursePurchase_InsufficientBalanceBasket", resourceCulture);
+            }
+        }
     }
 }
 

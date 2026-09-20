@@ -1,6 +1,7 @@
 using ByeMoney.Application.Common.Interfaces;
 using ByeMoney.Application.Modules.Identity.Users.Interface;
 using ByeMoney.Application.Modules.Purchases.Interfaces;
+using ByeMoney.Application.Modules.TarhElahiIntegration.DTOs;
 using ByeMoney.Application.Modules.TarhElahiIntegration.Interfaces;
 using ByeMoney.Application.Modules.Wallet.Events;
 using ByeMoney.Application.Modules.Wallet.Interfaces;
@@ -50,17 +51,37 @@ public class TopUpConfirmedPurchaseHandler : INotificationHandler<TopUpConfirmed
 
     public async Task Handle(TopUpConfirmed notification, CancellationToken cancellationToken)
     {
-        if (notification.PendingItemType != PendingItemType.Course)
+        if (notification.PendingItems == null || notification.PendingItems.Count == 0)
         {
             return;
         }
 
-        // Idempotency: must not double-debit if the event is replayed or retried
-        if (await _coursePurchaseRepository.ExistsByBuyerAndCourseAsync(notification.UserId, notification.PendingItemExternalId, cancellationToken))
+        var courseItems = notification.PendingItems
+            .Where(i => i.ItemType == PendingItemType.Course)
+            .ToList();
+
+        if (courseItems.Count == 0)
         {
-            _logger.LogInformation(
-                "Auto-purchase on TopUpConfirmed skipped: Course {CourseId} already purchased for User {UserId}.",
-                notification.PendingItemExternalId, notification.UserId);
+            return;
+        }
+
+        var unpurchasedItems = new List<PendingItemSnapshot>();
+        foreach (var item in courseItems)
+        {
+            // Idempotency: skip if already purchased
+            if (await _coursePurchaseRepository.ExistsByBuyerAndCourseAsync(notification.UserId, item.ExternalId, cancellationToken))
+            {
+                _logger.LogInformation(
+                    "Auto-purchase on TopUpConfirmed skipped: Course {CourseId} already purchased for User {UserId}.",
+                    item.ExternalId, notification.UserId);
+                continue;
+            }
+
+            unpurchasedItems.Add(item);
+        }
+
+        if (unpurchasedItems.Count == 0)
+        {
             return;
         }
 
@@ -73,91 +94,105 @@ public class TopUpConfirmedPurchaseHandler : INotificationHandler<TopUpConfirmed
             return;
         }
 
-        // Check only that PendingItemExternalId still exists and is purchasable (not deleted/unpublished) via TarhElahi.
-        // Do NOT re-check or re-fetch price/rate - always honor PendingPriceSnapshot/PendingRateSnapshot as-is.
-        var course = await _tarhElahiClient.GetCourseAsync(notification.PendingItemExternalId, cancellationToken);
-        if (course is null || !course.Published || !course.Available)
+        var itemsToPurchase = new List<(CoursePurchase Purchase, TarhElahiCourseDto Course, ProductSnapshot Snapshot, decimal PriceInNoor)>();
+
+        foreach (var item in unpurchasedItems)
         {
-            _logger.LogWarning(
-                "Auto-purchase on TopUpConfirmed skipped: Course {CourseId} not found, unpublished, or unavailable in TarhElahi. Wallet remains credited.",
-                notification.PendingItemExternalId);
-            return;
+            var course = await _tarhElahiClient.GetCourseAsync(item.ExternalId, cancellationToken);
+            if (course is null || !course.Published || !course.Available)
+            {
+                _logger.LogWarning(
+                    "Auto-purchase on TopUpConfirmed skipped: Course {CourseId} not found, unpublished, or unavailable in TarhElahi. Wallet remains credited.",
+                    item.ExternalId);
+                return;
+            }
+
+            var priceRial = item.PriceSnapshot;
+            var conversionRate = item.RateSnapshot;
+            if (priceRial <= 0 || conversionRate <= 0)
+            {
+                _logger.LogError(
+                    "Auto-purchase on TopUpConfirmed aborted: Invalid frozen snapshot values for Course {CourseId} (PriceRial: {PriceRial}, ConversionRate: {Rate}).",
+                    item.ExternalId, priceRial, conversionRate);
+                return;
+            }
+
+            var priceInNoor = priceRial / conversionRate;
+
+            var snapshot = ProductSnapshot.Create(
+                course.ExternalId,
+                course.Title,
+                priceRial,
+                conversionRate,
+                priceInNoor,
+                course.Source);
+
+            var purchase = CoursePurchase.Create(notification.UserId, snapshot);
+            itemsToPurchase.Add((purchase, course, snapshot, priceInNoor));
         }
 
-        var priceRial = notification.PendingPriceSnapshot;
-        var conversionRate = notification.PendingRateSnapshot;
-        if (priceRial <= 0 || conversionRate <= 0)
-        {
-            _logger.LogError(
-                "Auto-purchase on TopUpConfirmed aborted: Invalid frozen snapshot values (PriceRial: {PriceRial}, ConversionRate: {Rate}).",
-                priceRial, conversionRate);
-            return;
-        }
-
-        var priceInNoor = priceRial / conversionRate;
-
+        var totalPriceInNoor = itemsToPurchase.Sum(x => x.PriceInNoor);
         var provisioned = await _walletProvisioningService.GetOrCreateUserWalletAsync(notification.UserId, cancellationToken);
-        if (provisioned.Wallet.Balance < priceInNoor)
+        if (provisioned.Wallet.Balance < totalPriceInNoor)
         {
             _logger.LogWarning(
                 "Auto-purchase on TopUpConfirmed skipped: Wallet balance ({Balance}) insufficient for price in Noor ({PriceInNoor}). Wallet remains credited.",
-                provisioned.Wallet.Balance, priceInNoor);
+                provisioned.Wallet.Balance, totalPriceInNoor);
             return;
         }
 
-        var snapshot = ProductSnapshot.Create(
-            course.ExternalId,
-            course.Title,
-            priceRial,
-            conversionRate,
-            priceInNoor,
-            course.Source);
-
-        var purchase = CoursePurchase.Create(notification.UserId, snapshot);
-        await _coursePurchaseRepository.AddAsync(purchase, cancellationToken);
+        foreach (var item in itemsToPurchase)
+        {
+            await _coursePurchaseRepository.AddAsync(item.Purchase, cancellationToken);
+        }
 
         var transactionId = Guid.NewGuid();
-        await ExecuteFinancialTransactionAsync(provisioned, priceInNoor, transactionId, purchase, cancellationToken);
+        await ExecuteFinancialTransactionAsync(provisioned, itemsToPurchase, transactionId, cancellationToken);
 
-        // Proceed through the existing delivery/outbox (I09) path
-        await _notifier.NotifyAsync(purchase, user.ExternalUserId, course, snapshot, cancellationToken);
+        foreach (var item in itemsToPurchase)
+        {
+            await _notifier.NotifyAsync(item.Purchase, user.ExternalUserId, item.Course, item.Snapshot, cancellationToken);
 
-        _logger.LogInformation(
-            "Auto-purchase on TopUpConfirmed executed successfully: PurchaseId {PurchaseId} for Course {CourseId} by User {UserId}.",
-            purchase.Id.Value, course.ExternalId, notification.UserId);
+            _logger.LogInformation(
+                "Auto-purchase on TopUpConfirmed executed successfully: PurchaseId {PurchaseId} for Course {CourseId} by User {UserId}.",
+                item.Purchase.Id.Value, item.Course.ExternalId, notification.UserId);
+        }
     }
 
     private async Task ExecuteFinancialTransactionAsync(
         ProvisionedUserWallet provisioned,
-        decimal priceInNoor,
+        List<(CoursePurchase Purchase, TarhElahiCourseDto Course, ProductSnapshot Snapshot, decimal PriceInNoor)> itemsToPurchase,
         Guid transactionId,
-        CoursePurchase purchase,
         CancellationToken cancellationToken)
     {
-        provisioned.Wallet.ApplyDebit(priceInNoor);
+        var totalPriceInNoor = itemsToPurchase.Sum(x => x.PriceInNoor);
+        provisioned.Wallet.ApplyDebit(totalPriceInNoor);
         _walletRepository.Update(provisioned.Wallet);
 
         var systemAccount = await _walletProvisioningService.GetOrCreateSystemAccountAsync(cancellationToken);
 
-        var buyerDebitEntry = LedgerEntry.Create(
-            provisioned.Account.Id,
-            -priceInNoor,
-            transactionId,
-            LedgerReferenceType.Purchase,
-            purchase.Id.ToString());
+        foreach (var item in itemsToPurchase)
+        {
+            var buyerDebitEntry = LedgerEntry.Create(
+                provisioned.Account.Id,
+                -item.PriceInNoor,
+                transactionId,
+                LedgerReferenceType.Purchase,
+                item.Purchase.Id.ToString());
 
-        var systemCreditEntry = LedgerEntry.Create(
-            systemAccount.Id,
-            priceInNoor,
-            transactionId,
-            LedgerReferenceType.Purchase,
-            purchase.Id.ToString());
+            var systemCreditEntry = LedgerEntry.Create(
+                systemAccount.Id,
+                item.PriceInNoor,
+                transactionId,
+                LedgerReferenceType.Purchase,
+                item.Purchase.Id.ToString());
 
-        await _ledgerRepository.AddAsync(buyerDebitEntry, cancellationToken);
-        await _ledgerRepository.AddAsync(systemCreditEntry, cancellationToken);
+            await _ledgerRepository.AddAsync(buyerDebitEntry, cancellationToken);
+            await _ledgerRepository.AddAsync(systemCreditEntry, cancellationToken);
 
-        purchase.MarkDebited(transactionId);
-        _coursePurchaseRepository.Update(purchase);
+            item.Purchase.MarkDebited(transactionId);
+            _coursePurchaseRepository.Update(item.Purchase);
+        }
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
     }

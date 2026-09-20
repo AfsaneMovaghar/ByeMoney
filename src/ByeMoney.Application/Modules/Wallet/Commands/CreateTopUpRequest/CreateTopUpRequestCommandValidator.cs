@@ -19,25 +19,25 @@ public class CreateTopUpRequestCommandValidator : AbstractValidator<CreateTopUpR
             .IsInEnum()
             .WithMessage(ApplicationErrors.TopUpRequest_PaymentMethodInvalid);
 
-        When(x => x.PendingItemType.HasValue, () =>
+        When(x => x.PendingItems != null && x.PendingItems.Count > 0, () =>
         {
-            RuleFor(x => x.PendingItemExternalId)
-                .NotEmpty()
-                .WithMessage(ApplicationErrors.TopUpRequest_PendingItemExternalIdRequired)
-                .MaximumLength(100)
-                .WithMessage(ApplicationErrors.CoursePurchase_ExternalCourseIdMaxLength);
+            RuleForEach(x => x.PendingItems)
+                .ChildRules(item =>
+                {
+                    item.RuleFor(i => i.ExternalId)
+                        .NotEmpty()
+                        .WithMessage(ApplicationErrors.TopUpRequest_PendingItemExternalIdRequired)
+                        .MaximumLength(100)
+                        .WithMessage(ApplicationErrors.CoursePurchase_ExternalCourseIdMaxLength);
 
-            RuleFor(x => x.PendingPriceSnapshot)
-                .NotNull()
-                .WithMessage(ApplicationErrors.TopUpRequest_PendingPriceMustBeGreaterThanZero)
-                .GreaterThan(0)
-                .WithMessage(ApplicationErrors.TopUpRequest_PendingPriceMustBeGreaterThanZero);
+                    item.RuleFor(i => i.PriceSnapshot)
+                        .GreaterThan(0)
+                        .WithMessage(ApplicationErrors.TopUpRequest_PendingPriceMustBeGreaterThanZero);
 
-            RuleFor(x => x.PendingRateSnapshot)
-                .NotNull()
-                .WithMessage(ApplicationErrors.TopUpRequest_PendingRateMustBeGreaterThanZero)
-                .GreaterThan(0)
-                .WithMessage(ApplicationErrors.TopUpRequest_PendingRateMustBeGreaterThanZero);
+                    item.RuleFor(i => i.RateSnapshot)
+                        .GreaterThan(0)
+                        .WithMessage(ApplicationErrors.TopUpRequest_PendingRateMustBeGreaterThanZero);
+                });
         });
     }
 }

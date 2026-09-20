@@ -63,19 +63,13 @@ public class ConfirmTopUpCommandHandler : IRequestHandler<ConfirmTopUpCommand, R
         {
             await ProcessFirstTimeConfirmationAsync(topUp, cancellationToken);
 
-            if (topUp.PendingItemType.HasValue &&
-                !string.IsNullOrWhiteSpace(topUp.PendingItemExternalId) &&
-                topUp.PendingPriceSnapshot.HasValue &&
-                topUp.PendingRateSnapshot.HasValue)
+            if (topUp.PendingItems.Count > 0)
             {
                 await _publisher.Publish(new TopUpConfirmed(
                     topUp.Id,
                     topUp.UserId,
                     topUp.Amount,
-                    topUp.PendingItemType.Value,
-                    topUp.PendingItemExternalId,
-                    topUp.PendingPriceSnapshot.Value,
-                    topUp.PendingRateSnapshot.Value), cancellationToken);
+                    topUp.PendingItems), cancellationToken);
             }
         }
 

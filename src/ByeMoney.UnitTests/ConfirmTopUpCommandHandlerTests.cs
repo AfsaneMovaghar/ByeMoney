@@ -105,14 +105,15 @@ public class ConfirmTopUpCommandHandlerTests
         // Arrange
         var userId = UserId.New();
         var amount = 100_000m;
+        var pendingItems = new List<PendingItemSnapshot>
+        {
+            new(PendingItemType.Course, "course-uuid-999", 1_000_000m, 1_000m)
+        };
         var topUp = TopUpRequest.Create(
             userId,
             amount,
             PaymentMethod.Gateway,
-            pendingItemType: PendingItemType.Course,
-            pendingItemExternalId: "course-uuid-999",
-            pendingPriceSnapshot: 1_000_000m,
-            pendingRateSnapshot: 1_000m);
+            pendingItems: pendingItems);
 
         var userAccount = Account.CreateUserAccount(userId);
         var systemAccount = Account.CreateSystemAccount();
@@ -157,10 +158,10 @@ public class ConfirmTopUpCommandHandlerTests
                 e.TopUpRequestId == topUp.Id &&
                 e.UserId == userId &&
                 e.ConfirmedAmount == amount &&
-                e.PendingItemType == PendingItemType.Course &&
-                e.PendingItemExternalId == "course-uuid-999" &&
-                e.PendingPriceSnapshot == 1_000_000m &&
-                e.PendingRateSnapshot == 1_000m),
+                e.PendingItems.Count == 1 &&
+                e.PendingItems[0].ExternalId == "course-uuid-999" &&
+                e.PendingItems[0].PriceSnapshot == 1_000_000m &&
+                e.PendingItems[0].RateSnapshot == 1_000m),
             It.IsAny<CancellationToken>()), Times.Once);
     }
 

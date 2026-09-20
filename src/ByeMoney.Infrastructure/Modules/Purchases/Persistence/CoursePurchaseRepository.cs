@@ -20,8 +20,9 @@ public class CoursePurchaseRepository : BaseRepository<CoursePurchase, CoursePur
 
     public async Task<List<CoursePurchase>> GetFailedNotificationsForRetryAsync(int maxAttempts, int batchSize, CancellationToken ct = default)
     {
+        var staleDebitedThreshold = DateTime.UtcNow.AddMinutes(-2);
         return await DbSet
-            .Where(cp => cp.Status == CoursePurchaseStatus.NotificationFailed && cp.NotificationAttempts < maxAttempts)
+            .Where(cp => (cp.Status == CoursePurchaseStatus.NotificationFailed || (cp.Status == CoursePurchaseStatus.Debited && cp.CreatedAtUtc < staleDebitedThreshold)) && cp.NotificationAttempts < maxAttempts)
             .OrderBy(cp => cp.LastNotificationAttemptAtUtc ?? cp.CreatedAtUtc)
             .Take(batchSize)
             .ToListAsync(ct);
