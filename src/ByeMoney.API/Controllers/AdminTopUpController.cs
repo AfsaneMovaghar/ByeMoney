@@ -13,15 +13,32 @@ namespace ByeMoney.API.Controllers;
 
 [ApiController]
 [Route("api/admin/topups")]
-[Authorize(Policy = PolicyNames.RequireTopUpReview)]
+[Authorize]
 public class AdminTopUpController(ISender sender) : ControllerBase
 {
     private readonly ISender _sender = sender;
 
     /// <summary>
-    /// Lookup a TopUpRequest by its ClientReferenceCode.
+    /// استعلام مجوزهای مالی ادمین جهت نمایش اکشن‌های شارژ و بررسی فیش در فرانت‌اند.
+    /// </summary>
+    [HttpGet("permissions")]
+    public async Task<IActionResult> GetPermissions(
+        [FromServices] IAuthorizationService authorizationService)
+    {
+        var canReview = (await authorizationService.AuthorizeAsync(
+            User, PolicyNames.RequireTopUpReview)).Succeeded;
+        return Ok(new
+        {
+            canReviewTopUps = canReview,
+            canAssistTopUp = canReview
+        });
+    }
+
+    /// <summary>
+    /// جست‌وجوی درخواست شارژ با کد پیگیری.
     /// </summary>
     [HttpGet("by-reference/{clientReferenceCode}")]
+    [Authorize(Policy = PolicyNames.RequireTopUpReview)]
     public async Task<IActionResult> GetByClientReferenceCode(
         string clientReferenceCode, CancellationToken ct)
     {
@@ -32,9 +49,10 @@ public class AdminTopUpController(ISender sender) : ControllerBase
     }
 
     /// <summary>
-    /// Confirm a pending TopUpRequest (admin review).
+    /// تأیید درخواست شارژ معلق توسط ادمین.
     /// </summary>
     [HttpPost("{id:guid}/confirm")]
+    [Authorize(Policy = PolicyNames.RequireTopUpReview)]
     public async Task<IActionResult> Confirm(
         Guid id, [FromBody] AdminConfirmRequest request, CancellationToken ct)
     {
@@ -55,9 +73,10 @@ public class AdminTopUpController(ISender sender) : ControllerBase
     }
 
     /// <summary>
-    /// Reject a pending TopUpRequest (admin review).
+    /// رد درخواست شارژ معلق توسط ادمین.
     /// </summary>
     [HttpPost("{id:guid}/reject")]
+    [Authorize(Policy = PolicyNames.RequireTopUpReview)]
     public async Task<IActionResult> Reject(
         Guid id, [FromBody] AdminRejectRequest request, CancellationToken ct)
     {

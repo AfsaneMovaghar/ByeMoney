@@ -1,5 +1,6 @@
 using ByeMoney.Domain.Common;
 using ByeMoney.Domain.Modules.Wallet.Accounts;
+using ByeMoney.Domain.Modules.Identity.Users;
 
 namespace ByeMoney.Domain.Modules.Wallet.Ledgers;
 
@@ -7,6 +8,8 @@ public class LedgerEntry : BaseEntity<LedgerEntryId>
 {
     /// <summary>شناسه حساب مقصد (حساب کاربر یا حساب یکتای سیستم).</summary>
     public AccountId AccountId { get; private set; }
+
+    public UserId? PerformedByUserId { get; private set; }
 
     /// <summary>مبلغ با علامت به نور؛ مثبت برای بستانکار و منفی برای بدهکار (تراز صفر دوطرفه).</summary>
     public decimal Amount { get; private set; }
@@ -27,12 +30,14 @@ public class LedgerEntry : BaseEntity<LedgerEntryId>
         decimal amount,
         Guid transactionId,
         LedgerReferenceType referenceType,
-        string? referenceId = null)
+        string? referenceId = null,
+        UserId? performedByUserId = null)
     {
         return new LedgerEntry
         {
             Id = LedgerEntryId.New(),
             AccountId = accountId,
+            PerformedByUserId = performedByUserId,
             Amount = amount,
             TransactionId = transactionId,
             ReferenceId = referenceId,

@@ -11,6 +11,12 @@ public class TopUpRequest : BaseEntity<TopUpRequestId>
     private static readonly char[] Base32Chars = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ".ToCharArray();
 
     public UserId UserId { get; private set; }
+    public UserId? CreatedByUserId { get; private set; }
+    public ChargeType? ChargeType { get; private set; }
+    public decimal? AmountRial { get; private set; }
+    public decimal? RialPerNoorSnapshot { get; private set; }
+    public string? ReceiptId { get; private set; }
+    public string? IdempotencyKey { get; private set; }
     public decimal Amount { get; private set; }
     public PaymentMethod PaymentMethod { get; private set; }
     public string ClientReferenceCode { get; private set; } = null!;
@@ -70,6 +76,45 @@ public class TopUpRequest : BaseEntity<TopUpRequestId>
         };
     }
 
+    public static TopUpRequest CreateAdminCardToCard(
+        UserId beneficiaryUserId,
+        UserId createdByUserId,
+        decimal amountRial,
+        decimal rialPerNoor,
+        string receiptId,
+        string idempotencyKey,
+        string? externalTransactionId = null)
+    {
+        if (amountRial <= 0)
+            throw new DomainException(DomainErrors.TopUpRequest_AmountMustBeGreaterThanZero);
+        if (rialPerNoor <= 0)
+            throw new DomainException(DomainErrors.TopUpRequest_InvalidRate);
+        if (string.IsNullOrWhiteSpace(receiptId) || string.IsNullOrWhiteSpace(idempotencyKey))
+            throw new DomainException(DomainErrors.TopUpRequest_ReceiptAndIdempotencyRequired);
+
+        var noorAmount = decimal.Round(amountRial / rialPerNoor, 4, MidpointRounding.ToEven);
+        if (noorAmount <= 0)
+            throw new DomainException(DomainErrors.TopUpRequest_AmountMustBeGreaterThanZero);
+
+        var now = DateTime.UtcNow;
+        return new TopUpRequest
+        {
+            Id = TopUpRequestId.New(),
+            UserId = beneficiaryUserId,
+            CreatedByUserId = createdByUserId,
+            ChargeType = global::ByeMoney.Domain.Modules.Wallet.TopUps.ChargeType.AdminAssistedCardToCard,
+            Amount = noorAmount,
+            AmountRial = amountRial,
+            RialPerNoorSnapshot = rialPerNoor,
+            ReceiptId = receiptId.Trim(),
+            IdempotencyKey = idempotencyKey.Trim(),
+            PaymentMethod = PaymentMethod.CardToCard,
+            ClientReferenceCode = GenerateClientReferenceCode(),
+            Status = TopUpStatus.Confirmed,
+            ExternalTransactionId = externalTransactionId,
+            ConfirmedAtUtc = now
+        };
+    }
     public Result Confirm(string externalTransactionId)
     {
         if (Status == TopUpStatus.Confirmed)

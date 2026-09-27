@@ -24,6 +24,15 @@ public class TopUpRequestConfiguration : IEntityTypeConfiguration<TopUpRequest>
                 value => new UserId(value))
             .IsRequired();
 
+        builder.Property(t => t.CreatedByUserId)
+            .HasConversion(id => id.HasValue ? id.Value.Value : (Guid?)null, value => value.HasValue ? new UserId(value.Value) : null);
+
+        builder.Property(t => t.ChargeType).HasConversion<string>().HasMaxLength(80);
+        builder.Property(t => t.AmountRial).HasPrecision(18, 2);
+        builder.Property(t => t.RialPerNoorSnapshot).HasPrecision(18, 8);
+        builder.Property(t => t.ReceiptId).HasMaxLength(200);
+        builder.Property(t => t.IdempotencyKey).HasMaxLength(100);
+        builder.HasIndex(t => t.IdempotencyKey).IsUnique().HasFilter("\"IdempotencyKey\" IS NOT NULL");
         builder.Property(t => t.Amount)
             .HasPrecision(18, 4)
             .IsRequired();

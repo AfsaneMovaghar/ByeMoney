@@ -266,5 +266,7 @@ namespace ByeMoney.Domain.Resources {
                 return ResourceManager.GetString("SystemSetting_ValueRequired", resourceCulture);
             }
         }
+        public static string TopUpRequest_ReceiptAndIdempotencyRequired => ResourceManager.GetString("TopUpRequest_ReceiptAndIdempotencyRequired", resourceCulture)!;
+        public static string TopUpRequest_InvalidRate => ResourceManager.GetString("TopUpRequest_InvalidRate", resourceCulture)!;
     }
 }

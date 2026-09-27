@@ -13,6 +13,11 @@ public record TopUpRequestDto(
     string? RejectionReason,
     DateTime CreatedAtUtc,
     DateTime? ConfirmedAtUtc,
-    DateTime? RejectedAtUtc);
+    DateTime? RejectedAtUtc,
+    string? ChargeType,
+    Guid? CreatedByUserId,
+    decimal? AmountRial,
+    decimal? RialPerNoorSnapshot,
+    bool HasReceipt);
 
 public record GetTopUpByClientReferenceCodeQuery(string ClientReferenceCode) : IRequest<TopUpRequestDto?>;

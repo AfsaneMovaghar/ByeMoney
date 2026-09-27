@@ -61,4 +61,7 @@
   <data name="General_UnexpectedError" xml:space="preserve">
     <value>خطای غیرمنتظره در لایه زیرساخت رخ داد.</value>
   </data>
+  <data name="ReceiptStorage_MustBePrivate" xml:space="preserve"><value>مسیر نگهداری رسید باید خارج از پوشه عمومی وب باشد.</value></data>
+  <data name="ReceiptStorage_InvalidFormat" xml:space="preserve"><value>فرمت تصویر رسید معتبر نیست.</value></data>
+  <data name="ReceiptStorage_NotFound" xml:space="preserve"><value>فایل رسید یافت نشد.</value></data>
 </root>

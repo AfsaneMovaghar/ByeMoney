@@ -23,6 +23,8 @@ public static class DependencyInjection
         ValidatorOptions.Global.DefaultClassLevelCascadeMode = CascadeMode.Stop;
 
         services.AddScoped<IUserWalletProvisioningService, UserWalletProvisioningService>();
+        services.AddScoped<ITopUpSettlementService, TopUpSettlementService>();
+        services.AddScoped<IAdminAssistedTopUpService, AdminAssistedTopUpService>();
         services.AddScoped<ByeMoney.Application.Modules.Purchases.Interfaces.ICoursePurchaseNotifier, ByeMoney.Application.Modules.Purchases.Services.CoursePurchaseNotifier>();
 
         return services;

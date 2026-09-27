@@ -167,5 +167,7 @@ namespace ByeMoney.API.Resources {
                 return ResourceManager.GetString("TarhElahi_UnavailableMessage", resourceCulture);
             }
         }
+        public static string TopUpReceipt_InvalidFile => ResourceManager.GetString("TopUpReceipt_InvalidFile", resourceCulture)!;
+        public static string TopUpRequest_InvalidIdempotencyKey => ResourceManager.GetString("TopUpRequest_InvalidIdempotencyKey", resourceCulture)!;
     }
 }

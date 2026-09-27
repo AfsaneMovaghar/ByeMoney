@@ -181,4 +181,16 @@
   <data name="CoursePurchase_InsufficientBalanceBasket" xml:space="preserve">
     <value>موجودی کیف پول برای خرید این سبد کافی نیست. موجودی: {0}، مبلغ مورد نیاز: {1}.</value>
   </data>
+  <data name="TopUpRequest_IdempotencyConflict" xml:space="preserve"><value>کلید تکرار با داده‌های متفاوت استفاده شده است.</value></data>
+  <data name="TopUpRequest_InactiveBeneficiary" xml:space="preserve"><value>کاربر ذی‌نفع فعال یافت نشد.</value></data>
+  <data name="TopUpRequest_InvalidRate" xml:space="preserve"><value>نرخ تبدیل معتبر در تنظیمات ثبت نشده است.</value></data>
+  <data name="TopUpRequest_ReceiptNotFound" xml:space="preserve"><value>فایل رسید یافت نشد.</value></data>
+  <data name="TopUpRequest_ReceiptInvalidFormat" xml:space="preserve"><value>فرمت تصویر رسید معتبر نیست.</value></data>
+  <data name="TopUpRequest_UnsupportedChargeType" xml:space="preserve"><value>نوع شارژ پشتیبانی نمی‌شود.</value></data>
+  <data name="TopUpRequest_BeneficiaryIdMaxLength" xml:space="preserve"><value>شناسه کاربر ذی‌نفع نباید بیش از ۲۰۰ نویسه باشد.</value></data>
+  <data name="TopUpRequest_ReceiptRequired" xml:space="preserve"><value>تصویر رسید الزامی است.</value></data>
+  <data name="TopUpRequest_ReceiptIdMaxLength" xml:space="preserve"><value>شناسه رسید نباید بیش از ۲۰۰ نویسه باشد.</value></data>
+  <data name="TopUpRequest_IdempotencyKeyRequired" xml:space="preserve"><value>کلید تکرار درخواست الزامی است.</value></data>
+  <data name="TopUpRequest_IdempotencyKeyMaxLength" xml:space="preserve"><value>کلید تکرار درخواست نباید بیش از ۱۰۰ نویسه باشد.</value></data>
+  <data name="TopUpRequest_ExternalTransactionIdMaxLength" xml:space="preserve"><value>شناسه تراکنش خارجی نباید بیش از ۱۰۰ نویسه باشد.</value></data>
 </root>

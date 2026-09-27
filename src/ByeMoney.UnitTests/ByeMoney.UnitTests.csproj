@@ -23,6 +23,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\ByeMoney.API\ByeMoney.API.csproj" />
     <ProjectReference Include="..\ByeMoney.Application\ByeMoney.Application.csproj" />
     <ProjectReference Include="..\ByeMoney.Domain\ByeMoney.Domain.csproj" />
   </ItemGroup>

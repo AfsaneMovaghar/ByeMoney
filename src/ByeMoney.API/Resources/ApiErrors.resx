@@ -94,4 +94,6 @@
   <data name="TarhElahi_UnavailableMessage" xml:space="preserve">
     <value>سرویس طرح الهی در حال حاضر در دسترس نیست. لطفاً بعداً تلاش فرمایید.</value>
   </data>
+  <data name="TopUpReceipt_InvalidFile" xml:space="preserve"><value>تصویر رسید معتبر و حداکثر ۱۰ مگابایت لازم است.</value></data>
+  <data name="TopUpRequest_InvalidIdempotencyKey" xml:space="preserve"><value>کلید تکرار درخواست باید بین ۱ تا ۱۰۰ نویسه باشد.</value></data>
 </root>

@@ -1,6 +1,7 @@
 using ByeMoney.Application.Common.Interfaces;
 using ByeMoney.Application.Modules.Wallet.Commands.ConfirmTopUp;
 using ByeMoney.Application.Modules.Wallet.Events;
+using ByeMoney.Application.Modules.Wallet.Services;
 using ByeMoney.Application.Modules.Wallet.Interfaces;
 using ByeMoney.Domain.Common;
 using ByeMoney.Domain.Modules.Identity.Users;
@@ -57,10 +58,7 @@ public class ConfirmTopUpCommandHandlerTests
 
         var handler = new ConfirmTopUpCommandHandler(
             topUpRepoMock.Object,
-            walletProvisioningMock.Object,
-            walletRepoMock.Object,
-            ledgerRepoMock.Object,
-            unitOfWorkMock.Object,
+            new ByeMoney.Application.Modules.Wallet.Services.TopUpSettlementService(walletProvisioningMock.Object, walletRepoMock.Object, ledgerRepoMock.Object, unitOfWorkMock.Object),
             publisherMock.Object);
 
         // Act
@@ -140,10 +138,7 @@ public class ConfirmTopUpCommandHandlerTests
 
         var handler = new ConfirmTopUpCommandHandler(
             topUpRepoMock.Object,
-            walletProvisioningMock.Object,
-            walletRepoMock.Object,
-            ledgerRepoMock.Object,
-            unitOfWorkMock.Object,
+            new ByeMoney.Application.Modules.Wallet.Services.TopUpSettlementService(walletProvisioningMock.Object, walletRepoMock.Object, ledgerRepoMock.Object, unitOfWorkMock.Object),
             publisherMock.Object);
 
         // Act
@@ -187,10 +182,7 @@ public class ConfirmTopUpCommandHandlerTests
 
         var handler = new ConfirmTopUpCommandHandler(
             topUpRepoMock.Object,
-            walletProvisioningMock.Object,
-            walletRepoMock.Object,
-            ledgerRepoMock.Object,
-            unitOfWorkMock.Object,
+            new ByeMoney.Application.Modules.Wallet.Services.TopUpSettlementService(walletProvisioningMock.Object, walletRepoMock.Object, ledgerRepoMock.Object, unitOfWorkMock.Object),
             publisherMock.Object);
 
         // Act
@@ -227,10 +219,7 @@ public class ConfirmTopUpCommandHandlerTests
 
         var handler = new ConfirmTopUpCommandHandler(
             topUpRepoMock.Object,
-            walletProvisioningMock.Object,
-            walletRepoMock.Object,
-            ledgerRepoMock.Object,
-            unitOfWorkMock.Object,
+            new ByeMoney.Application.Modules.Wallet.Services.TopUpSettlementService(walletProvisioningMock.Object, walletRepoMock.Object, ledgerRepoMock.Object, unitOfWorkMock.Object),
             publisherMock.Object);
 
         // Act
@@ -267,10 +256,7 @@ public class ConfirmTopUpCommandHandlerTests
 
         var handler = new ConfirmTopUpCommandHandler(
             topUpRepoMock.Object,
-            walletProvisioningMock.Object,
-            walletRepoMock.Object,
-            ledgerRepoMock.Object,
-            unitOfWorkMock.Object,
+            new ByeMoney.Application.Modules.Wallet.Services.TopUpSettlementService(walletProvisioningMock.Object, walletRepoMock.Object, ledgerRepoMock.Object, unitOfWorkMock.Object),
             publisherMock.Object);
 
         // Act
@@ -309,10 +295,7 @@ public class ConfirmTopUpCommandHandlerTests
 
         var handler = new ConfirmTopUpCommandHandler(
             topUpRepoMock.Object,
-            walletProvisioningMock.Object,
-            walletRepoMock.Object,
-            ledgerRepoMock.Object,
-            unitOfWorkMock.Object,
+            new ByeMoney.Application.Modules.Wallet.Services.TopUpSettlementService(walletProvisioningMock.Object, walletRepoMock.Object, ledgerRepoMock.Object, unitOfWorkMock.Object),
             publisherMock.Object);
 
         // Act
@@ -345,10 +328,7 @@ public class ConfirmTopUpCommandHandlerTests
 
         var handler = new ConfirmTopUpCommandHandler(
             topUpRepoMock.Object,
-            walletProvisioningMock.Object,
-            walletRepoMock.Object,
-            ledgerRepoMock.Object,
-            unitOfWorkMock.Object,
+            new ByeMoney.Application.Modules.Wallet.Services.TopUpSettlementService(walletProvisioningMock.Object, walletRepoMock.Object, ledgerRepoMock.Object, unitOfWorkMock.Object),
             publisherMock.Object);
 
         // Act

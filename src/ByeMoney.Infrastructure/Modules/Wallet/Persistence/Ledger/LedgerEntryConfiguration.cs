@@ -1,4 +1,5 @@
 using ByeMoney.Domain.Modules.Wallet.Accounts;
+using ByeMoney.Domain.Modules.Identity.Users;
 using ByeMoney.Domain.Modules.Wallet.Ledgers;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
@@ -24,6 +25,8 @@ public class LedgerEntryConfiguration : IEntityTypeConfiguration<LedgerEntry>
                 value => new AccountId(value))
             .IsRequired();
 
+        builder.Property(l => l.PerformedByUserId)
+            .HasConversion(id => id.HasValue ? id.Value.Value : (Guid?)null, value => value.HasValue ? new UserId(value.Value) : null);
         builder.Property(l => l.Amount)
             .HasPrecision(18, 4)
             .IsRequired();

@@ -10,6 +10,7 @@ using ByeMoney.Infrastructure.Modules.Purchases.Persistence;
 using ByeMoney.Infrastructure.Modules.Settings.Persistence;
 using ByeMoney.Infrastructure.Modules.TarhElahiIntegration;
 using ByeMoney.Infrastructure.Modules.Wallet.Persistence;
+using ByeMoney.Infrastructure.Modules.Wallet.Services;
 using ByeMoney.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -35,6 +36,7 @@ public static class DependencyInjection
         services.AddScoped<ICoursePurchaseRepository, CoursePurchaseRepository>();
         services.AddScoped<ISystemSettingRepository, SystemSettingRepository>();
         services.AddHostedService<CoursePurchaseNotificationRetryBackgroundService>();
+        services.AddScoped<ByeMoney.Application.Common.Interfaces.IReceiptStorage>(_ => new PrivateReceiptStorage(configuration["ReceiptStorage:Path"] ?? Path.Combine(AppContext.BaseDirectory, "private-receipts")));
         services.AddWalletModule();
         services.AddTarhElahiIntegration(configuration);
         return services;

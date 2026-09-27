@@ -28,5 +28,6 @@ public class GetTopUpByClientReferenceCodeQueryHandler
         t.PaymentMethod.ToString(), t.ClientReferenceCode,
         t.Status.ToString(), t.ExternalTransactionId,
         t.RejectionReason, t.CreatedAtUtc,
-        t.ConfirmedAtUtc, t.RejectedAtUtc);
+        t.ConfirmedAtUtc, t.RejectedAtUtc, t.ChargeType?.ToString(), t.CreatedByUserId?.Value,
+        t.AmountRial, t.RialPerNoorSnapshot, !string.IsNullOrWhiteSpace(t.ReceiptId));
 }
