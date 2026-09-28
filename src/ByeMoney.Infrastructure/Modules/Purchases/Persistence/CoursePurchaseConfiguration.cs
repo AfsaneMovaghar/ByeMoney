@@ -31,6 +31,13 @@ public class CoursePurchaseConfiguration : IEntityTypeConfiguration<CoursePurcha
 
         builder.Property(cp => cp.LedgerTransactionId);
 
+        builder.Property(cp => cp.IsFree)
+            .IsRequired()
+            .HasDefaultValue(false);
+
+        builder.Property(cp => cp.FreeReason)
+            .HasMaxLength(1000);
+
         builder.Property(cp => cp.NotificationAttempts)
             .IsRequired()
             .HasDefaultValue(0);

@@ -139,6 +139,9 @@
   <data name="CoursePurchase_ExternalCourseIdMaxLength" xml:space="preserve">
     <value>شناسه دوره آموزشی نباید بیشتر از ۱۰۰ کاراکتر باشد.</value>
   </data>
+  <data name="CoursePurchase_FreeReasonMaxLength" xml:space="preserve">
+    <value>علت ثبت رایگان نباید بیشتر از ۱۰۰۰ کاراکتر باشد.</value>
+  </data>
   <data name="CoursePurchase_AlreadyPurchased" xml:space="preserve">
     <value>شما قبلاً این دوره آموزشی را خریداری کرده‌اید.</value>
   </data>

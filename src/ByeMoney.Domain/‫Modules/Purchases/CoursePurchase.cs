@@ -16,8 +16,12 @@ public class CoursePurchase : BaseEntity<CoursePurchaseId>
     /// <summary>Immutable snapshot of course catalog and pricing at purchase moment.</summary>
     public ProductSnapshot Snapshot { get; private set; } = null!;
 
-    /// <summary>Links this purchase to the balanced double-entry rows in LedgerEntries.</summary>
+    /// <summary>شناسه پیگیری تراکنش مالی یا ثبت رایگان دوره.</summary>
     public Guid? LedgerTransactionId { get; private set; }
+
+    public bool IsFree { get; private set; }
+
+    public string? FreeReason { get; private set; }
 
     /// <summary>Number of times the outbound Strapi access notification was attempted (capped at 5).</summary>
     public int NotificationAttempts { get; private set; }
@@ -33,7 +37,7 @@ public class CoursePurchase : BaseEntity<CoursePurchaseId>
 
     private CoursePurchase() { }
 
-    public static CoursePurchase Create(UserId buyerId, ProductSnapshot snapshot)
+    public static CoursePurchase Create(UserId buyerId, ProductSnapshot snapshot, bool isFree = false, string? freeReason = null)
     {
         ArgumentNullException.ThrowIfNull(snapshot);
 
@@ -43,6 +47,8 @@ public class CoursePurchase : BaseEntity<CoursePurchaseId>
             BuyerId = buyerId,
             Status = CoursePurchaseStatus.Pending,
             Snapshot = snapshot,
+            IsFree = isFree,
+            FreeReason = isFree ? freeReason?.Trim() : null,
             NotificationAttempts = 0
         };
     }

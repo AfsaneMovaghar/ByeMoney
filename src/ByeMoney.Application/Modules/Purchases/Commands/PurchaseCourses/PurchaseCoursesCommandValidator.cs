@@ -104,14 +104,14 @@ public class PurchaseCoursesCommandValidator : AbstractValidator<PurchaseCourses
                         continue;
                     }
 
-                    if (course.PriceRial <= 0)
+                    if (course.PriceRial <= 0 && !cmd.IsFree)
                     {
                         context.AddFailure($"ExternalCourseIds[{courseId}]", ApplicationErrors.CoursePurchase_FreeCourseNotPurchasable);
                         hasCourseErrors = true;
                         continue;
                     }
 
-                    var priceInNoor = course.PriceRial / conversionRate;
+                    var priceInNoor = cmd.IsFree ? 0m : course.PriceRial / conversionRate;
                     validCourses.Add((course, priceInNoor));
                 }
 
@@ -122,6 +122,11 @@ public class PurchaseCoursesCommandValidator : AbstractValidator<PurchaseCourses
                 }
 
                 var totalPriceInNoor = validCourses.Sum(x => x.PriceInNoor);
+                if (cmd.IsFree)
+                {
+                    return;
+                }
+
                 var provisioned = await walletProvisioningService.GetOrCreateUserWalletAsync(buyerUserId, ct);
 
                 if (provisioned.Wallet.Balance < totalPriceInNoor)

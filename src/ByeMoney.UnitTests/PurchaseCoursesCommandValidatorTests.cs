@@ -168,6 +168,22 @@ public class PurchaseCoursesCommandValidatorTests
     }
 
     [Fact]
+    public async Task ValidateAsync_WhenComplimentaryAndWalletIsEmpty_ShouldPassWithoutProvisioningWallet()
+    {
+        var userId = UserId.New();
+        var user = User.CreateFromStrapi("strapi-user-1", "09123456789", confirmed: true, blocked: false);
+        _userRepoMock.Setup(r => r.GetByIdAsync(userId, It.IsAny<CancellationToken>())).ReturnsAsync(user);
+        _settingRepoMock.Setup(r => r.GetRialToNoorConversionRateAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1000m);
+        _tarhElahiClientMock.Setup(c => c.GetCourseAsync("c1", It.IsAny<CancellationToken>())).ReturnsAsync(
+            new TarhElahiCourseDto { ExternalId = "c1", Title = "Course", PriceRial = 1_000_000m, Published = true, Available = true, Source = "tarh_elahi" });
+
+        var result = await _validator.ValidateAsync(new PurchaseCoursesCommand(userId.Value, ["c1"], true, "Gift"));
+
+        result.IsValid.Should().BeTrue();
+        _walletProvisioningMock.Verify(x => x.GetOrCreateUserWalletAsync(It.IsAny<UserId>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
     public async Task ValidateAsync_WhenWalletBalanceInsufficientForBasket_ShouldFailWithCustomStateContainingAllItemsSnapshots()
     {
         // Arrange

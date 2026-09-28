@@ -306,6 +306,12 @@ namespace ByeMoney.Application.Resources {
             }
         }
 
+        public static string CoursePurchase_FreeReasonMaxLength {
+            get {
+                return ResourceManager.GetString("CoursePurchase_FreeReasonMaxLength", resourceCulture);
+            }
+        }
+
         /// <summary>
         ///   Looks up a localized string similar to شما قبلاً این دوره آموزشی را خریداری کرده‌اید..
         /// </summary>

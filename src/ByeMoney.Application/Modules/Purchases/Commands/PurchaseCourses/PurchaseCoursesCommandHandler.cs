@@ -59,26 +59,40 @@ public class PurchaseCoursesCommandHandler : IRequestHandler<PurchaseCoursesComm
         foreach (var courseId in request.ExternalCourseIds)
         {
             var course = (await _tarhElahiClient.GetCourseAsync(courseId, cancellationToken))!;
-            var priceInNoor = course.PriceRial / conversionRate;
+            var priceInNoor = request.IsFree ? 0m : course.PriceRial / conversionRate;
 
             var snapshot = ProductSnapshot.Create(
                 course.ExternalId,
                 course.Title,
-                course.PriceRial,
+                request.IsFree ? 0m : course.PriceRial,
                 conversionRate,
                 priceInNoor,
-                course.Source);
+                course.Source,
+                request.IsFree);
 
-            var purchase = CoursePurchase.Create(buyerUserId, snapshot);
+            var purchase = CoursePurchase.Create(buyerUserId, snapshot, request.IsFree, request.FreeReason);
             await _coursePurchaseRepository.AddAsync(purchase, cancellationToken);
 
             purchaseList.Add((purchase, course, snapshot, priceInNoor));
         }
 
-        var provisioned = await _walletProvisioningService.GetOrCreateUserWalletAsync(buyerUserId, cancellationToken);
         var transactionId = Guid.NewGuid();
 
-        await ExecuteFinancialTransactionAsync(provisioned, purchaseList, transactionId, cancellationToken);
+        if (request.IsFree)
+        {
+            foreach (var item in purchaseList)
+            {
+                item.Purchase.MarkDebited(transactionId);
+                _coursePurchaseRepository.Update(item.Purchase);
+            }
+
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+        }
+        else
+        {
+            var provisioned = await _walletProvisioningService.GetOrCreateUserWalletAsync(buyerUserId, cancellationToken);
+            await ExecuteFinancialTransactionAsync(provisioned, purchaseList, transactionId, cancellationToken);
+        }
 
         foreach (var item in purchaseList)
         {

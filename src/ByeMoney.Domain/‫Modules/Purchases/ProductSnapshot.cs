@@ -34,7 +34,8 @@ public class ProductSnapshot
         decimal priceRial,
         decimal conversionRate,
         decimal priceNoor,
-        string productSource = ProductCatalogSources.TarhElahi)
+        string productSource = ProductCatalogSources.TarhElahi,
+        bool isFree = false)
     {
         if (string.IsNullOrWhiteSpace(externalProductId))
             throw new DomainException(DomainErrors.ProductSnapshot_ExternalProductIdRequired);
@@ -42,13 +43,13 @@ public class ProductSnapshot
         if (string.IsNullOrWhiteSpace(productTitle))
             throw new DomainException(DomainErrors.ProductSnapshot_ProductTitleRequired);
 
-        if (priceRial <= 0)
+        if (priceRial < 0 || (!isFree && priceRial == 0))
             throw new DomainException(DomainErrors.CoursePurchase_InvalidPrice);
 
         if (conversionRate <= 0)
             throw new DomainException(DomainErrors.CoursePurchase_InvalidConversionRate);
 
-        if (priceNoor <= 0)
+        if (priceNoor < 0 || (!isFree && priceNoor == 0))
             throw new DomainException(DomainErrors.CoursePurchase_InvalidPrice);
 
         return new ProductSnapshot

@@ -47,6 +47,54 @@ public class PurchaseCoursesCommandHandlerTests
     }
 
     [Fact]
+    public async Task Handle_ComplimentaryPurchaseWithEmptyWallet_ShouldPersistZeroPriceAndNotify()
+    {
+        var userId = UserId.New();
+        var user = User.CreateFromStrapi("strapi-user-1", "09123456789", confirmed: true, blocked: false);
+        var course = new TarhElahiCourseDto
+        {
+            ExternalId = "course-1",
+            Title = "Course",
+            PriceRial = 1_000_000m,
+            Published = true,
+            Available = true,
+            Source = ProductCatalogSources.TarhElahi
+        };
+        var account = Account.CreateUserAccount(userId);
+        var wallet = WalletEntity.Create(account.Id, userId);
+        CoursePurchase? savedPurchase = null;
+
+        _userRepoMock.Setup(r => r.GetByIdAsync(userId, It.IsAny<CancellationToken>())).ReturnsAsync(user);
+        _settingRepoMock.Setup(r => r.GetRialToNoorConversionRateAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1000m);
+        _tarhElahiClientMock.Setup(c => c.GetCourseAsync("course-1", It.IsAny<CancellationToken>())).ReturnsAsync(course);
+        _coursePurchaseRepoMock.Setup(r => r.AddAsync(It.IsAny<CoursePurchase>(), It.IsAny<CancellationToken>()))
+            .Callback<CoursePurchase, CancellationToken>((purchase, _) => savedPurchase = purchase)
+            .Returns(Task.CompletedTask);
+
+        var result = await _handler.Handle(
+            new PurchaseCoursesCommand(userId.Value, ["course-1"], true, "Admin gift"), CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.TransactionId.Should().NotBeEmpty();
+        result.Value.TotalPriceInNoor.Should().Be(0m);
+        result.Value.Items.Should().ContainSingle().Which.PriceInNoor.Should().Be(0m);
+        wallet.Balance.Should().Be(0m);
+        savedPurchase.Should().NotBeNull();
+        savedPurchase!.Status.Should().Be(CoursePurchaseStatus.Debited);
+        savedPurchase.LedgerTransactionId.Should().Be(result.Value.TransactionId);
+        savedPurchase.IsFree.Should().BeTrue();
+        savedPurchase.FreeReason.Should().Be("Admin gift");
+        savedPurchase.Snapshot.PriceInRialAtPurchaseTime.Should().Be(0m);
+        savedPurchase.Snapshot.PriceInNoorAtPurchaseTime.Should().Be(0m);
+        _walletProvisioningMock.Verify(x => x.GetOrCreateUserWalletAsync(It.IsAny<UserId>(), It.IsAny<CancellationToken>()), Times.Never);
+        _walletRepoMock.Verify(x => x.Update(It.IsAny<WalletEntity>()), Times.Never);
+        _ledgerRepoMock.Verify(x => x.AddAsync(It.IsAny<LedgerEntry>(), It.IsAny<CancellationToken>()), Times.Never);
+        _unitOfWorkMock.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+        _notifierMock.Verify(x => x.NotifyAsync(savedPurchase, user.ExternalUserId, course,
+            It.Is<ProductSnapshot>(s => s.PriceInNoorAtPurchaseTime == 0m), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
     public async Task Handle_BasketOfTwoValidCourses_ShouldDebitWalletTotal_WriteBalancedLedgerEntriesForEach_AndTriggerNotifications()
     {
         // Arrange

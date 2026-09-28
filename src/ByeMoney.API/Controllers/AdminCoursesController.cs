@@ -1,8 +1,7 @@
 using ByeMoney.API.Contracts.Courses;
-using ByeMoney.Application.Common.Interfaces;
-using ByeMoney.Application.Modules.Purchases.Commands.PurchaseCourses;
-using ByeMoney.Application.Resources;
+using ByeMoney.Application.Modules.Purchases.Commands.AdminPurchaseCourses;
 using ByeMoney.Domain.Common;
+using ByeMoney.Domain.Modules.Identity.Constants;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -10,30 +9,27 @@ using Microsoft.AspNetCore.Mvc;
 namespace ByeMoney.API.Controllers;
 
 [ApiController]
-[Route("api/courses")]
-[Authorize]
-public class CoursesController(ISender sender, ICurrentUserService currentUserService) : ControllerBase
+[Route("api/admin/courses")]
+[Authorize(Roles = RoleNames.Admin)]
+public sealed class AdminCoursesController(ISender sender) : ControllerBase
 {
-    private readonly ISender _sender = sender;
-    private readonly ICurrentUserService _currentUserService = currentUserService;
-
     /// <summary>
-    /// Purchases one or more TarhElahi courses using the authenticated user's Noor balance.
+    /// خرید یا ثبت رایگان یک یا چند دوره به‌نیابت از کاربر.
     /// </summary>
     [HttpPost("purchase")]
     [ProducesResponseType(typeof(PurchaseCoursesApiResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> PurchaseCourses(
-        [FromBody] PurchaseCoursesApiRequest request,
+        [FromBody] AdminPurchaseCoursesApiRequest request,
         CancellationToken ct)
     {
-        var userId = _currentUserService.UserId
-            ?? throw new UnauthorizedAccessException(ApplicationErrors.Wallet_UserNotAuthenticated);
-
-        var result = await _sender.Send(new PurchaseCoursesCommand(userId, request.ExternalCourseIds), ct);
+        var result = await sender.Send(new AdminPurchaseCoursesCommand(
+            request.BeneficiaryExternalUserId, request.ExternalCourseIds,
+            request.IsFree, request.FreeReason), ct);
 
         if (result.IsFailure)
         {
