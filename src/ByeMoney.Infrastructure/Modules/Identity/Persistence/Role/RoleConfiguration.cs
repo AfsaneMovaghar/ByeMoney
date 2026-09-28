@@ -1,4 +1,5 @@
 using ByeMoney.Domain.Modules.Identity.Roles;
+using ByeMoney.Domain.Modules.Identity.Constants;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -32,7 +33,7 @@ public class RoleConfiguration : IEntityTypeConfiguration<Domain.Modules.Identit
         builder.HasData(new
         {
             Id = AdminRoleId,
-            Name = "Admin",
+            Name = RoleNames.Admin,
             CreatedAtUtc = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc),
             UpdatedAt = (DateTime?)null
         });
