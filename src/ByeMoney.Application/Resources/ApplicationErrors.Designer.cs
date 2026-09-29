@@ -431,6 +431,7 @@ namespace ByeMoney.Application.Resources {
         public static string TopUpRequest_IdempotencyConflict => ResourceManager.GetString("TopUpRequest_IdempotencyConflict", resourceCulture)!;
         public static string TopUpRequest_InactiveBeneficiary => ResourceManager.GetString("TopUpRequest_InactiveBeneficiary", resourceCulture)!;
         public static string TopUpRequest_InvalidRate => ResourceManager.GetString("TopUpRequest_InvalidRate", resourceCulture)!;
+        public static string TopUpRequest_WholeNoorRequired => ResourceManager.GetString("TopUpRequest_WholeNoorRequired", resourceCulture)!;
         public static string TopUpRequest_ReceiptNotFound => ResourceManager.GetString("TopUpRequest_ReceiptNotFound", resourceCulture)!;
         public static string TopUpRequest_ReceiptInvalidFormat => ResourceManager.GetString("TopUpRequest_ReceiptInvalidFormat", resourceCulture)!;
         public static string TopUpRequest_UnsupportedChargeType => ResourceManager.GetString("TopUpRequest_UnsupportedChargeType", resourceCulture)!;
@@ -440,6 +441,9 @@ namespace ByeMoney.Application.Resources {
         public static string TopUpRequest_IdempotencyKeyRequired => ResourceManager.GetString("TopUpRequest_IdempotencyKeyRequired", resourceCulture)!;
         public static string TopUpRequest_IdempotencyKeyMaxLength => ResourceManager.GetString("TopUpRequest_IdempotencyKeyMaxLength", resourceCulture)!;
         public static string TopUpRequest_ExternalTransactionIdMaxLength => ResourceManager.GetString("TopUpRequest_ExternalTransactionIdMaxLength", resourceCulture)!;
+        public static string TopUpRequest_ClientReferenceCodeMaxLength => ResourceManager.GetString("TopUpRequest_ClientReferenceCodeMaxLength", resourceCulture)!;
+        public static string TopUpRequest_BankReferenceNumberRequired => ResourceManager.GetString("TopUpRequest_BankReferenceNumberRequired", resourceCulture)!;
+        public static string TopUpRequest_BankReferenceNumberMaxLength => ResourceManager.GetString("TopUpRequest_BankReferenceNumberMaxLength", resourceCulture)!;
     }
 }
 

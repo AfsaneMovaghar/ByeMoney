@@ -39,7 +39,7 @@ public class TopUpController(ISender sender, ICurrentUserService currentUserServ
 
         var result = await _sender.Send(command, ct);
 
-        return Ok(new CreateTopUpResponse(result.TopUpRequestId, result.ClientReferenceId));
+        return Ok(new CreateTopUpResponse(result.TopUpRequestId, result.ClientReferenceId, result.AmountRial));
     }
 }
 

@@ -1,4 +1,5 @@
 using ByeMoney.Application.Resources;
+using ByeMoney.Domain.Modules.Wallet.TopUps;
 using FluentValidation;
 
 namespace ByeMoney.Application.Modules.Wallet.Commands.CreateTopUpRequest;
@@ -12,8 +13,12 @@ public class CreateTopUpRequestCommandValidator : AbstractValidator<CreateTopUpR
             .WithMessage(ApplicationErrors.TopUpRequest_UserIdRequired);
 
         RuleFor(x => x.Amount)
+            .Cascade(CascadeMode.Stop)
             .GreaterThan(0)
-            .WithMessage(ApplicationErrors.TopUpRequest_AmountMustBeGreaterThanZero);
+            .WithMessage(ApplicationErrors.TopUpRequest_AmountMustBeGreaterThanZero)
+            .Must(x => decimal.Truncate(x) == x)
+            .WithMessage(ApplicationErrors.TopUpRequest_WholeNoorRequired)
+            .When(x => x.PaymentMethod == PaymentMethod.Gateway, ApplyConditionTo.CurrentValidator);
 
         RuleFor(x => x.PaymentMethod)
             .IsInEnum()

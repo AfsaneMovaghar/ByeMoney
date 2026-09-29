@@ -25,7 +25,7 @@ public class ConfirmTopUpCommandHandlerTests
         // Arrange
         var userId = UserId.New();
         var amount = 100_000m;
-        var topUp = TopUpRequest.Create(userId, amount, PaymentMethod.Gateway);
+        var topUp = TopUpRequest.Create(userId, amount, PaymentMethod.CardToCard);
 
         var userAccount = Account.CreateUserAccount(userId);
         var systemAccount = Account.CreateSystemAccount();
@@ -110,7 +110,7 @@ public class ConfirmTopUpCommandHandlerTests
         var topUp = TopUpRequest.Create(
             userId,
             amount,
-            PaymentMethod.Gateway,
+            PaymentMethod.CardToCard,
             pendingItems: pendingItems);
 
         var userAccount = Account.CreateUserAccount(userId);
@@ -166,7 +166,7 @@ public class ConfirmTopUpCommandHandlerTests
         // Arrange
         var userId = UserId.New();
         var amount = 50_000m;
-        var topUp = TopUpRequest.Create(userId, amount, PaymentMethod.Gateway);
+        var topUp = TopUpRequest.Create(userId, amount, PaymentMethod.CardToCard);
         topUp.Confirm("tx_idempotent_123");
 
         var topUpRepoMock = new Mock<ITopUpRequestRepository>();
@@ -203,7 +203,7 @@ public class ConfirmTopUpCommandHandlerTests
         // Arrange
         var userId = UserId.New();
         var amount = 50_000m;
-        var topUp = TopUpRequest.Create(userId, amount, PaymentMethod.Gateway);
+        var topUp = TopUpRequest.Create(userId, amount, PaymentMethod.CardToCard);
         topUp.Confirm("tx_original_123");
 
         var topUpRepoMock = new Mock<ITopUpRequestRepository>();
@@ -241,7 +241,7 @@ public class ConfirmTopUpCommandHandlerTests
         // Arrange
         var userId = UserId.New();
         var amount = 100_000m;
-        var topUp = TopUpRequest.Create(userId, amount, PaymentMethod.Gateway);
+        var topUp = TopUpRequest.Create(userId, amount, PaymentMethod.CardToCard);
 
         var topUpRepoMock = new Mock<ITopUpRequestRepository>();
         var walletProvisioningMock = new Mock<IUserWalletProvisioningService>();
@@ -279,7 +279,7 @@ public class ConfirmTopUpCommandHandlerTests
         // Arrange
         var userId = UserId.New();
         var amount = 100_000m;
-        var topUp = TopUpRequest.Create(userId, amount, PaymentMethod.Gateway);
+        var topUp = TopUpRequest.Create(userId, amount, PaymentMethod.CardToCard);
         topUp.Reject("Invalid receipt");
 
         var topUpRepoMock = new Mock<ITopUpRequestRepository>();

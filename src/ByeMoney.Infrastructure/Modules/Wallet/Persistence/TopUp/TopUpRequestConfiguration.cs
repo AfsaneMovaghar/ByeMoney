@@ -45,6 +45,7 @@ public class TopUpRequestConfiguration : IEntityTypeConfiguration<TopUpRequest>
         builder.Property(t => t.Status)
             .HasConversion<string>()
             .HasMaxLength(20)
+            .IsConcurrencyToken()
             .IsRequired();
 
         builder.Property(t => t.ClientReferenceCode)
@@ -53,6 +54,9 @@ public class TopUpRequestConfiguration : IEntityTypeConfiguration<TopUpRequest>
 
         builder.Property(t => t.ExternalTransactionId)
             .HasMaxLength(100);
+
+        builder.Property(t => t.GatewayName).HasMaxLength(30);
+        builder.Property(t => t.BankReferenceNumber).HasMaxLength(100);
 
         builder.Property(t => t.RejectionReason)
             .HasMaxLength(500);
@@ -68,7 +72,9 @@ public class TopUpRequestConfiguration : IEntityTypeConfiguration<TopUpRequest>
 
         builder.HasIndex(t => new { t.UserId, t.Status });
 
-        builder.HasIndex(t => t.ExternalTransactionId);
+        builder.HasIndex(t => t.ExternalTransactionId)
+            .IsUnique()
+            .HasFilter("\"PaymentMethod\" = 'Gateway' AND \"ExternalTransactionId\" IS NOT NULL");
 
         builder.HasIndex(t => t.ClientReferenceCode)
             .IsUnique();
