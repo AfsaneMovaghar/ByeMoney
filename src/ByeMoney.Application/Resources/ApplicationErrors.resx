@@ -197,6 +197,9 @@
   <data name="TopUpRequest_IdempotencyKeyRequired" xml:space="preserve"><value>کلید تکرار درخواست الزامی است.</value></data>
   <data name="TopUpRequest_IdempotencyKeyMaxLength" xml:space="preserve"><value>کلید تکرار درخواست نباید بیش از ۱۰۰ نویسه باشد.</value></data>
   <data name="TopUpRequest_ExternalTransactionIdMaxLength" xml:space="preserve"><value>شناسه تراکنش خارجی نباید بیش از ۱۰۰ نویسه باشد.</value></data>
+  <data name="TopUpRequest_ClientReferenceCodeMaxLength" xml:space="preserve"><value>کد پیگیری درخواست شارژ نباید بیش از ۳۲ نویسه باشد.</value></data>
+  <data name="TopUpRequest_BankReferenceNumberRequired" xml:space="preserve"><value>شماره ارجاع بانک الزامی است.</value></data>
+  <data name="TopUpRequest_BankReferenceNumberMaxLength" xml:space="preserve"><value>شماره ارجاع بانک نباید بیش از ۱۰۰ نویسه باشد.</value></data>
   <data name="Wallet_BatchUserIdsRequired" xml:space="preserve"><value>فهرست شناسه‌های کاربران الزامی است.</value></data>
   <data name="Wallet_BatchUserIdsCountInvalid" xml:space="preserve"><value>تعداد شناسه‌های کاربران باید بین ۱ تا ۵۰۰ باشد.</value></data>
   <data name="Wallet_BatchUserIdInvalid" xml:space="preserve"><value>هر شناسهٔ کاربر باید غیرخالی و حداکثر ۱۰۰ نویسه باشد.</value></data>

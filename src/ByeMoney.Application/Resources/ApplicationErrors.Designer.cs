@@ -441,6 +441,9 @@ namespace ByeMoney.Application.Resources {
         public static string TopUpRequest_IdempotencyKeyRequired => ResourceManager.GetString("TopUpRequest_IdempotencyKeyRequired", resourceCulture)!;
         public static string TopUpRequest_IdempotencyKeyMaxLength => ResourceManager.GetString("TopUpRequest_IdempotencyKeyMaxLength", resourceCulture)!;
         public static string TopUpRequest_ExternalTransactionIdMaxLength => ResourceManager.GetString("TopUpRequest_ExternalTransactionIdMaxLength", resourceCulture)!;
+        public static string TopUpRequest_ClientReferenceCodeMaxLength => ResourceManager.GetString("TopUpRequest_ClientReferenceCodeMaxLength", resourceCulture)!;
+        public static string TopUpRequest_BankReferenceNumberRequired => ResourceManager.GetString("TopUpRequest_BankReferenceNumberRequired", resourceCulture)!;
+        public static string TopUpRequest_BankReferenceNumberMaxLength => ResourceManager.GetString("TopUpRequest_BankReferenceNumberMaxLength", resourceCulture)!;
     }
 }
 

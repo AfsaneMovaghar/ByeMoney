@@ -37,13 +37,13 @@ public class CoursePurchase : BaseEntity<CoursePurchaseId>
 
     private CoursePurchase() { }
 
-    public static CoursePurchase Create(UserId buyerId, ProductSnapshot snapshot, bool isFree = false, string? freeReason = null)
+    public static CoursePurchase Create(UserId buyerId, ProductSnapshot snapshot, bool isFree = false, string? freeReason = null, CoursePurchaseId? purchaseId = null)
     {
         ArgumentNullException.ThrowIfNull(snapshot);
 
         return new CoursePurchase
         {
-            Id = CoursePurchaseId.New(),
+            Id = purchaseId ?? CoursePurchaseId.New(),
             BuyerId = buyerId,
             Status = CoursePurchaseStatus.Pending,
             Snapshot = snapshot,

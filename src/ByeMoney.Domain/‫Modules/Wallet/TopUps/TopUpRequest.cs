@@ -22,6 +22,8 @@ public class TopUpRequest : BaseEntity<TopUpRequestId>
     public string ClientReferenceCode { get; private set; } = null!;
     public TopUpStatus Status { get; private set; }
     public string? ExternalTransactionId { get; private set; }
+    public string? GatewayName { get; private set; }
+    public string? BankReferenceNumber { get; private set; }
     public string? RejectionReason { get; private set; }
     public DateTime? ConfirmedAtUtc { get; private set; }
     public DateTime? RejectedAtUtc { get; private set; }
@@ -82,6 +84,43 @@ public class TopUpRequest : BaseEntity<TopUpRequestId>
             ExternalTransactionId = externalTransactionId,
             PendingItems = itemsList.ToList()
         };
+    }
+
+    public static TopUpRequest CreateGateway(
+        UserId userId,
+        decimal amountNoor,
+        decimal rialPerNoor,
+        IReadOnlyList<PendingItemSnapshot>? pendingItems = null)
+    {
+        if (amountNoor <= 0 || decimal.Truncate(amountNoor) != amountNoor ||
+            rialPerNoor <= 0 || decimal.Truncate(rialPerNoor) != rialPerNoor)
+            throw new DomainException(DomainErrors.TopUpRequest_InvalidRate);
+
+        var topUp = Create(userId, amountNoor, PaymentMethod.Gateway, pendingItems: pendingItems);
+        topUp.AmountRial = checked(amountNoor * rialPerNoor);
+        topUp.RialPerNoorSnapshot = rialPerNoor;
+        return topUp;
+    }
+
+    public Result ConfirmGateway(string externalTransactionId, string bankReferenceNumber, string gatewayName)
+    {
+        if (Status == TopUpStatus.Confirmed)
+            return ExternalTransactionId == externalTransactionId &&
+                   BankReferenceNumber == bankReferenceNumber && GatewayName == gatewayName
+                ? Result.Success()
+                : Result.Conflict(DomainErrors.TopUpRequest_AlreadyConfirmedDifferentExternalId);
+        if (Status == TopUpStatus.Rejected)
+            return Result.Conflict(DomainErrors.TopUpRequest_CannotConfirmRejected);
+        if (PaymentMethod != PaymentMethod.Gateway)
+            return Result.Conflict(string.Format(DomainErrors.TopUpRequest_CannotConfirmStatus, Status));
+
+        var result = Confirm(externalTransactionId);
+        if (result.IsSuccess)
+        {
+            BankReferenceNumber = bankReferenceNumber;
+            GatewayName = gatewayName;
+        }
+        return result;
     }
 
     public static TopUpRequest CreateAdminCardToCard(

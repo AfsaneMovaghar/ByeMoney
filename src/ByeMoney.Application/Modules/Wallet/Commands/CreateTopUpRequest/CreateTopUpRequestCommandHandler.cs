@@ -39,7 +39,7 @@ public class CreateTopUpRequestCommandHandler : IRequestHandler<CreateTopUpReque
         await _topUpRequestRepository.AddAsync(topUp, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        return new CreateTopUpRequestResponse(topUp.Id.Value, topUp.ClientReferenceCode);
+        return new CreateTopUpRequestResponse(topUp.Id.Value, topUp.ClientReferenceCode, topUp.AmountRial ?? 0m);
     }
 }
 

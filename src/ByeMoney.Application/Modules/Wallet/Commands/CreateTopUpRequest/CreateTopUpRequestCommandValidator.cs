@@ -16,6 +16,7 @@ public class CreateTopUpRequestCommandValidator : AbstractValidator<CreateTopUpR
             .WithMessage(ApplicationErrors.TopUpRequest_UserIdRequired);
 
         RuleFor(x => x.Amount)
+            .Cascade(CascadeMode.Stop)
             .GreaterThan(0)
             .WithMessage(ApplicationErrors.TopUpRequest_AmountMustBeGreaterThanZero)
             .Must((request, amount) => request.PaymentMethod != PaymentMethod.Gateway || decimal.Truncate(amount) == amount)

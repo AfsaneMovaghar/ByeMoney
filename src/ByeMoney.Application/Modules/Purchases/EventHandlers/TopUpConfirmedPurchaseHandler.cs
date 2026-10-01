@@ -58,6 +58,7 @@ public class TopUpConfirmedPurchaseHandler : INotificationHandler<TopUpConfirmed
 
         var courseItems = notification.PendingItems
             .Where(i => i.ItemType == PendingItemType.Course)
+            .DistinctBy(i => i.ExternalId)
             .ToList();
 
         if (courseItems.Count == 0)
@@ -122,7 +123,8 @@ public class TopUpConfirmedPurchaseHandler : INotificationHandler<TopUpConfirmed
                 priceInNoor,
                 course.Source);
 
-            var purchase = CoursePurchase.Create(notification.UserId, snapshot);
+            var purchase = CoursePurchase.Create(notification.UserId, snapshot,
+                purchaseId: TopUpPurchaseId.For(notification.TopUpRequestId, item.ExternalId));
             itemsToPurchase.Add((purchase, course, snapshot, priceInNoor));
         }
 
