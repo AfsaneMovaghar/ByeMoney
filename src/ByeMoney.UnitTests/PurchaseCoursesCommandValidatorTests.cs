@@ -1,5 +1,6 @@
 using ByeMoney.Application.Modules.Identity.Users.Interface;
 using ByeMoney.Application.Modules.Purchases.Commands.PurchaseCourses;
+using ByeMoney.Application.Modules.Purchases.Constants;
 using ByeMoney.Application.Modules.Purchases.Interfaces;
 using ByeMoney.Application.Modules.TarhElahiIntegration.DTOs;
 using ByeMoney.Application.Modules.TarhElahiIntegration.Interfaces;
@@ -7,11 +8,8 @@ using ByeMoney.Application.Modules.Wallet.Interfaces;
 using ByeMoney.Application.Resources;
 using ByeMoney.Domain.Modules.Identity.Users;
 using ByeMoney.Domain.Modules.Wallet.Accounts;
-using ByeMoney.Domain.Modules.Wallet.TopUps;
-using ByeMoney.Domain.Modules.Wallet.Wallets;
 using FluentAssertions;
 using Moq;
-using Xunit;
 using WalletEntity = ByeMoney.Domain.Modules.Wallet.Wallets.Wallet;
 
 namespace ByeMoney.UnitTests;
@@ -160,6 +158,28 @@ public class PurchaseCoursesCommandValidatorTests
     }
 
     [Fact]
+    public async Task ValidateAsync_WhenCoursePriceIsFractional_ShouldFailWithPriceMustBeWholeNoor()
+    {
+        // Arrange
+        var userId = UserId.New();
+        var user = User.CreateFromStrapi("strapi-user-1", "09123456789", confirmed: true, blocked: false);
+        _userRepoMock.Setup(r => r.GetByIdAsync(userId, It.IsAny<CancellationToken>())).ReturnsAsync(user);
+        _coursePurchaseRepoMock.Setup(r => r.ExistsByBuyerAndCourseAsync(userId, It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync(false);
+
+        var c1 = new TarhElahiCourseDto { ExternalId = "c1", Title = "Fractional Course", PriceNoor = 12.5m, Published = true, Available = true, Source = "tarh_elahi" };
+        _tarhElahiClientMock.Setup(c => c.GetCourseAsync("c1", It.IsAny<CancellationToken>())).ReturnsAsync(c1);
+
+        var command = new PurchaseCoursesCommand(userId.Value, new[] { "c1" });
+
+        // Act
+        var result = await _validator.ValidateAsync(command);
+
+        // Assert
+        result.IsValid.Should().BeFalse();
+        result.Errors.Should().Contain(e => e.PropertyName == "ExternalCourseIds[c1]" && e.ErrorMessage == ApplicationErrors.CoursePurchase_PriceMustBeWholeNoor);
+    }
+
+    [Fact]
     public async Task ValidateAsync_WhenComplimentaryAndWalletIsEmpty_ShouldPassWithoutProvisioningWallet()
     {
         var userId = UserId.New();
@@ -203,7 +223,7 @@ public class PurchaseCoursesCommandValidatorTests
         // Assert
         result.IsValid.Should().BeFalse();
         var walletError = result.Errors.Single(e => e.PropertyName == "Wallet");
-        walletError.ErrorCode.Should().Be("INSUFFICIENT_NOOR_BALANCE");
+        walletError.ErrorCode.Should().Be(PurchaseErrorCodes.InsufficientNoorBalance);
         walletError.CustomState.Should().BeOfType<InsufficientBalanceFailureState>();
 
         var state = (InsufficientBalanceFailureState)walletError.CustomState!;
@@ -213,6 +233,7 @@ public class PurchaseCoursesCommandValidatorTests
         state.PendingItems.Should().HaveCount(2);
         state.PendingItems![0].ExternalId.Should().Be("c1");
         state.PendingItems[1].ExternalId.Should().Be("c2");
+        state.ErrorCode.Should().Be(PurchaseErrorCodes.InsufficientNoorBalance);
     }
 
     [Fact]

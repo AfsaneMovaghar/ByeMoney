@@ -52,12 +52,16 @@ public class GlobalExceptionHandlingMiddleware
             validationException.Errors.FirstOrDefault(error => error.CustomState is InsufficientBalanceFailureState)?.CustomState
                 is InsufficientBalanceFailureState insufficientBalance)
         {
+            _logger.LogWarning("موجودی نور کاربر برای خرید کافی نیست. کسری: {ShortfallInNoor} نور. مسیر: {Path}",
+                insufficientBalance.ShortfallInNoor, context.Request.Path);
+
             context.Response.StatusCode = StatusCodes.Status400BadRequest;
             var balanceResponse = new InsufficientNoorBalanceErrorResponse(
                 insufficientBalance.ErrorCode,
                 insufficientBalance.CurrentBalanceInNoor,
                 insufficientBalance.PriceInNoor,
-                insufficientBalance.ShortfallInNoor);
+                insufficientBalance.ShortfallInNoor,
+                insufficientBalance.PendingItems);
             await context.Response.WriteAsJsonAsync(balanceResponse);
             return;
         }

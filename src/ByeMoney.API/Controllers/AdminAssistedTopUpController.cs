@@ -58,7 +58,7 @@ public class AdminAssistedTopUpController(
                 request.BeneficiaryExternalUserId, actorId, request.AmountToman, receiptId, idempotencyKey,
                 request.ExternalTransactionId, ChargeType.AdminAssistedCardToCard), ct);
         }
-        catch (Exception ex) when (ex is TarhElahiUnavailableException or ValidationException or DomainException)
+        catch (Exception ex) when (ex is TarhElahiUnavailableException or ValidationException or DomainException or InvalidOperationException)
         {
             await topUpService.DeleteUnreferencedReceiptAsync(receiptId, idempotencyKey, ct);
             throw;

@@ -1,4 +1,5 @@
 using ByeMoney.Application.Modules.Identity.Users.Interface;
+using ByeMoney.Application.Modules.Purchases.Constants;
 using ByeMoney.Application.Modules.Purchases.Interfaces;
 using ByeMoney.Application.Modules.TarhElahiIntegration.DTOs;
 using ByeMoney.Application.Modules.TarhElahiIntegration.Interfaces;
@@ -95,9 +96,15 @@ public class PurchaseCoursesCommandValidator : AbstractValidator<PurchaseCourses
                         continue;
                     }
 
-                    if ((course.PriceNoor <= 0 || decimal.Truncate(course.PriceNoor) != course.PriceNoor) && !cmd.IsFree)
+                    if (course.PriceNoor <= 0 && !cmd.IsFree)
                     {
                         context.AddFailure($"ExternalCourseIds[{courseId}]", ApplicationErrors.CoursePurchase_FreeCourseNotPurchasable);
+                        hasCourseErrors = true;
+                        continue;
+                    }
+                    if (decimal.Truncate(course.PriceNoor) != course.PriceNoor && !cmd.IsFree)
+                    {
+                        context.AddFailure($"ExternalCourseIds[{courseId}]", ApplicationErrors.CoursePurchase_PriceMustBeWholeNoor);
                         hasCourseErrors = true;
                         continue;
                     }
@@ -134,7 +141,7 @@ public class PurchaseCoursesCommandValidator : AbstractValidator<PurchaseCourses
                         currentBalanceInNoor,
                         totalPriceInNoor,
                         shortfallInNoor,
-                        "INSUFFICIENT_NOOR_BALANCE",
+                        PurchaseErrorCodes.InsufficientNoorBalance,
                         pendingSnapshots);
 
                     var failure = new FluentValidation.Results.ValidationFailure("Wallet", string.Format(
@@ -142,7 +149,7 @@ public class PurchaseCoursesCommandValidator : AbstractValidator<PurchaseCourses
                         currentBalanceInNoor,
                         totalPriceInNoor))
                     {
-                        ErrorCode = "INSUFFICIENT_NOOR_BALANCE",
+                        ErrorCode = PurchaseErrorCodes.InsufficientNoorBalance,
                         CustomState = failureState
                     };
 

@@ -1,5 +1,6 @@
-﻿using System.Globalization;
+using System.Globalization;
 using ByeMoney.Application.Modules.Settings;
+using ByeMoney.Application.Resources;
 using ByeMoney.Domain.Modules.Settings;
 using ByeMoney.Domain.Common.Exceptions;
 using ByeMoney.Domain.Resources;
@@ -29,7 +30,7 @@ public class SystemSettingRepository : ISystemSettingRepository
             return rate;
         }
 
-        throw new DomainException(DomainErrors.TopUpRequest_InvalidRate);
+        throw new InvalidOperationException(ApplicationErrors.TopUpRequest_InvalidRate);
     }
 
     public async Task<SystemSetting?> GetByKeyAsync(string key, CancellationToken ct = default)
