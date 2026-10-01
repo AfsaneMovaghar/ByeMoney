@@ -431,6 +431,7 @@ namespace ByeMoney.Application.Resources {
         public static string TopUpRequest_IdempotencyConflict => ResourceManager.GetString("TopUpRequest_IdempotencyConflict", resourceCulture)!;
         public static string TopUpRequest_InactiveBeneficiary => ResourceManager.GetString("TopUpRequest_InactiveBeneficiary", resourceCulture)!;
         public static string TopUpRequest_InvalidRate => ResourceManager.GetString("TopUpRequest_InvalidRate", resourceCulture)!;
+        public static string TopUpRequest_AmountMustBeWholeNoor => ResourceManager.GetString("TopUpRequest_AmountMustBeWholeNoor", resourceCulture)!;
         public static string TopUpRequest_ReceiptNotFound => ResourceManager.GetString("TopUpRequest_ReceiptNotFound", resourceCulture)!;
         public static string TopUpRequest_ReceiptInvalidFormat => ResourceManager.GetString("TopUpRequest_ReceiptInvalidFormat", resourceCulture)!;
         public static string TopUpRequest_UnsupportedChargeType => ResourceManager.GetString("TopUpRequest_UnsupportedChargeType", resourceCulture)!;

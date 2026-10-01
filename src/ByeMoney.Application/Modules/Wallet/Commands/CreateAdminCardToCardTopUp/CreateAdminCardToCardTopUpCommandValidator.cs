@@ -14,7 +14,7 @@ public class CreateAdminCardToCardTopUpCommandValidator : AbstractValidator<Crea
             .MaximumLength(200).WithMessage(ApplicationErrors.TopUpRequest_BeneficiaryIdMaxLength);
         RuleFor(x => x.ActorUserId).Cascade(CascadeMode.Stop)
             .NotEmpty().WithMessage(ApplicationErrors.TopUpRequest_UserIdRequired);
-        RuleFor(x => x.AmountRial).Cascade(CascadeMode.Stop)
+        RuleFor(x => x.AmountToman).Cascade(CascadeMode.Stop)
             .GreaterThan(0).WithMessage(ApplicationErrors.TopUpRequest_AmountMustBeGreaterThanZero);
         RuleFor(x => x.ReceiptId).Cascade(CascadeMode.Stop)
             .NotEmpty().WithMessage(ApplicationErrors.TopUpRequest_ReceiptRequired)

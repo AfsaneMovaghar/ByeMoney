@@ -187,6 +187,7 @@
   <data name="TopUpRequest_IdempotencyConflict" xml:space="preserve"><value>کلید تکرار با داده‌های متفاوت استفاده شده است.</value></data>
   <data name="TopUpRequest_InactiveBeneficiary" xml:space="preserve"><value>کاربر ذی‌نفع فعال یافت نشد.</value></data>
   <data name="TopUpRequest_InvalidRate" xml:space="preserve"><value>نرخ تبدیل معتبر در تنظیمات ثبت نشده است.</value></data>
+  <data name="TopUpRequest_AmountMustBeWholeNoor" xml:space="preserve"><value>مبلغ شارژ درگاه باید عدد صحیح نور باشد.</value></data>
   <data name="TopUpRequest_ReceiptNotFound" xml:space="preserve"><value>فایل رسید یافت نشد.</value></data>
   <data name="TopUpRequest_ReceiptInvalidFormat" xml:space="preserve"><value>فرمت تصویر رسید معتبر نیست.</value></data>
   <data name="TopUpRequest_UnsupportedChargeType" xml:space="preserve"><value>نوع شارژ پشتیبانی نمی‌شود.</value></data>

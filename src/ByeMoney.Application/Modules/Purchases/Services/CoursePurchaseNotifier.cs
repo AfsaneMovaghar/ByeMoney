@@ -48,9 +48,7 @@ public class CoursePurchaseNotifier : ICoursePurchaseNotifier
             {
                 ProductSource = snapshot.ProductSource,
                 ProductTitle = snapshot.ProductTitle,
-                PriceRial = snapshot.PriceInRialAtPurchaseTime,
-                PriceNoor = snapshot.PriceInNoorAtPurchaseTime,
-                ConversionRate = snapshot.ConversionRateAtPurchaseTime
+                PriceNoor = snapshot.PriceInNoorAtPurchaseTime
             },
             PurchasedAtUtc = snapshot.PurchasedAt
         };

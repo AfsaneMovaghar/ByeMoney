@@ -20,7 +20,7 @@ public class TopUpSettlementServiceTests
     {
         var beneficiaryId = UserId.New();
         var actorId = UserId.New();
-        var topUp = TopUpRequest.CreateAdminCardToCard(beneficiaryId, actorId, 100_000m, 10_000m, "receipt", "key");
+        var topUp = TopUpRequest.CreateAdminCardToCard(beneficiaryId, actorId, 10_000m, 10_000m, "receipt", "key");
         var userAccount = Account.CreateUserAccount(beneficiaryId);
         var systemAccount = Account.CreateSystemAccount();
         var wallet = WalletEntity.Create(userAccount.Id, beneficiaryId);

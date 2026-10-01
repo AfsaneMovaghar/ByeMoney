@@ -73,13 +73,11 @@ public class CoursePurchaseConfiguration : IEntityTypeConfiguration<CoursePurcha
 
             snapshotBuilder.Property(s => s.PriceInRialAtPurchaseTime)
                 .HasColumnName("PriceInRialAtPurchaseTime")
-                .HasPrecision(18, 2)
-                .IsRequired();
+                .HasPrecision(18, 2);
 
             snapshotBuilder.Property(s => s.ConversionRateAtPurchaseTime)
                 .HasColumnName("ConversionRateAtPurchaseTime")
-                .HasPrecision(18, 4)
-                .IsRequired();
+                .HasPrecision(18, 4);
 
             snapshotBuilder.Property(s => s.PriceInNoorAtPurchaseTime)
                 .HasColumnName("PriceInNoorAtPurchaseTime")

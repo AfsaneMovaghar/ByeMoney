@@ -99,9 +99,7 @@ public class CoursePurchaseNotificationRetryBackgroundService : BackgroundServic
                 {
                     ProductSource = purchase.Snapshot.ProductSource,
                     ProductTitle = purchase.Snapshot.ProductTitle,
-                    PriceRial = purchase.Snapshot.PriceInRialAtPurchaseTime,
-                    PriceNoor = purchase.Snapshot.PriceInNoorAtPurchaseTime,
-                    ConversionRate = purchase.Snapshot.ConversionRateAtPurchaseTime
+                    PriceNoor = purchase.Snapshot.PriceInNoorAtPurchaseTime
                 },
                 PurchasedAtUtc = purchase.Snapshot.PurchasedAt
             };

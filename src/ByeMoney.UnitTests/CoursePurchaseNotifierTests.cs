@@ -33,14 +33,14 @@ public class CoursePurchaseNotifierTests
     public async Task NotifyAsync_WhenClientReturnsTrue_ShouldMarkNotificationSent()
     {
         var userId = UserId.New();
-        var snapshot = ProductSnapshot.Create("course-1", "Title", 1000m, 10m, 100m, ProductCatalogSources.TarhElahi);
+        var snapshot = ProductSnapshot.Create("course-1", "Title", 100m, ProductCatalogSources.TarhElahi);
         var purchase = CoursePurchase.Create(userId, snapshot);
         purchase.MarkDebited(Guid.NewGuid());
         var courseDto = new TarhElahiCourseDto
         {
             ExternalId = "course-1",
             Title = "Title",
-            PriceRial = 1000m
+            PriceNoor = 100m
         };
 
         _tarhElahiClientMock
@@ -58,14 +58,14 @@ public class CoursePurchaseNotifierTests
     public async Task NotifyAsync_WhenClientReturnsFalse_ShouldMarkNotificationFailed()
     {
         var userId = UserId.New();
-        var snapshot = ProductSnapshot.Create("course-1", "Title", 1000m, 10m, 100m, ProductCatalogSources.TarhElahi);
+        var snapshot = ProductSnapshot.Create("course-1", "Title", 100m, ProductCatalogSources.TarhElahi);
         var purchase = CoursePurchase.Create(userId, snapshot);
         purchase.MarkDebited(Guid.NewGuid());
         var courseDto = new TarhElahiCourseDto
         {
             ExternalId = "course-1",
             Title = "Title",
-            PriceRial = 1000m
+            PriceNoor = 100m
         };
 
         _tarhElahiClientMock
@@ -85,14 +85,14 @@ public class CoursePurchaseNotifierTests
     public async Task NotifyAsync_WhenClientThrowsException_ShouldMarkNotificationFailedAndNotThrow()
     {
         var userId = UserId.New();
-        var snapshot = ProductSnapshot.Create("course-1", "Title", 1000m, 10m, 100m, ProductCatalogSources.TarhElahi);
+        var snapshot = ProductSnapshot.Create("course-1", "Title", 100m, ProductCatalogSources.TarhElahi);
         var purchase = CoursePurchase.Create(userId, snapshot);
         purchase.MarkDebited(Guid.NewGuid());
         var courseDto = new TarhElahiCourseDto
         {
             ExternalId = "course-1",
             Title = "Title",
-            PriceRial = 1000m
+            PriceNoor = 100m
         };
 
         _tarhElahiClientMock
@@ -125,9 +125,7 @@ public class CoursePurchaseNotifierTests
             {
                 ProductSource = ProductCatalogSources.TarhElahi,
                 ProductTitle = "آموزش",
-                PriceRial = 1000m,
-                PriceNoor = 10m,
-                ConversionRate = 100m
+                PriceNoor = 10m
             },
             PurchasedAtUtc = DateTime.UtcNow
         };

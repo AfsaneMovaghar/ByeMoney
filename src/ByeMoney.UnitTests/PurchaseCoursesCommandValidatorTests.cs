@@ -1,7 +1,6 @@
 using ByeMoney.Application.Modules.Identity.Users.Interface;
 using ByeMoney.Application.Modules.Purchases.Commands.PurchaseCourses;
 using ByeMoney.Application.Modules.Purchases.Interfaces;
-using ByeMoney.Application.Modules.Settings;
 using ByeMoney.Application.Modules.TarhElahiIntegration.DTOs;
 using ByeMoney.Application.Modules.TarhElahiIntegration.Interfaces;
 using ByeMoney.Application.Modules.Wallet.Interfaces;
@@ -22,7 +21,6 @@ public class PurchaseCoursesCommandValidatorTests
     private readonly Mock<ICoursePurchaseRepository> _coursePurchaseRepoMock = new();
     private readonly Mock<IUserRepository> _userRepoMock = new();
     private readonly Mock<ITarhElahiIntegrationClient> _tarhElahiClientMock = new();
-    private readonly Mock<ISystemSettingRepository> _settingRepoMock = new();
     private readonly Mock<IUserWalletProvisioningService> _walletProvisioningMock = new();
 
     private readonly PurchaseCoursesCommandValidator _validator;
@@ -33,7 +31,6 @@ public class PurchaseCoursesCommandValidatorTests
             _coursePurchaseRepoMock.Object,
             _userRepoMock.Object,
             _tarhElahiClientMock.Object,
-            _settingRepoMock.Object,
             _walletProvisioningMock.Object);
     }
 
@@ -44,10 +41,9 @@ public class PurchaseCoursesCommandValidatorTests
         var userId = UserId.New();
         var user = User.CreateFromStrapi("strapi-user-1", "09123456789", confirmed: true, blocked: false);
         _userRepoMock.Setup(r => r.GetByIdAsync(userId, It.IsAny<CancellationToken>())).ReturnsAsync(user);
-        _settingRepoMock.Setup(r => r.GetRialToNoorConversionRateAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1000m);
 
-        var c1 = new TarhElahiCourseDto { ExternalId = "c1", Title = "C1", PriceRial = 1_000_000m, Published = true, Available = true, Source = "tarh_elahi" };
-        var c2 = new TarhElahiCourseDto { ExternalId = "c2", Title = "C2", PriceRial = 2_000_000m, Published = true, Available = true, Source = "tarh_elahi" };
+        var c1 = new TarhElahiCourseDto { ExternalId = "c1", Title = "C1", PriceNoor = 1_000m, Published = true, Available = true, Source = "tarh_elahi" };
+        var c2 = new TarhElahiCourseDto { ExternalId = "c2", Title = "C2", PriceNoor = 2_000m, Published = true, Available = true, Source = "tarh_elahi" };
         _tarhElahiClientMock.Setup(c => c.GetCourseAsync("c1", It.IsAny<CancellationToken>())).ReturnsAsync(c1);
         _tarhElahiClientMock.Setup(c => c.GetCourseAsync("c2", It.IsAny<CancellationToken>())).ReturnsAsync(c2);
 
@@ -75,13 +71,12 @@ public class PurchaseCoursesCommandValidatorTests
         var userId = UserId.New();
         var user = User.CreateFromStrapi("strapi-user-1", "09123456789", confirmed: true, blocked: false);
         _userRepoMock.Setup(r => r.GetByIdAsync(userId, It.IsAny<CancellationToken>())).ReturnsAsync(user);
-        _settingRepoMock.Setup(r => r.GetRialToNoorConversionRateAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1000m);
 
         // c1 is already purchased by this user!
         _coursePurchaseRepoMock.Setup(r => r.ExistsByBuyerAndCourseAsync(userId, "c1", It.IsAny<CancellationToken>())).ReturnsAsync(true);
         _coursePurchaseRepoMock.Setup(r => r.ExistsByBuyerAndCourseAsync(userId, "c2", It.IsAny<CancellationToken>())).ReturnsAsync(false);
 
-        var c2 = new TarhElahiCourseDto { ExternalId = "c2", Title = "C2", PriceRial = 2_000_000m, Published = true, Available = true, Source = "tarh_elahi" };
+        var c2 = new TarhElahiCourseDto { ExternalId = "c2", Title = "C2", PriceNoor = 2_000m, Published = true, Available = true, Source = "tarh_elahi" };
         _tarhElahiClientMock.Setup(c => c.GetCourseAsync("c2", It.IsAny<CancellationToken>())).ReturnsAsync(c2);
 
         var command = new PurchaseCoursesCommand(userId.Value, new[] { "c1", "c2" });
@@ -103,11 +98,10 @@ public class PurchaseCoursesCommandValidatorTests
         var userId = UserId.New();
         var user = User.CreateFromStrapi("strapi-user-1", "09123456789", confirmed: true, blocked: false);
         _userRepoMock.Setup(r => r.GetByIdAsync(userId, It.IsAny<CancellationToken>())).ReturnsAsync(user);
-        _settingRepoMock.Setup(r => r.GetRialToNoorConversionRateAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1000m);
 
         _coursePurchaseRepoMock.Setup(r => r.ExistsByBuyerAndCourseAsync(userId, It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync(false);
 
-        var c1 = new TarhElahiCourseDto { ExternalId = "c1", Title = "C1", PriceRial = 1_000_000m, Published = true, Available = true, Source = "tarh_elahi" };
+        var c1 = new TarhElahiCourseDto { ExternalId = "c1", Title = "C1", PriceNoor = 1_000m, Published = true, Available = true, Source = "tarh_elahi" };
         _tarhElahiClientMock.Setup(c => c.GetCourseAsync("c1", It.IsAny<CancellationToken>())).ReturnsAsync(c1);
         _tarhElahiClientMock.Setup(c => c.GetCourseAsync("non-existent", It.IsAny<CancellationToken>())).ReturnsAsync((TarhElahiCourseDto?)null);
 
@@ -128,10 +122,9 @@ public class PurchaseCoursesCommandValidatorTests
         var userId = UserId.New();
         var user = User.CreateFromStrapi("strapi-user-1", "09123456789", confirmed: true, blocked: false);
         _userRepoMock.Setup(r => r.GetByIdAsync(userId, It.IsAny<CancellationToken>())).ReturnsAsync(user);
-        _settingRepoMock.Setup(r => r.GetRialToNoorConversionRateAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1000m);
         _coursePurchaseRepoMock.Setup(r => r.ExistsByBuyerAndCourseAsync(userId, It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync(false);
 
-        var c1 = new TarhElahiCourseDto { ExternalId = "c1", Title = "C1", PriceRial = 1_000_000m, Published = false, Available = false, Source = "tarh_elahi" };
+        var c1 = new TarhElahiCourseDto { ExternalId = "c1", Title = "C1", PriceNoor = 1_000m, Published = false, Available = false, Source = "tarh_elahi" };
         _tarhElahiClientMock.Setup(c => c.GetCourseAsync("c1", It.IsAny<CancellationToken>())).ReturnsAsync(c1);
 
         var command = new PurchaseCoursesCommand(userId.Value, new[] { "c1" });
@@ -151,10 +144,9 @@ public class PurchaseCoursesCommandValidatorTests
         var userId = UserId.New();
         var user = User.CreateFromStrapi("strapi-user-1", "09123456789", confirmed: true, blocked: false);
         _userRepoMock.Setup(r => r.GetByIdAsync(userId, It.IsAny<CancellationToken>())).ReturnsAsync(user);
-        _settingRepoMock.Setup(r => r.GetRialToNoorConversionRateAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1000m);
         _coursePurchaseRepoMock.Setup(r => r.ExistsByBuyerAndCourseAsync(userId, It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync(false);
 
-        var c1 = new TarhElahiCourseDto { ExternalId = "c1", Title = "Free Course", PriceRial = 0m, Published = true, Available = true, Source = "tarh_elahi" };
+        var c1 = new TarhElahiCourseDto { ExternalId = "c1", Title = "Free Course", PriceNoor = 0m, Published = true, Available = true, Source = "tarh_elahi" };
         _tarhElahiClientMock.Setup(c => c.GetCourseAsync("c1", It.IsAny<CancellationToken>())).ReturnsAsync(c1);
 
         var command = new PurchaseCoursesCommand(userId.Value, new[] { "c1" });
@@ -173,9 +165,8 @@ public class PurchaseCoursesCommandValidatorTests
         var userId = UserId.New();
         var user = User.CreateFromStrapi("strapi-user-1", "09123456789", confirmed: true, blocked: false);
         _userRepoMock.Setup(r => r.GetByIdAsync(userId, It.IsAny<CancellationToken>())).ReturnsAsync(user);
-        _settingRepoMock.Setup(r => r.GetRialToNoorConversionRateAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1000m);
         _tarhElahiClientMock.Setup(c => c.GetCourseAsync("c1", It.IsAny<CancellationToken>())).ReturnsAsync(
-            new TarhElahiCourseDto { ExternalId = "c1", Title = "Course", PriceRial = 1_000_000m, Published = true, Available = true, Source = "tarh_elahi" });
+            new TarhElahiCourseDto { ExternalId = "c1", Title = "Course", PriceNoor = 1_000m, Published = true, Available = true, Source = "tarh_elahi" });
 
         var result = await _validator.ValidateAsync(new PurchaseCoursesCommand(userId.Value, ["c1"], true, "Gift"));
 
@@ -190,18 +181,17 @@ public class PurchaseCoursesCommandValidatorTests
         var userId = UserId.New();
         var user = User.CreateFromStrapi("strapi-user-1", "09123456789", confirmed: true, blocked: false);
         _userRepoMock.Setup(r => r.GetByIdAsync(userId, It.IsAny<CancellationToken>())).ReturnsAsync(user);
-        _settingRepoMock.Setup(r => r.GetRialToNoorConversionRateAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1000m);
         _coursePurchaseRepoMock.Setup(r => r.ExistsByBuyerAndCourseAsync(userId, It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync(false);
 
-        var c1 = new TarhElahiCourseDto { ExternalId = "c1", Title = "C1", PriceRial = 2_000_000m, Published = true, Available = true, Source = "tarh_elahi" };
-        var c2 = new TarhElahiCourseDto { ExternalId = "c2", Title = "C2", PriceRial = 3_000_000m, Published = true, Available = true, Source = "tarh_elahi" };
+        var c1 = new TarhElahiCourseDto { ExternalId = "c1", Title = "C1", PriceNoor = 2_000m, Published = true, Available = true, Source = "tarh_elahi" };
+        var c2 = new TarhElahiCourseDto { ExternalId = "c2", Title = "C2", PriceNoor = 3_000m, Published = true, Available = true, Source = "tarh_elahi" };
         _tarhElahiClientMock.Setup(c => c.GetCourseAsync("c1", It.IsAny<CancellationToken>())).ReturnsAsync(c1);
         _tarhElahiClientMock.Setup(c => c.GetCourseAsync("c2", It.IsAny<CancellationToken>())).ReturnsAsync(c2);
 
-        // Total price = 2,000 + 3,000 = 5,000 Noor. User has only 1,000 Noor. Shortfall = 4,000 Noor.
+        // Total price = 5,000 Noor; a fractional wallet balance leaves a fractional shortfall.
         var userAccount = Account.CreateUserAccount(userId);
         var wallet = WalletEntity.Create(userAccount.Id, userId);
-        wallet.ApplyCredit(1_000m);
+        wallet.ApplyCredit(1_000.5m);
         _walletProvisioningMock.Setup(s => s.GetOrCreateUserWalletAsync(userId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ProvisionedUserWallet(userAccount, wallet));
 
@@ -217,10 +207,9 @@ public class PurchaseCoursesCommandValidatorTests
         walletError.CustomState.Should().BeOfType<InsufficientBalanceFailureState>();
 
         var state = (InsufficientBalanceFailureState)walletError.CustomState!;
-        state.CurrentBalanceInNoor.Should().Be(1_000m);
+        state.CurrentBalanceInNoor.Should().Be(1_000.5m);
         state.PriceInNoor.Should().Be(5_000m);
         state.ShortfallInNoor.Should().Be(4_000m);
-        state.ShortfallInRial.Should().Be(4_000_000m);
         state.PendingItems.Should().HaveCount(2);
         state.PendingItems![0].ExternalId.Should().Be("c1");
         state.PendingItems[1].ExternalId.Should().Be("c2");
@@ -247,7 +236,6 @@ public class PurchaseCoursesCommandValidatorTests
         var userId = UserId.New();
         var user = User.CreateFromStrapi("strapi-user-1", "09123456789", confirmed: true, blocked: false);
         _userRepoMock.Setup(r => r.GetByIdAsync(userId, It.IsAny<CancellationToken>())).ReturnsAsync(user);
-        _settingRepoMock.Setup(r => r.GetRialToNoorConversionRateAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1000m);
 
         _coursePurchaseRepoMock.Setup(r => r.ExistsByBuyerAndCourseAsync(userId, "c1", It.IsAny<CancellationToken>())).ReturnsAsync(true);
         _coursePurchaseRepoMock.Setup(r => r.ExistsByBuyerAndCourseAsync(userId, "c2", It.IsAny<CancellationToken>())).ReturnsAsync(true);
@@ -272,12 +260,11 @@ public class PurchaseCoursesCommandValidatorTests
         var userId = UserId.New();
         var user = User.CreateFromStrapi("strapi-user-1", "09123456789", confirmed: true, blocked: false);
         _userRepoMock.Setup(r => r.GetByIdAsync(userId, It.IsAny<CancellationToken>())).ReturnsAsync(user);
-        _settingRepoMock.Setup(r => r.GetRialToNoorConversionRateAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1000m);
 
         _coursePurchaseRepoMock.Setup(r => r.ExistsByBuyerAndCourseAsync(userId, "c1", It.IsAny<CancellationToken>())).ReturnsAsync(true);
         _coursePurchaseRepoMock.Setup(r => r.ExistsByBuyerAndCourseAsync(userId, "c2", It.IsAny<CancellationToken>())).ReturnsAsync(false);
 
-        var c2 = new TarhElahiCourseDto { ExternalId = "c2", Title = "C2", PriceRial = 2_000_000m, Published = true, Available = true, Source = "tarh_elahi" };
+        var c2 = new TarhElahiCourseDto { ExternalId = "c2", Title = "C2", PriceNoor = 2_000m, Published = true, Available = true, Source = "tarh_elahi" };
         _tarhElahiClientMock.Setup(c => c.GetCourseAsync("c2", It.IsAny<CancellationToken>())).ReturnsAsync(c2);
 
         var command = new PurchaseCoursesCommand(userId.Value, new[] { "c1", "c2" });

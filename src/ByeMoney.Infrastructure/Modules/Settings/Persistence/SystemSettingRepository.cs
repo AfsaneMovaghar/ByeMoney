@@ -1,6 +1,8 @@
 ﻿using System.Globalization;
 using ByeMoney.Application.Modules.Settings;
 using ByeMoney.Domain.Modules.Settings;
+using ByeMoney.Domain.Common.Exceptions;
+using ByeMoney.Domain.Resources;
 using ByeMoney.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -21,12 +23,13 @@ public class SystemSettingRepository : ISystemSettingRepository
             .AsNoTracking()
             .FirstOrDefaultAsync(s => s.Key == SystemSettingConstants.Keys.RialToNoor, ct);
 
-        if (setting is not null && decimal.TryParse(setting.Value, NumberStyles.Any, CultureInfo.InvariantCulture, out var rate) && rate > 0)
+        if (setting is not null && decimal.TryParse(setting.Value, NumberStyles.Number, CultureInfo.InvariantCulture, out var rate) &&
+            rate > 0 && decimal.Truncate(rate) == rate)
         {
             return rate;
         }
 
-        return SystemSettingConstants.Defaults.RialToNoorRate;
+        throw new DomainException(DomainErrors.TopUpRequest_InvalidRate);
     }
 
     public async Task<SystemSetting?> GetByKeyAsync(string key, CancellationToken ct = default)
@@ -37,6 +40,13 @@ public class SystemSettingRepository : ISystemSettingRepository
 
     public async Task SetValueAsync(string key, string value, string? description = null, CancellationToken ct = default)
     {
+        if (key == SystemSettingConstants.Keys.RialToNoor &&
+            (!decimal.TryParse(value, NumberStyles.Number, CultureInfo.InvariantCulture, out var rate) ||
+             rate <= 0 || decimal.Truncate(rate) != rate))
+        {
+            throw new DomainException(DomainErrors.TopUpRequest_InvalidRate);
+        }
+
         var setting = await GetByKeyAsync(key, ct);
         if (setting is null)
         {

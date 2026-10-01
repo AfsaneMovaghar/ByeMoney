@@ -14,11 +14,11 @@ public class ProductSnapshot
     /// <summary>Authoritative title of the product at purchase time.</summary>
     public string ProductTitle { get; private set; } = null!;
 
-    /// <summary>Authoritative Rial price from catalog at purchase time.</summary>
-    public decimal PriceInRialAtPurchaseTime { get; private set; }
+    /// <summary>Historical Rial price, retained only for purchases made before Noor pricing.</summary>
+    public decimal? PriceInRialAtPurchaseTime { get; private set; }
 
-    /// <summary>Rial to Noor conversion rate applied at purchase time.</summary>
-    public decimal ConversionRateAtPurchaseTime { get; private set; }
+    /// <summary>Historical conversion rate, retained only for old purchases.</summary>
+    public decimal? ConversionRateAtPurchaseTime { get; private set; }
 
     /// <summary>Final calculated Noor price at full decimal(18,4) precision.</summary>
     public decimal PriceInNoorAtPurchaseTime { get; private set; }
@@ -31,8 +31,6 @@ public class ProductSnapshot
     public static ProductSnapshot Create(
         string externalProductId,
         string productTitle,
-        decimal priceRial,
-        decimal conversionRate,
         decimal priceNoor,
         string productSource = ProductCatalogSources.TarhElahi,
         bool isFree = false)
@@ -43,12 +41,6 @@ public class ProductSnapshot
         if (string.IsNullOrWhiteSpace(productTitle))
             throw new DomainException(DomainErrors.ProductSnapshot_ProductTitleRequired);
 
-        if (priceRial < 0 || (!isFree && priceRial == 0))
-            throw new DomainException(DomainErrors.CoursePurchase_InvalidPrice);
-
-        if (conversionRate <= 0)
-            throw new DomainException(DomainErrors.CoursePurchase_InvalidConversionRate);
-
         if (priceNoor < 0 || (!isFree && priceNoor == 0))
             throw new DomainException(DomainErrors.CoursePurchase_InvalidPrice);
 
@@ -57,8 +49,6 @@ public class ProductSnapshot
             ProductSource = productSource,
             ExternalProductId = externalProductId.Trim(),
             ProductTitle = productTitle.Trim(),
-            PriceInRialAtPurchaseTime = priceRial,
-            ConversionRateAtPurchaseTime = conversionRate,
             PriceInNoorAtPurchaseTime = priceNoor,
             PurchasedAt = DateTime.UtcNow
         };

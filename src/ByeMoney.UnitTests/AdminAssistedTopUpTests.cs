@@ -38,7 +38,7 @@ public class AdminAssistedTopUpTests
         var service = new AdminAssistedTopUpService(users.Object, settings.Object, topUps.Object, settlement.Object, Mock.Of<IReceiptStorage>(), Mock.Of<ISender>());
 
         var actorId = Guid.NewGuid();
-        var result = await service.CreateAsync(new("external-user", actorId, 250_000m, "receipt-id", "idem-1", null,
+        var result = await service.CreateAsync(new("external-user", actorId, 25_000m, "receipt-id", "idem-1", null,
             ChargeType.AdminAssistedCardToCard), CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
@@ -58,7 +58,7 @@ public class AdminAssistedTopUpTests
     {
         var beneficiary = User.CreateFromStrapi("external-user", confirmed: true);
         var actorId = UserId.New();
-        var existing = TopUpRequest.CreateAdminCardToCard(beneficiary.Id, actorId, 100_000m, 10_000m, "receipt-id", "idem-1");
+        var existing = TopUpRequest.CreateAdminCardToCard(beneficiary.Id, actorId, 10_000m, 10_000m, "receipt-id", "idem-1");
         var users = new Mock<IUserRepository>();
         users.Setup(x => x.GetByExternalUserIdAsync("external-user", It.IsAny<CancellationToken>())).ReturnsAsync(beneficiary);
         var topUps = new Mock<ITopUpRequestRepository>();
@@ -66,7 +66,7 @@ public class AdminAssistedTopUpTests
         var settlement = new Mock<ITopUpSettlementService>();
         var service = new AdminAssistedTopUpService(users.Object, Mock.Of<ISystemSettingRepository>(), topUps.Object, settlement.Object, Mock.Of<IReceiptStorage>(), Mock.Of<ISender>());
 
-        var result = await service.CreateAsync(new("external-user", actorId.Value, 100_000m, "receipt-id", "idem-1", null,
+        var result = await service.CreateAsync(new("external-user", actorId.Value, 10_000m, "receipt-id", "idem-1", null,
             ChargeType.AdminAssistedCardToCard), CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
@@ -80,7 +80,7 @@ public class AdminAssistedTopUpTests
     {
         var beneficiary = User.CreateFromStrapi("external-user", confirmed: true);
         var actorId = UserId.New();
-        var existing = TopUpRequest.CreateAdminCardToCard(beneficiary.Id, actorId, 100_000m, 10_000m, "first-receipt", "idem-1");
+        var existing = TopUpRequest.CreateAdminCardToCard(beneficiary.Id, actorId, 10_000m, 10_000m, "first-receipt", "idem-1");
         var users = new Mock<IUserRepository>();
         users.Setup(x => x.GetByExternalUserIdAsync("external-user", It.IsAny<CancellationToken>())).ReturnsAsync(beneficiary);
         var topUps = new Mock<ITopUpRequestRepository>();
@@ -88,7 +88,7 @@ public class AdminAssistedTopUpTests
         var settlement = new Mock<ITopUpSettlementService>();
         var service = new AdminAssistedTopUpService(users.Object, Mock.Of<ISystemSettingRepository>(), topUps.Object, settlement.Object, Mock.Of<IReceiptStorage>(), Mock.Of<ISender>());
 
-        var result = await service.CreateAsync(new("external-user", actorId.Value, 100_000m, "second-receipt", "idem-1", null,
+        var result = await service.CreateAsync(new("external-user", actorId.Value, 10_000m, "second-receipt", "idem-1", null,
             ChargeType.AdminAssistedCardToCard), CancellationToken.None);
 
         result.Status.Should().Be(ByeMoney.Domain.Common.ResultStatus.Conflict);

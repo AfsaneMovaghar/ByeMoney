@@ -1,7 +1,6 @@
 using ByeMoney.Application.Common.Interfaces;
 using ByeMoney.Application.Modules.Identity.Users.Interface;
 using ByeMoney.Application.Modules.Purchases.Interfaces;
-using ByeMoney.Application.Modules.Settings;
 using ByeMoney.Application.Modules.TarhElahiIntegration.DTOs;
 using ByeMoney.Application.Modules.TarhElahiIntegration.Interfaces;
 using ByeMoney.Application.Modules.Wallet.Interfaces;
@@ -18,7 +17,6 @@ public class PurchaseCoursesCommandHandler : IRequestHandler<PurchaseCoursesComm
 {
     private readonly IUserRepository _userRepository;
     private readonly ITarhElahiIntegrationClient _tarhElahiClient;
-    private readonly ISystemSettingRepository _settingRepository;
     private readonly IUserWalletProvisioningService _walletProvisioningService;
     private readonly IWalletRepository _walletRepository;
     private readonly IRepository<LedgerEntry, LedgerEntryId> _ledgerRepository;
@@ -29,7 +27,6 @@ public class PurchaseCoursesCommandHandler : IRequestHandler<PurchaseCoursesComm
     public PurchaseCoursesCommandHandler(
         IUserRepository userRepository,
         ITarhElahiIntegrationClient tarhElahiClient,
-        ISystemSettingRepository settingRepository,
         IUserWalletProvisioningService walletProvisioningService,
         IWalletRepository walletRepository,
         IRepository<LedgerEntry, LedgerEntryId> ledgerRepository,
@@ -39,7 +36,6 @@ public class PurchaseCoursesCommandHandler : IRequestHandler<PurchaseCoursesComm
     {
         _userRepository = userRepository;
         _tarhElahiClient = tarhElahiClient;
-        _settingRepository = settingRepository;
         _walletProvisioningService = walletProvisioningService;
         _walletRepository = walletRepository;
         _ledgerRepository = ledgerRepository;
@@ -52,20 +48,17 @@ public class PurchaseCoursesCommandHandler : IRequestHandler<PurchaseCoursesComm
     {
         var buyerUserId = new UserId(request.BuyerUserId);
         var user = (await _userRepository.GetByIdAsync(buyerUserId, cancellationToken))!;
-        var conversionRate = await _settingRepository.GetRialToNoorConversionRateAsync(cancellationToken);
 
         var purchaseList = new List<(CoursePurchase Purchase, TarhElahiCourseDto Course, ProductSnapshot Snapshot, decimal PriceInNoor)>();
 
         foreach (var courseId in request.ExternalCourseIds)
         {
             var course = (await _tarhElahiClient.GetCourseAsync(courseId, cancellationToken))!;
-            var priceInNoor = request.IsFree ? 0m : course.PriceRial / conversionRate;
+            var priceInNoor = request.IsFree ? 0m : course.PriceNoor;
 
             var snapshot = ProductSnapshot.Create(
                 course.ExternalId,
                 course.Title,
-                request.IsFree ? 0m : course.PriceRial,
-                conversionRate,
                 priceInNoor,
                 course.Source,
                 request.IsFree);

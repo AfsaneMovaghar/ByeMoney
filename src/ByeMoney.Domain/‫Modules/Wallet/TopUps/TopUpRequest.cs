@@ -41,10 +41,17 @@ public class TopUpRequest : BaseEntity<TopUpRequestId>
         PaymentMethod paymentMethod,
         string? externalTransactionId = null,
         string? clientReferenceCode = null,
-        IReadOnlyList<PendingItemSnapshot>? pendingItems = null)
+        IReadOnlyList<PendingItemSnapshot>? pendingItems = null,
+        decimal? rialPerNoor = null)
     {
         if (amount <= 0)
             throw new DomainException(DomainErrors.TopUpRequest_AmountMustBeGreaterThanZero);
+        if (paymentMethod == PaymentMethod.Gateway && decimal.Truncate(amount) != amount)
+            throw new DomainException(DomainErrors.TopUpRequest_AmountMustBeWholeNoor);
+        if (paymentMethod == PaymentMethod.Gateway && rialPerNoor is null)
+            throw new DomainException(DomainErrors.TopUpRequest_InvalidRate);
+        if (rialPerNoor is not null && (rialPerNoor <= 0 || decimal.Truncate(rialPerNoor.Value) != rialPerNoor))
+            throw new DomainException(DomainErrors.TopUpRequest_InvalidRate);
 
         var itemsList = pendingItems ?? Array.Empty<PendingItemSnapshot>();
         foreach (var item in itemsList)
@@ -52,11 +59,10 @@ public class TopUpRequest : BaseEntity<TopUpRequestId>
             if (string.IsNullOrWhiteSpace(item.ExternalId))
                 throw new DomainException(DomainErrors.ProductSnapshot_ExternalProductIdRequired);
 
-            if (item.PriceSnapshot <= 0)
+            if (item.PriceNoorSnapshot <= 0)
                 throw new DomainException(DomainErrors.CoursePurchase_InvalidPrice);
-
-            if (item.RateSnapshot <= 0)
-                throw new DomainException(DomainErrors.CoursePurchase_InvalidConversionRate);
+            if (decimal.Truncate(item.PriceNoorSnapshot) != item.PriceNoorSnapshot)
+                throw new DomainException(DomainErrors.TopUpRequest_AmountMustBeWholeNoor);
         }
 
         var refCode = string.IsNullOrWhiteSpace(clientReferenceCode)
@@ -68,6 +74,8 @@ public class TopUpRequest : BaseEntity<TopUpRequestId>
             Id = TopUpRequestId.New(),
             UserId = userId,
             Amount = amount,
+            AmountRial = rialPerNoor is null ? null : checked(amount * rialPerNoor.Value),
+            RialPerNoorSnapshot = rialPerNoor,
             PaymentMethod = paymentMethod,
             ClientReferenceCode = refCode,
             Status = TopUpStatus.Pending,
@@ -79,19 +87,20 @@ public class TopUpRequest : BaseEntity<TopUpRequestId>
     public static TopUpRequest CreateAdminCardToCard(
         UserId beneficiaryUserId,
         UserId createdByUserId,
-        decimal amountRial,
+        decimal amountToman,
         decimal rialPerNoor,
         string receiptId,
         string idempotencyKey,
         string? externalTransactionId = null)
     {
-        if (amountRial <= 0)
+        if (amountToman <= 0)
             throw new DomainException(DomainErrors.TopUpRequest_AmountMustBeGreaterThanZero);
-        if (rialPerNoor <= 0)
+        if (rialPerNoor <= 0 || decimal.Truncate(rialPerNoor) != rialPerNoor)
             throw new DomainException(DomainErrors.TopUpRequest_InvalidRate);
         if (string.IsNullOrWhiteSpace(receiptId) || string.IsNullOrWhiteSpace(idempotencyKey))
             throw new DomainException(DomainErrors.TopUpRequest_ReceiptAndIdempotencyRequired);
 
+        var amountRial = checked(amountToman * 10m);
         var noorAmount = decimal.Round(amountRial / rialPerNoor, 4, MidpointRounding.ToEven);
         if (noorAmount <= 0)
             throw new DomainException(DomainErrors.TopUpRequest_AmountMustBeGreaterThanZero);

@@ -1,6 +1,5 @@
 using ByeMoney.Application.Modules.Identity.Users.Interface;
 using ByeMoney.Application.Modules.Purchases.Interfaces;
-using ByeMoney.Application.Modules.Settings;
 using ByeMoney.Application.Modules.TarhElahiIntegration.DTOs;
 using ByeMoney.Application.Modules.TarhElahiIntegration.Interfaces;
 using ByeMoney.Application.Modules.Wallet.Interfaces;
@@ -17,7 +16,6 @@ public class PurchaseCoursesCommandValidator : AbstractValidator<PurchaseCourses
         ICoursePurchaseRepository coursePurchaseRepository,
         IUserRepository userRepository,
         ITarhElahiIntegrationClient tarhElahiClient,
-        ISystemSettingRepository settingRepository,
         IUserWalletProvisioningService walletProvisioningService)
     {
         RuleLevelCascadeMode = CascadeMode.Stop;
@@ -64,13 +62,6 @@ public class PurchaseCoursesCommandValidator : AbstractValidator<PurchaseCourses
                     return;
                 }
 
-                var conversionRate = await settingRepository.GetRialToNoorConversionRateAsync(ct);
-                if (conversionRate <= 0)
-                {
-                    context.AddFailure("ConversionRate", ApplicationErrors.CoursePurchase_InvalidConversionRate);
-                    return;
-                }
-
                 var validCourses = new List<(TarhElahiCourseDto Course, decimal PriceInNoor)>();
                 var hasCourseErrors = false;
 
@@ -104,14 +95,14 @@ public class PurchaseCoursesCommandValidator : AbstractValidator<PurchaseCourses
                         continue;
                     }
 
-                    if (course.PriceRial <= 0 && !cmd.IsFree)
+                    if ((course.PriceNoor <= 0 || decimal.Truncate(course.PriceNoor) != course.PriceNoor) && !cmd.IsFree)
                     {
                         context.AddFailure($"ExternalCourseIds[{courseId}]", ApplicationErrors.CoursePurchase_FreeCourseNotPurchasable);
                         hasCourseErrors = true;
                         continue;
                     }
 
-                    var priceInNoor = cmd.IsFree ? 0m : course.PriceRial / conversionRate;
+                    var priceInNoor = cmd.IsFree ? 0m : course.PriceNoor;
                     validCourses.Add((course, priceInNoor));
                 }
 
@@ -132,20 +123,17 @@ public class PurchaseCoursesCommandValidator : AbstractValidator<PurchaseCourses
                 if (provisioned.Wallet.Balance < totalPriceInNoor)
                 {
                     var currentBalanceInNoor = provisioned.Wallet.Balance;
-                    var shortfallInNoor = totalPriceInNoor - currentBalanceInNoor;
-                    var shortfallInRial = shortfallInNoor * conversionRate;
+                    var shortfallInNoor = decimal.Ceiling(totalPriceInNoor - currentBalanceInNoor);
 
                     var pendingSnapshots = validCourses.Select(c => new PendingItemSnapshot(
                         PendingItemType.Course,
                         c.Course.ExternalId,
-                        c.Course.PriceRial,
-                        conversionRate)).ToList();
+                        c.PriceInNoor)).ToList();
 
                     var failureState = new InsufficientBalanceFailureState(
                         currentBalanceInNoor,
                         totalPriceInNoor,
                         shortfallInNoor,
-                        shortfallInRial,
                         "INSUFFICIENT_NOOR_BALANCE",
                         pendingSnapshots);
 

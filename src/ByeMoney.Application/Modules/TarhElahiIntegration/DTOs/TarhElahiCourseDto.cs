@@ -18,9 +18,9 @@ public class TarhElahiCourseDto
     public string Slug { get; init; } = default!;
 
     /// <summary>
-    /// Authoritative raw Rial price from Strapi. Conversion to Noor happens elsewhere in ByeMoney.
+    /// Authoritative Noor price from the external catalog.
     /// </summary>
-    public decimal PriceRial { get; init; }
+    public decimal PriceNoor { get; init; }
 
     public bool Published { get; init; }
 

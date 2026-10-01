@@ -25,7 +25,7 @@ public class ConfirmTopUpCommandHandlerTests
         // Arrange
         var userId = UserId.New();
         var amount = 100_000m;
-        var topUp = TopUpRequest.Create(userId, amount, PaymentMethod.Gateway);
+        var topUp = TopUpRequest.Create(userId, amount, PaymentMethod.Gateway, rialPerNoor: 1000m);
 
         var userAccount = Account.CreateUserAccount(userId);
         var systemAccount = Account.CreateSystemAccount();
@@ -105,13 +105,13 @@ public class ConfirmTopUpCommandHandlerTests
         var amount = 100_000m;
         var pendingItems = new List<PendingItemSnapshot>
         {
-            new(PendingItemType.Course, "course-uuid-999", 1_000_000m, 1_000m)
+            new(PendingItemType.Course, "course-uuid-999", 1_000m)
         };
         var topUp = TopUpRequest.Create(
             userId,
             amount,
             PaymentMethod.Gateway,
-            pendingItems: pendingItems);
+            pendingItems: pendingItems, rialPerNoor: 1000m);
 
         var userAccount = Account.CreateUserAccount(userId);
         var systemAccount = Account.CreateSystemAccount();
@@ -155,8 +155,7 @@ public class ConfirmTopUpCommandHandlerTests
                 e.ConfirmedAmount == amount &&
                 e.PendingItems.Count == 1 &&
                 e.PendingItems[0].ExternalId == "course-uuid-999" &&
-                e.PendingItems[0].PriceSnapshot == 1_000_000m &&
-                e.PendingItems[0].RateSnapshot == 1_000m),
+                e.PendingItems[0].PriceNoorSnapshot == 1_000m),
             It.IsAny<CancellationToken>()), Times.Once);
     }
 
@@ -166,7 +165,7 @@ public class ConfirmTopUpCommandHandlerTests
         // Arrange
         var userId = UserId.New();
         var amount = 50_000m;
-        var topUp = TopUpRequest.Create(userId, amount, PaymentMethod.Gateway);
+        var topUp = TopUpRequest.Create(userId, amount, PaymentMethod.Gateway, rialPerNoor: 1000m);
         topUp.Confirm("tx_idempotent_123");
 
         var topUpRepoMock = new Mock<ITopUpRequestRepository>();
@@ -203,7 +202,7 @@ public class ConfirmTopUpCommandHandlerTests
         // Arrange
         var userId = UserId.New();
         var amount = 50_000m;
-        var topUp = TopUpRequest.Create(userId, amount, PaymentMethod.Gateway);
+        var topUp = TopUpRequest.Create(userId, amount, PaymentMethod.Gateway, rialPerNoor: 1000m);
         topUp.Confirm("tx_original_123");
 
         var topUpRepoMock = new Mock<ITopUpRequestRepository>();
@@ -241,7 +240,7 @@ public class ConfirmTopUpCommandHandlerTests
         // Arrange
         var userId = UserId.New();
         var amount = 100_000m;
-        var topUp = TopUpRequest.Create(userId, amount, PaymentMethod.Gateway);
+        var topUp = TopUpRequest.Create(userId, amount, PaymentMethod.Gateway, rialPerNoor: 1000m);
 
         var topUpRepoMock = new Mock<ITopUpRequestRepository>();
         var walletProvisioningMock = new Mock<IUserWalletProvisioningService>();
@@ -279,7 +278,7 @@ public class ConfirmTopUpCommandHandlerTests
         // Arrange
         var userId = UserId.New();
         var amount = 100_000m;
-        var topUp = TopUpRequest.Create(userId, amount, PaymentMethod.Gateway);
+        var topUp = TopUpRequest.Create(userId, amount, PaymentMethod.Gateway, rialPerNoor: 1000m);
         topUp.Reject("Invalid receipt");
 
         var topUpRepoMock = new Mock<ITopUpRequestRepository>();

@@ -62,7 +62,7 @@ public sealed class AdminAssistedTopUpService(
         var beneficiary = await users.GetByExternalUserIdAsync(request.BeneficiaryExternalUserId, ct);
         var matches = beneficiary is not null && existing.UserId == beneficiary.Id &&
             existing.CreatedByUserId == new UserId(request.ActorUserId) &&
-            existing.AmountRial == request.AmountRial && existing.ReceiptId == request.ReceiptId &&
+            existing.AmountRial == checked(request.AmountToman * 10m) && existing.ReceiptId == request.ReceiptId &&
             existing.ChargeType == request.ChargeType && existing.ExternalTransactionId == request.ExternalTransactionId;
 
         return matches
@@ -83,7 +83,7 @@ public sealed class AdminAssistedTopUpService(
         => request.ChargeType switch
         {
             ChargeType.AdminAssistedCardToCard => TopUpRequest.CreateAdminCardToCard(
-                beneficiaryId, new UserId(request.ActorUserId), request.AmountRial, rate,
+                beneficiaryId, new UserId(request.ActorUserId), request.AmountToman, rate,
                 request.ReceiptId, request.IdempotencyKey, request.ExternalTransactionId),
             _ => throw new InvalidOperationException(ApplicationErrors.TopUpRequest_UnsupportedChargeType)
         };

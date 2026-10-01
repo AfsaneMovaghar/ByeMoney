@@ -62,7 +62,7 @@ public class TopUpConfirmedPurchaseHandlerTests
         {
             ExternalId = "course-abc-123",
             Title = "Mastering Architecture",
-            PriceRial = 5_000_000m, // Drifted price in Strapi
+            PriceNoor = 5_000m, // Drifted price in Strapi
             Published = true,
             Available = true,
             Source = ProductCatalogSources.TarhElahi
@@ -107,7 +107,7 @@ public class TopUpConfirmedPurchaseHandlerTests
             1000m,
             new List<PendingItemSnapshot>
             {
-                new(PendingItemType.Course, "course-abc-123", 1_000_000m, 1_000m)
+                new(PendingItemType.Course, "course-abc-123", 1_000m)
             });
 
         // Act
@@ -129,8 +129,8 @@ public class TopUpConfirmedPurchaseHandlerTests
         savedPurchase.Should().NotBeNull();
         savedPurchase!.BuyerId.Should().Be(userId);
         savedPurchase.Status.Should().Be(CoursePurchaseStatus.Debited);
-        savedPurchase.Snapshot.PriceInRialAtPurchaseTime.Should().Be(1_000_000m);
-        savedPurchase.Snapshot.ConversionRateAtPurchaseTime.Should().Be(1_000m);
+        savedPurchase.Snapshot.PriceInRialAtPurchaseTime.Should().BeNull();
+        savedPurchase.Snapshot.ConversionRateAtPurchaseTime.Should().BeNull();
         savedPurchase.Snapshot.PriceInNoorAtPurchaseTime.Should().Be(1_000m);
 
         _unitOfWorkMock.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
@@ -157,7 +157,7 @@ public class TopUpConfirmedPurchaseHandlerTests
         {
             ExternalId = "course-1",
             Title = "Course 1",
-            PriceRial = 1_000_000m,
+            PriceNoor = 1_000m,
             Published = true,
             Available = true,
             Source = ProductCatalogSources.TarhElahi
@@ -167,7 +167,7 @@ public class TopUpConfirmedPurchaseHandlerTests
         {
             ExternalId = "course-2",
             Title = "Course 2",
-            PriceRial = 2_000_000m,
+            PriceNoor = 2_000m,
             Published = true,
             Available = true,
             Source = ProductCatalogSources.TarhElahi
@@ -210,8 +210,8 @@ public class TopUpConfirmedPurchaseHandlerTests
             3000m,
             new List<PendingItemSnapshot>
             {
-                new(PendingItemType.Course, "course-1", 1_000_000m, 1_000m),
-                new(PendingItemType.Course, "course-2", 2_000_000m, 1_000m)
+                new(PendingItemType.Course, "course-1", 1_000m),
+                new(PendingItemType.Course, "course-2", 2_000m)
             });
 
         // Act
@@ -250,7 +250,7 @@ public class TopUpConfirmedPurchaseHandlerTests
             1000m,
             new List<PendingItemSnapshot>
             {
-                new(PendingItemType.Course, "deleted-course", 1_000_000m, 1_000m)
+                new(PendingItemType.Course, "deleted-course", 1_000m)
             });
 
         // Act
@@ -282,7 +282,7 @@ public class TopUpConfirmedPurchaseHandlerTests
         {
             ExternalId = "unpublished-course",
             Title = "Unpublished Course",
-            PriceRial = 1_000_000m,
+            PriceNoor = 1_000m,
             Published = false,
             Available = false,
             Source = ProductCatalogSources.TarhElahi
@@ -298,7 +298,7 @@ public class TopUpConfirmedPurchaseHandlerTests
             1000m,
             new List<PendingItemSnapshot>
             {
-                new(PendingItemType.Course, "unpublished-course", 1_000_000m, 1_000m)
+                new(PendingItemType.Course, "unpublished-course", 1_000m)
             });
 
         // Act
@@ -327,7 +327,7 @@ public class TopUpConfirmedPurchaseHandlerTests
             1000m,
             new List<PendingItemSnapshot>
             {
-                new(PendingItemType.Course, "course-already-owned", 1_000_000m, 1_000m)
+                new(PendingItemType.Course, "course-already-owned", 1_000m)
             });
 
         // Act
@@ -355,7 +355,7 @@ public class TopUpConfirmedPurchaseHandlerTests
         {
             ExternalId = "course-expensive",
             Title = "Expensive Course",
-            PriceRial = 1_000_000m,
+            PriceNoor = 1_000m,
             Published = true,
             Available = true,
             Source = ProductCatalogSources.TarhElahi
@@ -383,7 +383,7 @@ public class TopUpConfirmedPurchaseHandlerTests
             200m,
             new List<PendingItemSnapshot>
             {
-                new(PendingItemType.Course, "course-expensive", 1_000_000m, 1_000m)
+                new(PendingItemType.Course, "course-expensive", 1_000m)
             });
 
         // Act

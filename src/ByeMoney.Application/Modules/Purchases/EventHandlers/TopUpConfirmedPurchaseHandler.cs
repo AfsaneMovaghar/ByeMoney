@@ -107,23 +107,18 @@ public class TopUpConfirmedPurchaseHandler : INotificationHandler<TopUpConfirmed
                 return;
             }
 
-            var priceRial = item.PriceSnapshot;
-            var conversionRate = item.RateSnapshot;
-            if (priceRial <= 0 || conversionRate <= 0)
+            var priceInNoor = item.PriceNoorSnapshot;
+            if (priceInNoor <= 0)
             {
                 _logger.LogError(
-                    "Auto-purchase on TopUpConfirmed aborted: Invalid frozen snapshot values for Course {CourseId} (PriceRial: {PriceRial}, ConversionRate: {Rate}).",
-                    item.ExternalId, priceRial, conversionRate);
+                    "Auto-purchase on TopUpConfirmed aborted: Invalid frozen Noor price for Course {CourseId} (PriceNoor: {PriceNoor}).",
+                    item.ExternalId, priceInNoor);
                 return;
             }
-
-            var priceInNoor = priceRial / conversionRate;
 
             var snapshot = ProductSnapshot.Create(
                 course.ExternalId,
                 course.Title,
-                priceRial,
-                conversionRate,
                 priceInNoor,
                 course.Source);
 

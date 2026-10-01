@@ -16,7 +16,7 @@ public class TopUpRequestTests
         var amount = 50000m;
 
         // Act
-        var request = TopUpRequest.Create(userId, amount, PaymentMethod.Gateway, "ext_123");
+        var request = TopUpRequest.Create(userId, amount, PaymentMethod.Gateway, "ext_123", rialPerNoor: 1000m);
 
         // Assert
         request.Id.Value.Should().NotBeEmpty();
@@ -39,7 +39,7 @@ public class TopUpRequestTests
         var userId = UserId.New();
 
         // Act
-        var act = () => TopUpRequest.Create(userId, invalidAmount, PaymentMethod.Gateway);
+        var act = () => TopUpRequest.Create(userId, invalidAmount, PaymentMethod.Gateway, rialPerNoor: 1000m);
 
         // Assert
         act.Should().Throw<DomainException>()
@@ -50,7 +50,7 @@ public class TopUpRequestTests
     public void Confirm_ShouldTransitionStatusToConfirmed_WhenPending()
     {
         // Arrange
-        var request = TopUpRequest.Create(UserId.New(), 1000m, PaymentMethod.Gateway);
+        var request = TopUpRequest.Create(UserId.New(), 1000m, PaymentMethod.Gateway, rialPerNoor: 1000m);
 
         // Act
         var result = request.Confirm("bank_ref_999");
@@ -67,7 +67,7 @@ public class TopUpRequestTests
     public void Confirm_ShouldReturnSuccess_WhenAlreadyConfirmedWithSameExternalTransactionId()
     {
         // Arrange
-        var request = TopUpRequest.Create(UserId.New(), 1000m, PaymentMethod.Gateway);
+        var request = TopUpRequest.Create(UserId.New(), 1000m, PaymentMethod.Gateway, rialPerNoor: 1000m);
         request.Confirm("ref_123");
 
         // Act
@@ -83,7 +83,7 @@ public class TopUpRequestTests
     public void Confirm_ShouldReturnFailure_WhenAlreadyConfirmedWithDifferentExternalTransactionId()
     {
         // Arrange
-        var request = TopUpRequest.Create(UserId.New(), 1000m, PaymentMethod.Gateway);
+        var request = TopUpRequest.Create(UserId.New(), 1000m, PaymentMethod.Gateway, rialPerNoor: 1000m);
         request.Confirm("ref_123");
 
         // Act
@@ -148,12 +148,12 @@ public class TopUpRequestTests
         var userId = UserId.New();
         var pending = new List<PendingItemSnapshot>
         {
-            new(PendingItemType.Course, "course-1", 100_000m, 1000m),
-            new(PendingItemType.Course, "course-2", 200_000m, 1000m)
+            new(PendingItemType.Course, "course-1", 100m),
+            new(PendingItemType.Course, "course-2", 200m)
         };
 
         // Act
-        var request = TopUpRequest.Create(userId, 300m, PaymentMethod.Gateway, pendingItems: pending);
+        var request = TopUpRequest.Create(userId, 300m, PaymentMethod.Gateway, pendingItems: pending, rialPerNoor: 1000m);
 
         // Assert
         request.PendingItems.Should().HaveCount(2);
@@ -162,21 +162,41 @@ public class TopUpRequestTests
     }
 
     [Fact]
+    public void Create_Gateway_ShouldFreezeDynamicRateAndRialAmount()
+    {
+        var request = TopUpRequest.Create(UserId.New(), 3m, PaymentMethod.Gateway, rialPerNoor: 137m);
+
+        request.Amount.Should().Be(3m);
+        request.RialPerNoorSnapshot.Should().Be(137m);
+        request.AmountRial.Should().Be(411m);
+    }
+
+    [Fact]
+    public void Create_Gateway_ShouldRejectFractionalNoorAndRate()
+    {
+        var userId = UserId.New();
+        var fractionalNoor = () => TopUpRequest.Create(userId, 1.5m, PaymentMethod.Gateway, rialPerNoor: 137m);
+        var fractionalRate = () => TopUpRequest.Create(userId, 2m, PaymentMethod.Gateway, rialPerNoor: 137.5m);
+        var missingRate = () => TopUpRequest.Create(userId, 2m, PaymentMethod.Gateway);
+
+        fractionalNoor.Should().Throw<DomainException>();
+        fractionalRate.Should().Throw<DomainException>();
+        missingRate.Should().Throw<DomainException>();
+    }
+
+    [Fact]
     public void Create_ShouldThrowDomainException_WhenPendingItemHasInvalidValues()
     {
         var userId = UserId.New();
 
         var actEmptyId = () => TopUpRequest.Create(userId, 100m, PaymentMethod.Gateway,
-            pendingItems: new[] { new PendingItemSnapshot(PendingItemType.Course, "", 100m, 1000m) });
+            pendingItems: new[] { new PendingItemSnapshot(PendingItemType.Course, "", 100m) }, rialPerNoor: 1000m);
         actEmptyId.Should().Throw<DomainException>();
 
         var actZeroPrice = () => TopUpRequest.Create(userId, 100m, PaymentMethod.Gateway,
-            pendingItems: new[] { new PendingItemSnapshot(PendingItemType.Course, "c1", 0m, 1000m) });
+            pendingItems: new[] { new PendingItemSnapshot(PendingItemType.Course, "c1", 0m) }, rialPerNoor: 1000m);
         actZeroPrice.Should().Throw<DomainException>();
 
-        var actZeroRate = () => TopUpRequest.Create(userId, 100m, PaymentMethod.Gateway,
-            pendingItems: new[] { new PendingItemSnapshot(PendingItemType.Course, "c1", 100m, 0m) });
-        actZeroRate.Should().Throw<DomainException>();
     }
 }
 

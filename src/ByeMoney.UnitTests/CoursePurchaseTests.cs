@@ -12,8 +12,6 @@ public class CoursePurchaseTests
     private readonly ProductSnapshot _validSnapshot = ProductSnapshot.Create(
         externalProductId: "course-doc-123",
         productTitle: "آموزش پیشرفته",
-        priceRial: 2_500_000m,
-        conversionRate: 1000m,
         priceNoor: 2500m,
         productSource: ProductCatalogSources.TarhElahi);
 
@@ -30,8 +28,8 @@ public class CoursePurchaseTests
         purchase.Snapshot.Should().Be(_validSnapshot);
         purchase.Snapshot.ExternalProductId.Should().Be("course-doc-123");
         purchase.Snapshot.ProductTitle.Should().Be("آموزش پیشرفته");
-        purchase.Snapshot.PriceInRialAtPurchaseTime.Should().Be(2_500_000m);
-        purchase.Snapshot.ConversionRateAtPurchaseTime.Should().Be(1000m);
+        purchase.Snapshot.PriceInRialAtPurchaseTime.Should().BeNull();
+        purchase.Snapshot.ConversionRateAtPurchaseTime.Should().BeNull();
         purchase.Snapshot.PriceInNoorAtPurchaseTime.Should().Be(2500m);
         purchase.Snapshot.ProductSource.Should().Be(ProductCatalogSources.TarhElahi);
         purchase.LedgerTransactionId.Should().BeNull();

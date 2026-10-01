@@ -7,7 +7,7 @@ namespace ByeMoney.Application.Modules.Wallet.Commands.CreateAdminCardToCardTopU
 public record CreateAdminCardToCardTopUpCommand(
     string BeneficiaryExternalUserId,
     Guid ActorUserId,
-    decimal AmountRial,
+    decimal AmountToman,
     string ReceiptId,
     string IdempotencyKey,
     string? ExternalTransactionId,

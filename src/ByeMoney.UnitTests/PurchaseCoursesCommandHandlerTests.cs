@@ -2,7 +2,6 @@ using ByeMoney.Application.Common.Interfaces;
 using ByeMoney.Application.Modules.Identity.Users.Interface;
 using ByeMoney.Application.Modules.Purchases.Commands.PurchaseCourses;
 using ByeMoney.Application.Modules.Purchases.Interfaces;
-using ByeMoney.Application.Modules.Settings;
 using ByeMoney.Application.Modules.TarhElahiIntegration.DTOs;
 using ByeMoney.Application.Modules.TarhElahiIntegration.Interfaces;
 using ByeMoney.Application.Modules.Wallet.Interfaces;
@@ -22,7 +21,6 @@ public class PurchaseCoursesCommandHandlerTests
 {
     private readonly Mock<IUserRepository> _userRepoMock = new();
     private readonly Mock<ITarhElahiIntegrationClient> _tarhElahiClientMock = new();
-    private readonly Mock<ISystemSettingRepository> _settingRepoMock = new();
     private readonly Mock<IUserWalletProvisioningService> _walletProvisioningMock = new();
     private readonly Mock<IWalletRepository> _walletRepoMock = new();
     private readonly Mock<IRepository<LedgerEntry, LedgerEntryId>> _ledgerRepoMock = new();
@@ -37,7 +35,6 @@ public class PurchaseCoursesCommandHandlerTests
         _handler = new PurchaseCoursesCommandHandler(
             _userRepoMock.Object,
             _tarhElahiClientMock.Object,
-            _settingRepoMock.Object,
             _walletProvisioningMock.Object,
             _walletRepoMock.Object,
             _ledgerRepoMock.Object,
@@ -55,7 +52,7 @@ public class PurchaseCoursesCommandHandlerTests
         {
             ExternalId = "course-1",
             Title = "Course",
-            PriceRial = 1_000_000m,
+            PriceNoor = 1_000m,
             Published = true,
             Available = true,
             Source = ProductCatalogSources.TarhElahi
@@ -65,7 +62,6 @@ public class PurchaseCoursesCommandHandlerTests
         CoursePurchase? savedPurchase = null;
 
         _userRepoMock.Setup(r => r.GetByIdAsync(userId, It.IsAny<CancellationToken>())).ReturnsAsync(user);
-        _settingRepoMock.Setup(r => r.GetRialToNoorConversionRateAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1000m);
         _tarhElahiClientMock.Setup(c => c.GetCourseAsync("course-1", It.IsAny<CancellationToken>())).ReturnsAsync(course);
         _coursePurchaseRepoMock.Setup(r => r.AddAsync(It.IsAny<CoursePurchase>(), It.IsAny<CancellationToken>()))
             .Callback<CoursePurchase, CancellationToken>((purchase, _) => savedPurchase = purchase)
@@ -84,7 +80,7 @@ public class PurchaseCoursesCommandHandlerTests
         savedPurchase.LedgerTransactionId.Should().Be(result.Value.TransactionId);
         savedPurchase.IsFree.Should().BeTrue();
         savedPurchase.FreeReason.Should().Be("Admin gift");
-        savedPurchase.Snapshot.PriceInRialAtPurchaseTime.Should().Be(0m);
+        savedPurchase.Snapshot.PriceInRialAtPurchaseTime.Should().BeNull();
         savedPurchase.Snapshot.PriceInNoorAtPurchaseTime.Should().Be(0m);
         _walletProvisioningMock.Verify(x => x.GetOrCreateUserWalletAsync(It.IsAny<UserId>(), It.IsAny<CancellationToken>()), Times.Never);
         _walletRepoMock.Verify(x => x.Update(It.IsAny<WalletEntity>()), Times.Never);
@@ -100,13 +96,12 @@ public class PurchaseCoursesCommandHandlerTests
         // Arrange
         var userId = UserId.New();
         var user = User.CreateFromStrapi("strapi-user-1", "09123456789", confirmed: true, blocked: false);
-        var conversionRate = 1000m;
 
         var course1 = new TarhElahiCourseDto
         {
             ExternalId = "course-1",
             Title = "Course 1",
-            PriceRial = 2_500_000m, // 2,500 Noor
+            PriceNoor = 2_500m,
             Published = true,
             Available = true,
             Source = ProductCatalogSources.TarhElahi
@@ -116,7 +111,7 @@ public class PurchaseCoursesCommandHandlerTests
         {
             ExternalId = "course-2",
             Title = "Course 2",
-            PriceRial = 1_500_000m, // 1,500 Noor
+            PriceNoor = 1_500m,
             Published = true,
             Available = true,
             Source = ProductCatalogSources.TarhElahi
@@ -128,7 +123,6 @@ public class PurchaseCoursesCommandHandlerTests
         wallet.ApplyCredit(10_000m);
 
         _userRepoMock.Setup(r => r.GetByIdAsync(userId, It.IsAny<CancellationToken>())).ReturnsAsync(user);
-        _settingRepoMock.Setup(r => r.GetRialToNoorConversionRateAsync(It.IsAny<CancellationToken>())).ReturnsAsync(conversionRate);
         _tarhElahiClientMock.Setup(c => c.GetCourseAsync("course-1", It.IsAny<CancellationToken>())).ReturnsAsync(course1);
         _tarhElahiClientMock.Setup(c => c.GetCourseAsync("course-2", It.IsAny<CancellationToken>())).ReturnsAsync(course2);
 
@@ -206,13 +200,12 @@ public class PurchaseCoursesCommandHandlerTests
         // Arrange
         var userId = UserId.New();
         var user = User.CreateFromStrapi("strapi-user-1", "09123456789", confirmed: true, blocked: false);
-        var conversionRate = 1000m;
 
         var course = new TarhElahiCourseDto
         {
             ExternalId = "single-course",
             Title = "Single Course",
-            PriceRial = 1_000_000m,
+            PriceNoor = 1_000m,
             Published = true,
             Available = true,
             Source = ProductCatalogSources.TarhElahi
@@ -224,7 +217,6 @@ public class PurchaseCoursesCommandHandlerTests
         wallet.ApplyCredit(2_000m);
 
         _userRepoMock.Setup(r => r.GetByIdAsync(userId, It.IsAny<CancellationToken>())).ReturnsAsync(user);
-        _settingRepoMock.Setup(r => r.GetRialToNoorConversionRateAsync(It.IsAny<CancellationToken>())).ReturnsAsync(conversionRate);
         _tarhElahiClientMock.Setup(c => c.GetCourseAsync("single-course", It.IsAny<CancellationToken>())).ReturnsAsync(course);
 
         _walletProvisioningMock
@@ -261,13 +253,12 @@ public class PurchaseCoursesCommandHandlerTests
         // Arrange
         var userId = UserId.New();
         var user = User.CreateFromStrapi("strapi-user-1", "09123456789", confirmed: true, blocked: false);
-        var conversionRate = 1000m;
 
         var course = new TarhElahiCourseDto
         {
             ExternalId = "duplicate-course",
             Title = "Duplicate Course",
-            PriceRial = 1_000_000m,
+            PriceNoor = 1_000m,
             Published = true,
             Available = true,
             Source = ProductCatalogSources.TarhElahi
@@ -279,7 +270,6 @@ public class PurchaseCoursesCommandHandlerTests
         wallet.ApplyCredit(2_000m);
 
         _userRepoMock.Setup(r => r.GetByIdAsync(userId, It.IsAny<CancellationToken>())).ReturnsAsync(user);
-        _settingRepoMock.Setup(r => r.GetRialToNoorConversionRateAsync(It.IsAny<CancellationToken>())).ReturnsAsync(conversionRate);
         _tarhElahiClientMock.Setup(c => c.GetCourseAsync("duplicate-course", It.IsAny<CancellationToken>())).ReturnsAsync(course);
 
         _walletProvisioningMock

@@ -55,7 +55,7 @@ public class AdminAssistedTopUpController(
         try
         {
             result = await sender.Send(new CreateAdminCardToCardTopUpCommand(
-                request.BeneficiaryExternalUserId, actorId, request.AmountRial, receiptId, idempotencyKey,
+                request.BeneficiaryExternalUserId, actorId, request.AmountToman, receiptId, idempotencyKey,
                 request.ExternalTransactionId, ChargeType.AdminAssistedCardToCard), ct);
         }
         catch (Exception ex) when (ex is TarhElahiUnavailableException or ValidationException or DomainException)

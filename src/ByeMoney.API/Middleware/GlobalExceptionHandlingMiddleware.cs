@@ -1,6 +1,8 @@
 using System.Net;
 using System.Text.Json;
 using ByeMoney.API.Resources;
+using ByeMoney.API.Contracts.Purchases;
+using ByeMoney.Application.Modules.Purchases.Commands.PurchaseCourses;
 using ByeMoney.Application.Resources;
 using ByeMoney.Application.Modules.TarhElahiIntegration.Exceptions;
 using ByeMoney.Domain.Common.Exceptions;
@@ -45,6 +47,20 @@ public class GlobalExceptionHandlingMiddleware
     private async Task HandleExceptionAsync(HttpContext context, Exception exception)
     {
         context.Response.ContentType = "application/json";
+
+        if (exception is ValidationException validationException &&
+            validationException.Errors.FirstOrDefault(error => error.CustomState is InsufficientBalanceFailureState)?.CustomState
+                is InsufficientBalanceFailureState insufficientBalance)
+        {
+            context.Response.StatusCode = StatusCodes.Status400BadRequest;
+            var balanceResponse = new InsufficientNoorBalanceErrorResponse(
+                insufficientBalance.ErrorCode,
+                insufficientBalance.CurrentBalanceInNoor,
+                insufficientBalance.PriceInNoor,
+                insufficientBalance.ShortfallInNoor);
+            await context.Response.WriteAsJsonAsync(balanceResponse);
+            return;
+        }
 
         var (statusCode, title, errors) = exception switch
         {
