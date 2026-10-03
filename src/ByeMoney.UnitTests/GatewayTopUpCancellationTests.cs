@@ -5,12 +5,15 @@ using ByeMoney.Application.Modules.Wallet.Commands.CancelGatewayTopUp;
 using ByeMoney.Application.Modules.Wallet.Commands.ConfirmGatewayTopUp;
 using ByeMoney.Application.Modules.Wallet.Constants;
 using ByeMoney.Application.Modules.Wallet.Interfaces;
+using ByeMoney.Application.Modules.Wallet.Services;
 using ByeMoney.Domain.Common;
 using ByeMoney.Domain.Modules.Identity.Users;
 using ByeMoney.Domain.Modules.Wallet.TopUps;
+using ByeMoney.Infrastructure.Modules.Wallet.Services;
 using FluentAssertions;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 
@@ -18,24 +21,27 @@ namespace ByeMoney.UnitTests;
 
 public class GatewayTopUpCancellationTests
 {
-    private static (CancelGatewayTopUpCommandHandler Handler, TopUpRequest TopUp,
-        Mock<ITopUpRequestRepository> Repository, Mock<IUnitOfWork> UnitOfWork) CreateHandler()
+    private static (GatewayTopUpService Service, TopUpRequest TopUp,
+        Mock<ITopUpRequestRepository> Repository, Mock<IUnitOfWork> UnitOfWork) CreateService()
     {
         var topUp = TopUpRequest.CreateGateway(UserId.New(), 10m, 10_000m);
         var repository = new Mock<ITopUpRequestRepository>();
         repository.Setup(x => x.GetByClientReferenceCodeAsync(topUp.ClientReferenceCode, It.IsAny<CancellationToken>()))
             .ReturnsAsync(topUp);
         var unitOfWork = new Mock<IUnitOfWork>();
-        return (new CancelGatewayTopUpCommandHandler(repository.Object, unitOfWork.Object),
+        var settlement = new Mock<ITopUpSettlementService>();
+        var publisher = new Mock<IPublisher>();
+        var scopes = new Mock<IServiceScopeFactory>();
+        return (new GatewayTopUpService(repository.Object, settlement.Object, unitOfWork.Object, publisher.Object, scopes.Object),
             topUp, repository, unitOfWork);
     }
 
     [Fact]
     public async Task CancellationRejectsPendingTopUpWithoutFinancialSettlement()
     {
-        var (handler, topUp, repository, unitOfWork) = CreateHandler();
+        var (service, topUp, repository, unitOfWork) = CreateService();
 
-        var result = await handler.Handle(new CancelGatewayTopUpCommand(topUp.ClientReferenceCode),
+        var result = await service.CancelAsync(new CancelGatewayTopUpCommand(topUp.ClientReferenceCode, "SEP"),
             CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
@@ -50,11 +56,11 @@ public class GatewayTopUpCancellationTests
     [Fact]
     public async Task RepeatedCancellationDoesNotWriteAgain()
     {
-        var (handler, topUp, repository, unitOfWork) = CreateHandler();
-        var command = new CancelGatewayTopUpCommand(topUp.ClientReferenceCode);
+        var (service, topUp, repository, unitOfWork) = CreateService();
+        var command = new CancelGatewayTopUpCommand(topUp.ClientReferenceCode, "SEP");
 
-        (await handler.Handle(command, CancellationToken.None)).IsSuccess.Should().BeTrue();
-        (await handler.Handle(command, CancellationToken.None)).IsSuccess.Should().BeTrue();
+        (await service.CancelAsync(command, CancellationToken.None)).IsSuccess.Should().BeTrue();
+        (await service.CancelAsync(command, CancellationToken.None)).IsSuccess.Should().BeTrue();
 
         repository.Verify(x => x.Update(topUp), Times.Once);
         unitOfWork.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
@@ -63,10 +69,10 @@ public class GatewayTopUpCancellationTests
     [Fact]
     public async Task CancellationCannotUndoConfirmedPayment()
     {
-        var (handler, topUp, repository, unitOfWork) = CreateHandler();
+        var (service, topUp, repository, unitOfWork) = CreateService();
         topUp.ConfirmGateway("bank-ref", "bank-rrn", "SEP");
 
-        var result = await handler.Handle(new CancelGatewayTopUpCommand(topUp.ClientReferenceCode),
+        var result = await service.CancelAsync(new CancelGatewayTopUpCommand(topUp.ClientReferenceCode, "SEP"),
             CancellationToken.None);
 
         result.Status.Should().Be(ResultStatus.Conflict);
@@ -79,10 +85,10 @@ public class GatewayTopUpCancellationTests
     [Fact]
     public async Task ExistingReviewRejectionIsNotReportedAsGatewayCancellation()
     {
-        var (handler, topUp, repository, unitOfWork) = CreateHandler();
+        var (service, topUp, repository, unitOfWork) = CreateService();
         topUp.Reject("رد پس از بررسی مالی");
 
-        var result = await handler.Handle(new CancelGatewayTopUpCommand(topUp.ClientReferenceCode),
+        var result = await service.CancelAsync(new CancelGatewayTopUpCommand(topUp.ClientReferenceCode, "SEP"),
             CancellationToken.None);
 
         result.ErrorCode.Should().Be(GatewayTopUpErrorCodes.TopUpRequiresReview);
@@ -93,13 +99,13 @@ public class GatewayTopUpCancellationTests
     [Fact]
     public async Task CancellationCannotRejectNonGatewayTopUp()
     {
-        var (handler, topUp, repository, unitOfWork) = CreateHandler();
+        var (service, topUp, repository, unitOfWork) = CreateService();
         var cardTopUp = TopUpRequest.Create(UserId.New(), 10m, PaymentMethod.CardToCard,
             clientReferenceCode: topUp.ClientReferenceCode);
         repository.Setup(x => x.GetByClientReferenceCodeAsync(topUp.ClientReferenceCode, It.IsAny<CancellationToken>()))
             .ReturnsAsync(cardTopUp);
 
-        var result = await handler.Handle(new CancelGatewayTopUpCommand(topUp.ClientReferenceCode),
+        var result = await service.CancelAsync(new CancelGatewayTopUpCommand(topUp.ClientReferenceCode, "SEP"),
             CancellationToken.None);
 
         result.ErrorCode.Should().Be(GatewayTopUpErrorCodes.InvalidVerificationData);
@@ -111,8 +117,7 @@ public class GatewayTopUpCancellationTests
     public async Task ControllerTranslatesCancellationAndMismatchWithTypedResponses()
     {
         var sender = new Mock<ISender>();
-        sender.Setup(x => x.Send(It.IsAny<ByeMoney.Application.Modules.Wallet.Commands.ReportGatewayCancellation.ReportGatewayCancellationCommand>(),
-                It.IsAny<CancellationToken>()))
+        sender.Setup(x => x.Send(It.IsAny<CancelGatewayTopUpCommand>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(Result.Success());
         sender.Setup(x => x.Send(It.IsAny<ConfirmGatewayTopUpCommand>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new GatewayConfirmationOutcome(Result.Failure("مغایرت مبلغ",
@@ -132,3 +137,4 @@ public class GatewayTopUpCancellationTests
             .Which.Code.Should().Be(GatewayTopUpErrorCodes.TopUpAmountMismatch);
     }
 }
+

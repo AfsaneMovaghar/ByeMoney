@@ -446,6 +446,10 @@ namespace ByeMoney.Application.Resources {
         public static string TopUpRequest_BankReferenceNumberMaxLength => ResourceManager.GetString("TopUpRequest_BankReferenceNumberMaxLength", resourceCulture)!;
         public static string CoursePurchase_PriceMustBeWholeNoor => ResourceManager.GetString("CoursePurchase_PriceMustBeWholeNoor", resourceCulture)!;
         public static string TopUpRequest_GatewayCancelled => ResourceManager.GetString("TopUpRequest_GatewayCancelled", resourceCulture)!;
+        public static string TopUpRequest_CannotCancelRejected => ResourceManager.GetString("TopUpRequest_CannotCancelRejected", resourceCulture)!;
+        public static string TopUpRequest_GatewayRequired => ResourceManager.GetString("TopUpRequest_GatewayRequired", resourceCulture)!;
+        public static string TopUpRequest_GatewayMaxLength => ResourceManager.GetString("TopUpRequest_GatewayMaxLength", resourceCulture)!;
+        public static string TopUpRequest_AmountRialMustBeGreaterThanZero => ResourceManager.GetString("TopUpRequest_AmountRialMustBeGreaterThanZero", resourceCulture)!;
     }
 }
 

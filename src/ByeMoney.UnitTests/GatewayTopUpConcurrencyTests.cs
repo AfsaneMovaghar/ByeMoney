@@ -1,9 +1,9 @@
+using ByeMoney.Application.Common.Interfaces;
 using ByeMoney.Application.Modules.Wallet.Commands.CancelGatewayTopUp;
 using ByeMoney.Application.Modules.Wallet.Commands.ConfirmGatewayTopUp;
-using ByeMoney.Application.Modules.Wallet.Commands.ConfirmTopUp;
-using ByeMoney.Application.Modules.Wallet.Commands.ReportGatewayCancellation;
 using ByeMoney.Application.Modules.Wallet.Constants;
 using ByeMoney.Application.Modules.Wallet.Interfaces;
+using ByeMoney.Application.Modules.Wallet.Services;
 using ByeMoney.Domain.Modules.Identity.Users;
 using ByeMoney.Domain.Modules.Wallet.TopUps;
 using ByeMoney.Infrastructure.Modules.Wallet.Services;
@@ -36,12 +36,19 @@ public class GatewayTopUpConcurrencyTests
     {
         var topUp = TopUpRequest.CreateGateway(UserId.New(), 10m, 10_000m);
         topUp.ConfirmGateway("tx-1", "rrn-1", "SEP");
-        var sender = new Mock<ISender>();
-        sender.Setup(x => x.Send(It.IsAny<ConfirmTopUpCommand>(), It.IsAny<CancellationToken>()))
-            .ThrowsAsync(new DbUpdateConcurrencyException());
-        var handler = new ConfirmGatewayTopUpCommandHandler(sender.Object, ScopeFactory(topUp));
 
-        var result = await handler.Handle(new ConfirmGatewayTopUpCommand(
+        var repository = new Mock<ITopUpRequestRepository>();
+        repository.Setup(x => x.GetByClientReferenceCodeAsync(topUp.ClientReferenceCode, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(TopUpRequest.CreateGateway(UserId.New(), 10m, 10_000m));
+        var settlement = new Mock<ITopUpSettlementService>();
+        settlement.Setup(x => x.SettleAsync(It.IsAny<TopUpRequest>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new DbUpdateConcurrencyException());
+        var unitOfWork = new Mock<IUnitOfWork>();
+        var publisher = new Mock<IPublisher>();
+
+        var service = new GatewayTopUpService(repository.Object, settlement.Object, unitOfWork.Object, publisher.Object, ScopeFactory(topUp));
+
+        var result = await service.ConfirmAsync(new ConfirmGatewayTopUpCommand(
             topUp.ClientReferenceCode, "SEP", "tx-1", "rrn-1", 100_000m, 100_000m), CancellationToken.None);
 
         result.Result.IsSuccess.Should().BeTrue();
@@ -53,12 +60,19 @@ public class GatewayTopUpConcurrencyTests
     {
         var topUp = TopUpRequest.CreateGateway(UserId.New(), 10m, 10_000m);
         topUp.CancelGateway("SEP", "لغو پرداخت");
-        var sender = new Mock<ISender>();
-        sender.Setup(x => x.Send(It.IsAny<ConfirmTopUpCommand>(), It.IsAny<CancellationToken>()))
-            .ThrowsAsync(new DbUpdateConcurrencyException());
-        var handler = new ConfirmGatewayTopUpCommandHandler(sender.Object, ScopeFactory(topUp));
 
-        var result = await handler.Handle(new ConfirmGatewayTopUpCommand(
+        var repository = new Mock<ITopUpRequestRepository>();
+        repository.Setup(x => x.GetByClientReferenceCodeAsync(topUp.ClientReferenceCode, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(TopUpRequest.CreateGateway(UserId.New(), 10m, 10_000m));
+        var settlement = new Mock<ITopUpSettlementService>();
+        settlement.Setup(x => x.SettleAsync(It.IsAny<TopUpRequest>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new DbUpdateConcurrencyException());
+        var unitOfWork = new Mock<IUnitOfWork>();
+        var publisher = new Mock<IPublisher>();
+
+        var service = new GatewayTopUpService(repository.Object, settlement.Object, unitOfWork.Object, publisher.Object, ScopeFactory(topUp));
+
+        var result = await service.ConfirmAsync(new ConfirmGatewayTopUpCommand(
             topUp.ClientReferenceCode, "SEP", "tx-1", "rrn-1", 100_000m, 100_000m), CancellationToken.None);
 
         result.Result.ErrorCode.Should().Be(GatewayTopUpErrorCodes.TopUpConcurrentConfirmation);
@@ -70,15 +84,23 @@ public class GatewayTopUpConcurrencyTests
     {
         var topUp = TopUpRequest.CreateGateway(UserId.New(), 10m, 10_000m);
         topUp.ConfirmGateway("tx-1", "rrn-1", "SEP");
-        var sender = new Mock<ISender>();
-        sender.Setup(x => x.Send(It.IsAny<CancelGatewayTopUpCommand>(), It.IsAny<CancellationToken>()))
-            .ThrowsAsync(new DbUpdateConcurrencyException());
-        var handler = new ReportGatewayCancellationCommandHandler(sender.Object, ScopeFactory(topUp));
 
-        var result = await handler.Handle(new ReportGatewayCancellationCommand(topUp.ClientReferenceCode),
+        var repository = new Mock<ITopUpRequestRepository>();
+        repository.Setup(x => x.GetByClientReferenceCodeAsync(topUp.ClientReferenceCode, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(TopUpRequest.CreateGateway(UserId.New(), 10m, 10_000m));
+        var settlement = new Mock<ITopUpSettlementService>();
+        var unitOfWork = new Mock<IUnitOfWork>();
+        unitOfWork.Setup(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new DbUpdateConcurrencyException());
+        var publisher = new Mock<IPublisher>();
+
+        var service = new GatewayTopUpService(repository.Object, settlement.Object, unitOfWork.Object, publisher.Object, ScopeFactory(topUp));
+
+        var result = await service.CancelAsync(new CancelGatewayTopUpCommand(topUp.ClientReferenceCode, "SEP"),
             CancellationToken.None);
 
         result.ErrorCode.Should().Be(GatewayTopUpErrorCodes.TopUpAlreadyConfirmed);
         topUp.Status.Should().Be(TopUpStatus.Confirmed);
     }
 }
+

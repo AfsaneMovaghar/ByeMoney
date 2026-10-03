@@ -208,7 +208,7 @@ public class TopUpRequest : BaseEntity<TopUpRequestId>
     public void CancelGateway(string gatewayName, string reason)
     {
         if (PaymentMethod != PaymentMethod.Gateway)
-            throw new DomainException(string.Format(DomainErrors.TopUpRequest_CannotRejectStatus, Status));
+            throw new DomainException(DomainErrors.TopUpRequest_PaymentMethodNotSupported);
 
         Reject(reason);
         GatewayName = gatewayName;

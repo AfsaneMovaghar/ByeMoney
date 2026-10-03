@@ -205,4 +205,8 @@
   <data name="Wallet_BatchUserIdInvalid" xml:space="preserve"><value>هر شناسهٔ کاربر باید غیرخالی و حداکثر ۱۰۰ نویسه باشد.</value></data>
   <data name="CoursePurchase_PriceMustBeWholeNoor" xml:space="preserve"><value>قیمت دوره آموزشی باید عدد صحیح نور باشد.</value></data>
   <data name="TopUpRequest_GatewayCancelled" xml:space="preserve"><value>پرداخت در درگاه توسط کاربر لغو شد.</value></data>
+  <data name="TopUpRequest_CannotCancelRejected" xml:space="preserve"><value>امکان لغو درگاه برای درخواستی که با روش یا دلیل دیگری رد شده است وجود ندارد.</value></data>
+  <data name="TopUpRequest_GatewayRequired" xml:space="preserve"><value>نام درگاه پرداخت الزامی است.</value></data>
+  <data name="TopUpRequest_GatewayMaxLength" xml:space="preserve"><value>نام درگاه پرداخت نباید بیش از ۳۰ نویسه باشد.</value></data>
+  <data name="TopUpRequest_AmountRialMustBeGreaterThanZero" xml:space="preserve"><value>مبلغ ریالی باید بزرگتر از صفر باشد.</value></data>
 </root>

@@ -130,4 +130,5 @@
   <data name="TopUpRequest_ReceiptAndIdempotencyRequired" xml:space="preserve"><value>رسید و کلید تکرار برای ثبت این شارژ الزامی هستند.</value></data>
   <data name="TopUpRequest_InvalidRate" xml:space="preserve"><value>نرخ تبدیل ریال به نور باید عدد صحیح و بزرگتر از صفر باشد.</value></data>
   <data name="TopUpRequest_AmountMustBeWholeNoor" xml:space="preserve"><value>مبلغ شارژ درگاه باید عدد صحیح نور باشد.</value></data>
+  <data name="TopUpRequest_PaymentMethodNotSupported" xml:space="preserve"><value>روش پرداخت این درخواست با عملیات مورد نظر همخوانی ندارد.</value></data>
 </root>

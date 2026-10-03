@@ -1,8 +1,8 @@
 using ByeMoney.API.Authentication;
 using ByeMoney.API.Contracts.TopUp;
 using ByeMoney.API.Resources;
+using ByeMoney.Application.Modules.Wallet.Commands.CancelGatewayTopUp;
 using ByeMoney.Application.Modules.Wallet.Commands.ConfirmGatewayTopUp;
-using ByeMoney.Application.Modules.Wallet.Commands.ReportGatewayCancellation;
 using ByeMoney.Application.Modules.Wallet.Queries.GetGatewayTopUpDetails;
 using ByeMoney.Domain.Common;
 using MediatR;
@@ -72,7 +72,7 @@ public sealed class GatewayTopUpController(ISender sender, ILogger<GatewayTopUpC
             return BadRequest(new GatewayErrorResponse(GatewayErrorCodes.InvalidVerificationData,
                 ApiErrors.Middleware_ValidationErrorTitle));
 
-        var result = await sender.Send(new ReportGatewayCancellationCommand(request.ClientReferenceCode), ct);
+        var result = await sender.Send(new CancelGatewayTopUpCommand(request.ClientReferenceCode, request.Gateway), ct);
         return result.IsSuccess
             ? Ok(new GatewayCancellationResponse("rejected", request.ClientReferenceCode))
             : ToErrorResult(result);
@@ -91,3 +91,4 @@ public sealed class GatewayTopUpController(ISender sender, ILogger<GatewayTopUpC
         };
     }
 }
+
