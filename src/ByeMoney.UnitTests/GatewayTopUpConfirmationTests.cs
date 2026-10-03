@@ -143,8 +143,8 @@ public class GatewayTopUpConfirmationTests
             .Callback<TopUpRequest, CancellationToken>((topUp, _) => saved = topUp)
             .Returns(Task.CompletedTask);
         var settings = new Mock<ISystemSettingRepository>();
-        settings.Setup(x => x.GetByKeyAsync(SystemSettingConstants.Keys.RialToNoor, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(SystemSetting.Create(SystemSettingConstants.Keys.RialToNoor, "10000"));
+        settings.Setup(x => x.GetRialToNoorConversionRateAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(10_000m);
         var unitOfWork = new Mock<IUnitOfWork>();
         unitOfWork.Setup(x => x.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
         var handler = new CreateTopUpRequestCommandHandler(repository.Object, unitOfWork.Object, settings.Object);
@@ -165,9 +165,8 @@ public class GatewayTopUpConfirmationTests
     public async Task GatewayCreationRejectsInvalidRate(decimal rate)
     {
         var settings = new Mock<ISystemSettingRepository>();
-        settings.Setup(x => x.GetByKeyAsync(SystemSettingConstants.Keys.RialToNoor, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(SystemSetting.Create(SystemSettingConstants.Keys.RialToNoor,
-                rate.ToString(System.Globalization.CultureInfo.InvariantCulture)));
+        settings.Setup(x => x.GetRialToNoorConversionRateAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(rate);
         var repository = new Mock<ITopUpRequestRepository>();
         var handler = new CreateTopUpRequestCommandHandler(repository.Object, Mock.Of<IUnitOfWork>(), settings.Object);
 

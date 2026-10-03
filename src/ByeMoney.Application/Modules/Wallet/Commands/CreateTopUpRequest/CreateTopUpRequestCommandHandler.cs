@@ -1,6 +1,8 @@
 using ByeMoney.Application.Common.Interfaces;
 using ByeMoney.Application.Modules.Settings;
 using ByeMoney.Application.Modules.Wallet.Interfaces;
+using ByeMoney.Application.Resources;
+using ByeMoney.Domain.Common.Exceptions;
 using ByeMoney.Domain.Modules.Identity.Users;
 using ByeMoney.Domain.Modules.Wallet.TopUps;
 using MediatR;
@@ -25,16 +27,19 @@ public class CreateTopUpRequestCommandHandler : IRequestHandler<CreateTopUpReque
 
     public async Task<CreateTopUpRequestResponse> Handle(CreateTopUpRequestCommand request, CancellationToken cancellationToken)
     {
-        var rate = request.PaymentMethod == PaymentMethod.Gateway
-            ? await _settings.GetRialToNoorConversionRateAsync(cancellationToken)
-            : (decimal?)null;
-        var topUp = TopUpRequest.Create(
-            new UserId(request.UserId),
-            request.Amount,
-            request.PaymentMethod,
-            request.ExternalTransactionId,
-            pendingItems: request.PendingItems,
-            rialPerNoor: rate);
+        TopUpRequest topUp;
+        if (request.PaymentMethod == PaymentMethod.Gateway)
+        {
+            var rate = await _settings.GetRialToNoorConversionRateAsync(cancellationToken);
+            if (rate <= 0 || decimal.Truncate(rate) != rate)
+                throw new DomainException(ApplicationErrors.TopUpRequest_InvalidRate);
+            topUp = TopUpRequest.CreateGateway(new UserId(request.UserId), request.Amount, rate, request.PendingItems);
+        }
+        else
+        {
+            topUp = TopUpRequest.Create(new UserId(request.UserId), request.Amount,
+                request.PaymentMethod, request.ExternalTransactionId, pendingItems: request.PendingItems);
+        }
 
         await _topUpRequestRepository.AddAsync(topUp, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);

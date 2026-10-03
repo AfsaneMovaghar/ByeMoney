@@ -96,10 +96,8 @@ public class TopUpRequest : BaseEntity<TopUpRequestId>
             rialPerNoor <= 0 || decimal.Truncate(rialPerNoor) != rialPerNoor)
             throw new DomainException(DomainErrors.TopUpRequest_InvalidRate);
 
-        var topUp = Create(userId, amountNoor, PaymentMethod.Gateway, pendingItems: pendingItems);
-        topUp.AmountRial = checked(amountNoor * rialPerNoor);
-        topUp.RialPerNoorSnapshot = rialPerNoor;
-        return topUp;
+        return Create(userId, amountNoor, PaymentMethod.Gateway,
+            pendingItems: pendingItems, rialPerNoor: rialPerNoor);
     }
 
     public Result ConfirmGateway(string externalTransactionId, string bankReferenceNumber, string gatewayName)
