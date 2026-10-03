@@ -204,4 +204,13 @@ public class TopUpRequest : BaseEntity<TopUpRequestId>
         RejectedAtUtc = DateTime.UtcNow;
         UpdatedAt = DateTime.UtcNow;
     }
+
+    public void CancelGateway(string gatewayName, string reason)
+    {
+        if (PaymentMethod != PaymentMethod.Gateway)
+            throw new DomainException(string.Format(DomainErrors.TopUpRequest_CannotRejectStatus, Status));
+
+        Reject(reason);
+        GatewayName = gatewayName;
+    }
 }

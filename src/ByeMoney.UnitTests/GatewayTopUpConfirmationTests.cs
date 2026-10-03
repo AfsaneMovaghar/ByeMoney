@@ -1,5 +1,6 @@
 using ByeMoney.Application.Modules.Wallet.Commands.ConfirmTopUp;
 using ByeMoney.Application.Modules.Wallet.Commands.CreateTopUpRequest;
+using ByeMoney.Application.Modules.Wallet.Constants;
 using ByeMoney.Application.Modules.Settings;
 using ByeMoney.Application.Common.Interfaces;
 using ByeMoney.Application.Modules.Wallet.Interfaces;
@@ -48,6 +49,7 @@ public class GatewayTopUpConfirmationTests
         var result = await handler.Handle(Command(topUp, original, affective), CancellationToken.None);
 
         result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be(GatewayTopUpErrorCodes.TopUpAmountMismatch);
         topUp.Status.Should().Be(TopUpStatus.Pending);
         settlement.Verify(x => x.SettleAsync(It.IsAny<TopUpRequest>(), It.IsAny<CancellationToken>()), Times.Never);
     }
@@ -76,6 +78,7 @@ public class GatewayTopUpConfirmationTests
         var result = await handler.Handle(Command(topUp), CancellationToken.None);
 
         result.Status.Should().Be(ResultStatus.Conflict);
+        result.ErrorCode.Should().Be(GatewayTopUpErrorCodes.RefNumConflict);
         settlement.Verify(x => x.SettleAsync(It.IsAny<TopUpRequest>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
@@ -89,6 +92,7 @@ public class GatewayTopUpConfirmationTests
         var result = await handler.Handle(Command(topUp), CancellationToken.None);
 
         result.Status.Should().Be(ResultStatus.Conflict);
+        result.ErrorCode.Should().Be(GatewayTopUpErrorCodes.TopUpRequiresReview);
         settlement.Verify(x => x.SettleAsync(It.IsAny<TopUpRequest>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
