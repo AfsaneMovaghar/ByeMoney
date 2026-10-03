@@ -101,6 +101,13 @@ x86/
 *.vsix
 src/ByeMoney.API/logs
 /AGENTS.md
-/docs/
+/docs/*
 *.md
+!/TASKS.md
+!/docs/README.md
+!/docs/architecture/
+!/docs/integration/
+!/docs/planning/
+!/docs/testing/
+!/docs/*/*.md
 /.vscode
