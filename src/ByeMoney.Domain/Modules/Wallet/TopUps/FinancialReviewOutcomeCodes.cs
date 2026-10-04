@@ -6,4 +6,5 @@ public static class FinancialReviewOutcomeCodes
     public const string UnpaidRejected = "UNPAID_REJECTED";
     public const string ReversedRejected = "REVERSED_REJECTED";
     public const string ManualRefund = "MANUAL_REFUND";
+    public const string NoMatchingDeposit = "NO_MATCHING_DEPOSIT";
 }

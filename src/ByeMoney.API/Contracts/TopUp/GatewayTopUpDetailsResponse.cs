@@ -8,5 +8,6 @@ public sealed record GatewayTopUpDetailsResponse(
     string PaymentMethod,
     string? ExternalTransactionId,
     string? BankReferenceNumber,
-    string? GatewayName);
+    string? GatewayName,
+    bool HasManualRefund = false);
 

@@ -18,8 +18,7 @@ public class CurrentUserService(IHttpContextAccessor httpContextAccessor) : ICur
                 return null;
             }
 
-            var userIdClaim = user.FindFirst(ClaimTypes.NameIdentifier)?.Value
-                ?? user.FindFirst(AppClaimTypes.InternalUserId)?.Value;
+            var userIdClaim = user.FindFirst(AppClaimTypes.InternalUserId)?.Value;
 
             return Guid.TryParse(userIdClaim, out var userId) ? userId : null;
         }

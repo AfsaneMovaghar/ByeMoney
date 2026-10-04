@@ -23,6 +23,7 @@ namespace ByeMoney.Application.Resources {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
     [global::System.Runtime.CompilerServices.CompilerGeneratedAttribute()]
     public class ApplicationErrors {
+        public static string TopUpRequest_ReviewEvidenceInvalid => ResourceManager.GetString("TopUpRequest_ReviewEvidenceInvalid", resourceCulture);
         public static string Wallet_BatchUserIdsRequired => ResourceManager.GetString("Wallet_BatchUserIdsRequired", resourceCulture);
         public static string Wallet_BatchUserIdsCountInvalid => ResourceManager.GetString("Wallet_BatchUserIdsCountInvalid", resourceCulture);
         public static string Wallet_BatchUserIdInvalid => ResourceManager.GetString("Wallet_BatchUserIdInvalid", resourceCulture);

@@ -27,7 +27,54 @@ public sealed class GatewayTopUpService(
     private static GatewayReviewState ReviewState(TopUpRequest topUp) => new(
         topUp.ClientReferenceCode, topUp.ReviewCaseId!, topUp.Status.ToString(),
         topUp.ReviewReasonCode!, topUp.ReviewOpenedAtUtc!.Value, topUp.ReviewResolvedAtUtc,
-        topUp.ReviewOutcomeCode, topUp.ReviewResolutionFinancialReferenceId);
+        topUp.ReviewOutcomeCode, topUp.ReviewResolutionFinancialReferenceId, topUp.ReviewRevision,
+        topUp.ReviewAudit, topUp.ManualRefundReference);
+
+    public async Task<Result<GatewayReviewState>> ResolveManualReviewAsync(string clientReferenceCode, string caseId,
+        string outcomeCode, string? financialReferenceId, FinancialReviewEvidence evidence,
+        Guid actorUserId, string? actorName, CancellationToken ct = default)
+    {
+        var topUp = await topUpRequestRepository.GetByClientReferenceCodeAsync(clientReferenceCode, ct);
+        if (topUp is null) return Result<GatewayReviewState>.NotFound(ApplicationErrors.TopUpRequest_NotFound,
+            GatewayTopUpErrorCodes.TopUpNotFound);
+        if (outcomeCode == FinancialReviewOutcomeCodes.ManualRefund && topUp.Status == TopUpStatus.Confirmed)
+            return Result<GatewayReviewState>.Failure(ApplicationErrors.TopUpRequest_ReviewRefundUnsupported,
+                GatewayTopUpErrorCodes.ReviewRefundUnsupported);
+        if (evidence.MatchingDepositFound == true && evidence.DepositAmountRial != topUp.AmountRial)
+            return Result<GatewayReviewState>.Failure(ApplicationErrors.TopUpRequest_ReviewEvidenceInvalid,
+                GatewayTopUpErrorCodes.TopUpAmountMismatch);
+        var result = topUp.ResolveManualReview(caseId, outcomeCode, financialReferenceId, evidence, actorUserId, actorName);
+        if (result.IsFailure) return Result<GatewayReviewState>.Conflict(result.ErrorMessage!, GatewayTopUpErrorCodes.ReviewConflict);
+        topUpRequestRepository.Update(topUp);
+        try { await unitOfWork.SaveChangesAsync(ct); }
+        catch (DbUpdateConcurrencyException)
+        {
+            using var scope = scopeFactory.CreateScope();
+            var fresh = await scope.ServiceProvider.GetRequiredService<ITopUpRequestRepository>()
+                .GetByClientReferenceCodeAsync(clientReferenceCode, ct);
+            var prior = fresh?.ReviewAudit.FirstOrDefault(x => x.EventId == evidence.OperationId.ToString());
+            if (fresh is not null && prior?.Evidence == evidence && prior.ActorUserId == actorUserId &&
+                prior.OutcomeCode == outcomeCode && prior.FinancialReferenceId == financialReferenceId)
+                return Result<GatewayReviewState>.Success(ReviewState(fresh));
+            return Result<GatewayReviewState>.Conflict(DomainErrors.TopUpRequest_ReviewConflict, GatewayTopUpErrorCodes.ReviewConflict);
+        }
+        return Result<GatewayReviewState>.Success(ReviewState(topUp));
+    }
+
+    public async Task<Result<GatewayReviewState>> ReopenReviewAsync(string clientReferenceCode, string caseId,
+        string evidenceId, string? note, CancellationToken ct = default)
+    {
+        var topUp = await topUpRequestRepository.GetByClientReferenceCodeAsync(clientReferenceCode, ct);
+        if (topUp is null) return Result<GatewayReviewState>.NotFound(ApplicationErrors.TopUpRequest_NotFound,
+            GatewayTopUpErrorCodes.TopUpNotFound);
+        var result = topUp.ReopenFinancialReview(caseId, evidenceId, note);
+        if (result.IsFailure) return Result<GatewayReviewState>.Conflict(result.ErrorMessage!, GatewayTopUpErrorCodes.ReviewConflict);
+        topUpRequestRepository.Update(topUp);
+        try { await unitOfWork.SaveChangesAsync(ct); }
+        catch (DbUpdateConcurrencyException)
+        { return Result<GatewayReviewState>.Conflict(DomainErrors.TopUpRequest_ReviewConflict, GatewayTopUpErrorCodes.ReviewConflict); }
+        return Result<GatewayReviewState>.Success(ReviewState(topUp));
+    }
 
     public async Task<Result<GatewayReviewState>> OpenReviewAsync(string clientReferenceCode,
         string caseId, string reasonCode, CancellationToken ct = default)
@@ -150,6 +197,9 @@ public sealed class GatewayTopUpService(
         if (topUp.PaymentMethod != PaymentMethod.Gateway || command.Gateway != "SEP")
             return Result.Conflict(ApplicationErrors.TopUpRequest_PaymentMethodInvalid,
                 GatewayTopUpErrorCodes.InvalidVerificationData);
+        if (topUp.ManualRefundReference is not null && command.Kind is GatewayResultKinds.Verified or GatewayResultKinds.ReverseSucceeded)
+            return Result.Conflict(ApplicationErrors.TopUpRequest_ReviewRefundUnsupported,
+                GatewayTopUpErrorCodes.ReviewRefundUnsupported);
         var repeated = topUp.GatewayEventId == command.EventId;
         if (!repeated && topUp.Status == TopUpStatus.Confirmed && command.Kind == GatewayResultKinds.Verified &&
             (topUp.AmountRial != command.OriginalAmountRial ||
@@ -250,6 +300,9 @@ public sealed class GatewayTopUpService(
             return new GatewayConfirmationOutcome(Result.Conflict(
                 ApplicationErrors.TopUpRequest_PaymentMethodInvalid,
                 GatewayTopUpErrorCodes.InvalidVerificationData));
+        if (topUp.ManualRefundReference is not null)
+            return new GatewayConfirmationOutcome(Result.Conflict(ApplicationErrors.TopUpRequest_ReviewRefundUnsupported,
+                GatewayTopUpErrorCodes.ReviewRefundUnsupported));
 
         if (topUp.AmountRial is null ||
             command.OriginalAmountRial != topUp.AmountRial ||

@@ -39,6 +39,9 @@ public class TopUpRequest : BaseEntity<TopUpRequestId>
     public DateTime? ReviewResolvedAtUtc { get; private set; }
     public string? ReviewOutcomeCode { get; private set; }
     public string? ReviewResolutionFinancialReferenceId { get; private set; }
+    public int ReviewRevision { get; private set; }
+    public string? ManualRefundReference { get; private set; }
+    public IReadOnlyList<FinancialReviewAudit> ReviewAudit { get; private set; } = [];
 
     public IReadOnlyList<PendingItemSnapshot> PendingItems { get; private set; } = [];
 
@@ -54,6 +57,7 @@ public class TopUpRequest : BaseEntity<TopUpRequestId>
                 : Result.Conflict(DomainErrors.TopUpRequest_ReviewConflict);
 
         ReviewCaseId = caseId;
+        ReviewRevision = 1;
         ReviewReasonCode = reasonCode;
         ReviewOpenedAtUtc = DateTime.UtcNow;
         UpdatedAt = DateTime.UtcNow;
@@ -88,6 +92,59 @@ public class TopUpRequest : BaseEntity<TopUpRequestId>
         ReviewOutcomeCode = outcomeCode;
         ReviewResolutionFinancialReferenceId = financialReferenceId;
         ReviewResolvedAtUtc = DateTime.UtcNow;
+        UpdatedAt = DateTime.UtcNow;
+        return Result.Success();
+    }
+
+    public Result ResolveManualReview(string caseId, string outcomeCode, string? financialReferenceId,
+        FinancialReviewEvidence evidence, Guid actorUserId, string? actorName)
+    {
+        var previous = ReviewAudit.FirstOrDefault(x => x.EventId == evidence.OperationId.ToString());
+        if (previous is not null)
+            return ReviewCaseId == caseId && previous.ActorUserId == actorUserId &&
+                previous.OutcomeCode == outcomeCode && previous.FinancialReferenceId == financialReferenceId &&
+                previous.Evidence == evidence ? Result.Success() : Result.Conflict(DomainErrors.TopUpRequest_ReviewConflict);
+        if (ReviewCaseId != caseId || ReviewRevision != evidence.ExpectedRevision || ReviewResolvedAtUtc is not null)
+            return Result.Conflict(DomainErrors.TopUpRequest_ReviewConflict);
+        if (outcomeCode is FinancialReviewOutcomeCodes.NoMatchingDeposit or FinancialReviewOutcomeCodes.ManualRefund)
+        {
+            if (Status == TopUpStatus.Confirmed ||
+                outcomeCode == FinancialReviewOutcomeCodes.NoMatchingDeposit && evidence.MatchingDepositFound != false ||
+                outcomeCode == FinancialReviewOutcomeCodes.ManualRefund && string.IsNullOrWhiteSpace(evidence.ManualRefundReference))
+                return Result.Conflict(DomainErrors.TopUpRequest_ReviewStateMismatch);
+            ReviewOutcomeCode = outcomeCode;
+            ReviewResolutionFinancialReferenceId = financialReferenceId;
+            ReviewResolvedAtUtc = DateTime.UtcNow;
+            if (outcomeCode == FinancialReviewOutcomeCodes.ManualRefund)
+                ManualRefundReference = evidence.ManualRefundReference;
+        }
+        else
+        {
+            var result = ResolveFinancialReview(caseId, outcomeCode, financialReferenceId);
+            if (result.IsFailure) return result;
+        }
+        ReviewAudit = [.. ReviewAudit, new FinancialReviewAudit(evidence.OperationId.ToString(), "resolved",
+            ReviewRevision, ReviewResolvedAtUtc!.Value, actorUserId, actorName, outcomeCode,
+            financialReferenceId, evidence, evidence.Note)];
+        UpdatedAt = DateTime.UtcNow;
+        return Result.Success();
+    }
+
+    public Result ReopenFinancialReview(string caseId, string evidenceId, string? note)
+    {
+        if (ReviewCaseId != caseId) return Result.Conflict(DomainErrors.TopUpRequest_ReviewConflict);
+        if (ReviewAudit.Any(x => x.EventId == evidenceId && x.EventType == "evidence")) return Result.Success();
+        if (ReviewResolvedAtUtc is not null && !ReviewAudit.Any(x => x.EventType == "resolved" && x.Revision == ReviewRevision))
+            ReviewAudit = [.. ReviewAudit, new FinancialReviewAudit($"legacy:{caseId}:{ReviewRevision}", "resolved",
+                ReviewRevision, ReviewResolvedAtUtc.Value, null, null, ReviewOutcomeCode,
+                ReviewResolutionFinancialReferenceId, null, null)];
+        // نسخه با هر شاهد تازه تغییر می‌کند تا فرم قدیمی نتواند پرونده را ببندد.
+        ReviewRevision++;
+        ReviewAudit = [.. ReviewAudit, new FinancialReviewAudit(evidenceId, "evidence", ReviewRevision,
+            DateTime.UtcNow, null, null, null, null, null, note)];
+        ReviewResolvedAtUtc = null;
+        ReviewOutcomeCode = null;
+        ReviewResolutionFinancialReferenceId = null;
         UpdatedAt = DateTime.UtcNow;
         return Result.Success();
     }
@@ -162,6 +219,8 @@ public class TopUpRequest : BaseEntity<TopUpRequestId>
 
     public Result ConfirmGateway(string externalTransactionId, string bankReferenceNumber, string gatewayName)
     {
+        if (ManualRefundReference is not null)
+            return Result.Conflict(DomainErrors.TopUpRequest_ReviewStateMismatch);
         if (Status == TopUpStatus.Confirmed)
             return ExternalTransactionId == externalTransactionId &&
                    BankReferenceNumber == bankReferenceNumber && GatewayName == gatewayName

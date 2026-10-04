@@ -1,3 +1,3 @@
-سلاnamespace ByeMoney.API.Contracts.TopUp;
+namespace ByeMoney.API.Contracts.TopUp;
 
 public sealed record GatewayResultResponse(string ClientReferenceCode, string Status);

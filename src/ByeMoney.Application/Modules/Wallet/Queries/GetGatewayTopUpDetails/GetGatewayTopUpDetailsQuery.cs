@@ -10,6 +10,7 @@ public sealed record GatewayTopUpDetailsDto(
     string PaymentMethod,
     string? ExternalTransactionId,
     string? BankReferenceNumber,
-    string? GatewayName);
+    string? GatewayName,
+    bool HasManualRefund = false);
 
 public sealed record GetGatewayTopUpDetailsQuery(string ClientReferenceCode) : IRequest<GatewayTopUpDetailsDto?>;

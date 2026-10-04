@@ -168,26 +168,62 @@ Pending → Confirmed یا Rejected در مدل پایه موجود است. اس
 
 نگهداری فایل رسید می‌تواند از زیرساخت موجود استفاده کند؛ شناسه/مالکیت، دسترسی و ارتباط آن با TopUp قطعی باشد. اعطای نور توسط endpoint عمومی payment-light و افزایش light استرپی حذف/مسدود شود.
 
-### نشانگر رسیدگی مالی SEP در بای‌مانی (برش ۱)
+### نشانگر و فرمان رسیدگی مالی SEP در بای‌مانی (قرارداد رسیدگی دستی و بستن پرونده)
 
-دو فرمان نسخه‌دار `POST /api/integrations/topups/v1/gateway-reviews/open` و
-`POST /api/integrations/topups/v1/gateway-reviews/resolve` با همان هدر سرویس
-`X-Service-Key` مسیر نتیجهٔ بانکی را تغییر نمی‌دهند. بازکردن پرونده فقط نشانگر را
-روی TopUp ثبت می‌کند؛ `Status`، کیف پول و Ledger را تغییر نمی‌دهد. بای‌مانی
-`openedAtUtc` و `resolvedAtUtc` را در UTC ثبت می‌کند و در پاسخ وضعیت فعلی
-`Pending`، `Confirmed` یا `Rejected` را برمی‌گرداند.
+تمام بستن‌های پرونده‌های بازبینی درگاه از طریق فرمان `resolve` در ByeMoney انجام می‌شوند. هیچ بستن مستقلی در Strapi بدون عبور از بای‌مانی مجاز نیست.
 
-بدنهٔ `open`: `clientReferenceCode`, `caseId`, `reasonCode`. کدهای علت مجاز:
-`NO_CALLBACK`, `VERIFY_UNKNOWN`, `REVERSE_UNKNOWN`, `DELIVERY_UNKNOWN`,
-`BANK_CONFLICT`. بدنهٔ `resolve`: `clientReferenceCode`, `caseId`,
-`outcomeCode`, `resolutionFinancialReferenceId`. کدهای نتیجهٔ قابل بستن:
-`PAID_AND_CONFIRMED`، `UNPAID_REJECTED`، `REVERSED_REJECTED`؛ اولی فقط پس از
-`Verified` و `Confirmed` با همان شناسه بانکی، دومی فقط پس از `Unpaid` و
-`Rejected` با مرجع مالی `null`، و سومی فقط پس از `ReverseSucceeded` و
-`Rejected` با همان شناسه بانکی پذیرفته می‌شود. `MANUAL_REFUND` با کد
-`REVIEW_MANUAL_REFUND_NOT_SUPPORTED` رد می‌شود. تکرار همان `caseId` و محتوای
-یکسان بی‌اثر و موفق است؛ محتوای ناسازگار 409 است. جزئیات بدنه/پاسخ در قراردادهای
-صریح API آمده‌اند. این برش صف Strapi، پنل مالی و سیاست Q01 را پیاده نمی‌کند.
+#### ۱. احراز هویت و مجوزها
+- مسیر resolve (`POST /api/integrations/topups/v1/gateway-reviews/resolve` و `POST /api/admin/topups/gateway-reviews/resolve`) تحت پالیسی `RequireTopUpReview` قرار دارد و نیازمند JWT معتبر کارمند است. دسترسی با کلید سرویس تنها راه دورزدن کنترل مجوز کارمند نیست.
+- هویت اجراکننده (`ActorUserId` و `ActorName`) از JWT استخراج می‌شود و زمان بستن با `DateTime.UtcNow` در بای‌مانی ثبت می‌گردد (نه از body کلاینت).
+- کاربران فرانت‌اند و APIهای Strapi مجوز دسترسی به رسیدگی مالی را با JWT کارمند از بای‌مانی استعلام می‌کنند؛ نقش ادمین در Strapi به‌تنهایی مجوز مالی ایجاد نمی‌کند و کاربر دارای مجوز مالی بای‌مانی حتی بدون نقش administrator در Strapi می‌تواند به رسیدگی دسترسی داشته باشد.
+
+#### ۲. ساختار درخواست Resolve
+```json
+{
+  "clientReferenceCode": "TR-XXXXXXXX",
+  "caseId": "UUID",
+  "outcomeCode": "PAID_AND_CONFIRMED | NO_MATCHING_DEPOSIT | REVERSED_REJECTED | MANUAL_REFUND",
+  "resolutionFinancialReferenceId": "شناسه مرجع مالی یا null",
+  "evidence": {
+    "operationId": "UUID",
+    "expectedRevision": 1,
+    "checkedReportDate": "YYYY-MM-DD",
+    "matchingDepositFound": false,
+    "depositReference": "شناسه واریز در صورت پیدا شدن",
+    "depositDate": "YYYY-MM-DD",
+    "depositAmountRial": 10000,
+    "manualRefundReference": "مرجع بازپرداخت در صورت MANUAL_REFUND",
+    "note": "یادداشت بررسی کارمند"
+  }
+}
+```
+
+#### ۳. رفتار و اثر مالی چهار نتیجه
+| نتیجه در پنل | شرایط بستن از فرمان resolve | اثر مالی |
+|---|---|---|
+| پرداخت شده و نور شارژ شده (`PAID_AND_CONFIRMED`) | TopUp واقعاً `Confirmed` و نتیجه پرداخت معتبر (`Verified`) ثبت شده باشد | بستن پرونده هیچ اثر مالی تازه‌ای ندارد |
+| واریز منطبق پیدا نشد (`NO_MATCHING_DEPOSIT`) | تاریخ گزارش تقویمی و `matchingDepositFound=false` ثبت شده باشد؛ TopUp تأییدشده نباشد | وضعیت مالی تغییر نمی‌کند؛ TopUp نامعلوم می‌تواند `Pending` بماند |
+| برگشت‌خورده (`REVERSED_REJECTED`) | `ReverseSucceeded` معتبر از مسیر نتیجه درگاه ثبت شده و TopUp با آن سازگار باشد | بستن پرونده هیچ اثر مالی تازه‌ای ندارد |
+| بازپرداخت دستی خارج از سامانه (`MANUAL_REFUND`) | TopUp تأییدنشده باشد (`Pending` یا `Rejected`) و `manualRefundReference` ثبت شود؛ روی `Confirmed` با خطای ۴۲۲ `REVIEW_MANUAL_REFUND_NOT_SUPPORTED` رد می‌شود | فقط نتیجه رسیدگی ثبت می‌شود؛ بدون جبران Ledger |
+
+**حفاظت دائمی پس از بازپرداخت دستی:** پس از ثبت `MANUAL_REFUND`، حتی در صورت رسیدن Verify دیرهنگام بانکی، سامانه خودکار نور ایجاد نمی‌کند و وجه را مجدداً برگشت نمی‌زند؛ درخواست به وضعیت `financial_review` هدایت می‌شود. این محدودیت با بازگشایی پرونده نیز پاک نمی‌شود.
+
+#### ۴. بازگشایی پرونده (`reopen`)
+- اندپوینت: `POST /api/integrations/topups/v1/gateway-reviews/reopen`
+- با همان `caseId` و افزایش شماره نسخه (`ReviewRevision++`) انجام می‌شود.
+- سوابق قبلی حسابرسی (`ReviewAudit`) دست‌نخورده حفظ می‌شوند.
+- فرم‌های بازمانده کارمند با نسخه قدیمی هنگام ارسال ۴۰۹ دریافت می‌کنند و نمی‌توانند پرونده بازگشایی‌شده را ببندند.
+- بازگشایی به‌خودی‌خود وضعیت TopUp را تغییر نمی‌دهد.
+
+#### ۵. کنترل همزمانی و Idempotency
+- ارسال مجدد همان `operationId` با همان payload و همان actor نتیجه قبلی را بدون تغییر برمی‌گرداند.
+- ارسال همان `operationId` با payload متفاوت، تغییر یادداشت یا کارمند متفاوت خطای ۴۰۹ `REVIEW_CASE_CONFLICT` می‌دهد.
+- ثبت resolve و ایجاد رکورد audit در بای‌مانی به‌صورت اتمیک در همان تراکنش دیتابیس انجام می‌شود.
+
+#### ۶. استعلام جزئیات پرونده (`GET /api/admin/topups/gateway-reviews/{clientReferenceCode}`)
+- اطلاعات هویتی کاربر منطبق با قرارداد `I04-U` (`DisplayName`, `Phone`).
+- تفکیک زمان درخواست (`CreatedAtUtc`) و زمان گشایش پرونده (`OpenedAtUtc`).
+- وضعیت جاری شارژ، شناسه رهگیری درگاه (ResNum)، شماره پیگیری بانکی (RefNum/RRN)، شماره نسخه پرونده، و آرایه تاریخچه حسابرسی (`ReviewAudit`).
 
 ## I08 — خرید، Snapshot و اعلام نتیجه
 

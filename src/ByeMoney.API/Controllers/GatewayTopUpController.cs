@@ -6,6 +6,8 @@ using ByeMoney.Application.Modules.Wallet.Commands.ConfirmGatewayTopUp;
 using ByeMoney.Application.Modules.Wallet.Commands.RecordGatewayResult;
 using ByeMoney.Application.Modules.Wallet.Commands.OpenGatewayReview;
 using ByeMoney.Application.Modules.Wallet.Commands.ResolveGatewayReview;
+using ByeMoney.Application.Modules.Wallet.Commands.ReopenGatewayReview;
+using ByeMoney.Application.Modules.Wallet.Queries.GetGatewayReview;
 using ByeMoney.Application.Modules.Wallet.Interfaces;
 using ByeMoney.Application.Modules.Wallet.Queries.GetGatewayTopUpDetails;
 using ByeMoney.Domain.Common;
@@ -33,17 +35,24 @@ public sealed class GatewayTopUpController(ISender sender, ILogger<GatewayTopUpC
         return result.IsSuccess ? Ok(ToReviewResponse(result.Value)) : ToErrorResult(result);
     }
 
-    [HttpPost("v1/gateway-reviews/resolve")]
+    [HttpPost("v1/gateway-reviews/reopen")]
     [ServiceFilter(typeof(GatewayResultKeyFilter))]
     [ProducesResponseType(typeof(GatewayReviewResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(GatewayErrorResponse), StatusCodes.Status409Conflict)]
     [ProducesResponseType(typeof(GatewayErrorResponse), StatusCodes.Status422UnprocessableEntity)]
-    public async Task<IActionResult> ResolveReview(ResolveGatewayReviewRequest request, CancellationToken ct)
+    public async Task<IActionResult> ReopenReview(ReopenGatewayReviewRequest request, CancellationToken ct)
     {
-        var result = await sender.Send(new ResolveGatewayReviewCommand(
-            request.ClientReferenceCode, request.CaseId, request.OutcomeCode,
-            request.ResolutionFinancialReferenceId), ct);
-        return result.IsSuccess ? Ok(ToReviewResponse(result.Value)) : ToErrorResult(result);
+        var result = await sender.Send(new ReopenGatewayReviewCommand(
+            request.ClientReferenceCode, request.CaseId, request.EvidenceId, request.Note), ct);
+        return result.IsSuccess ? Ok(result.Value) : ToErrorResult(result);
+    }
+
+    [HttpGet("v1/gateway-reviews/{clientReferenceCode}")]
+    [ServiceFilter(typeof(GatewayResultKeyFilter))]
+    public async Task<IActionResult> GetReview(string clientReferenceCode, CancellationToken ct)
+    {
+        var details = await sender.Send(new GetGatewayReviewQuery(clientReferenceCode), ct);
+        return details?.Review is null ? NotFound() : Ok(details.Review);
     }
 
     private static GatewayReviewResponse ToReviewResponse(GatewayReviewState state) => new(
@@ -81,7 +90,7 @@ public sealed class GatewayTopUpController(ISender sender, ILogger<GatewayTopUpC
         return Ok(new GatewayTopUpDetailsResponse(
             topUp.TopUpRequestId, topUp.ClientReferenceCode, topUp.AmountRial,
             topUp.Status, topUp.PaymentMethod, topUp.ExternalTransactionId,
-            topUp.BankReferenceNumber, topUp.GatewayName));
+            topUp.BankReferenceNumber, topUp.GatewayName, topUp.HasManualRefund));
     }
 
     [HttpPost("gateway-confirmations")]

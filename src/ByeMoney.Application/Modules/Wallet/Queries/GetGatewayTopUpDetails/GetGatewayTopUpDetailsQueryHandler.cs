@@ -12,6 +12,6 @@ public sealed class GetGatewayTopUpDetailsQueryHandler(ITopUpRequestRepository t
         return topUp is null ? null : new GatewayTopUpDetailsDto(
             topUp.Id.Value, topUp.ClientReferenceCode, topUp.AmountRial,
             topUp.Status.ToString(), topUp.PaymentMethod.ToString(),
-            topUp.ExternalTransactionId, topUp.BankReferenceNumber, topUp.GatewayName);
+            topUp.ExternalTransactionId, topUp.BankReferenceNumber, topUp.GatewayName, topUp.ManualRefundReference is not null);
     }
 }

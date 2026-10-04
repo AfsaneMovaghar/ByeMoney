@@ -27,11 +27,7 @@ public class AdminTopUpController(ISender sender) : ControllerBase
     {
         var canReview = (await authorizationService.AuthorizeAsync(
             User, PolicyNames.RequireTopUpReview)).Succeeded;
-        return Ok(new
-        {
-            canReviewTopUps = canReview,
-            canAssistTopUp = canReview
-        });
+        return Ok(new TopUpPermissionsResponse(canReview, canReview));
     }
 
     /// <summary>
