@@ -8,5 +8,6 @@ public interface ITopUpRequestRepository : IRepository<TopUpRequest, TopUpReques
     Task<TopUpRequest?> GetByExternalTransactionIdAsync(string externalTransactionId, CancellationToken ct = default);
     Task<TopUpRequest?> GetByClientReferenceCodeAsync(string clientReferenceCode, CancellationToken ct = default);
     Task<TopUpRequest?> GetByIdempotencyKeyAsync(string idempotencyKey, CancellationToken ct = default);
+    Task<TopUpRequest?> GetByReviewCaseIdAsync(string caseId, CancellationToken ct = default);
 }
 

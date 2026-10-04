@@ -270,5 +270,11 @@ namespace ByeMoney.Domain.Resources {
         public static string TopUpRequest_InvalidRate => ResourceManager.GetString("TopUpRequest_InvalidRate", resourceCulture)!;
         public static string TopUpRequest_AmountMustBeWholeNoor => ResourceManager.GetString("TopUpRequest_AmountMustBeWholeNoor", resourceCulture)!;
         public static string TopUpRequest_PaymentMethodNotSupported => ResourceManager.GetString("TopUpRequest_PaymentMethodNotSupported", resourceCulture)!;
+        public static string TopUpRequest_ReviewConflict => ResourceManager.GetString("TopUpRequest_ReviewConflict", resourceCulture)!;
+        public static string TopUpRequest_ReviewStateMismatch => ResourceManager.GetString("TopUpRequest_ReviewStateMismatch", resourceCulture)!;
+        public static string TopUpRequest_GatewayEventPayloadMismatch => ResourceManager.GetString("TopUpRequest_GatewayEventPayloadMismatch", resourceCulture)!;
+        public static string TopUpRequest_ExternalTransactionMismatch => ResourceManager.GetString("TopUpRequest_ExternalTransactionMismatch", resourceCulture)!;
+        public static string TopUpRequest_GatewayUnpaidWithBankTransaction => ResourceManager.GetString("TopUpRequest_GatewayUnpaidWithBankTransaction", resourceCulture)!;
+        public static string TopUpRequest_CannotRecordResultForStatus => ResourceManager.GetString("TopUpRequest_CannotRecordResultForStatus", resourceCulture)!;
     }
 }

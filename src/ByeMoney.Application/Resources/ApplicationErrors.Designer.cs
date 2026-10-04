@@ -446,10 +446,23 @@ namespace ByeMoney.Application.Resources {
         public static string TopUpRequest_BankReferenceNumberMaxLength => ResourceManager.GetString("TopUpRequest_BankReferenceNumberMaxLength", resourceCulture)!;
         public static string CoursePurchase_PriceMustBeWholeNoor => ResourceManager.GetString("CoursePurchase_PriceMustBeWholeNoor", resourceCulture)!;
         public static string TopUpRequest_GatewayCancelled => ResourceManager.GetString("TopUpRequest_GatewayCancelled", resourceCulture)!;
+        public static string TopUpRequest_GatewayUnpaid => ResourceManager.GetString("TopUpRequest_GatewayUnpaid", resourceCulture)!;
+        public static string TopUpRequest_GatewayReversed => ResourceManager.GetString("TopUpRequest_GatewayReversed", resourceCulture)!;
+        public static string TopUpRequest_GatewayEventIdRequired => ResourceManager.GetString("TopUpRequest_GatewayEventIdRequired", resourceCulture)!;
+        public static string TopUpRequest_GatewayEventIdMaxLength => ResourceManager.GetString("TopUpRequest_GatewayEventIdMaxLength", resourceCulture)!;
+        public static string TopUpRequest_GatewayResultKindInvalid => ResourceManager.GetString("TopUpRequest_GatewayResultKindInvalid", resourceCulture)!;
+        public static string TopUpRequest_GatewayOccurredAtUtcInvalid => ResourceManager.GetString("TopUpRequest_GatewayOccurredAtUtcInvalid", resourceCulture)!;
+        public static string TopUpRequest_GatewayUnpaidWithBankId => ResourceManager.GetString("TopUpRequest_GatewayUnpaidWithBankId", resourceCulture)!;
         public static string TopUpRequest_CannotCancelRejected => ResourceManager.GetString("TopUpRequest_CannotCancelRejected", resourceCulture)!;
         public static string TopUpRequest_GatewayRequired => ResourceManager.GetString("TopUpRequest_GatewayRequired", resourceCulture)!;
         public static string TopUpRequest_GatewayMaxLength => ResourceManager.GetString("TopUpRequest_GatewayMaxLength", resourceCulture)!;
         public static string TopUpRequest_AmountRialMustBeGreaterThanZero => ResourceManager.GetString("TopUpRequest_AmountRialMustBeGreaterThanZero", resourceCulture)!;
+        public static string TopUpRequest_ReviewCaseRequired => ResourceManager.GetString("TopUpRequest_ReviewCaseRequired", resourceCulture)!;
+        public static string TopUpRequest_ReviewReferenceRequired => ResourceManager.GetString("TopUpRequest_ReviewReferenceRequired", resourceCulture)!;
+        public static string TopUpRequest_ReviewReasonInvalid => ResourceManager.GetString("TopUpRequest_ReviewReasonInvalid", resourceCulture)!;
+        public static string TopUpRequest_ReviewOutcomeInvalid => ResourceManager.GetString("TopUpRequest_ReviewOutcomeInvalid", resourceCulture)!;
+        public static string TopUpRequest_ReviewFinancialReferenceInvalid => ResourceManager.GetString("TopUpRequest_ReviewFinancialReferenceInvalid", resourceCulture)!;
+        public static string TopUpRequest_ReviewRefundUnsupported => ResourceManager.GetString("TopUpRequest_ReviewRefundUnsupported", resourceCulture)!;
     }
 }
 

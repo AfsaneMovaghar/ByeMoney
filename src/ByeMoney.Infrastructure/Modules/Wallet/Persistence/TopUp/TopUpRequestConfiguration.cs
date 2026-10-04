@@ -57,6 +57,17 @@ public class TopUpRequestConfiguration : IEntityTypeConfiguration<TopUpRequest>
 
         builder.Property(t => t.GatewayName).HasMaxLength(30);
         builder.Property(t => t.BankReferenceNumber).HasMaxLength(100);
+        builder.Property(t => t.GatewayEventId).HasMaxLength(100);
+        builder.Property(t => t.GatewayResultKind).HasMaxLength(30);
+        builder.Property(t => t.GatewayResultCode).HasMaxLength(100);
+        builder.Property(t => t.GatewayOriginalAmountRial).HasPrecision(18, 2);
+        builder.Property(t => t.GatewayAffectiveAmountRial).HasPrecision(18, 2);
+        builder.Property(t => t.ReviewCaseId).HasMaxLength(100).IsConcurrencyToken();
+        builder.HasIndex(t => t.ReviewCaseId).IsUnique().HasFilter("\"ReviewCaseId\" IS NOT NULL");
+        builder.Property(t => t.ReviewReasonCode).HasMaxLength(50);
+        builder.Property(t => t.ReviewOutcomeCode).HasMaxLength(50);
+        builder.Property(t => t.ReviewResolvedAtUtc).IsConcurrencyToken();
+        builder.Property(t => t.ReviewResolutionFinancialReferenceId).HasMaxLength(100);
 
         builder.Property(t => t.RejectionReason)
             .HasMaxLength(500);

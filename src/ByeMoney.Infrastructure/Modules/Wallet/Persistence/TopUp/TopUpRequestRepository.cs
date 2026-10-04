@@ -19,6 +19,9 @@ public class TopUpRequestRepository : BaseRepository<TopUpRequest, TopUpRequestI
     public async Task<TopUpRequest?> GetByIdempotencyKeyAsync(string idempotencyKey, CancellationToken ct = default)
         => await DbSet.FirstOrDefaultAsync(t => t.IdempotencyKey == idempotencyKey, ct);
 
+    public async Task<TopUpRequest?> GetByReviewCaseIdAsync(string caseId, CancellationToken ct = default)
+        => await DbSet.FirstOrDefaultAsync(t => t.ReviewCaseId == caseId, ct);
+
     public async Task<TopUpRequest?> GetByClientReferenceCodeAsync(string clientReferenceCode, CancellationToken ct = default)
     {
         return await DbSet.FirstOrDefaultAsync(t => t.ClientReferenceCode == clientReferenceCode, ct);

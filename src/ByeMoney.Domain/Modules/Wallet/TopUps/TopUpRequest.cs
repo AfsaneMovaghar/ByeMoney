@@ -24,13 +24,73 @@ public class TopUpRequest : BaseEntity<TopUpRequestId>
     public string? ExternalTransactionId { get; private set; }
     public string? GatewayName { get; private set; }
     public string? BankReferenceNumber { get; private set; }
+    public string? GatewayResultCode { get; private set; }
+    public string? GatewayResultKind { get; private set; }
+    public string? GatewayEventId { get; private set; }
+    public DateTime? GatewayResultAtUtc { get; private set; }
+    public decimal? GatewayOriginalAmountRial { get; private set; }
+    public decimal? GatewayAffectiveAmountRial { get; private set; }
     public string? RejectionReason { get; private set; }
     public DateTime? ConfirmedAtUtc { get; private set; }
     public DateTime? RejectedAtUtc { get; private set; }
+    public string? ReviewCaseId { get; private set; }
+    public string? ReviewReasonCode { get; private set; }
+    public DateTime? ReviewOpenedAtUtc { get; private set; }
+    public DateTime? ReviewResolvedAtUtc { get; private set; }
+    public string? ReviewOutcomeCode { get; private set; }
+    public string? ReviewResolutionFinancialReferenceId { get; private set; }
 
     public IReadOnlyList<PendingItemSnapshot> PendingItems { get; private set; } = [];
 
     private TopUpRequest() { }
+
+    public Result OpenFinancialReview(string caseId, string reasonCode)
+    {
+        if (PaymentMethod != PaymentMethod.Gateway)
+            return Result.Conflict(DomainErrors.TopUpRequest_PaymentMethodNotSupported);
+        if (ReviewCaseId is not null)
+            return ReviewCaseId == caseId && ReviewReasonCode == reasonCode
+                ? Result.Success()
+                : Result.Conflict(DomainErrors.TopUpRequest_ReviewConflict);
+
+        ReviewCaseId = caseId;
+        ReviewReasonCode = reasonCode;
+        ReviewOpenedAtUtc = DateTime.UtcNow;
+        UpdatedAt = DateTime.UtcNow;
+        return Result.Success();
+    }
+
+    public Result ResolveFinancialReview(string caseId, string outcomeCode, string? financialReferenceId)
+    {
+        if (ReviewCaseId != caseId)
+            return Result.Conflict(DomainErrors.TopUpRequest_ReviewConflict);
+        if (ReviewResolvedAtUtc is not null)
+            return ReviewOutcomeCode == outcomeCode &&
+                   ReviewResolutionFinancialReferenceId == financialReferenceId
+                ? Result.Success()
+                : Result.Conflict(DomainErrors.TopUpRequest_ReviewConflict);
+
+        var matching = outcomeCode switch
+        {
+            FinancialReviewOutcomeCodes.PaidAndConfirmed => Status == TopUpStatus.Confirmed &&
+                GatewayResultKind == GatewayResultKinds.Verified &&
+                ExternalTransactionId == financialReferenceId,
+            FinancialReviewOutcomeCodes.UnpaidRejected => Status == TopUpStatus.Rejected &&
+                GatewayResultKind == GatewayResultKinds.Unpaid && financialReferenceId is null,
+            FinancialReviewOutcomeCodes.ReversedRejected => Status == TopUpStatus.Rejected &&
+                GatewayResultKind == GatewayResultKinds.ReverseSucceeded &&
+                ExternalTransactionId == financialReferenceId,
+            _ => false
+        };
+        if (!matching)
+            return Result.Conflict(DomainErrors.TopUpRequest_ReviewStateMismatch);
+
+        ReviewOutcomeCode = outcomeCode;
+        ReviewResolutionFinancialReferenceId = financialReferenceId;
+        ReviewResolvedAtUtc = DateTime.UtcNow;
+        UpdatedAt = DateTime.UtcNow;
+        return Result.Success();
+    }
 
     public static string GenerateClientReferenceCode()
     {
@@ -119,6 +179,60 @@ public class TopUpRequest : BaseEntity<TopUpRequestId>
             GatewayName = gatewayName;
         }
         return result;
+    }
+
+    public Result RecordGatewayResult(string eventId, string gateway, string kind, string? bankTransactionId,
+        string? bankReferenceNumber, string? resultCode, decimal? originalAmountRial,
+        decimal? affectiveAmountRial, DateTime occurredAtUtc)
+    {
+        if (PaymentMethod != PaymentMethod.Gateway)
+            return Result.Conflict(DomainErrors.TopUpRequest_PaymentMethodNotSupported);
+        if (GatewayEventId == eventId)
+            return GatewayResultKind == kind && GatewayName == gateway &&
+                   (kind == GatewayResultKinds.Unknown || ExternalTransactionId == bankTransactionId) &&
+                   BankReferenceNumber == bankReferenceNumber &&
+                   GatewayResultCode == resultCode && GatewayOriginalAmountRial == originalAmountRial &&
+                   GatewayAffectiveAmountRial == affectiveAmountRial
+                ? Result.Success()
+                : Result.Conflict(DomainErrors.TopUpRequest_GatewayEventPayloadMismatch);
+        if (kind == GatewayResultKinds.Unknown && Status != TopUpStatus.Pending)
+            return Result.Success();
+        if (Status == TopUpStatus.Confirmed && kind != GatewayResultKinds.Verified)
+            return Result.Conflict(string.Format(DomainErrors.TopUpRequest_CannotRecordResultForStatus, kind, Status));
+        if (Status == TopUpStatus.Rejected && kind == GatewayResultKinds.Verified)
+            return Result.Conflict(DomainErrors.TopUpRequest_CannotConfirmRejected);
+        if (Status == TopUpStatus.Confirmed && (ExternalTransactionId != bankTransactionId ||
+            BankReferenceNumber != bankReferenceNumber || GatewayName != gateway ||
+            GatewayResultKind is not null &&
+            (GatewayResultCode != resultCode || GatewayOriginalAmountRial != originalAmountRial ||
+             GatewayAffectiveAmountRial != affectiveAmountRial)))
+            return Result.Conflict(DomainErrors.TopUpRequest_AlreadyConfirmedDifferentExternalId);
+        if (Status == TopUpStatus.Rejected &&
+            !(kind == GatewayResultKinds.ReverseSucceeded && GatewayResultKind == GatewayResultKinds.Unpaid) &&
+            (GatewayResultKind != kind || GatewayResultCode != resultCode ||
+             GatewayName != gateway || ExternalTransactionId != bankTransactionId ||
+             GatewayOriginalAmountRial != originalAmountRial ||
+             GatewayAffectiveAmountRial != affectiveAmountRial))
+            return Result.Conflict(DomainErrors.TopUpRequest_GatewayEventPayloadMismatch);
+        if (ExternalTransactionId is not null && bankTransactionId is not null &&
+            ExternalTransactionId != bankTransactionId)
+            return Result.Conflict(DomainErrors.TopUpRequest_ExternalTransactionMismatch);
+        if (kind == GatewayResultKinds.Unpaid && ExternalTransactionId is not null)
+            return Result.Conflict(DomainErrors.TopUpRequest_GatewayUnpaidWithBankTransaction);
+
+        GatewayEventId = eventId;
+        GatewayName = gateway;
+        GatewayResultKind = kind;
+        GatewayResultCode = resultCode;
+        GatewayResultAtUtc = occurredAtUtc;
+        GatewayOriginalAmountRial = originalAmountRial;
+        GatewayAffectiveAmountRial = affectiveAmountRial;
+        if (bankTransactionId is not null && kind != GatewayResultKinds.Unknown)
+            ExternalTransactionId = bankTransactionId;
+        if (bankReferenceNumber is not null)
+            BankReferenceNumber = bankReferenceNumber;
+        UpdatedAt = DateTime.UtcNow;
+        return Result.Success();
     }
 
     public static TopUpRequest CreateAdminCardToCard(

@@ -205,8 +205,21 @@
   <data name="Wallet_BatchUserIdInvalid" xml:space="preserve"><value>هر شناسهٔ کاربر باید غیرخالی و حداکثر ۱۰۰ نویسه باشد.</value></data>
   <data name="CoursePurchase_PriceMustBeWholeNoor" xml:space="preserve"><value>قیمت دوره آموزشی باید عدد صحیح نور باشد.</value></data>
   <data name="TopUpRequest_GatewayCancelled" xml:space="preserve"><value>پرداخت در درگاه توسط کاربر لغو شد.</value></data>
+  <data name="TopUpRequest_GatewayUnpaid" xml:space="preserve"><value>پرداخت بانکی انجام نشده است.</value></data>
+  <data name="TopUpRequest_GatewayReversed" xml:space="preserve"><value>تراکنش بانکی پس از تأیید برگشت داده شد.</value></data>
+  <data name="TopUpRequest_GatewayEventIdRequired" xml:space="preserve"><value>شناسه رویداد نتیجه درگاه الزامی است.</value></data>
+  <data name="TopUpRequest_GatewayEventIdMaxLength" xml:space="preserve"><value>شناسه رویداد نتیجه درگاه بیش از حد مجاز است.</value></data>
+  <data name="TopUpRequest_GatewayResultKindInvalid" xml:space="preserve"><value>نوع نتیجه درگاه نامعتبر است.</value></data>
+  <data name="TopUpRequest_GatewayOccurredAtUtcInvalid" xml:space="preserve"><value>زمان نتیجه درگاه باید به وقت UTC معتبر باشد.</value></data>
+  <data name="TopUpRequest_GatewayUnpaidWithBankId" xml:space="preserve"><value>نتیجه پرداخت‌نشده نباید شناسه تراکنش بانکی داشته باشد.</value></data>
   <data name="TopUpRequest_CannotCancelRejected" xml:space="preserve"><value>امکان لغو درگاه برای درخواستی که با روش یا دلیل دیگری رد شده است وجود ندارد.</value></data>
   <data name="TopUpRequest_GatewayRequired" xml:space="preserve"><value>نام درگاه پرداخت الزامی است.</value></data>
   <data name="TopUpRequest_GatewayMaxLength" xml:space="preserve"><value>نام درگاه پرداخت نباید بیش از ۳۰ نویسه باشد.</value></data>
   <data name="TopUpRequest_AmountRialMustBeGreaterThanZero" xml:space="preserve"><value>مبلغ ریالی باید بزرگتر از صفر باشد.</value></data>
+  <data name="TopUpRequest_ReviewCaseRequired" xml:space="preserve"><value>شناسه پرونده رسیدگی الزامی است.</value></data>
+  <data name="TopUpRequest_ReviewReferenceRequired" xml:space="preserve"><value>کد پیگیری شارژ الزامی است.</value></data>
+  <data name="TopUpRequest_ReviewReasonInvalid" xml:space="preserve"><value>علت رسیدگی مالی معتبر نیست.</value></data>
+  <data name="TopUpRequest_ReviewOutcomeInvalid" xml:space="preserve"><value>نتیجه رسیدگی مالی معتبر نیست.</value></data>
+  <data name="TopUpRequest_ReviewFinancialReferenceInvalid" xml:space="preserve"><value>شناسه مالی نتیجه رسیدگی معتبر نیست.</value></data>
+  <data name="TopUpRequest_ReviewRefundUnsupported" xml:space="preserve"><value>بستن پرونده با بازپرداخت دستی برای شارژ تأییدشده هنوز پشتیبانی نمی‌شود.</value></data>
 </root>

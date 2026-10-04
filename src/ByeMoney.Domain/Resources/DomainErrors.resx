@@ -131,4 +131,10 @@
   <data name="TopUpRequest_InvalidRate" xml:space="preserve"><value>نرخ تبدیل ریال به نور باید عدد صحیح و بزرگتر از صفر باشد.</value></data>
   <data name="TopUpRequest_AmountMustBeWholeNoor" xml:space="preserve"><value>مبلغ شارژ درگاه باید عدد صحیح نور باشد.</value></data>
   <data name="TopUpRequest_PaymentMethodNotSupported" xml:space="preserve"><value>روش پرداخت این درخواست با عملیات مورد نظر همخوانی ندارد.</value></data>
+  <data name="TopUpRequest_ReviewConflict" xml:space="preserve"><value>اطلاعات پرونده رسیدگی با درخواست پیشین همخوانی ندارد.</value></data>
+  <data name="TopUpRequest_ReviewStateMismatch" xml:space="preserve"><value>وضعیت مالی شارژ با نتیجه پرونده رسیدگی همخوانی ندارد.</value></data>
+  <data name="TopUpRequest_GatewayEventPayloadMismatch" xml:space="preserve"><value>داده‌های رویداد نتیجه درگاه با داده‌های ثبت‌شده پیشین همخوانی ندارد.</value></data>
+  <data name="TopUpRequest_ExternalTransactionMismatch" xml:space="preserve"><value>شناسه تراکنش بانکی با شناسه ثبت‌شده برای این درخواست همخوانی ندارد.</value></data>
+  <data name="TopUpRequest_GatewayUnpaidWithBankTransaction" xml:space="preserve"><value>نتیجه پرداخت‌نشده نباید دارای شناسه تراکنش بانکی باشد.</value></data>
+  <data name="TopUpRequest_CannotRecordResultForStatus" xml:space="preserve"><value>امکان ثبت نتیجه درگاه «{0}» برای درخواست با وضعیت «{1}» وجود ندارد.</value></data>
 </root>

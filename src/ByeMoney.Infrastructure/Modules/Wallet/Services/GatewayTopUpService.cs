@@ -1,6 +1,7 @@
 using ByeMoney.Application.Common.Interfaces;
 using ByeMoney.Application.Modules.Wallet.Commands.CancelGatewayTopUp;
 using ByeMoney.Application.Modules.Wallet.Commands.ConfirmGatewayTopUp;
+using ByeMoney.Application.Modules.Wallet.Commands.RecordGatewayResult;
 using ByeMoney.Application.Modules.Wallet.Constants;
 using ByeMoney.Application.Modules.Wallet.Events;
 using ByeMoney.Application.Modules.Wallet.Interfaces;
@@ -23,6 +24,220 @@ public sealed class GatewayTopUpService(
     IPublisher publisher,
     IServiceScopeFactory scopeFactory) : IGatewayTopUpService
 {
+    private static GatewayReviewState ReviewState(TopUpRequest topUp) => new(
+        topUp.ClientReferenceCode, topUp.ReviewCaseId!, topUp.Status.ToString(),
+        topUp.ReviewReasonCode!, topUp.ReviewOpenedAtUtc!.Value, topUp.ReviewResolvedAtUtc,
+        topUp.ReviewOutcomeCode, topUp.ReviewResolutionFinancialReferenceId);
+
+    public async Task<Result<GatewayReviewState>> OpenReviewAsync(string clientReferenceCode,
+        string caseId, string reasonCode, CancellationToken ct = default)
+    {
+        var owner = await topUpRequestRepository.GetByReviewCaseIdAsync(caseId, ct);
+        if (owner is not null && owner.ClientReferenceCode != clientReferenceCode)
+            return Result<GatewayReviewState>.Conflict(DomainErrors.TopUpRequest_ReviewConflict,
+                GatewayTopUpErrorCodes.ReviewConflict);
+        var topUp = owner ?? await topUpRequestRepository.GetByClientReferenceCodeAsync(clientReferenceCode, ct);
+        if (topUp is null)
+            return Result<GatewayReviewState>.NotFound(string.Format(ApplicationErrors.TopUpRequest_NotFound,
+                clientReferenceCode), GatewayTopUpErrorCodes.TopUpNotFound);
+
+        var alreadyOpen = topUp.ReviewCaseId is not null;
+        var opened = topUp.OpenFinancialReview(caseId, reasonCode);
+        if (opened.IsFailure)
+            return Result<GatewayReviewState>.Conflict(opened.ErrorMessage!, GatewayTopUpErrorCodes.ReviewConflict);
+        if (alreadyOpen)
+            return Result<GatewayReviewState>.Success(ReviewState(topUp));
+
+        topUpRequestRepository.Update(topUp);
+        try
+        {
+            await unitOfWork.SaveChangesAsync(ct);
+            return Result<GatewayReviewState>.Success(ReviewState(topUp));
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return await RetryOpenInFreshScopeAsync(clientReferenceCode, caseId, reasonCode, ct);
+        }
+        catch (DbUpdateException ex) when (ex.InnerException is PostgresException
+            { SqlState: PostgresErrorCodes.UniqueViolation, ConstraintName: "IX_TopUpRequests_ReviewCaseId" })
+        {
+            return Result<GatewayReviewState>.Conflict(DomainErrors.TopUpRequest_ReviewConflict,
+                GatewayTopUpErrorCodes.ReviewConflict);
+        }
+    }
+
+    public async Task<Result<GatewayReviewState>> ResolveReviewAsync(string clientReferenceCode,
+        string caseId, string outcomeCode, string? financialReferenceId, CancellationToken ct = default)
+    {
+        if (outcomeCode == FinancialReviewOutcomeCodes.ManualRefund)
+            return Result<GatewayReviewState>.Failure(ApplicationErrors.TopUpRequest_ReviewRefundUnsupported,
+                GatewayTopUpErrorCodes.ReviewRefundUnsupported);
+        var topUp = await topUpRequestRepository.GetByClientReferenceCodeAsync(clientReferenceCode, ct);
+        if (topUp is null)
+            return Result<GatewayReviewState>.NotFound(string.Format(ApplicationErrors.TopUpRequest_NotFound,
+                clientReferenceCode), GatewayTopUpErrorCodes.TopUpNotFound);
+        var alreadyResolved = topUp.ReviewResolvedAtUtc is not null;
+        var resolved = topUp.ResolveFinancialReview(caseId, outcomeCode, financialReferenceId);
+        if (resolved.IsFailure)
+            return Result<GatewayReviewState>.Conflict(resolved.ErrorMessage!,
+                topUp.ReviewCaseId == caseId && !alreadyResolved
+                    ? GatewayTopUpErrorCodes.ReviewStateMismatch : GatewayTopUpErrorCodes.ReviewConflict);
+        if (!alreadyResolved)
+        {
+            topUpRequestRepository.Update(topUp);
+            try { await unitOfWork.SaveChangesAsync(ct); }
+            catch (DbUpdateConcurrencyException)
+            {
+                return await ResolveAfterConcurrencyAsync(clientReferenceCode, caseId,
+                    outcomeCode, financialReferenceId, ct);
+            }
+        }
+        return Result<GatewayReviewState>.Success(ReviewState(topUp));
+    }
+
+    private async Task<Result<GatewayReviewState>> RetryOpenInFreshScopeAsync(string clientReferenceCode,
+        string caseId, string reasonCode, CancellationToken ct)
+    {
+        using var scope = scopeFactory.CreateScope();
+        var repository = scope.ServiceProvider.GetRequiredService<ITopUpRequestRepository>();
+        var work = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+        var fresh = await repository.GetByClientReferenceCodeAsync(clientReferenceCode, ct);
+        if (fresh is null)
+            return Result<GatewayReviewState>.NotFound(string.Format(ApplicationErrors.TopUpRequest_NotFound,
+                clientReferenceCode), GatewayTopUpErrorCodes.TopUpNotFound);
+        var alreadyOpen = fresh.ReviewCaseId is not null;
+        var opened = fresh.OpenFinancialReview(caseId, reasonCode);
+        if (opened.IsFailure)
+            return Result<GatewayReviewState>.Conflict(opened.ErrorMessage!, GatewayTopUpErrorCodes.ReviewConflict);
+        if (!alreadyOpen)
+        {
+            repository.Update(fresh);
+            try { await work.SaveChangesAsync(ct); }
+            catch (DbUpdateConcurrencyException)
+            {
+                return Result<GatewayReviewState>.Conflict(DomainErrors.TopUpRequest_ReviewConflict,
+                    GatewayTopUpErrorCodes.ReviewConflict);
+            }
+            catch (DbUpdateException ex) when (ex.InnerException is PostgresException
+                { SqlState: PostgresErrorCodes.UniqueViolation, ConstraintName: "IX_TopUpRequests_ReviewCaseId" })
+            {
+                return Result<GatewayReviewState>.Conflict(DomainErrors.TopUpRequest_ReviewConflict,
+                    GatewayTopUpErrorCodes.ReviewConflict);
+            }
+        }
+        return Result<GatewayReviewState>.Success(ReviewState(fresh));
+    }
+
+    private async Task<Result<GatewayReviewState>> ResolveAfterConcurrencyAsync(string clientReferenceCode,
+        string caseId, string outcomeCode, string? financialReferenceId, CancellationToken ct)
+    {
+        using var scope = scopeFactory.CreateScope();
+        var repository = scope.ServiceProvider.GetRequiredService<ITopUpRequestRepository>();
+        var fresh = await repository.GetByClientReferenceCodeAsync(clientReferenceCode, ct);
+        if (fresh is not null && fresh.ReviewCaseId == caseId &&
+            fresh.ReviewResolvedAtUtc is not null && fresh.ReviewOutcomeCode == outcomeCode &&
+            fresh.ReviewResolutionFinancialReferenceId == financialReferenceId)
+            return Result<GatewayReviewState>.Success(ReviewState(fresh));
+        return Result<GatewayReviewState>.Conflict(DomainErrors.TopUpRequest_ReviewConflict,
+            GatewayTopUpErrorCodes.ReviewConflict);
+    }
+    public async Task<Result> RecordResultAsync(RecordGatewayResultCommand command, CancellationToken ct = default)
+    {
+        var topUp = await topUpRequestRepository.GetByClientReferenceCodeAsync(command.ClientReferenceCode, ct);
+        if (topUp is null)
+            return Result.NotFound(string.Format(ApplicationErrors.TopUpRequest_NotFound,
+                command.ClientReferenceCode), GatewayTopUpErrorCodes.TopUpNotFound);
+        if (topUp.PaymentMethod != PaymentMethod.Gateway || command.Gateway != "SEP")
+            return Result.Conflict(ApplicationErrors.TopUpRequest_PaymentMethodInvalid,
+                GatewayTopUpErrorCodes.InvalidVerificationData);
+        var repeated = topUp.GatewayEventId == command.EventId;
+        if (!repeated && topUp.Status == TopUpStatus.Confirmed && command.Kind == GatewayResultKinds.Verified &&
+            (topUp.AmountRial != command.OriginalAmountRial ||
+             topUp.AmountRial != command.AffectiveAmountRial))
+            return Result.Conflict(ApplicationErrors.TopUpRequest_IdempotencyConflict,
+                GatewayTopUpErrorCodes.TopUpAlreadyConfirmed);
+
+        if (command.BankTransactionId is not null)
+        {
+            var owner = await topUpRequestRepository.GetByExternalTransactionIdAsync(command.BankTransactionId, ct);
+            if (owner is not null && owner.Id != topUp.Id)
+                return Result.Conflict(ApplicationErrors.TopUpRequest_IdempotencyConflict,
+                    GatewayTopUpErrorCodes.RefNumConflict);
+        }
+
+        var recorded = topUp.RecordGatewayResult(command.EventId, command.Gateway, command.Kind,
+            command.BankTransactionId, command.BankReferenceNumber, command.BankResultCode,
+            command.OriginalAmountRial, command.AffectiveAmountRial, command.OccurredAtUtc);
+        if (recorded.IsFailure)
+            return Result.Conflict(recorded.ErrorMessage!, repeated
+                ? GatewayTopUpErrorCodes.GatewayResultConflict
+                : GatewayTopUpErrorCodes.TopUpRequiresReview);
+        if (command.Kind == GatewayResultKinds.Unknown && topUp.Status != TopUpStatus.Pending)
+            return Result.Success();
+        if (repeated && command.Kind != GatewayResultKinds.Verified)
+            return Result.Success();
+
+        if (command.Kind == GatewayResultKinds.Verified &&
+            (topUp.AmountRial is null || topUp.AmountRial != command.OriginalAmountRial ||
+             topUp.AmountRial != command.AffectiveAmountRial))
+        {
+            if (!repeated)
+            {
+                var saveResult = await SaveTopUpAsync(topUp, ct);
+                if (saveResult.IsFailure)
+                    return saveResult;
+            }
+            return Result.Failure(string.Format(ApplicationErrors.TopUpRequest_AmountMismatch,
+                command.OriginalAmountRial, topUp.AmountRial), GatewayTopUpErrorCodes.TopUpAmountMismatch);
+        }
+
+        if (command.Kind is GatewayResultKinds.Unpaid or GatewayResultKinds.ReverseSucceeded &&
+            topUp.Status == TopUpStatus.Pending)
+        {
+            topUp.Reject(command.Kind == GatewayResultKinds.Unpaid
+                ? ApplicationErrors.TopUpRequest_GatewayUnpaid
+                : ApplicationErrors.TopUpRequest_GatewayReversed);
+        }
+
+        if (command.Kind == GatewayResultKinds.Verified)
+        {
+            var outcome = await ConfirmAsync(new ConfirmGatewayTopUpCommand(command.ClientReferenceCode,
+                command.Gateway, command.BankTransactionId!, command.BankReferenceNumber!,
+                command.OriginalAmountRial!.Value, command.AffectiveAmountRial!.Value), ct);
+            return outcome.Result;
+        }
+
+        if (!repeated)
+        {
+            var saveResult = await SaveTopUpAsync(topUp, ct);
+            if (saveResult.IsFailure)
+                return saveResult;
+        }
+
+        return Result.Success();
+    }
+
+    private async Task<Result> SaveTopUpAsync(TopUpRequest topUp, CancellationToken ct)
+    {
+        topUpRequestRepository.Update(topUp);
+        try
+        {
+            await unitOfWork.SaveChangesAsync(ct);
+            return Result.Success();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return Result.Conflict(ApplicationErrors.TopUpRequest_IdempotencyConflict,
+                GatewayTopUpErrorCodes.TopUpConcurrentConfirmation);
+        }
+        catch (DbUpdateException ex) when (ex.InnerException is PostgresException
+            { SqlState: PostgresErrorCodes.UniqueViolation, ConstraintName: "IX_TopUpRequests_ExternalTransactionId" })
+        {
+            return Result.Conflict(ApplicationErrors.TopUpRequest_IdempotencyConflict,
+                GatewayTopUpErrorCodes.RefNumConflict);
+        }
+    }
+
     public async Task<GatewayConfirmationOutcome> ConfirmAsync(ConfirmGatewayTopUpCommand command, CancellationToken ct = default)
     {
         var topUp = await topUpRequestRepository.GetByClientReferenceCodeAsync(command.ClientReferenceCode, ct);
@@ -178,4 +393,3 @@ public sealed class GatewayTopUpService(
         };
     }
 }
-

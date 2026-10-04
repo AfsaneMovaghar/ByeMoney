@@ -88,6 +88,7 @@ public class AdminTopUpController(ISender sender) : ControllerBase
             : result.Status switch
             {
                 ResultStatus.NotFound => NotFound(new { error = result.ErrorMessage }),
+                ResultStatus.Conflict => Conflict(new { error = result.ErrorMessage }),
                 _ => BadRequest(new { error = result.ErrorMessage })
             };
     }

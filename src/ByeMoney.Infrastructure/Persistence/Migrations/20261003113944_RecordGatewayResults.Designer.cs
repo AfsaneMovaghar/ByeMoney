@@ -3,17 +3,20 @@ using System;
 using ByeMoney.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
-namespace ByeMoney.Infrastructure.Migrations
+namespace ByeMoney.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20261003113944_RecordGatewayResults")]
+    partial class RecordGatewayResults
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -406,10 +409,6 @@ namespace ByeMoney.Infrastructure.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
-                    b.Property<decimal?>("GatewayAffectiveAmountRial")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)");
-
                     b.Property<string>("GatewayEventId")
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
@@ -417,10 +416,6 @@ namespace ByeMoney.Infrastructure.Migrations
                     b.Property<string>("GatewayName")
                         .HasMaxLength(30)
                         .HasColumnType("character varying(30)");
-
-                    b.Property<decimal?>("GatewayOriginalAmountRial")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)");
 
                     b.Property<DateTime?>("GatewayResultAtUtc")
                         .HasColumnType("timestamp with time zone");
@@ -457,30 +452,6 @@ namespace ByeMoney.Infrastructure.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
 
-                    b.Property<string>("ReviewCaseId")
-                        .IsConcurrencyToken()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
-                    b.Property<DateTime?>("ReviewOpenedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("ReviewOutcomeCode")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<string>("ReviewReasonCode")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<string>("ReviewResolutionFinancialReferenceId")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
-                    b.Property<DateTime?>("ReviewResolvedAtUtc")
-                        .IsConcurrencyToken()
-                        .HasColumnType("timestamp with time zone");
-
                     b.Property<decimal?>("RialPerNoorSnapshot")
                         .HasPrecision(18, 8)
                         .HasColumnType("numeric(18,8)");
@@ -509,10 +480,6 @@ namespace ByeMoney.Infrastructure.Migrations
                     b.HasIndex("IdempotencyKey")
                         .IsUnique()
                         .HasFilter("\"IdempotencyKey\" IS NOT NULL");
-
-                    b.HasIndex("ReviewCaseId")
-                        .IsUnique()
-                        .HasFilter("\"ReviewCaseId\" IS NOT NULL");
 
                     b.HasIndex("UserId", "Status");
 

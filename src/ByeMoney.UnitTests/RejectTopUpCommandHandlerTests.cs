@@ -6,7 +6,9 @@ using ByeMoney.Domain.Common.Exceptions;
 using ByeMoney.Domain.Modules.Identity.Users;
 using ByeMoney.Domain.Modules.Wallet.Ledgers;
 using ByeMoney.Domain.Modules.Wallet.TopUps;
+using ByeMoney.Infrastructure.Modules.Wallet.Services;
 using FluentAssertions;
+using Microsoft.Extensions.DependencyInjection;
 using Moq;
 using Xunit;
 
@@ -22,9 +24,8 @@ public class RejectTopUpCommandHandlerTests
     {
         _topUpRepoMock = new Mock<ITopUpRequestRepository>();
         _unitOfWorkMock = new Mock<IUnitOfWork>();
-        _handler = new RejectTopUpCommandHandler(
-            _topUpRepoMock.Object,
-            _unitOfWorkMock.Object);
+        _handler = new RejectTopUpCommandHandler(new TopUpRejectionService(
+            _topUpRepoMock.Object, _unitOfWorkMock.Object, Mock.Of<IServiceScopeFactory>()));
     }
 
     [Fact]
