@@ -8,6 +8,8 @@ public class PermissionConfiguration : IEntityTypeConfiguration<Domain.Modules.I
 {
     public static readonly PermissionId NoorInjectPermissionId = new(Guid.Parse("22222222-2222-2222-2222-222222222222"));
     public static readonly PermissionId TopUpReviewPermissionId = new(Guid.Parse("33333333-3333-3333-3333-333333333333"));
+    public static readonly PermissionId CoursesManagePermissionId = new(Guid.Parse("44444444-4444-4444-4444-444444444444"));
+    public static readonly PermissionId WalletViewPermissionId = new(Guid.Parse("55555555-5555-5555-5555-555555555555"));
 
     public void Configure(EntityTypeBuilder<Domain.Modules.Identity.Permissions.Permission> builder)
     {
@@ -47,6 +49,22 @@ public class PermissionConfiguration : IEntityTypeConfiguration<Domain.Modules.I
                 Id = TopUpReviewPermissionId,
                 Code = Permissions.TopUp.Review,
                 Description = "Permission to review (confirm/reject) top-up requests",
+                CreatedAtUtc = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+                UpdatedAt = (DateTime?)null
+            },
+            new
+            {
+                Id = CoursesManagePermissionId,
+                Code = Permissions.Courses.Manage,
+                Description = "Permission to manage courses and make purchases on behalf of users",
+                CreatedAtUtc = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+                UpdatedAt = (DateTime?)null
+            },
+            new
+            {
+                Id = WalletViewPermissionId,
+                Code = Permissions.Wallet.View,
+                Description = "Permission to view batch wallet balances",
                 CreatedAtUtc = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc),
                 UpdatedAt = (DateTime?)null
             });

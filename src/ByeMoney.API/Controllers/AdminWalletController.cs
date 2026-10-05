@@ -9,7 +9,7 @@ namespace ByeMoney.API.Controllers;
 
 [ApiController]
 [Route("api/admin/wallets")]
-[Authorize(Roles = RoleNames.Admin)]
+[Authorize(Policy = PolicyNames.RequireWalletView)]
 public sealed class AdminWalletController(ISender sender) : ControllerBase
 {
     /// <summary>

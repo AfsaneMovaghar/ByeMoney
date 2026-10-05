@@ -70,13 +70,13 @@ public class AdminPurchaseCoursesTests
     }
 
     [Fact]
-    public void Controller_RequiresAdminRoleOnExpectedRoute()
+    public void Controller_RequiresCoursesManagePolicyOnExpectedRoute()
     {
         var type = typeof(AdminCoursesController);
         type.GetCustomAttributes(typeof(RouteAttribute), true)
             .Cast<RouteAttribute>().Single().Template.Should().Be("api/admin/courses");
         type.GetCustomAttributes(typeof(AuthorizeAttribute), true)
-            .Cast<AuthorizeAttribute>().Single().Roles.Should().Be(RoleNames.Admin);
+            .Cast<AuthorizeAttribute>().Single().Policy.Should().Be(PolicyNames.RequireCoursesManage);
         typeof(AdminCoursesController).GetMethod(nameof(AdminCoursesController.PurchaseCourses))!
             .GetCustomAttributes(typeof(HttpPostAttribute), true)
             .Cast<HttpPostAttribute>().Single().Template.Should().Be("purchase");

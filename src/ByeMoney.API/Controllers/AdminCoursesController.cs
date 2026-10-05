@@ -10,7 +10,7 @@ namespace ByeMoney.API.Controllers;
 
 [ApiController]
 [Route("api/admin/courses")]
-[Authorize(Roles = RoleNames.Admin)]
+[Authorize(Policy = PolicyNames.RequireCoursesManage)]
 public sealed class AdminCoursesController(ISender sender) : ControllerBase
 {
     /// <summary>
