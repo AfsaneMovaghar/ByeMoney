@@ -1,4 +1,5 @@
 using ByeMoney.API.Contracts.TopUp;
+using ByeMoney.Application.Modules.Identity.Queries.GetUserPermissions;
 using ByeMoney.Application.Modules.Wallet.Commands.ConfirmTopUp;
 using ByeMoney.Application.Modules.Wallet.Commands.RejectTopUp;
 using ByeMoney.Application.Modules.Wallet.Queries.GetTopUpByClientReferenceCode;
@@ -19,15 +20,19 @@ public class AdminTopUpController(ISender sender) : ControllerBase
     private readonly ISender _sender = sender;
 
     /// <summary>
-    /// استعلام مجوزهای مالی ادمین جهت نمایش اکشن‌های شارژ و بررسی فیش در فرانت‌اند.
+    /// استعلام نقش‌ها و مجوزهای کاربر جاری در بای‌مانی برای نمایش امکانات مجاز فرانت‌اند.
     /// </summary>
     [HttpGet("permissions")]
-    public async Task<IActionResult> GetPermissions(
-        [FromServices] IAuthorizationService authorizationService)
+    [ProducesResponseType(typeof(UserPermissionsResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> GetPermissions(CancellationToken ct)
     {
-        var canReview = (await authorizationService.AuthorizeAsync(
-            User, PolicyNames.RequireTopUpReview)).Succeeded;
-        return Ok(new TopUpPermissionsResponse(canReview, canReview));
+        var externalUserId = User.FindFirst(AppClaimTypes.DocumentId)?.Value;
+        if (string.IsNullOrWhiteSpace(externalUserId))
+            return Unauthorized();
+
+        var result = await _sender.Send(new GetUserPermissionsQuery(externalUserId), ct);
+        return result is null ? Unauthorized() : Ok(result);
     }
 
     /// <summary>

@@ -9,12 +9,9 @@ namespace ByeMoney.API.Controllers;
 
 [ApiController]
 [Route("api/admin/wallets")]
-[Authorize(Roles = RoleNames.Admin)]
+[Authorize(Policy = PolicyNames.RequireWalletView)]
 public sealed class AdminWalletController(ISender sender) : ControllerBase
 {
-    /// <summary>
-    /// ??????? ????????? ?????? ??????? ??? ??????? ??? ??????.
-    /// </summary>
     [HttpPost("batch-balances")]
     [ProducesResponseType(typeof(BatchWalletBalancesResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]

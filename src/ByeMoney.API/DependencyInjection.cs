@@ -76,6 +76,12 @@ public static class DependencyInjection
 
             options.AddPolicy(PolicyNames.RequireTopUpReview, policy =>
                 policy.Requirements.Add(new PermissionRequirement(Permissions.TopUp.Review)));
+
+            options.AddPolicy(PolicyNames.RequireCoursesManage, policy =>
+                policy.Requirements.Add(new PermissionRequirement(Permissions.Courses.Manage)));
+
+            options.AddPolicy(PolicyNames.RequireWalletView, policy =>
+                policy.Requirements.Add(new PermissionRequirement(Permissions.Wallet.View)));
         });
 
         services.AddControllers();
