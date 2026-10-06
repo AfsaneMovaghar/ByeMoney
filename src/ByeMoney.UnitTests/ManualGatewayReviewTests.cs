@@ -31,14 +31,14 @@ public class ManualGatewayReviewTests
         new DateOnly(2026, 9, 30), false, "گزارش بانک بررسی شد", null, null, null, null);
 
     [Fact]
-    public void NoMatchingDepositClosesPendingWithoutChangingMoneyState()
+    public void NoMatchingDepositClosesAsUnresolvedWithoutCreatingPayment()
     {
         var topUp = TopUp();
         var actor = Guid.NewGuid();
         var evidence = Evidence();
         topUp.ResolveManualReview("case-1", FinancialReviewOutcomeCodes.NoMatchingDeposit, null, evidence, actor, "کارمند")
             .IsSuccess.Should().BeTrue();
-        topUp.Status.Should().Be(TopUpStatus.Pending);
+        topUp.Status.Should().Be(TopUpStatus.Unresolved);
         topUp.ExternalTransactionId.Should().BeNull();
         topUp.GatewayResultKind.Should().BeNull();
         topUp.ReviewAudit.Should().ContainSingle().Which.ActorUserId.Should().Be(actor);
@@ -70,6 +70,7 @@ public class ManualGatewayReviewTests
         topUp.ReopenFinancialReview("case-1", "new-evidence", "مدرک تازه").IsSuccess.Should().BeTrue();
         topUp.ReviewRevision.Should().Be(2);
         topUp.ReviewResolvedAtUtc.Should().BeNull();
+        topUp.Status.Should().Be(TopUpStatus.Pending);
         topUp.ReviewAudit.Should().HaveCount(2);
         topUp.ResolveManualReview("case-1", FinancialReviewOutcomeCodes.NoMatchingDeposit, null, Evidence(), actor, null)
             .IsFailure.Should().BeTrue();
@@ -109,9 +110,9 @@ public class ManualGatewayReviewTests
     {
         var topUp = TopUp();
         if (rejected) topUp.Reject("پرداخت ناموفق");
-        var status = topUp.Status;
         topUp.ResolveManualReview("case-1", FinancialReviewOutcomeCodes.ManualRefund, null,
             Evidence() with { ManualRefundReference = "refund-42" }, Guid.NewGuid(), null).IsSuccess.Should().BeTrue();
+        topUp.Status.Should().Be(TopUpStatus.ManuallyRefunded);
         topUp.ReopenFinancialReview("case-1", "late-verified", null);
         var repository = new Mock<ITopUpRequestRepository>();
         repository.Setup(x => x.GetByClientReferenceCodeAsync(topUp.ClientReferenceCode, It.IsAny<CancellationToken>())).ReturnsAsync(topUp);
@@ -123,7 +124,7 @@ public class ManualGatewayReviewTests
         result.ErrorCode.Should().Be(GatewayTopUpErrorCodes.ReviewRefundUnsupported);
         (await service.ConfirmAsync(new ConfirmGatewayTopUpCommand(topUp.ClientReferenceCode, "SEP", "ref", "rrn", 10000, 10000)))
             .Result.ErrorCode.Should().Be(GatewayTopUpErrorCodes.ReviewRefundUnsupported);
-        topUp.Status.Should().Be(status);
+        topUp.Status.Should().Be(TopUpStatus.ManuallyRefunded);
         settlement.VerifyNoOtherCalls();
     }
 
@@ -139,6 +140,46 @@ public class ManualGatewayReviewTests
             null, Evidence() with { ManualRefundReference = "refund-42" }, Guid.NewGuid(), null);
         result.ErrorCode.Should().Be(GatewayTopUpErrorCodes.ReviewRefundUnsupported);
         topUp.ReviewResolvedAtUtc.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task UnresolvedRequiresReopenBeforeVerifiedPaymentCanSettle()
+    {
+        var topUp = TopUp();
+        topUp.ResolveManualReview("case-1", FinancialReviewOutcomeCodes.NoMatchingDeposit, null,
+            Evidence(), Guid.NewGuid(), null);
+        var repository = new Mock<ITopUpRequestRepository>();
+        repository.Setup(x => x.GetByClientReferenceCodeAsync(topUp.ClientReferenceCode, It.IsAny<CancellationToken>())).ReturnsAsync(topUp);
+        var settlement = new Mock<ITopUpSettlementService>();
+        var service = new GatewayTopUpService(repository.Object, settlement.Object, Mock.Of<IUnitOfWork>(),
+            Mock.Of<IPublisher>(), Mock.Of<IServiceScopeFactory>());
+        var command = new RecordGatewayResultCommand(topUp.ClientReferenceCode, "SEP", "late", "Verified",
+            "ref", "rrn", "0", 10000, 10000, DateTime.UtcNow);
+
+        (await service.RecordResultAsync(command)).ErrorCode.Should().Be(GatewayTopUpErrorCodes.TopUpRequiresReview);
+        (await service.ConfirmAsync(new ConfirmGatewayTopUpCommand(topUp.ClientReferenceCode, "SEP", "ref", "rrn", 10000, 10000)))
+            .Result.ErrorCode.Should().Be(GatewayTopUpErrorCodes.TopUpRequiresReview);
+        topUp.Status.Should().Be(TopUpStatus.Unresolved);
+        settlement.VerifyNoOtherCalls();
+
+        topUp.ReopenFinancialReview("case-1", "late-evidence", null);
+        (await service.RecordResultAsync(command)).IsSuccess.Should().BeTrue();
+        (await service.RecordResultAsync(command)).IsSuccess.Should().BeTrue();
+        topUp.Status.Should().Be(TopUpStatus.Confirmed);
+        settlement.Verify(x => x.SettleAsync(topUp, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public void ReopenedRefundCannotBeDowngradedToUnresolved()
+    {
+        var topUp = TopUp();
+        topUp.ResolveManualReview("case-1", FinancialReviewOutcomeCodes.ManualRefund, null,
+            Evidence() with { ManualRefundReference = "refund-42" }, Guid.NewGuid(), null);
+        topUp.ReopenFinancialReview("case-1", "new-evidence", null);
+        topUp.ResolveManualReview("case-1", FinancialReviewOutcomeCodes.NoMatchingDeposit, null,
+            Evidence(2), Guid.NewGuid(), null).IsFailure.Should().BeTrue();
+        topUp.Status.Should().Be(TopUpStatus.ManuallyRefunded);
+        topUp.ManualRefundReference.Should().Be("refund-42");
     }
 
     [Fact]

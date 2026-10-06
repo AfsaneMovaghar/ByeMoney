@@ -336,6 +336,10 @@ public sealed class GatewayTopUpService(
                 DomainErrors.TopUpRequest_CannotConfirmRejected,
                 GatewayTopUpErrorCodes.TopUpRequiresReview));
 
+        if (topUp.Status == TopUpStatus.Unresolved)
+            return new GatewayConfirmationOutcome(Result.Conflict(
+                DomainErrors.TopUpRequest_ReviewStateMismatch, GatewayTopUpErrorCodes.TopUpRequiresReview));
+
         if (topUp.Status != TopUpStatus.Pending)
             return new GatewayConfirmationOutcome(Result.Conflict(
                 string.Format(DomainErrors.TopUpRequest_CannotConfirmStatus, topUp.Status),
@@ -390,6 +394,10 @@ public sealed class GatewayTopUpService(
         if (topUp.Status == TopUpStatus.Confirmed)
             return Result.Conflict(string.Format(DomainErrors.TopUpRequest_CannotRejectStatus, topUp.Status),
                 GatewayTopUpErrorCodes.TopUpAlreadyConfirmed);
+
+        if (topUp.Status is TopUpStatus.Unresolved or TopUpStatus.ManuallyRefunded)
+            return Result.Conflict(DomainErrors.TopUpRequest_ReviewStateMismatch,
+                GatewayTopUpErrorCodes.TopUpRequiresReview);
 
         try
         {

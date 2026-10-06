@@ -109,6 +109,7 @@ public class TopUpRequest : BaseEntity<TopUpRequestId>
         if (outcomeCode is FinancialReviewOutcomeCodes.NoMatchingDeposit or FinancialReviewOutcomeCodes.ManualRefund)
         {
             if (Status == TopUpStatus.Confirmed ||
+                outcomeCode == FinancialReviewOutcomeCodes.NoMatchingDeposit && ManualRefundReference is not null ||
                 outcomeCode == FinancialReviewOutcomeCodes.NoMatchingDeposit && evidence.MatchingDepositFound != false ||
                 outcomeCode == FinancialReviewOutcomeCodes.ManualRefund && string.IsNullOrWhiteSpace(evidence.ManualRefundReference))
                 return Result.Conflict(DomainErrors.TopUpRequest_ReviewStateMismatch);
@@ -116,7 +117,12 @@ public class TopUpRequest : BaseEntity<TopUpRequestId>
             ReviewResolutionFinancialReferenceId = financialReferenceId;
             ReviewResolvedAtUtc = DateTime.UtcNow;
             if (outcomeCode == FinancialReviewOutcomeCodes.ManualRefund)
+            {
                 ManualRefundReference = evidence.ManualRefundReference;
+                Status = TopUpStatus.ManuallyRefunded;
+            }
+            else
+                Status = TopUpStatus.Unresolved;
         }
         else
         {
@@ -143,6 +149,8 @@ public class TopUpRequest : BaseEntity<TopUpRequestId>
         ReviewAudit = [.. ReviewAudit, new FinancialReviewAudit(evidenceId, "evidence", ReviewRevision,
             DateTime.UtcNow, null, null, null, null, null, note)];
         ReviewResolvedAtUtc = null;
+        if (Status == TopUpStatus.Unresolved)
+            Status = TopUpStatus.Pending;
         ReviewOutcomeCode = null;
         ReviewResolutionFinancialReferenceId = null;
         UpdatedAt = DateTime.UtcNow;
@@ -254,6 +262,8 @@ public class TopUpRequest : BaseEntity<TopUpRequestId>
                    GatewayAffectiveAmountRial == affectiveAmountRial
                 ? Result.Success()
                 : Result.Conflict(DomainErrors.TopUpRequest_GatewayEventPayloadMismatch);
+        if (Status is TopUpStatus.Unresolved or TopUpStatus.ManuallyRefunded)
+            return Result.Conflict(DomainErrors.TopUpRequest_ReviewStateMismatch);
         if (kind == GatewayResultKinds.Unknown && Status != TopUpStatus.Pending)
             return Result.Success();
         if (Status == TopUpStatus.Confirmed && kind != GatewayResultKinds.Verified)

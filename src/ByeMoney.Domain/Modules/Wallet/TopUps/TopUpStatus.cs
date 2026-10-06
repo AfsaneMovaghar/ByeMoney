@@ -4,6 +4,8 @@ public enum TopUpStatus
 {
     Pending = 1,
     Confirmed = 2,
-    Rejected = 3
+    Rejected = 3,
+    ManuallyRefunded = 4,
+    Unresolved = 5
 }
 
