@@ -33,8 +33,8 @@ public class ConfirmTopUpCommandHandler(
             request.AffectiveAmountRial != topUp.AmountRial))
             return Result.Failure(string.Format(ApplicationErrors.TopUpRequest_AmountMismatch,
                 request.OriginalAmountRial, topUp.AmountRial), GatewayTopUpErrorCodes.TopUpAmountMismatch);
-        if (!isGateway && request.ConfirmedAmount != topUp.Amount)
-            return Result.Failure(string.Format(ApplicationErrors.TopUpRequest_AmountMismatch, request.ConfirmedAmount, topUp.Amount));
+        if (!isGateway && request.ConfirmedAmountNoor != topUp.AmountNoor)
+            return Result.Failure(string.Format(ApplicationErrors.TopUpRequest_AmountMismatch, request.ConfirmedAmountNoor, topUp.AmountNoor));
 
         if (isGateway)
         {
@@ -60,7 +60,7 @@ public class ConfirmTopUpCommandHandler(
             topUpRequestRepository.Update(topUp);
             await settlementService.SettleAsync(topUp, ct);
             if (topUp.PendingItems.Count > 0)
-                await publisher.Publish(new TopUpConfirmed(topUp.Id, topUp.UserId, topUp.Amount, topUp.PendingItems), ct);
+                await publisher.Publish(new TopUpConfirmed(topUp.Id, topUp.UserId, topUp.AmountNoor, topUp.PendingItems), ct);
         }
         return Result.Success();
     }

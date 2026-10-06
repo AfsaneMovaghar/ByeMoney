@@ -22,9 +22,9 @@ public sealed class TopUpSettlementService(
         var user = await provisioning.GetOrCreateUserWalletAsync(topUp.UserId, ct);
         var system = await provisioning.GetOrCreateSystemAccountAsync(ct);
         var transactionId = Guid.NewGuid();
-        await ledgerRepository.AddAsync(LedgerEntry.Create(user.Account.Id, topUp.Amount, transactionId, LedgerReferenceType.TopUp, topUp.Id.ToString(), topUp.CreatedByUserId), ct);
-        await ledgerRepository.AddAsync(LedgerEntry.Create(system.Id, -topUp.Amount, transactionId, LedgerReferenceType.TopUp, topUp.Id.ToString(), topUp.CreatedByUserId), ct);
-        user.Wallet.ApplyCredit(topUp.Amount);
+        await ledgerRepository.AddAsync(LedgerEntry.Create(user.Account.Id, topUp.AmountNoor, transactionId, LedgerReferenceType.TopUp, topUp.Id.ToString(), topUp.CreatedByUserId), ct);
+        await ledgerRepository.AddAsync(LedgerEntry.Create(system.Id, -topUp.AmountNoor, transactionId, LedgerReferenceType.TopUp, topUp.Id.ToString(), topUp.CreatedByUserId), ct);
+        user.Wallet.ApplyCredit(topUp.AmountNoor);
         walletRepository.Update(user.Wallet);
         await unitOfWork.SaveChangesAsync(ct);
     }

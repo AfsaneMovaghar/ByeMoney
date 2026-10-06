@@ -11,7 +11,7 @@ public class ConfirmTopUpCommandValidator : AbstractValidator<ConfirmTopUpComman
         {
             RuleFor(x => x.TopUpRequestId.Value).Cascade(CascadeMode.Stop)
                 .NotEmpty().WithMessage(ApplicationErrors.TopUpRequest_IdRequired);
-            RuleFor(x => x.ConfirmedAmount).Cascade(CascadeMode.Stop)
+            RuleFor(x => x.ConfirmedAmountNoor).Cascade(CascadeMode.Stop)
                 .GreaterThan(0).WithMessage(ApplicationErrors.TopUpRequest_ConfirmedAmountMustBeGreaterThanZero);
         });
 

@@ -15,7 +15,7 @@ public class CreateTopUpRequestCommandValidator : AbstractValidator<CreateTopUpR
             .NotEmpty()
             .WithMessage(ApplicationErrors.TopUpRequest_UserIdRequired);
 
-        RuleFor(x => x.Amount)
+        RuleFor(x => x.AmountNoor)
             .Cascade(CascadeMode.Stop)
             .GreaterThan(0)
             .WithMessage(ApplicationErrors.TopUpRequest_AmountMustBeGreaterThanZero)

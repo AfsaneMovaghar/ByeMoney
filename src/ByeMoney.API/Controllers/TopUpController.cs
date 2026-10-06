@@ -32,7 +32,7 @@ public class TopUpController(ISender sender, ICurrentUserService currentUserServ
 
         var command = new CreateTopUpRequestCommand(
             userId,
-            request.Amount,
+            request.AmountNoor,
             request.PaymentMethod,
             request.ExternalTransactionId,
             request.PendingItems);

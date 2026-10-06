@@ -27,7 +27,7 @@ public class CreateTopUpRequestCommandTests
         await handler.Handle(new CreateTopUpRequestCommand(Guid.NewGuid(), 3m, PaymentMethod.Gateway), CancellationToken.None);
 
         saved.Should().NotBeNull();
-        saved!.Amount.Should().Be(3m);
+        saved!.AmountNoor.Should().Be(3m);
         saved.AmountRial.Should().Be(411m);
         saved.RialPerNoorSnapshot.Should().Be(137m);
         settings.Verify(x => x.GetRialToNoorConversionRateAsync(It.IsAny<CancellationToken>()), Times.Once);
@@ -42,6 +42,6 @@ public class CreateTopUpRequestCommandTests
             new CreateTopUpRequestCommand(Guid.NewGuid(), 1.5m, PaymentMethod.Gateway));
 
         result.IsValid.Should().BeFalse();
-        result.Errors.Should().ContainSingle(x => x.PropertyName == "Amount");
+        result.Errors.Should().ContainSingle(x => x.PropertyName == "AmountNoor");
     }
 }

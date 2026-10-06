@@ -103,7 +103,7 @@ public class GatewayTopUpConfirmationTests
         var (handler, settlement, repository) = CreateHandler(topUp);
         repository.Setup(x => x.GetByIdAsync(topUp.Id, It.IsAny<CancellationToken>())).ReturnsAsync(topUp);
 
-        var result = await handler.Handle(new ConfirmTopUpCommand(topUp.Id, "bank-ref", topUp.Amount),
+        var result = await handler.Handle(new ConfirmTopUpCommand(topUp.Id, "bank-ref", topUp.AmountNoor),
             CancellationToken.None);
 
         result.Status.Should().Be(ResultStatus.Conflict);
@@ -157,7 +157,7 @@ public class GatewayTopUpConfirmationTests
             CancellationToken.None);
 
         result.AmountRial.Should().Be(100_000m);
-        saved!.Amount.Should().Be(10m);
+        saved!.AmountNoor.Should().Be(10m);
         saved.AmountRial.Should().Be(100_000m);
         saved.RialPerNoorSnapshot.Should().Be(10_000m);
         saved.PaymentMethod.Should().Be(PaymentMethod.Gateway);

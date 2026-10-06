@@ -357,7 +357,7 @@ public sealed class GatewayTopUpService(
         {
             await settlementService.SettleAsync(topUp, ct);
             if (topUp.PendingItems.Count > 0)
-                await publisher.Publish(new TopUpConfirmed(topUp.Id, topUp.UserId, topUp.Amount, topUp.PendingItems), ct);
+                await publisher.Publish(new TopUpConfirmed(topUp.Id, topUp.UserId, topUp.AmountNoor, topUp.PendingItems), ct);
 
             return new GatewayConfirmationOutcome(Result.Success());
         }

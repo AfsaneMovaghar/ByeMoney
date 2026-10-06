@@ -21,7 +21,7 @@ public class TopUpRequestTests
         // Assert
         request.Id.Value.Should().NotBeEmpty();
         request.UserId.Should().Be(userId);
-        request.Amount.Should().Be(amount);
+        request.AmountNoor.Should().Be(amount);
         request.PaymentMethod.Should().Be(PaymentMethod.Gateway);
         request.Status.Should().Be(TopUpStatus.Pending);
         request.ExternalTransactionId.Should().Be("ext_123");
@@ -166,7 +166,7 @@ public class TopUpRequestTests
     {
         var request = TopUpRequest.Create(UserId.New(), 3m, PaymentMethod.Gateway, rialPerNoor: 137m);
 
-        request.Amount.Should().Be(3m);
+        request.AmountNoor.Should().Be(3m);
         request.RialPerNoorSnapshot.Should().Be(137m);
         request.AmountRial.Should().Be(411m);
     }

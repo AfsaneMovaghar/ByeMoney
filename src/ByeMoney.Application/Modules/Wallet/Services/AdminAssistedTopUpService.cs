@@ -96,5 +96,5 @@ public sealed class AdminAssistedTopUpService(
     }
 
     private static CreateTopUpRequestResponse ToResponse(TopUpRequest topUp)
-        => new(topUp.Id.Value, topUp.ClientReferenceCode, topUp.Amount, topUp.RialPerNoorSnapshot!.Value);
+        => new(topUp.Id.Value, topUp.ClientReferenceCode, topUp.AmountNoor, topUp.RialPerNoorSnapshot!.Value);
 }

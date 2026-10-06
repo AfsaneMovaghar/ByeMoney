@@ -33,11 +33,11 @@ public class CreateTopUpRequestCommandHandler : IRequestHandler<CreateTopUpReque
             var rate = await _settings.GetRialToNoorConversionRateAsync(cancellationToken);
             if (rate <= 0 || decimal.Truncate(rate) != rate)
                 throw new DomainException(ApplicationErrors.TopUpRequest_InvalidRate);
-            topUp = TopUpRequest.CreateGateway(new UserId(request.UserId), request.Amount, rate, request.PendingItems);
+            topUp = TopUpRequest.CreateGateway(new UserId(request.UserId), request.AmountNoor, rate, request.PendingItems);
         }
         else
         {
-            topUp = TopUpRequest.Create(new UserId(request.UserId), request.Amount,
+            topUp = TopUpRequest.Create(new UserId(request.UserId), request.AmountNoor,
                 request.PaymentMethod, request.ExternalTransactionId, pendingItems: request.PendingItems);
         }
 

@@ -7,6 +7,6 @@ namespace ByeMoney.Application.Modules.Wallet.Events;
 public record TopUpConfirmed(
     TopUpRequestId TopUpRequestId,
     UserId UserId,
-    decimal ConfirmedAmount,
+    decimal ConfirmedAmountNoor,
     IReadOnlyList<PendingItemSnapshot> PendingItems) : INotification;
 

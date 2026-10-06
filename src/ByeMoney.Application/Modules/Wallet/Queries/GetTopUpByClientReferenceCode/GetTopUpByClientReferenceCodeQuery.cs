@@ -5,7 +5,7 @@ namespace ByeMoney.Application.Modules.Wallet.Queries.GetTopUpByClientReferenceC
 public record TopUpRequestDto(
     Guid Id,
     Guid UserId,
-    decimal Amount,
+    [property: System.Text.Json.Serialization.JsonPropertyName("amount")] decimal AmountNoor,
     string PaymentMethod,
     string ClientReferenceCode,
     string Status,

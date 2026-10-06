@@ -61,7 +61,7 @@ public class AdminTopUpController(ISender sender) : ControllerBase
             new ConfirmTopUpCommand(
                 new TopUpRequestId(id),
                 request.ExternalTransactionId,
-                request.ConfirmedAmount), ct);
+                request.ConfirmedAmountNoor), ct);
 
         return result.IsSuccess
             ? NoContent()

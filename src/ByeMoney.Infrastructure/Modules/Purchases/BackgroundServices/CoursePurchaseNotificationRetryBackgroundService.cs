@@ -30,20 +30,28 @@ public class CoursePurchaseNotificationRetryBackgroundService : BackgroundServic
         _logger.LogInformation("CoursePurchaseNotificationRetryBackgroundService started.");
 
         using var timer = new PeriodicTimer(_period);
-        while (!stoppingToken.IsCancellationRequested && await timer.WaitForNextTickAsync(stoppingToken))
+
+        try
         {
-            try
+            while (await timer.WaitForNextTickAsync(stoppingToken))
             {
-                await ProcessFailedPurchasesAsync(stoppingToken);
+                try
+                {
+                    await ProcessFailedPurchasesAsync(stoppingToken);
+                }
+                catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+                {
+                    break;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Unexpected error occurred during CoursePurchase notification retry cycle.");
+                }
             }
-            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
-            {
-                break;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Unexpected error occurred during CoursePurchase notification retry cycle.");
-            }
+        }
+        catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+        {
+            // Expected during application shutdown
         }
 
         _logger.LogInformation("CoursePurchaseNotificationRetryBackgroundService stopped.");

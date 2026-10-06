@@ -33,7 +33,7 @@ public class TopUpRequestConfiguration : IEntityTypeConfiguration<TopUpRequest>
         builder.Property(t => t.ReceiptId).HasMaxLength(200);
         builder.Property(t => t.IdempotencyKey).HasMaxLength(100);
         builder.HasIndex(t => t.IdempotencyKey).IsUnique().HasFilter("\"IdempotencyKey\" IS NOT NULL");
-        builder.Property(t => t.Amount)
+        builder.Property(t => t.AmountNoor)
             .HasPrecision(18, 4)
             .IsRequired();
 

@@ -7,7 +7,7 @@ namespace ByeMoney.Application.Modules.Wallet.Commands.ConfirmTopUp;
 public record ConfirmTopUpCommand(
     TopUpRequestId TopUpRequestId,
     string ExternalTransactionId,
-    decimal ConfirmedAmount,
+    decimal ConfirmedAmountNoor,
     string? ClientReferenceCode = null,
     string? GatewayName = null,
     string? BankReferenceNumber = null,

@@ -44,7 +44,7 @@ public class AdminAssistedTopUpTests
         result.IsSuccess.Should().BeTrue();
         created.Should().NotBeNull();
         created!.Status.Should().Be(TopUpStatus.Confirmed);
-        created.Amount.Should().Be(25m);
+        created.AmountNoor.Should().Be(25m);
         created.AmountRial.Should().Be(250_000m);
         created.RialPerNoorSnapshot.Should().Be(10_000m);
         created.ChargeType.Should().Be(ChargeType.AdminAssistedCardToCard);

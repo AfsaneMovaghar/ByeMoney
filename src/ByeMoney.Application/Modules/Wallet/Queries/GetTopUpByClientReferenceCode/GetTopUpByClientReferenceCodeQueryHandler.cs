@@ -24,7 +24,7 @@ public class GetTopUpByClientReferenceCodeQueryHandler
     }
 
     private static TopUpRequestDto MapToDto(TopUpRequest t) => new(
-        t.Id.Value, t.UserId.Value, t.Amount,
+        t.Id.Value, t.UserId.Value, t.AmountNoor,
         t.PaymentMethod.ToString(), t.ClientReferenceCode,
         t.Status.ToString(), t.ExternalTransactionId,
         t.RejectionReason, t.CreatedAtUtc,

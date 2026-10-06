@@ -152,7 +152,7 @@ public class ConfirmTopUpCommandHandlerTests
             It.Is<TopUpConfirmed>(e =>
                 e.TopUpRequestId == topUp.Id &&
                 e.UserId == userId &&
-                e.ConfirmedAmount == amount &&
+                e.ConfirmedAmountNoor == amount &&
                 e.PendingItems.Count == 1 &&
                 e.PendingItems[0].ExternalId == "course-uuid-999" &&
                 e.PendingItems[0].PriceNoorSnapshot == 1_000m),

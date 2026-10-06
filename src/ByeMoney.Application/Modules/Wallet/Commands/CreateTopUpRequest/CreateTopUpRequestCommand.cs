@@ -5,7 +5,7 @@ namespace ByeMoney.Application.Modules.Wallet.Commands.CreateTopUpRequest;
 
 public record CreateTopUpRequestCommand(
     Guid UserId,
-    decimal Amount,
+    decimal AmountNoor,
     PaymentMethod PaymentMethod,
     string? ExternalTransactionId = null,
     IReadOnlyList<PendingItemSnapshot>? PendingItems = null) : IRequest<CreateTopUpRequestResponse>;
