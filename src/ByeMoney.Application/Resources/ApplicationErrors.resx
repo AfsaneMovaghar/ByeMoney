@@ -223,4 +223,10 @@
   <data name="TopUpRequest_ReviewFinancialReferenceInvalid" xml:space="preserve"><value>شناسه مالی نتیجه رسیدگی معتبر نیست.</value></data>
   <data name="TopUpRequest_ReviewRefundUnsupported" xml:space="preserve"><value>بستن پرونده با بازپرداخت دستی برای شارژ تأییدشده هنوز پشتیبانی نمی‌شود.</value></data>
   <data name="TopUpRequest_ReviewEvidenceInvalid" xml:space="preserve"><value>اطلاعات بررسی گزارش بانکی کامل یا معتبر نیست.</value></data>
+  <data name="TopUpRequest_PendingItemRequired" xml:space="preserve">
+    <value>قلم خرید معلق نمی‌تواند خالی باشد.</value>
+  </data>
+  <data name="TopUpRequest_PendingItemTypeInvalid" xml:space="preserve">
+    <value>نوع قلم خرید همراه شارژ معتبر نیست.</value>
+  </data>
 </root>

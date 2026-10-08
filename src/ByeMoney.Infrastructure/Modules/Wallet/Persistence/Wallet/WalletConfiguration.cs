@@ -35,6 +35,7 @@ public class WalletConfiguration : IEntityTypeConfiguration<WalletEntity>
 
         builder.Property(w => w.Balance)
             .HasPrecision(18, 4)
+            .IsConcurrencyToken()
             .IsRequired();
 
         builder.Property(w => w.LastUpdatedAtUtc)

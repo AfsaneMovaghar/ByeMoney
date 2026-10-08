@@ -151,7 +151,7 @@ public class GatewayTopUpConfirmationTests
             .ReturnsAsync(10_000m);
         var unitOfWork = new Mock<IUnitOfWork>();
         unitOfWork.Setup(x => x.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
-        var handler = new CreateTopUpRequestCommandHandler(repository.Object, unitOfWork.Object, settings.Object);
+        var handler = new CreateTopUpRequestCommandHandler(repository.Object, unitOfWork.Object, settings.Object, Mock.Of<ByeMoney.Application.Modules.TarhElahiIntegration.Interfaces.ITarhElahiIntegrationClient>());
 
         var result = await handler.Handle(new CreateTopUpRequestCommand(Guid.NewGuid(), 10m, PaymentMethod.Gateway),
             CancellationToken.None);
@@ -172,7 +172,7 @@ public class GatewayTopUpConfirmationTests
         settings.Setup(x => x.GetRialToNoorConversionRateAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(rate);
         var repository = new Mock<ITopUpRequestRepository>();
-        var handler = new CreateTopUpRequestCommandHandler(repository.Object, Mock.Of<IUnitOfWork>(), settings.Object);
+        var handler = new CreateTopUpRequestCommandHandler(repository.Object, Mock.Of<IUnitOfWork>(), settings.Object, Mock.Of<ByeMoney.Application.Modules.TarhElahiIntegration.Interfaces.ITarhElahiIntegrationClient>());
 
         await FluentActions.Invoking(() => handler.Handle(
             new CreateTopUpRequestCommand(Guid.NewGuid(), 10m, PaymentMethod.Gateway), CancellationToken.None))

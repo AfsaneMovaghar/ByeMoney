@@ -29,8 +29,13 @@ public class CreateTopUpRequestCommandValidator : AbstractValidator<CreateTopUpR
         When(x => x.PendingItems != null && x.PendingItems.Count > 0, () =>
         {
             RuleForEach(x => x.PendingItems)
+                .NotNull()
+                .WithMessage(ApplicationErrors.TopUpRequest_PendingItemRequired)
                 .ChildRules(item =>
                 {
+                    item.RuleFor(i => i.ItemType)
+                        .IsInEnum()
+                        .WithMessage(ApplicationErrors.TopUpRequest_PendingItemTypeInvalid);
                     item.RuleFor(i => i.ExternalId)
                         .NotEmpty()
                         .WithMessage(ApplicationErrors.TopUpRequest_PendingItemExternalIdRequired)
