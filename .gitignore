@@ -36,6 +36,9 @@
 
 # .NET build artifacts
 artifacts/
+/.artifacts/
+/docs/testing/patches/next02-course-price.patch
+/docs/testing/patches/verify-next02.cjs
 
 # Publish output
 publish/
@@ -104,6 +107,7 @@ src/ByeMoney.API/logs
 /docs/*
 *.md
 !/TASKS.md
+!/HOTFIXES.md
 !/docs/README.md
 !/docs/architecture/
 !/docs/integration/

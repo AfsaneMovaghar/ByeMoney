@@ -243,8 +243,21 @@ public class PurchaseCoursesCommandHandlerTests
         result.Value.TotalPriceInNoor.Should().Be(1_000m);
         wallet.Balance.Should().Be(1_000m);
         savedLedgerEntries.Should().HaveCount(2);
+        savedLedgerEntries.Should().ContainSingle(e => e.AccountId == userAccount.Id && e.Amount == -1_000m);
+        savedLedgerEntries.Should().ContainSingle(e => e.AccountId == systemAccount.Id && e.Amount == 1_000m);
+        savedLedgerEntries.Sum(e => e.Amount).Should().Be(0m);
+        savedLedgerEntries.Should().OnlyContain(e => e.TransactionId == result.Value.TransactionId);
+        var purchasedItem = result.Value.Items.Should().ContainSingle().Subject;
+        purchasedItem.ExternalCourseId.Should().Be(course.ExternalId);
+        purchasedItem.PriceInNoor.Should().Be(course.PriceNoor);
+        savedLedgerEntries.Should().OnlyContain(e => e.ReferenceId == purchasedItem.PurchaseId.ToString());
         _unitOfWorkMock.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
-        _notifierMock.Verify(n => n.NotifyAsync(It.IsAny<CoursePurchase>(), user.ExternalUserId, course, It.IsAny<ProductSnapshot>(), It.IsAny<CancellationToken>()), Times.Once);
+        _notifierMock.Verify(n => n.NotifyAsync(
+            It.Is<CoursePurchase>(p => p.Id.Value == purchasedItem.PurchaseId && p.BuyerId == userId),
+            user.ExternalUserId,
+            course,
+            It.Is<ProductSnapshot>(s => s.ExternalProductId == course.ExternalId && s.PriceInNoorAtPurchaseTime == course.PriceNoor),
+            It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
