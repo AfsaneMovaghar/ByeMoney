@@ -1,4 +1,5 @@
 using ByeMoney.API.Contracts.TopUp;
+using ByeMoney.Application.Modules.Purchases.Queries.Checkout;
 using ByeMoney.Application.Common.Interfaces;
 using ByeMoney.Application.Modules.Wallet.Commands.CreateTopUpRequest;
 using ByeMoney.Application.Resources;
@@ -15,6 +16,11 @@ public class TopUpController(ISender sender, ICurrentUserService currentUserServ
 {
     private readonly ISender _sender = sender;
     private readonly ICurrentUserService _currentUserService = currentUserService;
+
+    [HttpGet("{topUpId:guid}/checkout")]
+    [ProducesResponseType(typeof(TopUpCheckoutResponse), StatusCodes.Status200OK)]
+    public async Task<ActionResult<TopUpCheckoutResponse>> GetCheckout(Guid topUpId, CancellationToken ct)
+        => Ok(await _sender.Send(new GetTopUpCheckoutQuery(topUpId), ct));
 
     /// <summary>
     /// Creates a new top-up request for the authenticated user.

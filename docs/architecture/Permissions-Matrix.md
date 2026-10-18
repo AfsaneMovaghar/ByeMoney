@@ -28,6 +28,12 @@
 | AdminTopUp | `POST` | `/api/admin/topups/{id:guid}/reject` | نیازمند پالیسی `RequireTopUpReview` | `TopUp.Review` |
 | AdminWallet | `POST` | `/api/admin/wallets/batch-balances` | نیازمند پالیسی `RequireWalletView` | `Wallet.View` |
 | Auth | `POST` | `/api/auth/sync` | احراز هویت شده (JWT) | — |
+| CourseCarts | `POST` | `/api/course-carts/{cartId:guid}/cancel` | احراز هویت شده (JWT) | — |
+| CourseCarts | `GET` | `/api/course-carts/{cartId:guid}` | احراز هویت شده (JWT) | — |
+| CourseCarts | `POST` | `/api/course-carts/checkout` | احراز هویت شده (JWT) | — |
+| CourseCarts | `POST` | `/api/course-carts/{cartId:guid}/purchase` | احراز هویت شده (JWT) | — |
+| CourseCarts | `POST` | `/api/course-carts/{cartId:guid}/topup` | احراز هویت شده (JWT) | — |
+| Courses | `GET` | `/api/courses/{externalCourseId}/checkout` | احراز هویت شده (JWT) | — |
 | Courses | `POST` | `/api/courses/purchase` | احراز هویت شده (JWT) | — |
 | GatewayTopUp | `POST` | `/api/integrations/topups/gateway-cancellations` | عمومی (Anonymous) | — |
 | GatewayTopUp | `POST` | `/api/integrations/topups/gateway-confirmations` | عمومی (Anonymous) | — |
@@ -38,6 +44,7 @@
 | GatewayTopUp | `POST` | `/api/integrations/topups/v1/gateway-reviews/reopen` | عمومی (Anonymous) | — |
 | Settings | `GET` | `/api/settings/conversion-rate` | عمومی (Public / بدون Authorize) | — |
 | TopUp | `POST` | `/api/topup/requests` | احراز هویت شده (JWT) | — |
+| TopUp | `GET` | `/api/topup/{topUpId:guid}/checkout` | احراز هویت شده (JWT) | — |
 | TopUpReceipt | `GET` | `/api/topup/requests/{topUpId:guid}/receipt` | احراز هویت شده (JWT) | — |
 | Users | `POST` | `/api/users` | عمومی (Public / بدون Authorize) | — |
 | Wallet | `GET` | `/api/wallet/balance` | احراز هویت شده (JWT) | — |

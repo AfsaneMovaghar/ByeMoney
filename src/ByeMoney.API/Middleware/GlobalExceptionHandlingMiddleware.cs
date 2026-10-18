@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using ByeMoney.API.Resources;
 using ByeMoney.API.Contracts.Purchases;
 using ByeMoney.Application.Modules.Purchases.Commands.PurchaseCourses;
@@ -10,6 +11,11 @@ using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 
 namespace ByeMoney.API.Middleware;
+
+public sealed record MiddlewareErrorResponse(
+    [property: JsonPropertyName("title")] string Title,
+    [property: JsonPropertyName("status")] int Status,
+    [property: JsonPropertyName("errors")] IReadOnlyList<object> Errors);
 
 public class GlobalExceptionHandlingMiddleware
 {
@@ -68,6 +74,11 @@ public class GlobalExceptionHandlingMiddleware
 
         var (statusCode, title, errors) = exception switch
         {
+            BadHttpRequestException badRequest => (
+                (HttpStatusCode)badRequest.StatusCode,
+                ApiErrors.Middleware_ValidationErrorTitle,
+                new List<object> { ApiErrors.Middleware_ValidationErrorTitle }
+            ),
             ValidationException validationEx => (
                 HttpStatusCode.BadRequest,
                 ApiErrors.Middleware_ValidationErrorTitle,
@@ -117,12 +128,7 @@ public class GlobalExceptionHandlingMiddleware
 
         context.Response.StatusCode = (int)statusCode;
 
-        var response = new
-        {
-            title,
-            status = (int)statusCode,
-            errors
-        };
+        var response = new MiddlewareErrorResponse(title, (int)statusCode, errors);
 
         await context.Response.WriteAsync(JsonSerializer.Serialize(response));
     }

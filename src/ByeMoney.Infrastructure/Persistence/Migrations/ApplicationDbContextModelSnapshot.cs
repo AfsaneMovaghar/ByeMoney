@@ -231,6 +231,77 @@ namespace ByeMoney.Infrastructure.Migrations
                     b.ToTable("UserRoles", (string)null);
                 });
 
+            modelBuilder.Entity("ByeMoney.Domain.Modules.Purchases.CourseCart", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("BuyerExternalUserId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<Guid>("BuyerId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("CouponCode")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("ExpiresAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.PrimitiveCollection<string[]>("ExternalCourseIds")
+                        .IsRequired()
+                        .HasColumnType("text[]");
+
+                    b.Property<DateTime?>("LastSyncAttemptAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastSyncErrorCode")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<Guid>("ReservationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<int>("SyncAttempts")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("Synchronized")
+                        .HasColumnType("boolean");
+
+                    b.Property<Guid?>("TopUpRequestId")
+                        .HasColumnType("uuid");
+
+                    b.PrimitiveCollection<Guid[]>("TopUpRequestIds")
+                        .IsRequired()
+                        .HasColumnType("uuid[]");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BuyerId");
+
+                    b.HasIndex("TopUpRequestId")
+                        .IsUnique();
+
+                    b.HasIndex("Synchronized", "UpdatedAtUtc");
+
+                    b.ToTable("CourseCarts", (string)null);
+                });
+
             modelBuilder.Entity("ByeMoney.Domain.Modules.Purchases.CoursePurchase", b =>
                 {
                     b.Property<Guid>("Id")
@@ -239,6 +310,9 @@ namespace ByeMoney.Infrastructure.Migrations
                     b.Property<Guid>("BuyerId")
                         .HasColumnType("uuid")
                         .HasColumnName("UserId");
+
+                    b.Property<Guid?>("CartId")
+                        .HasColumnType("uuid");
 
                     b.Property<DateTime?>("CompletedAtUtc")
                         .HasColumnType("timestamp with time zone");
@@ -279,6 +353,8 @@ namespace ByeMoney.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("BuyerId");
+
+                    b.HasIndex("CartId");
 
                     b.HasIndex("Status");
 
@@ -631,6 +707,56 @@ namespace ByeMoney.Infrastructure.Migrations
                     b.Navigation("Role");
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("ByeMoney.Domain.Modules.Purchases.CourseCart", b =>
+                {
+                    b.OwnsMany("ByeMoney.Domain.Modules.Purchases.CourseCartItem", "Items", b1 =>
+                        {
+                            b1.Property<Guid>("CartId")
+                                .HasColumnType("uuid");
+
+                            b1.Property<string>("ExternalCourseId")
+                                .HasMaxLength(100)
+                                .HasColumnType("character varying(100)");
+
+                            b1.Property<decimal>("BasePriceInNoor")
+                                .HasPrecision(18, 4)
+                                .HasColumnType("numeric(18,4)");
+
+                            b1.Property<decimal>("CouponDiscountInNoor")
+                                .HasPrecision(18, 4)
+                                .HasColumnType("numeric(18,4)");
+
+                            b1.Property<decimal>("ItemDiscountInNoor")
+                                .HasPrecision(18, 4)
+                                .HasColumnType("numeric(18,4)");
+
+                            b1.Property<decimal>("PriceInNoor")
+                                .HasPrecision(18, 4)
+                                .HasColumnType("numeric(18,4)");
+
+                            b1.Property<string>("Title")
+                                .IsRequired()
+                                .HasMaxLength(255)
+                                .HasColumnType("character varying(255)");
+
+                            b1.HasKey("CartId", "ExternalCourseId");
+
+                            b1.ToTable("CourseCartItems", null, t =>
+                                {
+                                    t.HasCheckConstraint("CK_CourseCartItems_NonNegativeAmounts", "\"BasePriceInNoor\" >= 0 AND \"ItemDiscountInNoor\" >= 0 AND \"CouponDiscountInNoor\" >= 0 AND \"PriceInNoor\" >= 0");
+
+                                    t.HasCheckConstraint("CK_CourseCartItems_PriceBreakdown", "\"BasePriceInNoor\" - \"ItemDiscountInNoor\" - \"CouponDiscountInNoor\" = \"PriceInNoor\"");
+
+                                    t.HasCheckConstraint("CK_CourseCartItems_WholeNoorAmounts", "trunc(\"BasePriceInNoor\") = \"BasePriceInNoor\" AND trunc(\"ItemDiscountInNoor\") = \"ItemDiscountInNoor\" AND trunc(\"CouponDiscountInNoor\") = \"CouponDiscountInNoor\" AND trunc(\"PriceInNoor\") = \"PriceInNoor\"");
+                                });
+
+                            b1.WithOwner()
+                                .HasForeignKey("CartId");
+                        });
+
+                    b.Navigation("Items");
                 });
 
             modelBuilder.Entity("ByeMoney.Domain.Modules.Purchases.CoursePurchase", b =>

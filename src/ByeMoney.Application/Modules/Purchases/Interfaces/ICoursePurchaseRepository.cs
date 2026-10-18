@@ -5,6 +5,7 @@ namespace ByeMoney.Application.Modules.Purchases.Interfaces;
 
 public interface ICoursePurchaseRepository
 {
+    Task<CoursePurchase?> GetByBuyerAndCourseAsync(UserId buyerId, string externalCourseId, CancellationToken ct = default);
     Task<bool> ExistsByBuyerAndCourseAsync(UserId buyerId, string externalCourseId, CancellationToken ct = default);
     Task<CoursePurchase?> GetByIdAsync(CoursePurchaseId id, CancellationToken ct = default);
     Task<List<CoursePurchase>> GetFailedNotificationsForRetryAsync(int maxAttempts, int batchSize, CancellationToken ct = default);

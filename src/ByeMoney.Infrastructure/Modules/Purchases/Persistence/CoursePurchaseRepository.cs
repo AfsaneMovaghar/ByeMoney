@@ -18,10 +18,17 @@ public class CoursePurchaseRepository : BaseRepository<CoursePurchase, CoursePur
             .AnyAsync(cp => cp.BuyerId == buyerId && cp.Snapshot.ExternalProductId == externalCourseId, ct);
     }
 
+    public Task<CoursePurchase?> GetByBuyerAndCourseAsync(UserId buyerId, string externalCourseId, CancellationToken ct = default)
+        => DbSet.AsNoTracking()
+            .Where(cp => cp.BuyerId == buyerId && cp.Snapshot.ExternalProductId == externalCourseId)
+            .OrderByDescending(cp => cp.CreatedAtUtc)
+            .FirstOrDefaultAsync(ct);
+
     public async Task<List<CoursePurchase>> GetFailedNotificationsForRetryAsync(int maxAttempts, int batchSize, CancellationToken ct = default)
     {
         var staleDebitedThreshold = DateTime.UtcNow.AddMinutes(-2);
         return await DbSet
+            .Where(cp => cp.CartId == null)
             .Where(cp => (cp.Status == CoursePurchaseStatus.NotificationFailed || (cp.Status == CoursePurchaseStatus.Debited && cp.CreatedAtUtc < staleDebitedThreshold)) && cp.NotificationAttempts < maxAttempts)
             .OrderBy(cp => cp.LastNotificationAttemptAtUtc ?? cp.CreatedAtUtc)
             .Take(batchSize)

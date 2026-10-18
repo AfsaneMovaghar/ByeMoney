@@ -16,17 +16,20 @@ public class CreateTopUpRequestCommandHandler : IRequestHandler<CreateTopUpReque
     private readonly IUnitOfWork _unitOfWork;
     private readonly ISystemSettingRepository _settings;
     private readonly ITarhElahiIntegrationClient _catalog;
+    private readonly IWalletRepository _wallets;
 
     public CreateTopUpRequestCommandHandler(
         ITopUpRequestRepository topUpRequestRepository,
         IUnitOfWork unitOfWork,
         ISystemSettingRepository settings,
-        ITarhElahiIntegrationClient catalog)
+        ITarhElahiIntegrationClient catalog,
+        IWalletRepository wallets)
     {
         _topUpRequestRepository = topUpRequestRepository;
         _unitOfWork = unitOfWork;
         _settings = settings;
         _catalog = catalog;
+        _wallets = wallets;
     }
 
     public async Task<CreateTopUpRequestResponse> Handle(CreateTopUpRequestCommand request, CancellationToken cancellationToken)
@@ -35,10 +38,18 @@ public class CreateTopUpRequestCommandHandler : IRequestHandler<CreateTopUpReque
         TopUpRequest topUp;
         if (request.PaymentMethod == PaymentMethod.Gateway)
         {
+            var amountNoor = request.AmountNoor;
+            if (pendingItems.Count > 0)
+            {
+                var wallet = await _wallets.GetByUserIdAsync(new UserId(request.UserId), cancellationToken);
+                amountNoor = decimal.Ceiling(pendingItems.Sum(i => i.PriceNoorSnapshot) - (wallet?.Balance ?? 0m));
+                if (amountNoor <= 0)
+                    throw new DomainException(ApplicationErrors.TopUpRequest_AmountMustBeGreaterThanZero);
+            }
             var rate = await _settings.GetRialToNoorConversionRateAsync(cancellationToken);
             if (rate <= 0 || decimal.Truncate(rate) != rate)
                 throw new DomainException(ApplicationErrors.TopUpRequest_InvalidRate);
-            topUp = TopUpRequest.CreateGateway(new UserId(request.UserId), request.AmountNoor, rate, pendingItems);
+            topUp = TopUpRequest.CreateGateway(new UserId(request.UserId), amountNoor, rate, pendingItems);
         }
         else
         {

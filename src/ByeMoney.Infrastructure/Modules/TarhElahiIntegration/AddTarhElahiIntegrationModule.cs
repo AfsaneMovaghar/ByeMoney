@@ -41,6 +41,13 @@ public static class AddTarhElahiIntegrationModule
             client.Timeout = TimeSpan.FromSeconds(timeoutSeconds);
         });
 
+        services.AddHttpClient<ByeMoney.Application.Modules.Purchases.Cart.ICartPricingClient, CartPricingClient>(client =>
+        {
+            if (!string.IsNullOrWhiteSpace(options.BaseUrl)) client.BaseAddress = new Uri(options.BaseUrl.Trim().TrimEnd('/') + "/");
+            if (!string.IsNullOrWhiteSpace(options.ServiceKey)) client.DefaultRequestHeaders.Add("X-Service-Key", options.ServiceKey.Trim());
+            client.Timeout = TimeSpan.FromSeconds(options.TimeoutSeconds > 0 ? options.TimeoutSeconds : 10);
+        });
+
         return services;
     }
 }

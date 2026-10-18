@@ -1,4 +1,5 @@
 using ByeMoney.API.Contracts.Courses;
+using ByeMoney.Application.Modules.Purchases.Queries.Checkout;
 using ByeMoney.Application.Common.Interfaces;
 using ByeMoney.Application.Modules.Purchases.Commands.PurchaseCourses;
 using ByeMoney.Application.Resources;
@@ -16,6 +17,11 @@ public class CoursesController(ISender sender, ICurrentUserService currentUserSe
 {
     private readonly ISender _sender = sender;
     private readonly ICurrentUserService _currentUserService = currentUserService;
+
+    [HttpGet("{externalCourseId}/checkout")]
+    [ProducesResponseType(typeof(CourseCheckoutResponse), StatusCodes.Status200OK)]
+    public async Task<ActionResult<CourseCheckoutResponse>> GetCheckout(string externalCourseId, CancellationToken ct)
+        => Ok(await _sender.Send(new GetCourseCheckoutQuery(externalCourseId), ct));
 
     /// <summary>
     /// Purchases one or more TarhElahi courses using the authenticated user's Noor balance.

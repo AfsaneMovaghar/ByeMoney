@@ -12,6 +12,8 @@ public class CoursePurchaseConfiguration : IEntityTypeConfiguration<CoursePurcha
         builder.ToTable("CoursePurchases");
 
         builder.HasKey(cp => cp.Id);
+        builder.Property(cp => cp.CartId);
+        builder.HasIndex(cp => cp.CartId);
 
         builder.Property(cp => cp.Id)
             .HasConversion(

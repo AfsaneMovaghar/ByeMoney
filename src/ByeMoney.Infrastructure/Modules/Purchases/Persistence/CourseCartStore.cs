@@ -1,0 +1,190 @@
+using ByeMoney.Application.Modules.Purchases.Cart;
+using ByeMoney.Application.Modules.Settings;
+using ByeMoney.Application.Modules.Wallet.Commands.CreateTopUpRequest;
+using ByeMoney.Application.Modules.Wallet.Interfaces;
+using ByeMoney.Domain.Common;
+using ByeMoney.Domain.Common.Exceptions;
+using ByeMoney.Domain.Modules.Identity.Users;
+using ByeMoney.Domain.Modules.Purchases;
+using ByeMoney.Domain.Modules.Wallet.Ledgers;
+using ByeMoney.Domain.Modules.Wallet.TopUps;
+using ByeMoney.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Npgsql;
+
+namespace ByeMoney.Infrastructure.Modules.Purchases.Persistence;
+
+// هر عملیات یک context مستقل دارد؛ شکست ذخیره‌سازی وارد scope درخواست یا تأیید شارژ نمی‌شود.
+public sealed class CourseCartStore(IServiceScopeFactory scopes) : ICourseCartStore
+{
+    private async Task<T> Run<T>(Func<IServiceProvider, ApplicationDbContext, Task<T>> action)
+    {
+        using var scope = scopes.CreateScope();
+        return await action(scope.ServiceProvider, scope.ServiceProvider.GetRequiredService<ApplicationDbContext>());
+    }
+    private static Task Lock(ApplicationDbContext db, Guid id, CancellationToken ct) =>
+        db.Database.ExecuteSqlInterpolatedAsync($"SELECT pg_advisory_xact_lock(1869767797, hashtext({id.ToString()}))", ct);
+    private static Task LockBuyer(ApplicationDbContext db, Guid id, CancellationToken ct) =>
+        db.Database.ExecuteSqlInterpolatedAsync($"SELECT pg_advisory_xact_lock(1869767798, hashtext({id.ToString()}))", ct);
+    public Task<CourseCart?> FindAsync(Guid id, Guid buyerId, CancellationToken ct) => Run((_, db) =>
+        db.Set<CourseCart>().AsNoTracking().SingleOrDefaultAsync(x => x.Id == id && x.BuyerId == buyerId, ct));
+    public Task<CourseCart?> FindByTopUpAsync(Guid topUpId, Guid buyerId, CancellationToken ct) => Run((_, db) =>
+        db.Set<CourseCart>().AsNoTracking().SingleOrDefaultAsync(x => (x.TopUpRequestId == topUpId || x.TopUpRequestIds.Contains(topUpId)) && x.BuyerId == buyerId, ct));
+    public Task<Result<CourseCart>> CreateAsync(CourseCart cart, CancellationToken ct) => Run(async (_, db) =>
+    {
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
+        await Lock(db, cart.Id, ct);
+        var existing = await db.Set<CourseCart>().FindAsync([cart.Id], ct);
+        if (existing is not null)
+            return existing.BuyerId == cart.BuyerId && existing.Matches(cart.ExternalCourseIds, cart.CouponCode)
+                ? Result<CourseCart>.Success(existing) : Result<CourseCart>.Conflict(CartErrors.Conflict, CartErrorCodes.Conflict);
+        db.Add(cart);
+        await db.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
+        return Result<CourseCart>.Success(cart);
+    });
+    public Task<Result<CourseCart>> CancelAsync(Guid id, Guid buyerId, CancellationToken ct) => Run(async (_, db) =>
+    {
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
+        await Lock(db, id, ct);
+        var cart = await db.Set<CourseCart>().SingleOrDefaultAsync(x => x.Id == id && x.BuyerId == buyerId, ct);
+        if (cart is null) return Result<CourseCart>.NotFound(CartErrors.NotFound, CartErrorCodes.NotFound);
+        // شارژ بانکی و خرید قطعی با تغییر سبد مرورگر لغو نمی‌شوند.
+        if (cart.Status is CourseCartStatus.Preparing or CourseCartStatus.Ready)
+        {
+            cart.Fail();
+            await db.SaveChangesAsync(ct);
+        }
+        await tx.CommitAsync(ct);
+        return Result<CourseCart>.Success(cart);
+    });
+    public Task<Result<CourseCart>> ReopenAsync(Guid id, Guid buyerId, Guid reservationId, CancellationToken ct) => Run(async (_, db) =>
+    {
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
+        await LockBuyer(db, buyerId, ct); await Lock(db, id, ct);
+        var cart = await db.Set<CourseCart>().SingleAsync(x => x.Id == id && x.BuyerId == buyerId, ct);
+        // بازپخش هم‌زمان فقط همان نسل جدید را برمی‌گرداند.
+        if (cart.ReservationId != reservationId) return Result<CourseCart>.Success(cart);
+        if (cart.Status is not (CourseCartStatus.Failed or CourseCartStatus.Expired) || !cart.Synchronized) return Conflict();
+        if (cart.TopUpRequestId is Guid topUpId)
+        {
+            var topUp = await db.Set<TopUpRequest>().FindAsync([new TopUpRequestId(topUpId)], ct);
+            if (topUp?.Status is not (TopUpStatus.Rejected or TopUpStatus.Confirmed)) return Conflict();
+        }
+        cart.Reopen();
+        await db.SaveChangesAsync(ct); await tx.CommitAsync(ct);
+        return Result<CourseCart>.Success(cart);
+    });
+    public Task<CourseCart> SetQuoteAsync(Guid id, Guid buyerId, IReadOnlyList<CourseCartItem> items, Guid reservationId, CancellationToken ct) => Run(async (_, db) =>
+    {
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
+        await Lock(db, id, ct);
+        var cart = await db.Set<CourseCart>().SingleAsync(x => x.Id == id && x.BuyerId == buyerId, ct);
+        if (cart.ReservationId == reservationId) cart.SetQuote(items);
+        await db.SaveChangesAsync(ct); await tx.CommitAsync(ct);
+        return cart;
+    });
+    public async Task<Result<CourseCart>> PayAsync(Guid id, Guid buyerId, Guid reservationId, CancellationToken ct)
+    {
+        try { return await Run(async (sp, db) =>
+        {
+            await using var tx = await db.Database.BeginTransactionAsync(ct);
+            await LockBuyer(db, buyerId, ct);
+            await Lock(db, id, ct);
+            var cart = await db.Set<CourseCart>().SingleAsync(x => x.Id == id && x.BuyerId == buyerId, ct);
+            if (cart.Status == CourseCartStatus.Paid) return Result<CourseCart>.Success(cart);
+            if (cart.ReservationId != reservationId) return Conflict();
+            if (cart.Status is not (CourseCartStatus.Ready or CourseCartStatus.AwaitingTopUp)) return Conflict();
+            if (cart.Status == CourseCartStatus.Ready && cart.ExpiresAtUtc <= DateTime.UtcNow) return Conflict();
+            if (cart.TopUpRequestId is Guid topUpId)
+            {
+                var topUp = await db.Set<TopUpRequest>().FindAsync([new TopUpRequestId(topUpId)], ct);
+                if (topUp?.Status != TopUpStatus.Confirmed) return Conflict();
+            }
+            var buyer = new UserId(buyerId);
+            var active = await db.Set<User>().AnyAsync(x => x.Id == buyer && x.IsActive, ct);
+            if (!active) return Conflict();
+            foreach (var item in cart.Items)
+                if (await db.Set<CoursePurchase>().AnyAsync(x => x.BuyerId == buyer && x.Snapshot.ExternalProductId == item.ExternalCourseId, ct))
+                    return Conflict();
+            var provisioning = sp.GetRequiredService<IUserWalletProvisioningService>();
+            var provisioned = await provisioning.GetOrCreateUserWalletAsync(buyer, ct);
+            if (provisioned.Wallet.Balance < cart.Total)
+                return Result<CourseCart>.Failure(CartErrors.InsufficientBalance, CartErrorCodes.InsufficientBalance);
+            if (cart.Total > 0) provisioned.Wallet.ApplyDebit(cart.Total);
+            var system = cart.Total > 0 ? await provisioning.GetOrCreateSystemAccountAsync(ct) : null;
+            foreach (var item in cart.Items)
+            {
+                var snapshot = ProductSnapshot.Create(item.ExternalCourseId, item.Title, item.PriceInNoor, isFree: item.PriceInNoor == 0);
+                var purchase = CoursePurchase.Create(buyer, snapshot, item.PriceInNoor == 0, purchaseId: CartPurchaseIds.For(cart.Id, item.ExternalCourseId));
+                purchase.AttachToCart(cart.Id);
+                purchase.MarkDebited(cart.Id);
+                db.Add(purchase);
+                if (item.PriceInNoor == 0) continue;
+                db.Add(LedgerEntry.Create(provisioned.Account.Id, -item.PriceInNoor, cart.Id, LedgerReferenceType.Purchase, purchase.Id.ToString()));
+                db.Add(LedgerEntry.Create(system!.Id, item.PriceInNoor, cart.Id, LedgerReferenceType.Purchase, purchase.Id.ToString()));
+            }
+            cart.MarkPaid();
+            await db.SaveChangesAsync(ct); await tx.CommitAsync(ct);
+            return Result<CourseCart>.Success(cart);
+        }); }
+        catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
+        { return Conflict(); }
+        catch (DomainException) { return Conflict(); }
+    }
+    private static Result<CourseCart> Conflict() => Result<CourseCart>.Conflict(CartErrors.Conflict, CartErrorCodes.Conflict);
+    public Task<Result<CreateTopUpRequestResponse>> CreateTopUpAsync(Guid id, Guid buyerId, CancellationToken ct) => Run(async (sp, db) =>
+    {
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
+        await LockBuyer(db, buyerId, ct); await Lock(db, id, ct);
+        var cart = await db.Set<CourseCart>().SingleAsync(x => x.Id == id && x.BuyerId == buyerId, ct);
+        TopUpRequest? topUp;
+        if (cart.TopUpRequestId is Guid topUpId)
+            topUp = await db.Set<TopUpRequest>().FindAsync([new TopUpRequestId(topUpId)], ct);
+        else
+        {
+            if (cart.Status != CourseCartStatus.Ready || cart.ExpiresAtUtc <= DateTime.UtcNow)
+                return Result<CreateTopUpRequestResponse>.Conflict(CartErrors.Conflict, CartErrorCodes.Conflict);
+            var wallet = await sp.GetRequiredService<IWalletRepository>().GetByUserIdAsync(new UserId(buyerId), ct);
+            var amount = decimal.Ceiling(cart.Total - (wallet?.Balance ?? 0m));
+            if (amount <= 0) return Result<CreateTopUpRequestResponse>.Conflict(CartErrors.Conflict, CartErrorCodes.Conflict);
+            var rate = await sp.GetRequiredService<ISystemSettingRepository>().GetRialToNoorConversionRateAsync(ct);
+            if (rate <= 0 || decimal.Truncate(rate) != rate) return Result<CreateTopUpRequestResponse>.Failure(CartErrors.Invalid, CartErrorCodes.Invalid);
+            // اقلام معلق قدیمی خالی‌اند؛ این شارژ فقط توسط پردازشگر سبد ادامه می‌یابد.
+            topUp = TopUpRequest.CreateGateway(new UserId(buyerId), amount, rate);
+            db.Add(topUp); cart.AwaitTopUp(topUp.Id.Value);
+            await db.SaveChangesAsync(ct); await tx.CommitAsync(ct);
+        }
+        return topUp is not null && topUp.Status == TopUpStatus.Pending
+            ? Result<CreateTopUpRequestResponse>.Success(new(topUp.Id.Value, topUp.ClientReferenceCode, topUp.AmountRial!.Value))
+            : Result<CreateTopUpRequestResponse>.Conflict(CartErrors.Conflict, CartErrorCodes.Conflict);
+    });
+    public Task FailAsync(Guid id, Guid buyerId, bool expired, Guid reservationId, CancellationToken ct) => Mutate(id, buyerId, (cart, _) =>
+    {
+        if (cart.ReservationId == reservationId) cart.Fail(expired);
+    }, ct);
+    public Task RecordSynchronizationAsync(Guid id, Guid buyerId, bool succeeded, string? errorCode, Guid reservationId, CancellationToken ct) => Mutate(id, buyerId, (cart, db) =>
+    {
+        if (cart.ReservationId != reservationId) return;
+        cart.RecordSynchronization(succeeded, errorCode);
+        if (!succeeded || cart.Status != CourseCartStatus.Paid) return;
+        foreach (var purchase in db.Set<CoursePurchase>().Where(x => x.CartId == id).ToList())
+            if (purchase.Status != CoursePurchaseStatus.NotificationSent) purchase.MarkNotificationSent();
+    }, ct);
+    private Task Mutate(Guid id, Guid buyerId, Action<CourseCart, ApplicationDbContext> mutate, CancellationToken ct) => Run(async (_, db) =>
+    {
+        await using var tx = await db.Database.BeginTransactionAsync(ct); await Lock(db, id, ct);
+        var cart = await db.Set<CourseCart>().SingleAsync(x => x.Id == id && x.BuyerId == buyerId, ct);
+        mutate(cart, db); await db.SaveChangesAsync(ct); await tx.CommitAsync(ct); return true;
+    });
+    public Task<IReadOnlyList<CourseCart>> GetPendingAsync(CancellationToken ct) => Run<IReadOnlyList<CourseCart>>(async (_, db) =>
+        await db.Set<CourseCart>().FromSqlRaw("""
+            SELECT c.* FROM "CourseCarts" c LEFT JOIN "TopUpRequests" t ON c."TopUpRequestId" = t."Id"
+            WHERE NOT c."Synchronized" AND (
+              c."Status" IN ('Paid', 'Failed', 'Expired') OR
+              (c."Status" IN ('Preparing', 'Ready') AND c."ExpiresAtUtc" <= NOW()) OR
+              (c."Status" = 'AwaitingTopUp' AND t."Status" <> 'Pending'))
+            ORDER BY c."UpdatedAtUtc" LIMIT 100
+            """).AsNoTracking().ToListAsync(ct));
+}

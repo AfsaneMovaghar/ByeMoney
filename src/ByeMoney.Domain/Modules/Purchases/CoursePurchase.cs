@@ -7,6 +7,8 @@ namespace ByeMoney.Domain.Modules.Purchases;
 
 public class CoursePurchase : BaseEntity<CoursePurchaseId>
 {
+    public Guid? CartId { get; private set; }
+    public void AttachToCart(Guid cartId) => CartId = cartId;
     /// <summary>Internal ByeMoney UserId of the buyer. Gifting is out of scope (Buyer == Recipient).</summary>
     public UserId BuyerId { get; private set; }
 

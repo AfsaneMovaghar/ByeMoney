@@ -229,4 +229,9 @@
   <data name="TopUpRequest_PendingItemTypeInvalid" xml:space="preserve">
     <value>نوع قلم خرید همراه شارژ معتبر نیست.</value>
   </data>
+  <data name="Cart_Invalid" xml:space="preserve"><value>درخواست یا قیمت سبد معتبر نیست.</value></data>
+  <data name="Cart_Conflict" xml:space="preserve"><value>وضعیت سبد تغییر کرده یا یکی از دوره‌ها قبلاً خریداری شده است؛ سبد را دوباره بررسی کنید.</value></data>
+  <data name="Cart_NotFound" xml:space="preserve"><value>سبد خرید یافت نشد.</value></data>
+  <data name="Cart_InsufficientBalance" xml:space="preserve"><value>موجودی نور برای خرید سبد کافی نیست.</value></data>
+  <data name="Cart_Unavailable" xml:space="preserve"><value>ارتباط با سرویس خرید برقرار نشد؛ وضعیت همین سبد را دوباره پیگیری کنید.</value></data>
 </root>

@@ -43,7 +43,7 @@ public class CreateTopUpRequestCommandTests
         var catalog = new Mock<ITarhElahiIntegrationClient>();
         catalog.Setup(x => x.GetCourseAsync("course-1", It.IsAny<CancellationToken>()))
             .ReturnsAsync(new TarhElahiCourseDto { ExternalId = "course-1", PriceNoor = (decimal)price, Published = true, Available = true });
-        var handler = new CreateTopUpRequestCommandHandler(repository.Object, Mock.Of<IUnitOfWork>(), Mock.Of<ISystemSettingRepository>(), catalog.Object);
+        var handler = new CreateTopUpRequestCommandHandler(repository.Object, Mock.Of<IUnitOfWork>(), Mock.Of<ISystemSettingRepository>(), catalog.Object, Mock.Of<IWalletRepository>());
 
         await FluentActions.Awaiting(() => handler.Handle(new CreateTopUpRequestCommand(Guid.NewGuid(), 50m,
             PaymentMethod.Gateway, PendingItems: [new(PendingItemType.Course, "course-1", 50m)]), CancellationToken.None))
@@ -66,7 +66,7 @@ public class CreateTopUpRequestCommandTests
         TopUpRequest? saved = null;
         repository.Setup(x => x.AddAsync(It.IsAny<TopUpRequest>(), It.IsAny<CancellationToken>()))
             .Callback<TopUpRequest, CancellationToken>((request, _) => saved = request).Returns(Task.CompletedTask);
-        var handler = new CreateTopUpRequestCommandHandler(repository.Object, Mock.Of<IUnitOfWork>(), settings.Object, catalog.Object);
+        var handler = new CreateTopUpRequestCommandHandler(repository.Object, Mock.Of<IUnitOfWork>(), settings.Object, catalog.Object, Mock.Of<IWalletRepository>());
 
         await handler.Handle(new CreateTopUpRequestCommand(Guid.NewGuid(), 50m, method,
             PendingItems: [new(PendingItemType.Course, "course-1", 1m)]), CancellationToken.None);
@@ -82,7 +82,7 @@ public class CreateTopUpRequestCommandTests
         var catalog = new Mock<ITarhElahiIntegrationClient>();
         catalog.Setup(x => x.GetCourseAsync("course-1", It.IsAny<CancellationToken>()))
             .ReturnsAsync(new TarhElahiCourseDto { ExternalId = "course-1", PriceNoor = 50m, Published = true, Available = false });
-        var handler = new CreateTopUpRequestCommandHandler(repository.Object, Mock.Of<IUnitOfWork>(), Mock.Of<ISystemSettingRepository>(), catalog.Object);
+        var handler = new CreateTopUpRequestCommandHandler(repository.Object, Mock.Of<IUnitOfWork>(), Mock.Of<ISystemSettingRepository>(), catalog.Object, Mock.Of<IWalletRepository>());
 
         await FluentActions.Awaiting(() => handler.Handle(new CreateTopUpRequestCommand(Guid.NewGuid(), 50m,
             PaymentMethod.Gateway, PendingItems: [new(PendingItemType.Course, "course-1", 1m)]), CancellationToken.None))
@@ -97,7 +97,7 @@ public class CreateTopUpRequestCommandTests
         var catalog = new Mock<ITarhElahiIntegrationClient>(MockBehavior.Strict);
         var settings = new Mock<ISystemSettingRepository>();
         settings.Setup(x => x.GetRialToNoorConversionRateAsync(It.IsAny<CancellationToken>())).ReturnsAsync(100m);
-        var handler = new CreateTopUpRequestCommandHandler(Mock.Of<ITopUpRequestRepository>(), Mock.Of<IUnitOfWork>(), settings.Object, catalog.Object);
+        var handler = new CreateTopUpRequestCommandHandler(Mock.Of<ITopUpRequestRepository>(), Mock.Of<IUnitOfWork>(), settings.Object, catalog.Object, Mock.Of<IWalletRepository>());
 
         await handler.Handle(new CreateTopUpRequestCommand(Guid.NewGuid(), 50m, PaymentMethod.Gateway), CancellationToken.None);
 
@@ -114,7 +114,7 @@ public class CreateTopUpRequestCommandTests
         repository.Setup(x => x.AddAsync(It.IsAny<TopUpRequest>(), It.IsAny<CancellationToken>()))
             .Callback<TopUpRequest, CancellationToken>((topUp, _) => saved = topUp)
             .Returns(Task.CompletedTask);
-        var handler = new CreateTopUpRequestCommandHandler(repository.Object, Mock.Of<IUnitOfWork>(), settings.Object, Mock.Of<ByeMoney.Application.Modules.TarhElahiIntegration.Interfaces.ITarhElahiIntegrationClient>());
+        var handler = new CreateTopUpRequestCommandHandler(repository.Object, Mock.Of<IUnitOfWork>(), settings.Object, Mock.Of<ByeMoney.Application.Modules.TarhElahiIntegration.Interfaces.ITarhElahiIntegrationClient>(), Mock.Of<IWalletRepository>());
 
         await handler.Handle(new CreateTopUpRequestCommand(Guid.NewGuid(), 3m, PaymentMethod.Gateway), CancellationToken.None);
 
