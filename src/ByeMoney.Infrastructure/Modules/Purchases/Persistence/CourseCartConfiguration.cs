@@ -8,7 +8,11 @@ public sealed class CourseCartConfiguration : IEntityTypeConfiguration<CourseCar
 {
     public void Configure(EntityTypeBuilder<CourseCart> b)
     {
-        b.ToTable("CourseCarts");
+        b.ToTable("CourseCarts", table =>
+        {
+            table.HasCheckConstraint("CK_CourseCarts_Discounts",
+                "\"ItemDiscountInNoor\" >= 0 AND \"CouponDiscountInNoor\" >= 0 AND trunc(\"ItemDiscountInNoor\") = \"ItemDiscountInNoor\" AND trunc(\"CouponDiscountInNoor\") = \"CouponDiscountInNoor\"");
+        });
         b.HasKey(x => x.Id);
         b.Property(x => x.BuyerExternalUserId).HasMaxLength(100);
         b.Property(x => x.CouponCode).HasMaxLength(100);
@@ -20,22 +24,32 @@ public sealed class CourseCartConfiguration : IEntityTypeConfiguration<CourseCar
             items.ToTable("CourseCartItems", table =>
             {
                 table.HasCheckConstraint("CK_CourseCartItems_NonNegativeAmounts",
-                    "\"BasePriceInNoor\" >= 0 AND \"ItemDiscountInNoor\" >= 0 AND \"CouponDiscountInNoor\" >= 0 AND \"PriceInNoor\" >= 0");
-                table.HasCheckConstraint("CK_CourseCartItems_PriceBreakdown",
-                    "\"BasePriceInNoor\" - \"ItemDiscountInNoor\" - \"CouponDiscountInNoor\" = \"PriceInNoor\"");
+                    "\"PriceInNoor\" >= 0");
                 table.HasCheckConstraint("CK_CourseCartItems_WholeNoorAmounts",
-                    "trunc(\"BasePriceInNoor\") = \"BasePriceInNoor\" AND trunc(\"ItemDiscountInNoor\") = \"ItemDiscountInNoor\" AND trunc(\"CouponDiscountInNoor\") = \"CouponDiscountInNoor\" AND trunc(\"PriceInNoor\") = \"PriceInNoor\"");
+                    "trunc(\"PriceInNoor\") = \"PriceInNoor\"");
             });
             items.WithOwner().HasForeignKey("CartId");
             items.HasKey("CartId", nameof(CourseCartItem.ExternalCourseId));
             items.Property(x => x.ExternalCourseId).HasMaxLength(100);
             items.Property(x => x.Title).HasMaxLength(255).IsRequired();
-            items.Property(x => x.BasePriceInNoor).HasPrecision(18, 4);
-            items.Property(x => x.ItemDiscountInNoor).HasPrecision(18, 4);
-            items.Property(x => x.CouponDiscountInNoor).HasPrecision(18, 4);
             items.Property(x => x.PriceInNoor).HasPrecision(18, 4);
         });
         b.Navigation(x => x.Items).HasField("_items").UsePropertyAccessMode(PropertyAccessMode.Field);
+        b.Property(x => x.ItemDiscountInNoor).HasPrecision(18, 4);
+        b.Property(x => x.CouponDiscountInNoor).HasPrecision(18, 4);
+        b.OwnsMany(x => x.PurchaseAllocations, allocations =>
+        {
+            allocations.ToTable("CourseCartPurchaseAllocations", table =>
+            {
+                table.HasCheckConstraint("CK_CourseCartPurchaseAllocations_Amount",
+                    "\"AmountInNoor\" >= 0 AND trunc(\"AmountInNoor\") = \"AmountInNoor\"");
+            });
+            allocations.WithOwner().HasForeignKey("CartId");
+            allocations.HasKey("CartId", nameof(CourseCartPurchaseAllocation.ExternalCourseId));
+            allocations.Property(x => x.ExternalCourseId).HasMaxLength(100);
+            allocations.Property(x => x.AmountInNoor).HasPrecision(18, 4);
+        });
+        b.Navigation(x => x.PurchaseAllocations).HasField("_purchaseAllocations").UsePropertyAccessMode(PropertyAccessMode.Field);
         b.Property(x => x.Status).HasConversion<string>().HasMaxLength(30);
         b.Ignore(x => x.Total);
         b.HasIndex(x => new { x.Synchronized, x.UpdatedAtUtc });

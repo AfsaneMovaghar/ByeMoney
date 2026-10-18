@@ -77,6 +77,32 @@ public sealed class CourseCartRefreshTests
         _pricing.VerifyNoOtherCalls();
     }
     [Fact]
+    public async Task CartResponseKeepsCoursePricesFixedAndDiscountsOnlyOnCart()
+    {
+        var cart = CourseCart.Create(Guid.NewGuid(), _buyer.Id.Value, "buyer", ["a", "b"], "OFF");
+        cart.SetQuote([new("a", "الف", 105, 5, 11, 89), new("b", "ب", 105, 0, 10, 95)]);
+        _store.Setup(x => x.FindAsync(cart.Id, _buyer.Id.Value, It.IsAny<CancellationToken>())).ReturnsAsync(cart);
+
+        var response = (await Service().GetAsync(_buyer.Id.Value, cart.Id, default)).Value;
+
+        response.Courses.Select(x => x.PriceInNoor).Should().Equal(105m, 105m);
+        response.OriginalTotalInNoor.Should().Be(210);
+        response.ItemDiscountInNoor.Should().Be(5);
+        response.CouponDiscountInNoor.Should().Be(21);
+        response.PriceInNoor.Should().Be(184);
+        response.ShortfallInNoor.Should().Be(184);
+
+        var json = System.Text.Json.JsonSerializer.SerializeToElement(response,
+            new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web));
+        foreach (var course in json.GetProperty("courses").EnumerateArray())
+        {
+            course.TryGetProperty("basePriceInNoor", out _).Should().BeFalse();
+            course.TryGetProperty("itemDiscountInNoor", out _).Should().BeFalse();
+            course.TryGetProperty("couponDiscountInNoor", out _).Should().BeFalse();
+        }
+    }
+
+    [Fact]
     public async Task FailedReleasePreventsClaimingThatCancellationCompleted()
     {
         var cart = Ready(); cart.Fail();

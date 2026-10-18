@@ -21,13 +21,12 @@ public static class CartErrors
     public static string InsufficientBalance => Read("Cart_InsufficientBalance");
     public static string Unavailable => Read("Cart_Unavailable");
 }
-public sealed record CartCourseResponse(string ExternalCourseId, string Title, decimal BasePriceInNoor,
-    decimal ItemDiscountInNoor, decimal CouponDiscountInNoor, decimal PriceInNoor, string PurchaseStatus);
+public sealed record CartCourseResponse(string ExternalCourseId, string Title, decimal PriceInNoor, string PurchaseStatus);
 public sealed record CartResponse(Guid CartId, string Status, string? CouponCode, decimal OriginalTotalInNoor,
     decimal ItemDiscountInNoor, decimal CouponDiscountInNoor, decimal PriceInNoor, decimal BalanceInNoor,
     decimal ShortfallInNoor, decimal AmountRial, DateTime ExpiresAtUtc, Guid? TopUpRequestId, string? TopUpStatus,
     IReadOnlyList<CartCourseResponse> Courses);
-public sealed record CartQuote(Guid CartId, string BuyerExternalUserId, string? CouponCode, IReadOnlyList<CourseCartItem> Items);
+public sealed record CartQuote(Guid CartId, string BuyerExternalUserId, string? CouponCode, IReadOnlyList<CourseCartQuoteItem> Items);
 public sealed record CartQuoteRequest(Guid CartId, string BuyerExternalUserId, string[] ExternalCourseIds, string? CouponCode);
 public sealed record CartTransitionRequest(Guid CartId, string BuyerExternalUserId, IReadOnlyList<Guid>? PurchaseIds = null);
 
@@ -43,7 +42,7 @@ public interface ICourseCartStore
     Task<Result<CourseCart>> CreateAsync(CourseCart cart, CancellationToken ct);
     Task<Result<CourseCart>> CancelAsync(Guid id, Guid buyerId, CancellationToken ct);
     Task<Result<CourseCart>> ReopenAsync(Guid id, Guid buyerId, Guid reservationId, CancellationToken ct);
-    Task<CourseCart> SetQuoteAsync(Guid id, Guid buyerId, IReadOnlyList<CourseCartItem> items, Guid reservationId, CancellationToken ct);
+    Task<CourseCart> SetQuoteAsync(Guid id, Guid buyerId, IReadOnlyList<CourseCartQuoteItem> items, Guid reservationId, CancellationToken ct);
     Task<Result<CourseCart>> PayAsync(Guid id, Guid buyerId, Guid reservationId, CancellationToken ct);
     Task<Result<CreateTopUpRequestResponse>> CreateTopUpAsync(Guid id, Guid buyerId, CancellationToken ct);
     Task FailAsync(Guid id, Guid buyerId, bool expired, Guid reservationId, CancellationToken ct);

@@ -249,6 +249,10 @@ namespace ByeMoney.Infrastructure.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
+                    b.Property<decimal>("CouponDiscountInNoor")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)");
+
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
@@ -258,6 +262,10 @@ namespace ByeMoney.Infrastructure.Migrations
                     b.PrimitiveCollection<string[]>("ExternalCourseIds")
                         .IsRequired()
                         .HasColumnType("text[]");
+
+                    b.Property<decimal>("ItemDiscountInNoor")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)");
 
                     b.Property<DateTime?>("LastSyncAttemptAtUtc")
                         .HasColumnType("timestamp with time zone");
@@ -299,7 +307,10 @@ namespace ByeMoney.Infrastructure.Migrations
 
                     b.HasIndex("Synchronized", "UpdatedAtUtc");
 
-                    b.ToTable("CourseCarts", (string)null);
+                    b.ToTable("CourseCarts", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_CourseCarts_Discounts", "\"ItemDiscountInNoor\" >= 0 AND \"CouponDiscountInNoor\" >= 0 AND trunc(\"ItemDiscountInNoor\") = \"ItemDiscountInNoor\" AND trunc(\"CouponDiscountInNoor\") = \"CouponDiscountInNoor\"");
+                        });
                 });
 
             modelBuilder.Entity("ByeMoney.Domain.Modules.Purchases.CoursePurchase", b =>
@@ -720,18 +731,6 @@ namespace ByeMoney.Infrastructure.Migrations
                                 .HasMaxLength(100)
                                 .HasColumnType("character varying(100)");
 
-                            b1.Property<decimal>("BasePriceInNoor")
-                                .HasPrecision(18, 4)
-                                .HasColumnType("numeric(18,4)");
-
-                            b1.Property<decimal>("CouponDiscountInNoor")
-                                .HasPrecision(18, 4)
-                                .HasColumnType("numeric(18,4)");
-
-                            b1.Property<decimal>("ItemDiscountInNoor")
-                                .HasPrecision(18, 4)
-                                .HasColumnType("numeric(18,4)");
-
                             b1.Property<decimal>("PriceInNoor")
                                 .HasPrecision(18, 4)
                                 .HasColumnType("numeric(18,4)");
@@ -745,11 +744,33 @@ namespace ByeMoney.Infrastructure.Migrations
 
                             b1.ToTable("CourseCartItems", null, t =>
                                 {
-                                    t.HasCheckConstraint("CK_CourseCartItems_NonNegativeAmounts", "\"BasePriceInNoor\" >= 0 AND \"ItemDiscountInNoor\" >= 0 AND \"CouponDiscountInNoor\" >= 0 AND \"PriceInNoor\" >= 0");
+                                    t.HasCheckConstraint("CK_CourseCartItems_NonNegativeAmounts", "\"PriceInNoor\" >= 0");
 
-                                    t.HasCheckConstraint("CK_CourseCartItems_PriceBreakdown", "\"BasePriceInNoor\" - \"ItemDiscountInNoor\" - \"CouponDiscountInNoor\" = \"PriceInNoor\"");
+                                    t.HasCheckConstraint("CK_CourseCartItems_WholeNoorAmounts", "trunc(\"PriceInNoor\") = \"PriceInNoor\"");
+                                });
 
-                                    t.HasCheckConstraint("CK_CourseCartItems_WholeNoorAmounts", "trunc(\"BasePriceInNoor\") = \"BasePriceInNoor\" AND trunc(\"ItemDiscountInNoor\") = \"ItemDiscountInNoor\" AND trunc(\"CouponDiscountInNoor\") = \"CouponDiscountInNoor\" AND trunc(\"PriceInNoor\") = \"PriceInNoor\"");
+                            b1.WithOwner()
+                                .HasForeignKey("CartId");
+                        });
+
+                    b.OwnsMany("ByeMoney.Domain.Modules.Purchases.CourseCartPurchaseAllocation", "PurchaseAllocations", b1 =>
+                        {
+                            b1.Property<Guid>("CartId")
+                                .HasColumnType("uuid");
+
+                            b1.Property<string>("ExternalCourseId")
+                                .HasMaxLength(100)
+                                .HasColumnType("character varying(100)");
+
+                            b1.Property<decimal>("AmountInNoor")
+                                .HasPrecision(18, 4)
+                                .HasColumnType("numeric(18,4)");
+
+                            b1.HasKey("CartId", "ExternalCourseId");
+
+                            b1.ToTable("CourseCartPurchaseAllocations", null, t =>
+                                {
+                                    t.HasCheckConstraint("CK_CourseCartPurchaseAllocations_Amount", "\"AmountInNoor\" >= 0 AND trunc(\"AmountInNoor\") = \"AmountInNoor\"");
                                 });
 
                             b1.WithOwner()
@@ -757,6 +778,8 @@ namespace ByeMoney.Infrastructure.Migrations
                         });
 
                     b.Navigation("Items");
+
+                    b.Navigation("PurchaseAllocations");
                 });
 
             modelBuilder.Entity("ByeMoney.Domain.Modules.Purchases.CoursePurchase", b =>

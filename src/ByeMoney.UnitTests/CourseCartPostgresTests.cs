@@ -84,7 +84,7 @@ public sealed class CourseCartPostgresTests : IAsyncLifetime
         var cart = CourseCart.Create(Guid.NewGuid(), _buyer.Id.Value, _buyer.ExternalUserId, ids ?? ["a", "b"], "OFF");
         (await Store.CreateAsync(cart, default)).IsSuccess.Should().BeTrue();
         return await Store.SetQuoteAsync(cart.Id, _buyer.Id.Value, cart.ExternalCourseIds.Select((id, index) =>
-            new CourseCartItem(id, "دوره", 105, 0, free ? 105 : index == 0 ? 11 : 10, free ? 0 : index == 0 ? 94 : 95)).ToArray(), cart.ReservationId, default);
+            new CourseCartQuoteItem(id, "دوره", 105, 0, free ? 105 : index == 0 ? 11 : 10, free ? 0 : index == 0 ? 94 : 95)).ToArray(), cart.ReservationId, default);
     }
     private async Task<(decimal Balance, int Purchases, decimal Debit, decimal Net)> Financials()
     {
@@ -104,12 +104,36 @@ public sealed class CourseCartPostgresTests : IAsyncLifetime
         var migrator = db.GetService<IMigrator>();
         await migrator.MigrateAsync("20261018061504_AddCourseCartPaymentRetries");
         var json = await db.Database.SqlQuery<string>($"SELECT \"Items\"::text AS \"Value\" FROM \"CourseCarts\" WHERE \"Id\" = {cart.Id}").SingleAsync();
-        var items = System.Text.Json.JsonSerializer.Deserialize<CourseCartItem[]>(json);
-        items.Should().Equal(cart.Items);
+        var items = System.Text.Json.JsonSerializer.Deserialize<CourseCartQuoteItem[]>(json);
+        items!.Select(x => new CourseCartItem(x.ExternalCourseId, x.Title, x.BasePriceInNoor)).Should().Equal(cart.Items);
         await migrator.MigrateAsync();
         (await Store.FindAsync(cart.Id, _buyer.Id.Value, default)).Should().BeNull();
         (await db.Database.SqlQuery<int>($"SELECT count(*)::int AS \"Value\" FROM \"CourseCartItems\"").SingleAsync()).Should().Be(0);
         (await Financials()).Should().Be((811m, 2, 189m, 0m));
+    }
+
+    [CartPostgresFact]
+    public async Task DiscountMigrationPreservesExistingCartAndFinancialAllocation()
+    {
+        var cart = CourseCart.Create(Guid.NewGuid(), _buyer.Id.Value, _buyer.ExternalUserId, ["a", "b"], "OFF");
+        await Store.CreateAsync(cart, default);
+        cart = await Store.SetQuoteAsync(cart.Id, _buyer.Id.Value,
+            [new("a", "الف", 200, 10, 20, 170), new("b", "ب", 100, 100, 0, 0)], cart.ReservationId, default);
+        using var scope = _provider.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var migrator = db.GetService<IMigrator>();
+        await migrator.MigrateAsync("20261018074939_NormalizeCourseCartItems");
+        await migrator.MigrateAsync();
+
+        var loaded = (await Store.FindAsync(cart.Id, _buyer.Id.Value, default))!;
+        loaded.Items.Should().Equal(cart.Items);
+        loaded.PurchaseAllocations.Should().Equal(cart.PurchaseAllocations);
+        loaded.ItemDiscountInNoor.Should().Be(110);
+        loaded.CouponDiscountInNoor.Should().Be(20);
+        loaded.Total.Should().Be(170);
+        loaded.Status.Should().Be(CourseCartStatus.Ready);
+        (await Store.PayAsync(cart.Id, _buyer.Id.Value, cart.ReservationId, default)).IsSuccess.Should().BeTrue();
+        (await Financials()).Should().Be((830m, 2, 170m, 0m));
     }
 
     [CartPostgresFact]
@@ -136,9 +160,13 @@ public sealed class CourseCartPostgresTests : IAsyncLifetime
         await Store.RecordSynchronizationAsync(cart.Id, _buyer.Id.Value, true, null, cart.ReservationId, default);
         var reopened = (await Store.ReopenAsync(cart.Id, _buyer.Id.Value, cart.ReservationId, default)).Value;
         (await Store.FindAsync(cart.Id, _buyer.Id.Value, default))!.Items.Should().BeEmpty();
-        CourseCartItem[] quote = [new("a", "قیمت تازه", 200, 10, 20, 170), new("b", "رایگان", 100, 100, 0, 0)];
+        CourseCartQuoteItem[] quote = [new("a", "قیمت تازه", 200, 10, 20, 170), new("b", "رایگان", 100, 100, 0, 0)];
         await Store.SetQuoteAsync(cart.Id, _buyer.Id.Value, quote, reopened.ReservationId, default);
-        (await Store.FindAsync(cart.Id, _buyer.Id.Value, default))!.Items.Should().Equal(quote);
+        var loaded = (await Store.FindAsync(cart.Id, _buyer.Id.Value, default))!;
+        loaded.Items.Should().Equal(quote.Select(x => new CourseCartItem(x.ExternalCourseId, x.Title, x.BasePriceInNoor)));
+        loaded.ItemDiscountInNoor.Should().Be(110);
+        loaded.CouponDiscountInNoor.Should().Be(20);
+        loaded.PurchaseAllocations.Sum(x => x.AmountInNoor).Should().Be(170);
         (await Store.PayAsync(cart.Id, _buyer.Id.Value, reopened.ReservationId, default)).IsSuccess.Should().BeTrue();
         (await Financials()).Should().Be((830m, 2, 170m, 0m));
     }
@@ -149,9 +177,9 @@ public sealed class CourseCartPostgresTests : IAsyncLifetime
         var cart = await Ready();
         using var scope = _provider.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        Func<Task> negative = () => db.Database.ExecuteSqlInterpolatedAsync($"UPDATE \"CourseCartItems\" SET \"ItemDiscountInNoor\" = -1, \"PriceInNoor\" = 95 WHERE \"CartId\" = {cart.Id} AND \"ExternalCourseId\" = 'a'");
-        Func<Task> inconsistent = () => db.Database.ExecuteSqlInterpolatedAsync($"UPDATE \"CourseCartItems\" SET \"PriceInNoor\" = 1 WHERE \"CartId\" = {cart.Id} AND \"ExternalCourseId\" = 'a'");
-        Func<Task> fractional = () => db.Database.ExecuteSqlInterpolatedAsync($"UPDATE \"CourseCartItems\" SET \"CouponDiscountInNoor\" = 10.5, \"PriceInNoor\" = 94.5 WHERE \"CartId\" = {cart.Id} AND \"ExternalCourseId\" = 'a'");
+        Func<Task> negative = () => db.Database.ExecuteSqlInterpolatedAsync($"UPDATE \"CourseCartItems\" SET \"PriceInNoor\" = -1 WHERE \"CartId\" = {cart.Id}");
+        Func<Task> inconsistent = () => db.Database.ExecuteSqlInterpolatedAsync($"UPDATE \"CourseCarts\" SET \"ItemDiscountInNoor\" = -1 WHERE \"Id\" = {cart.Id}");
+        Func<Task> fractional = () => db.Database.ExecuteSqlInterpolatedAsync($"UPDATE \"CourseCartItems\" SET \"PriceInNoor\" = 94.5 WHERE \"CartId\" = {cart.Id}");
         Func<Task> duplicate = () => db.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO \"CourseCartItems\" SELECT * FROM \"CourseCartItems\" WHERE \"CartId\" = {cart.Id}");
         Func<Task> orphan = () => db.Database.ExecuteSqlInterpolatedAsync($"UPDATE \"CourseCartItems\" SET \"CartId\" = {Guid.NewGuid()} WHERE \"CartId\" = {cart.Id}");
         foreach (var invalid in new[] { negative, inconsistent, fractional })

@@ -7,33 +7,93 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace ByeMoney.API.Controllers;
 
-public sealed record PrepareCourseCartRequest(Guid CartId, string[] ExternalCourseIds, string? CouponCode);
-public sealed record CourseCartErrorResponse(string Code, string Error);
+public sealed record PrepareCourseCartRequest(
+    Guid CartId,
+    string[] ExternalCourseIds,
+    string? CouponCode);
 
-[ApiController, Authorize, Route("api/course-carts")]
+public sealed record CourseCartErrorResponse(
+    string Code,
+    string Error);
+
+[ApiController]
+[Authorize]
+[Route("api/course-carts")]
 public sealed class CourseCartsController(ISender sender) : ControllerBase
 {
     [HttpPost("checkout")]
     [ProducesResponseType(typeof(CartResponse), StatusCodes.Status200OK)]
-    public async Task<IActionResult> Prepare(PrepareCourseCartRequest request, CancellationToken ct) =>
-        Respond(await sender.Send(new PrepareCourseCartCommand(request.CartId, request.ExternalCourseIds, request.CouponCode), ct));
+    public async Task<IActionResult> Prepare(
+        [FromBody] PrepareCourseCartRequest request,
+        CancellationToken ct)
+    {
+        var command = new PrepareCourseCartCommand(request.CartId, request.ExternalCourseIds, request.CouponCode);
+        var result = await sender.Send(command, ct);
+        return Respond(result);
+    }
+
     [HttpGet("{cartId:guid}")]
     [ProducesResponseType(typeof(CartResponse), StatusCodes.Status200OK)]
-    public async Task<IActionResult> Get(Guid cartId, CancellationToken ct) => Respond(await sender.Send(new GetCourseCartQuery(cartId), ct));
+    public async Task<IActionResult> Get(
+        [FromRoute] Guid cartId,
+        CancellationToken ct)
+    {
+        var query = new GetCourseCartQuery(cartId);
+        var result = await sender.Send(query, ct);
+        return Respond(result);
+    }
+
     [HttpPost("{cartId:guid}/purchase")]
     [ProducesResponseType(typeof(CartResponse), StatusCodes.Status200OK)]
-    public async Task<IActionResult> Purchase(Guid cartId, CancellationToken ct) => Respond(await sender.Send(new PurchaseCourseCartCommand(cartId), ct));
+    public async Task<IActionResult> Purchase(
+        [FromRoute] Guid cartId,
+        CancellationToken ct)
+    {
+        var command = new PurchaseCourseCartCommand(cartId);
+        var result = await sender.Send(command, ct);
+        return Respond(result);
+    }
+
     [HttpPost("{cartId:guid}/cancel")]
     [ProducesResponseType(typeof(CartResponse), StatusCodes.Status200OK)]
-    public async Task<IActionResult> Cancel(Guid cartId, CancellationToken ct) => Respond(await sender.Send(new CancelCourseCartCommand(cartId), ct));
+    public async Task<IActionResult> Cancel(
+        [FromRoute] Guid cartId,
+        CancellationToken ct)
+    {
+        var command = new CancelCourseCartCommand(cartId);
+        var result = await sender.Send(command, ct);
+        return Respond(result);
+    }
+
     [HttpPost("{cartId:guid}/topup")]
     [ProducesResponseType(typeof(CreateTopUpRequestResponse), StatusCodes.Status200OK)]
-    public async Task<IActionResult> TopUp(Guid cartId, CancellationToken ct) => Respond(await sender.Send(new CreateCourseCartTopUpCommand(cartId), ct));
+    public async Task<IActionResult> TopUp(
+        [FromRoute] Guid cartId,
+        CancellationToken ct)
+    {
+        var command = new CreateCourseCartTopUpCommand(cartId);
+        var result = await sender.Send(command, ct);
+        return Respond(result);
+    }
+
     private IActionResult Respond<T>(Result<T> result)
     {
-        if (result.IsSuccess) return Ok(result.Value);
-        var status = result.ErrorCode == CartErrorCodes.Unavailable ? 503 : result.Status switch
-        { ResultStatus.NotFound => 404, ResultStatus.Conflict => 409, _ => 400 };
-        return StatusCode(status, new CourseCartErrorResponse(result.ErrorCode ?? CartErrorCodes.Invalid, result.ErrorMessage!));
+        if (result.IsSuccess)
+        {
+            return Ok(result.Value);
+        }
+
+        var statusCode = result.ErrorCode == CartErrorCodes.Unavailable
+            ? StatusCodes.Status503ServiceUnavailable
+            : result.Status switch
+            {
+                ResultStatus.NotFound => StatusCodes.Status404NotFound,
+                ResultStatus.Conflict => StatusCodes.Status409Conflict,
+                _ => StatusCodes.Status400BadRequest
+            };
+
+        return StatusCode(statusCode, new CourseCartErrorResponse(
+            result.ErrorCode ?? CartErrorCodes.Invalid,
+            result.ErrorMessage!));
     }
 }

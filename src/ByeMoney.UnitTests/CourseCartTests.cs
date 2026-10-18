@@ -7,12 +7,16 @@ namespace ByeMoney.UnitTests;
 public sealed class CourseCartTests
 {
     private static CourseCart Cart() => CourseCart.Create(Guid.NewGuid(), Guid.NewGuid(), "user", ["a", "b"], "off");
-    private static CourseCartItem[] Items() => [new("a", "الف", 105, 0, 11, 94), new("b", "ب", 105, 0, 10, 95)];
+    private static CourseCartQuoteItem[] Items() => [new("a", "الف", 105, 0, 11, 94), new("b", "ب", 105, 0, 10, 95)];
     [Fact]
     public void FrozenCart_PreservesAggregateCouponAndCanonicalIdentity()
     {
         var cart = Cart(); cart.SetQuote(Items());
         cart.Total.Should().Be(189);
+        cart.Items.Select(x => x.PriceInNoor).Should().Equal(105m, 105m);
+        cart.ItemDiscountInNoor.Should().Be(0);
+        cart.CouponDiscountInNoor.Should().Be(21);
+        cart.PurchaseAllocations.Select(x => x.AmountInNoor).Should().Equal(94m, 95m);
         cart.CouponCode.Should().Be("OFF");
         cart.Matches(["b", "a"], " off ").Should().BeTrue();
         cart.Matches(["a", "b"], "other").Should().BeFalse();
