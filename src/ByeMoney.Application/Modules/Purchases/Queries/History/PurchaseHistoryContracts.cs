@@ -54,6 +54,8 @@ public interface IPurchaseHistoryReader
         Guid? buyerId, PurchaseHistoryFilter filter, CancellationToken ct);
 
     Task<PurchaseReceiptData?> GetReceiptAsync(Guid purchaseId, Guid buyerId, CancellationToken ct);
+
+    Task<PurchaseReceiptData?> GetAdminReceiptAsync(Guid purchaseId, CancellationToken ct);
 }
 
 public static class PurchaseHistoryMapping

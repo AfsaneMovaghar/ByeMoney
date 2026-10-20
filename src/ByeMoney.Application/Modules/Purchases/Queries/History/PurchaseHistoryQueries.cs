@@ -11,6 +11,8 @@ public sealed record GetMyCoursePurchasesQuery(int Page = 1, int PageSize = 20)
 
 public sealed record GetMyCoursePurchaseReceiptQuery(Guid PurchaseId) : IRequest<PurchaseReceipt>;
 
+public sealed record GetAdminCoursePurchaseReceiptQuery(Guid PurchaseId) : IRequest<PurchaseReceipt>;
+
 public sealed record GetAdminCoursePurchasesQuery(PurchaseHistoryFilter Filter)
     : IRequest<PurchasePage<AdminPurchaseListItem>>;
 
@@ -70,10 +72,20 @@ public sealed class GetMyCoursePurchaseReceiptQueryValidator : AbstractValidator
     }
 }
 
+public sealed class GetAdminCoursePurchaseReceiptQueryValidator : AbstractValidator<GetAdminCoursePurchaseReceiptQuery>
+{
+    public GetAdminCoursePurchaseReceiptQueryValidator()
+    {
+        RuleLevelCascadeMode = CascadeMode.Stop;
+        RuleFor(x => x.PurchaseId).NotEmpty().WithMessage(PurchaseHistoryErrors.InvalidPurchaseId);
+    }
+}
+
 public sealed class PurchaseHistoryQueryHandlers(
     IPurchaseHistoryReader reader, ICurrentUserService currentUser) :
     IRequestHandler<GetMyCoursePurchasesQuery, PurchasePage<PurchaseListItem>>,
     IRequestHandler<GetMyCoursePurchaseReceiptQuery, PurchaseReceipt>,
+    IRequestHandler<GetAdminCoursePurchaseReceiptQuery, PurchaseReceipt>,
     IRequestHandler<GetAdminCoursePurchasesQuery, PurchasePage<AdminPurchaseListItem>>
 {
     private Guid BuyerId => currentUser.UserId
@@ -99,5 +111,13 @@ public sealed class PurchaseHistoryQueryHandlers(
         var page = await reader.ListAsync(null, request.Filter, ct);
         return new PurchasePage<AdminPurchaseListItem>(
             page.Items.Select(PurchaseHistoryMapping.ToAdminListItem).ToArray(), page.Page, page.PageSize, page.TotalCount);
+    }
+
+    public async Task<PurchaseReceipt> Handle(GetAdminCoursePurchaseReceiptQuery request, CancellationToken ct)
+    {
+        _ = BuyerId;
+        var data = await reader.GetAdminReceiptAsync(request.PurchaseId, ct)
+            ?? throw new NotFoundException(PurchaseHistoryErrors.NotFound);
+        return PurchaseHistoryMapping.ToReceipt(data);
     }
 }

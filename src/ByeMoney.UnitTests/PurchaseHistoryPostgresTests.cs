@@ -105,7 +105,13 @@ public sealed class PurchaseHistoryPostgresTests : IAsyncLifetime
         (await reader.GetReceiptAsync(foreign.Id.Value, buyer.Id.Value, default)).Should().BeNull();
         (await reader.GetReceiptAsync(Guid.NewGuid(), buyer.Id.Value, default)).Should().BeNull();
         (await reader.GetReceiptAsync(pending.Id.Value, buyer.Id.Value, default)).Should().BeNull();
+        var adminReceipt = await reader.GetAdminReceiptAsync(foreign.Id.Value, default);
+        adminReceipt!.Purchase.Id.Should().Be(foreign.Id);
+        (await reader.GetAdminReceiptAsync(Guid.NewGuid(), default)).Should().BeNull();
+        (await reader.GetAdminReceiptAsync(pending.Id.Value, default)).Should().BeNull();
         var freeData = await reader.GetReceiptAsync(free.Id.Value, buyer.Id.Value, default);
+        var adminFreeData = await reader.GetAdminReceiptAsync(free.Id.Value, default);
+        adminFreeData!.Cart!.Id.Should().Be(cart.Id);
         var receipt = PurchaseHistoryMapping.ToReceipt(freeData!);
         receipt.FinancialStatus.Should().Be("Paid");
         receipt.DeliveryStatus.Should().Be("Pending");

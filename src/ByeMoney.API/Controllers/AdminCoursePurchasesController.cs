@@ -18,4 +18,12 @@ public sealed class AdminCoursePurchasesController(ISender sender) : ControllerB
     {
         return Ok(await sender.Send(new GetAdminCoursePurchasesQuery(filter), ct));
     }
+
+    [HttpGet("{purchaseId:guid}")]
+    [ProducesResponseType(typeof(PurchaseReceipt), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<PurchaseReceipt>> Receipt(Guid purchaseId, CancellationToken ct)
+    {
+        return Ok(await sender.Send(new GetAdminCoursePurchaseReceiptQuery(purchaseId), ct));
+    }
 }

@@ -22,6 +22,7 @@
 | AdminAssistedTopUp | `POST` | `/api/admin/topups/assisted` | نیازمند پالیسی `RequireTopUpReview` | `TopUp.Review` |
 | AdminCourseOrders | `GET` | `/api/admin/course-orders` | نیازمند پالیسی `RequirePurchasesView` | `Purchases.View` |
 | AdminCoursePurchases | `GET` | `/api/admin/course-purchases` | نیازمند پالیسی `RequirePurchasesView` | `Purchases.View` |
+| AdminCoursePurchases | `GET` | `/api/admin/course-purchases/{purchaseId:guid}` | نیازمند پالیسی `RequirePurchasesView` | `Purchases.View` |
 | AdminCourses | `POST` | `/api/admin/courses/purchase` | نیازمند پالیسی `RequireCoursesManage` | `Courses.Manage` |
 | AdminGatewayReview | `GET` | `/api/admin/topups/gateway-reviews/{clientReferenceCode}` | نیازمند پالیسی `RequireTopUpReview` | `TopUp.Review` |
 | AdminGatewayReview | `POST` | `/api/admin/topups/gateway-reviews/resolve` | نیازمند پالیسی `RequireTopUpReview` | `TopUp.Review` |

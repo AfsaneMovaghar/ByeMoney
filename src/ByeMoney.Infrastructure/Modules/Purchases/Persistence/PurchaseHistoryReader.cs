@@ -62,12 +62,27 @@ public sealed class PurchaseHistoryReader(ApplicationDbContext db) : IPurchaseHi
         return new PurchasePage<PurchaseReadRow>(items, filter.Page, filter.PageSize, count);
     }
 
-    public async Task<PurchaseReceiptData?> GetReceiptAsync(Guid purchaseId, Guid buyerId, CancellationToken ct)
+    public Task<PurchaseReceiptData?> GetReceiptAsync(Guid purchaseId, Guid buyerId, CancellationToken ct)
+    {
+        return ReadReceiptAsync(purchaseId, buyerId, ct);
+    }
+
+    public Task<PurchaseReceiptData?> GetAdminReceiptAsync(Guid purchaseId, CancellationToken ct)
+    {
+        return ReadReceiptAsync(purchaseId, null, ct);
+    }
+
+    private async Task<PurchaseReceiptData?> ReadReceiptAsync(Guid purchaseId, Guid? buyerId, CancellationToken ct)
     {
         var id = new CoursePurchaseId(purchaseId);
-        var owner = new UserId(buyerId);
-        var purchase = await PaidPurchases.SingleOrDefaultAsync(
-            item => item.Id == id && item.BuyerId == owner, ct);
+        var query = PaidPurchases.Where(item => item.Id == id);
+        if (buyerId.HasValue)
+        {
+            var owner = new UserId(buyerId.Value);
+            query = query.Where(item => item.BuyerId == owner);
+        }
+
+        var purchase = await query.SingleOrDefaultAsync(ct);
         if (purchase is null)
         {
             return null;
@@ -75,7 +90,7 @@ public sealed class PurchaseHistoryReader(ApplicationDbContext db) : IPurchaseHi
 
         var cart = purchase.CartId.HasValue
             ? await db.Set<CourseCart>().AsNoTracking().SingleOrDefaultAsync(
-                item => item.Id == purchase.CartId && item.BuyerId == buyerId, ct)
+                item => item.Id == purchase.CartId && item.BuyerId == purchase.BuyerId.Value, ct)
             : null;
         return new PurchaseReceiptData(purchase, cart);
     }

@@ -63,6 +63,7 @@ internal static class PurchaseHistoryHttpChecks
         try
         {
             (await client.GetAsync("/api/me/course-purchases")).StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+            (await client.GetAsync($"/api/admin/course-purchases/{otherId}")).StatusCode.Should().Be(HttpStatusCode.Unauthorized);
             client.DefaultRequestHeaders.Add("X-Test-Buyer", buyerId.ToString());
             var mine = await client.GetAsync("/api/me/course-purchases?page=1&pageSize=2");
             mine.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -84,10 +85,19 @@ internal static class PurchaseHistoryHttpChecks
             (await foreign.Content.ReadAsStringAsync()).Should().Be(await missing.Content.ReadAsStringAsync());
 
             (await client.GetAsync("/api/admin/course-purchases")).StatusCode.Should().Be(HttpStatusCode.Forbidden);
+            (await client.GetAsync($"/api/admin/course-purchases/{otherId}")).StatusCode.Should().Be(HttpStatusCode.Forbidden);
             client.DefaultRequestHeaders.Add("X-Test-Permission", Permissions.Courses.Manage);
             (await client.GetAsync("/api/admin/course-purchases")).StatusCode.Should().Be(HttpStatusCode.Forbidden);
+            (await client.GetAsync($"/api/admin/course-purchases/{otherId}")).StatusCode.Should().Be(HttpStatusCode.Forbidden);
             client.DefaultRequestHeaders.Remove("X-Test-Permission");
             client.DefaultRequestHeaders.Add("X-Test-Permission", Permissions.Purchases.View);
+            var adminReceipt = await client.GetAsync($"/api/admin/course-purchases/{otherId}");
+            adminReceipt.StatusCode.Should().Be(HttpStatusCode.OK);
+            using var adminReceiptBody = JsonDocument.Parse(await adminReceipt.Content.ReadAsStringAsync());
+            adminReceiptBody.RootElement.GetProperty("purchaseId").GetGuid().Should().Be(otherId);
+            (await client.GetAsync($"/api/me/course-purchases/{otherId}")).StatusCode.Should().Be(HttpStatusCode.NotFound);
+            (await client.GetAsync($"/api/admin/course-purchases/{Guid.NewGuid()}")).StatusCode.Should().Be(HttpStatusCode.NotFound);
+            (await client.GetAsync($"/api/admin/course-purchases/{Guid.Empty}")).StatusCode.Should().Be(HttpStatusCode.BadRequest);
             var admin = await client.GetAsync("/api/admin/course-purchases");
             admin.StatusCode.Should().Be(HttpStatusCode.OK);
             using var adminPage = JsonDocument.Parse(await admin.Content.ReadAsStringAsync());

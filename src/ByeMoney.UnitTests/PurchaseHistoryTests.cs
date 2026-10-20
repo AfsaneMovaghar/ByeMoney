@@ -127,6 +127,64 @@ public sealed class PurchaseHistoryTests
     }
 
     [Fact]
+    public async Task AdminReceiptReadsAnotherBuyersPurchase()
+    {
+        var purchase = PaidPurchase(80, 12000);
+        var adminId = Guid.NewGuid();
+        var current = new Mock<ICurrentUserService>();
+        current.SetupGet(x => x.UserId).Returns(adminId);
+        var reader = new Mock<IPurchaseHistoryReader>(MockBehavior.Strict);
+        reader.Setup(x => x.GetAdminReceiptAsync(purchase.Id.Value, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new PurchaseReceiptData(purchase, null));
+        var handler = new PurchaseHistoryQueryHandlers(reader.Object, current.Object);
+
+        var receipt = await handler.Handle(new GetAdminCoursePurchaseReceiptQuery(purchase.Id.Value), default);
+
+        purchase.BuyerId.Value.Should().NotBe(adminId);
+        receipt.PurchaseId.Should().Be(purchase.Id.Value);
+        receipt.FinalAmountInNoor.Should().Be(80);
+        reader.VerifyAll();
+    }
+
+    [Fact]
+    public async Task AdminReceiptReturnsNotFoundForMissingPurchase()
+    {
+        var purchaseId = Guid.NewGuid();
+        var current = new Mock<ICurrentUserService>();
+        current.SetupGet(x => x.UserId).Returns(Guid.NewGuid());
+        var reader = new Mock<IPurchaseHistoryReader>(MockBehavior.Strict);
+        reader.Setup(x => x.GetAdminReceiptAsync(purchaseId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((PurchaseReceiptData?)null);
+        var handler = new PurchaseHistoryQueryHandlers(reader.Object, current.Object);
+
+        var action = () => handler.Handle(new GetAdminCoursePurchaseReceiptQuery(purchaseId), default);
+
+        await action.Should().ThrowAsync<NotFoundException>();
+        reader.VerifyAll();
+    }
+
+    [Fact]
+    public async Task AdminReceiptWithoutInternalIdentityDoesNotQueryPurchases()
+    {
+        var reader = new Mock<IPurchaseHistoryReader>(MockBehavior.Strict);
+        var handler = new PurchaseHistoryQueryHandlers(reader.Object, Mock.Of<ICurrentUserService>());
+
+        var action = () => handler.Handle(new GetAdminCoursePurchaseReceiptQuery(Guid.NewGuid()), default);
+
+        await action.Should().ThrowAsync<UnauthorizedAccessException>();
+        reader.VerifyNoOtherCalls();
+    }
+
+    [Fact]
+    public async Task AdminReceiptRejectsEmptyPurchaseId()
+    {
+        var result = await new GetAdminCoursePurchaseReceiptQueryValidator()
+            .ValidateAsync(new GetAdminCoursePurchaseReceiptQuery(Guid.Empty));
+
+        result.IsValid.Should().BeFalse();
+    }
+
+    [Fact]
     public async Task MissingInternalIdentityDoesNotQueryPurchases()
     {
         var reader = new Mock<IPurchaseHistoryReader>(MockBehavior.Strict);
