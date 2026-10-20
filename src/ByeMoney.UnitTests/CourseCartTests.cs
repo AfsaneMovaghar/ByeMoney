@@ -1,4 +1,5 @@
-using ByeMoney.Application.Modules.Purchases.Cart;
+using ByeMoney.Application.Modules.Purchases.Cart.Services;
+using ByeMoney.Application.Modules.Purchases.Commands.PrepareCourseCart;
 using ByeMoney.Domain.Modules.Purchases;
 using FluentAssertions;
 

@@ -1,5 +1,6 @@
+using ByeMoney.Application.Modules.Purchases.Orders.DTOs;
+using ByeMoney.Application.Modules.Purchases.Orders.Interfaces;
 using System.Data;
-using ByeMoney.Application.Modules.Purchases.Queries.Orders;
 using ByeMoney.Domain.Modules.Identity.Users;
 using ByeMoney.Domain.Modules.Purchases;
 using ByeMoney.Domain.Modules.Wallet.TopUps;

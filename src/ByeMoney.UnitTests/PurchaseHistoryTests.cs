@@ -1,7 +1,13 @@
+using ByeMoney.Application.Modules.Purchases.History.DTOs;
+using ByeMoney.Application.Modules.Purchases.History.Interfaces;
+using ByeMoney.Application.Modules.Purchases.History.Services;
+using ByeMoney.Application.Modules.Purchases.Queries.GetAdminCoursePurchaseReceipt;
+using ByeMoney.Application.Modules.Purchases.Queries.GetAdminCoursePurchases;
+using ByeMoney.Application.Modules.Purchases.Queries.GetMyCoursePurchaseReceipt;
+using ByeMoney.Application.Modules.Purchases.Queries.GetMyCoursePurchases;
 using System.Reflection;
 using ByeMoney.API.Controllers;
 using ByeMoney.Application.Common.Interfaces;
-using ByeMoney.Application.Modules.Purchases.Queries.History;
 using ByeMoney.Domain.Common.Exceptions;
 using ByeMoney.Domain.Modules.Identity.Constants;
 using ByeMoney.Domain.Modules.Identity.Users;
@@ -118,7 +124,7 @@ public sealed class PurchaseHistoryTests
         var reader = new Mock<IPurchaseHistoryReader>(MockBehavior.Strict);
         reader.Setup(x => x.GetReceiptAsync(purchaseId, owner, It.IsAny<CancellationToken>()))
             .ReturnsAsync((PurchaseReceiptData?)null);
-        var handler = new PurchaseHistoryQueryHandlers(reader.Object, current.Object);
+        var handler = new GetMyCoursePurchaseReceiptQueryHandler(reader.Object, current.Object);
 
         var action = () => handler.Handle(new GetMyCoursePurchaseReceiptQuery(purchaseId), default);
 
@@ -136,7 +142,7 @@ public sealed class PurchaseHistoryTests
         var reader = new Mock<IPurchaseHistoryReader>(MockBehavior.Strict);
         reader.Setup(x => x.GetAdminReceiptAsync(purchase.Id.Value, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new PurchaseReceiptData(purchase, null));
-        var handler = new PurchaseHistoryQueryHandlers(reader.Object, current.Object);
+        var handler = new GetAdminCoursePurchaseReceiptQueryHandler(reader.Object, current.Object);
 
         var receipt = await handler.Handle(new GetAdminCoursePurchaseReceiptQuery(purchase.Id.Value), default);
 
@@ -155,7 +161,7 @@ public sealed class PurchaseHistoryTests
         var reader = new Mock<IPurchaseHistoryReader>(MockBehavior.Strict);
         reader.Setup(x => x.GetAdminReceiptAsync(purchaseId, It.IsAny<CancellationToken>()))
             .ReturnsAsync((PurchaseReceiptData?)null);
-        var handler = new PurchaseHistoryQueryHandlers(reader.Object, current.Object);
+        var handler = new GetAdminCoursePurchaseReceiptQueryHandler(reader.Object, current.Object);
 
         var action = () => handler.Handle(new GetAdminCoursePurchaseReceiptQuery(purchaseId), default);
 
@@ -167,7 +173,7 @@ public sealed class PurchaseHistoryTests
     public async Task AdminReceiptWithoutInternalIdentityDoesNotQueryPurchases()
     {
         var reader = new Mock<IPurchaseHistoryReader>(MockBehavior.Strict);
-        var handler = new PurchaseHistoryQueryHandlers(reader.Object, Mock.Of<ICurrentUserService>());
+        var handler = new GetAdminCoursePurchaseReceiptQueryHandler(reader.Object, Mock.Of<ICurrentUserService>());
 
         var action = () => handler.Handle(new GetAdminCoursePurchaseReceiptQuery(Guid.NewGuid()), default);
 
@@ -188,7 +194,7 @@ public sealed class PurchaseHistoryTests
     public async Task MissingInternalIdentityDoesNotQueryPurchases()
     {
         var reader = new Mock<IPurchaseHistoryReader>(MockBehavior.Strict);
-        var handler = new PurchaseHistoryQueryHandlers(reader.Object, Mock.Of<ICurrentUserService>());
+        var handler = new GetMyCoursePurchasesQueryHandler(reader.Object, Mock.Of<ICurrentUserService>());
 
         var action = () => handler.Handle(new GetMyCoursePurchasesQuery(), default);
 

@@ -1,3 +1,5 @@
+using ByeMoney.Application.Modules.Purchases.History.Interfaces;
+using ByeMoney.Application.Modules.Purchases.Orders.Interfaces;
 using System.Net;
 using System.Security.Claims;
 using System.Text.Encodings.Web;
@@ -6,8 +8,6 @@ using ByeMoney.API;
 using ByeMoney.API.Controllers;
 using ByeMoney.API.Middleware;
 using ByeMoney.Application;
-using ByeMoney.Application.Modules.Purchases.Queries.History;
-using ByeMoney.Application.Modules.Purchases.Queries.Orders;
 using ByeMoney.Domain.Modules.Identity.Constants;
 using ByeMoney.Domain.Modules.Identity.Permissions;
 using ByeMoney.Infrastructure.Modules.Purchases.Persistence;

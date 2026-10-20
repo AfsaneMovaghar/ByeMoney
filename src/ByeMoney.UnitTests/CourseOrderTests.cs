@@ -1,7 +1,12 @@
+using ByeMoney.Application.Modules.Purchases.Orders.DTOs;
+using ByeMoney.Application.Modules.Purchases.Orders.Interfaces;
+using ByeMoney.Application.Modules.Purchases.Orders.Services;
+using ByeMoney.Application.Modules.Purchases.Queries.GetAdminCourseOrders;
+using ByeMoney.Application.Modules.Purchases.Queries.GetMyCourseOrder;
+using ByeMoney.Application.Modules.Purchases.Queries.GetMyCourseOrders;
 using System.Security.Cryptography;
 using System.Text;
 using ByeMoney.Application.Common.Interfaces;
-using ByeMoney.Application.Modules.Purchases.Queries.Orders;
 using ByeMoney.Domain.Common.Exceptions;
 using ByeMoney.Domain.Modules.Identity.Users;
 using ByeMoney.Domain.Modules.Purchases;
@@ -195,7 +200,7 @@ public sealed class CourseOrderTests
         reader.Setup(service => service.ReadAsync(_buyer.Id.Value, null, default)).ReturnsAsync(snapshot);
         var current = new Mock<ICurrentUserService>();
         current.SetupGet(service => service.UserId).Returns(_buyer.Id.Value);
-        var handler = new CourseOrderQueryHandlers(reader.Object, current.Object);
+        var handler = new GetMyCourseOrdersQueryHandler(reader.Object, current.Object);
         var page = await handler.Handle(new GetMyCourseOrdersQuery(new CourseOrderFilter(PageSize: 1)), default);
         page.TotalCount.Should().Be(2);
         page.Items.Single().SourceType.Should().Be("Purchase");
@@ -204,7 +209,7 @@ public sealed class CourseOrderTests
         filtered.TotalCount.Should().Be(1);
         (await handler.Handle(new GetMyCourseOrdersQuery(new CourseOrderFilter(
             ToUtc: cart.CreatedAtUtc)), default)).Items.Should().BeEmpty();
-        var missing = () => handler.Handle(new GetMyCourseOrderQuery($"cart:{Guid.NewGuid():D}"), default);
+        var missing = () => new GetMyCourseOrderQueryHandler(reader.Object, current.Object).Handle(new GetMyCourseOrderQuery($"cart:{Guid.NewGuid():D}"), default);
         await missing.Should().ThrowAsync<NotFoundException>();
         reader.VerifyAll();
     }
@@ -232,7 +237,7 @@ public sealed class CourseOrderTests
     public async Task MissingIdentityDoesNotReadDataAndAdminEndpointRequiresReadPermission()
     {
         var reader = new Mock<ICourseOrderReader>(MockBehavior.Strict);
-        var handler = new CourseOrderQueryHandlers(reader.Object, Mock.Of<ICurrentUserService>());
+        var handler = new GetMyCourseOrdersQueryHandler(reader.Object, Mock.Of<ICurrentUserService>());
         var action = () => handler.Handle(new GetMyCourseOrdersQuery(new CourseOrderFilter()), default);
         await action.Should().ThrowAsync<UnauthorizedAccessException>();
         reader.VerifyNoOtherCalls();

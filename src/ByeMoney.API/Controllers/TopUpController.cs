@@ -1,5 +1,5 @@
+using ByeMoney.Application.Modules.Purchases.Queries.GetTopUpCheckout;
 using ByeMoney.API.Contracts.TopUp;
-using ByeMoney.Application.Modules.Purchases.Queries.Checkout;
 using ByeMoney.Application.Common.Interfaces;
 using ByeMoney.Application.Modules.Wallet.Commands.CreateTopUpRequest;
 using ByeMoney.Application.Resources;

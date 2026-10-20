@@ -1,4 +1,5 @@
-using ByeMoney.Application.Modules.Purchases.Cart;
+using ByeMoney.Application.Modules.Purchases.Cart.Interfaces;
+using ByeMoney.Application.Modules.Purchases.Cart.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;

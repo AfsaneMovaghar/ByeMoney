@@ -1,4 +1,6 @@
-using ByeMoney.Application.Modules.Purchases.Queries.History;
+using ByeMoney.Application.Modules.Purchases.History.Constants;
+using ByeMoney.Application.Modules.Purchases.History.DTOs;
+using ByeMoney.Application.Modules.Purchases.History.Interfaces;
 using ByeMoney.Domain.Modules.Identity.Users;
 using ByeMoney.Domain.Modules.Purchases;
 using ByeMoney.Infrastructure.Persistence;

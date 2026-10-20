@@ -1,5 +1,6 @@
-using ByeMoney.Application.Modules.Purchases.Queries.History;
-using ByeMoney.Application.Modules.Purchases.Queries.Orders;
+using ByeMoney.Application.Modules.Purchases.History.DTOs;
+using ByeMoney.Application.Modules.Purchases.Orders.DTOs;
+using ByeMoney.Application.Modules.Purchases.Queries.GetAdminCourseOrders;
 using ByeMoney.Domain.Modules.Identity.Constants;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;

@@ -1,6 +1,5 @@
-using ByeMoney.Domain.Common.Generic;
+using ByeMoney.Application.Modules.Purchases.Queries.GetCourseCheckout;
 using ByeMoney.API.Contracts.Courses;
-using ByeMoney.Application.Modules.Purchases.Queries.Checkout;
 using ByeMoney.Application.Common.Interfaces;
 using ByeMoney.Application.Modules.Purchases.Commands.PurchaseCourses;
 using ByeMoney.Application.Resources;

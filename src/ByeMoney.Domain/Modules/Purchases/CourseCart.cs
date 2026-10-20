@@ -1,21 +1,6 @@
+
+
 namespace ByeMoney.Domain.Modules.Purchases;
-
-public enum CourseCartStatus
-{
-    Preparing,
-    Ready,
-    AwaitingTopUp,
-    Paid,
-    Failed,
-    Expired
-}
-
-public sealed record CourseCartQuoteItem(string ExternalCourseId, string Title, decimal BasePriceInNoor,
-    decimal ItemDiscountInNoor, decimal CouponDiscountInNoor, decimal PriceInNoor);
-
-public sealed record CourseCartItem(string ExternalCourseId, string Title, decimal PriceInNoor);
-
-public sealed record CourseCartPurchaseAllocation(string ExternalCourseId, decimal AmountInNoor);
 
 public sealed class CourseCart
 {
