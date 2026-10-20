@@ -1,6 +1,6 @@
 # ByeMoney ↔ TarhElahi — قرارداد اتصال و وضعیت پیاده‌سازی
 
-نسخه ۲ — ۲۰۲۶-۰۹-۱۵ | مرجع فعال مرز سیستم‌ها، هویت خارجی، DTO و تحویل خرید
+بازبینی مستندات: ۲۰۲۶-۱۰-۲۰ | مرجع فعال مرز سیستم‌ها، هویت خارجی، DTO و تحویل خرید
 
 ## I00 — راهنمای مراجعه ایجنت
 
@@ -81,7 +81,7 @@
 
 کلید هدر `X-Service-Key` با env `BYEMONEY_SERVICE_KEY` مقایسه می‌شود. policy: `src/policies/is-service-authenticated.js`؛ route با `auth:false` و `global::is-service-authenticated` محافظت می‌شود. auth:false به معنی عمومی‌بودن بدون policy نیست.
 
-برای تحویل نتیجهٔ درگاه از Strapi به بای‌مانی، کلید مستقل `STRAPI_TO_BYEMONEY_SERVICE_KEY` در secret/env هر دو سرویس تنظیم می‌شود. این کلید فقط در endpoint نتیجهٔ درگاه بای‌مانی پذیرفته می‌شود؛ هدر `X-Service-Key` با SHA-256 و مقایسهٔ زمان‌ثابت بررسی می‌گردد و مقدار کلید حداقل ۳۲ بایت است. کلید موجود مسیر بای‌مانی به Strapi جای این کلید را نمی‌گیرد.
+برای تحویل نتیجهٔ درگاه از Strapi به بای‌مانی، کلید مستقل `STRAPI_TO_BYEMONEY_SERVICE_KEY` در secret/env هر دو سرویس تنظیم می‌شود. این کلید در مسیرهای محافظت‌شده با `GatewayResultKeyFilter`، شامل نتیجهٔ درگاه، استعلام تأیید و خواندن/بازکردن/بازگشایی پروندهٔ بای‌مانی پذیرفته می‌شود؛ هدر `X-Service-Key` با SHA-256 و مقایسهٔ زمان‌ثابت بررسی می‌گردد و مقدار کلید حداقل ۳۲ بایت است. قرارداد محیط مقصد کلید مستقل دو جهت را الزام می‌کند. رفتار سازگاری کد فعلی: اگر `STRAPI_TO_BYEMONEY_SERVICE_KEY` خالی باشد، `GatewayResultKeyFilter` کلید `BYEMONEY_SERVICE_KEY` را می‌پذیرد؛ مسیرهای قدیمی gateway-confirmations و gateway-cancellations نیز از `ServiceKeyFilter` با همین کلید عمومی سرویس استفاده می‌کنند. وجود این fallback، جایگزین پیکربندی کلید مستقل در پذیرش محیط نیست.
 
 قرارداد معتبر: کلید حداقل ۳۲ بایت تصادفی امن؛ نگهداری در secret/env، نه repo یا log؛ خطای missing/invalid برابر 401. کد مشاهده‌شده از SHA-256 و crypto.timingSafeEqual استفاده می‌کند. middleware احراز هویت جهانی تکراری لازم نیست. چرخش فعلی دستی env است؛ zero-downtime ادعا نشده.
 
@@ -93,6 +93,8 @@ JWT کاربر برای APIهای کاربری بای‌مانی و کلید س�
 |---|---|
 | GET /api/integrations/byemoney/v1/users/:externalUserId | موجود؛ lookup فقط documentId؛ نبود کاربر 404 |
 | GET /api/integrations/byemoney/v1/courses/:externalId | موجود؛ lookup documentId؛ نبود دوره 404 |
+| GET /api/integrations/byemoney/v1/chapters/:externalId | موجود؛ lookup با integrationId فصل؛ نگاشت در I06 |
+| GET /api/integrations/byemoney/v1/products/:externalId | موجود؛ lookup با documentId محصول؛ نگاشت در I06 |
 
 ### I04-U — User DTO
 
@@ -120,7 +122,6 @@ JWT کاربر برای APIهای کاربری بای‌مانی و کلید س�
   "source": "tarh_elahi",
   "type": "course",
   "externalId": "course-document-id",
-  "parentExternalId": null,
   "title": "عنوان دوره",
   "slug": "course-slug",
   "priceNoor": 2500,
@@ -132,11 +133,11 @@ JWT کاربر برای APIهای کاربری بای‌مانی و کلید س�
 
 source/type قرارداد فعلی‌اند؛ slug برای مسیر نمایش است، نه هویت مالی. published از publishedAt و available فعلاً برابر published است؛ با افزودن قاعده واقعی فروش‌پذیری، معنای available حفظ و محاسبه داخلی اصلاح شود.
 
-`priceNoor` عدد decimal و قیمت معتبر کاتالوگ بر حسب نور است. Strapi مالک آماده‌سازی قیمت کاتالوگ است؛ ByeMoney آن را در مسیر خرید به ریال یا تومان تبدیل نمی‌کند. همین نام و واحد برای DTOهای فصل و محصول مستقل نیز لازم است.
+`priceNoor` عدد decimal و قیمت معتبر کاتالوگ بر حسب نور است؛ در GET دوره از `course.price` پس از کسر تخفیف فعال `discountPercent/discountUntil` با گردکردن تخفیف به پایین ساخته می‌شود. این GET هویت خریدار نمی‌گیرد؛ قیمت وابسته به حساب خارجی در مسیر پیش‌نمایش/prepare سبد I09-C محاسبه می‌شود. Strapi مالک آماده‌سازی قیمت کاتالوگ است؛ ByeMoney آن را در مسیر خرید به ریال یا تومان تبدیل نمی‌کند. همین نام و واحد برای DTOهای فصل و محصول مستقل نیز لازم است.
 
 ### I04-B — دریافت دسته‌جمعی موجودی نور برای پنل مدیریت
 
-`POST /api/admin/wallets/batch-balances` در بای‌مانی با `Authorization: Bearer <Admin_JWT>` و نقش `Admin` ثبت‌شده در RBAC بای‌مانی محافظت می‌شود. نقش JWT استرپی به‌تنهایی مجوز این API نیست. بدنهٔ درخواست `{"userIds":["user-document-id-1","user-document-id-2"]}` است؛ هر شناسه همان `user.documentId` در قرارداد I02 و `ExternalUserId` در جدول Users بای‌مانی است. تعداد شناسه‌ها باید بین ۱ تا ۵۰۰ و طول هر شناسه حداکثر ۱۰۰ نویسه باشد.
+`POST /api/admin/wallets/batch-balances` در بای‌مانی با `Authorization: Bearer <Admin_JWT>` و پالیسی `RequireWalletView` مبتنی بر مجوز `Wallet.View` در RBAC بای‌مانی محافظت می‌شود. نقش JWT استرپی به‌تنهایی مجوز این API نیست. بدنهٔ درخواست `{"userIds":["user-document-id-1","user-document-id-2"]}` است؛ هر شناسه همان `user.documentId` در قرارداد I02 و `ExternalUserId` در جدول Users بای‌مانی است. تعداد شناسه‌ها باید بین ۱ تا ۵۰۰ و طول هر شناسه حداکثر ۱۰۰ نویسه باشد.
 
 پاسخ موفق به شکل `{"success":true,"balances":{"user-document-id-1":150,"user-document-id-2":0}}` است. مقدار هر کلید موجودی نور از Wallet.Balance است؛ برای کاربر ناشناخته یا فاقد کیف‌پول مقدار صفر برگردانده می‌شود. این مسیر فقط خواندنی است و کیف‌پول ایجاد نمی‌کند. اتصال Users و Wallets در یک کوئری انجام می‌شود.
 
@@ -166,38 +167,42 @@ source/type قرارداد فعلی‌اند؛ slug برای مسیر نمایش
 
 ## I06 — هویت فصل و Product
 
-دوره: ExternalId = course.documentId. Product باید شناسه پایدار داشته باشد؛ استفاده از product.documentId پیشنهاد هماهنگ با Strapi است و باید وجود/پایداری در قرارداد و داده تأیید شود.
+دوره و محصول با `documentId` و فصل با `integrationId` پایدار شناخته می‌شوند. در کد محلی، مسیرهای خواندن فصل/محصول و migration تاریخی `2026.09.16T12.00.00.course-chapters-integration-id.js` موجودند؛ وضعیت اعمال migration و کامل‌بودن دادهٔ محیط مقصد باید در پذیرش بررسی شود. وجود API کاتالوگ به معنی تکمیل خرید مالی فصل یا کالا نیست.
 
-فصل مستقل: id عددی component، جایگاه آرایه، ترتیب نمایش یا slug شناسه مالی نیستند. پیشنهاد قبلی `integrationId: UUID` حفظ می‌شود؛ ایجاد، backfill و حفظ آن در ویرایش/انتشار لازم است. این ستون به‌عنوان پیاده‌شده ادعا نمی‌شود.
+| DTO | نگاشت به دادهٔ Strapi |
+|---|---|
+| فصل | `source=tarh_elahi`، `type=course_chapter`، `externalId=chapter.integrationId`، `parentExternalId=course.documentId`، `title=chapter.title`، `priceNoor=chapter.price`، `duration=chapter.duration` با پیش‌فرض `00:00`، `updatedAt=course.updatedAt` |
+| نمایش/فروش‌پذیری فصل | `slug` از slug والد و شماره نمایشی فصل؛ `published` از publishedAt والد؛ `available` از انتشار و isChaptered والد |
+| محصول | `source=tarh_elahi`، `type=product`، `externalId=product.documentId`، `parentExternalId=null`، عنوان/slug/updatedAt از محصول، `priceNoor=product.price` و `stock` از موجودی |
+| فروش‌پذیری محصول | `published` از publishedAt؛ `available` از انتشار، isAvailable و stock؛ مقدارهای پیش‌فرض فعلی جای پذیرش صحت داده را نمی‌گیرند |
 
-قرارداد هدف فصل: type=course_chapter، externalId=شناسه پایدار فصل، parentExternalId=course.documentId. خواندن فصل/محصول و موجودی در مسیرهای Integration مشاهده‌شده وجود نداشت؛ URL و DTO نهایی پیش از استفاده تعریف شوند.
+خروجی موجود محصول، `purchasePriceNoor` nullable را نیز از `product.purchasePrice` برمی‌گرداند؛ طبق D07 این مشاهده الزام کنترل کف قیمت یا افزودن آن به Snapshot خرید فاز اول ایجاد نمی‌کند. شناسهٔ عددی component و slug هویت مالی فصل نیستند؛ شناسهٔ قدیمی enrolledChapters فقط با نگاشت داخلی Strapi حفظ می‌شود.
 
-شناسه قدیمی chapterId در enrolledChapters برای داده داخلی Strapi می‌تواند با نگاشت نگهداری شود؛ بای‌مانی نباید به همان عدد وابسته شود.
-
-## I07 — شارژ کارت‌به‌کارت
+## I07 — شارژ، درگاه و رسیدگی مالی
 
 ### مسیرهای موجود در بای‌مانی
 
 | مسیر | کاربرد |
 |---|---|
-| POST /api/topup/requests | قابل فراخوانی توسط خود کاربر برای روش‌های پرداخت آینده مانند درگاه و توسط ادمین به‌نیابت از کاربر فقط برای کارت‌به‌کارت؛ درخواست باید نوع پرداخت/شارژ و مشخص‌کننده ثبت توسط ادمین به‌نیابت را حمل کند |
+| POST /api/topup/requests | شارژ کاربر جاری با JWT؛ `amount` مقدار نور، `paymentMethod` و `externalTransactionId` و `pendingItems` اختیاری؛ هویت از claim |
+| POST /api/admin/topups/assisted | کارت‌به‌کارت ادمین با RequireTopUpReview، هدر Idempotency-Key و multipart؛ فیلدهای BeneficiaryExternalUserId، AmountToman، Receipt و ExternalTransactionId اختیاری |
 | GET /api/admin/topups/by-reference/:clientReferenceCode | جست‌وجوی درخواست توسط ادمین مجاز |
 | POST /api/admin/topups/{id}/confirm | تأیید با ExternalTransactionId و ConfirmedAmount |
 | POST /api/admin/topups/{id}/reject | رد با علت |
 
-کنترلر ادمین RequireTopUpReview دارد. وجود این مجوز به معنی تکمیل مجوز تزریق یا خروج نیست. خروجی درخواست شامل شناسه TopUp و کد پیگیری است؛ نام ClientReferenceId/Code بین DTOها پیش از اتصال دقیق هماهنگ شود.
+کنترلر ادمین RequireTopUpReview دارد. وجود این مجوز به معنی تکمیل مجوز تزریق یا خروج نیست. خروجی ایجاد شارژ کاربر شامل `topUpRequestId,clientReferenceId,amountRial` است؛ `clientReferenceId` در این پاسخ همان کد پیگیری ذخیره‌شده در `ClientReferenceCode` است.
 
-### قرارداد هدف تکمیلی
+### قواعد و محدودیت‌های شارژ
 
 درخواست پایدار باید user، مبلغ ریالی، مقدار نور، نرخ زمان درخواست، مهلت، روش پرداخت، رسید/مدرک، کد پیگیری، وضعیت و شناسه پرداخت خارجی داشته باشد. مبلغ از متن notes یا عنوان محصول استخراج نشود. Amount فعلی در Confirm مستقیماً به Wallet افزوده می‌شود؛ نباید همان عدد ریالی اشتباهاً به‌عنوان نور ارسال شود.
 
-Pending → Confirmed یا Rejected در مدل پایه موجود است. استثنا: کارت‌به‌کارت ثبت‌شده توسط ادمین مستقیماً با وضعیت Confirmed ساخته می‌شود؛ توقف در Pending و فراخوانی جداگانه endpoint تأیید برای این مسیر لازم نیست. سایر روش‌ها، از جمله درگاه آینده، همچنان می‌توانند Pending داشته باشند. انقضا، بارگذاری/اصلاح رسید و رسید دیرهنگام باید با Q01 طراحی شوند؛ این حالت‌ها امروز موجود فرض نشوند. تأیید فقط بعد از تطبیق واقعی پرداخت/مبلغ انجام شود. پرداخت دستی بانک بیرون سیستم می‌ماند، مرجع ثبت نور بای‌مانی است.
+Pending → Confirmed یا Rejected در مدل پایه موجود است. استثنا: کارت‌به‌کارت ثبت‌شده توسط ادمین مستقیماً با وضعیت Confirmed ساخته می‌شود؛ توقف در Pending و فراخوانی جداگانه endpoint تأیید برای این مسیر لازم نیست. سایر روش‌ها، از جمله درگاه، همچنان می‌توانند Pending داشته باشند. انقضا، بارگذاری/اصلاح رسید و رسید دیرهنگام باید با Q01 طراحی شوند؛ این حالت‌ها امروز موجود فرض نشوند. تأیید فقط بعد از تطبیق واقعی پرداخت/مبلغ انجام شود. پرداخت دستی بانک بیرون سیستم می‌ماند، مرجع ثبت نور بای‌مانی است.
 
 اتصال نتیجهٔ سپ به TopUp نقطهٔ توسعهٔ مشخص `GatewayTopUpExpiryPolicy` را برای تصمیم Q01 حفظ می‌کند. تا زمان تعیین مهلت و رفتار پرداخت دیرهنگام، هیچ تغییر وضعیتی صرفاً بر اساس سن درخواست انجام نمی‌شود؛ مورد دیرهنگام با نتیجهٔ بانکی معتبر برای رسیدگی مالی نگه داشته می‌شود.
 
 تکرار ترتیبی تأیید با همان ExternalTransactionId در کد no-op است؛ تضمین هم‌زمانی/یکتایی بین درخواست‌ها نیاز آزمون و قید پایگاه دارد. درخواست تکراری create نیز نباید چند شارژ برای یک پرداخت بسازد. رفتار شناسه ناسازگار خطای صریح باشد.
 
-نگهداری فایل رسید می‌تواند از زیرساخت موجود استفاده کند؛ شناسه/مالکیت، دسترسی و ارتباط آن با TopUp قطعی باشد. اعطای نور توسط endpoint عمومی payment-light و افزایش light استرپی حذف/مسدود شود.
+رسید در مسیر assisted فعلی اجباری و تصویری تا ۱۰٬۰۰۰٬۰۰۰ بایت است؛ این الزام کد با تصمیم رسید اختیاری D06 اختلاف دارد و رفع آن در B3 فایل TASKS پیگیری می‌شود. قرارداد مطلوب با رفتار فعلی یکسان فرض نشود. مالکیت و دسترسی فایل رسید باید کنترل شوند. اعطای نور توسط endpoint عمومی payment-light و افزایش light استرپی حذف/مسدود شود.
 
 ### ترجمهٔ کدهای نتیجهٔ SEP
 
@@ -281,17 +286,13 @@ Pending → Confirmed یا Rejected در مدل پایه موجود است. اس
 
 در فلو دوره، قبل از پرداخت یک normal pending order در Strapi ایجاد نشود. این منع مربوط به سفارش فروش نهایی است؛ TopUp و پیش‌فاکتور/رزرو کنترل‌شده کالا مفاهیم جدا هستند. رزرو فیزیکی در I10 تعریف شود تا lifecycle قدیمی پیش از موعد موجودی را کم نکند.
 
-Snapshot هدف: ProductSource، ExternalItemId، ExternalParentId، ItemType، Title، SellerId/Account، Quantity، قیمت پایه/نهایی نور، تخفیف/کوپن، ارسال، PriceNoor و PurchasedAt. قیمت ریالی و نرخ تبدیل محاسباتی در خریدهای جدید ثبت نمی‌شوند؛ ستون‌های تاریخی برای خریدهای قدیمی باقی می‌مانند. طبق مصوبهٔ ۲۰۲۶-۱۰-۱۹، `ReferenceRialPerNoorAtPurchaseTime` مستقل و nullable در Snapshot خرید بای‌مانی ثبت می‌شود؛ منبع آن تنظیم `ConversionRate:RialToNoor` بای‌مانی و واحد آن ریال به‌ازای نور است. این مقدار صرفاً اطلاعاتی است و از Strapi یا درخواست کاربر دریافت نمی‌شود؛ در مبلغ نوری، Wallet، Ledger یا نرخ Snapshot شارژ اثر ندارد. نبود نرخ معتبر و سوابق پیش از migration مقدار null دارند. افزودن فیلد به DTO و endpoint رسید در تسک جدا انجام می‌شود؛ قراردادهای API فعلی و payload تحویل تغییر نمی‌کنند. این‌ها مفاهیم لازم‌اند؛ مدل دقیق سبد و نام فیلدهای نسخه جدید هنوز باید توافق شود.
+Snapshot هدف: ProductSource، ExternalItemId، ExternalParentId، ItemType، Title، SellerId/Account، Quantity، قیمت پایه/نهایی نور، تخفیف/کوپن، ارسال، PriceNoor و PurchasedAt. قیمت ریالی و نرخ تبدیل محاسباتی در خریدهای جدید ثبت نمی‌شوند؛ ستون‌های تاریخی برای خریدهای قدیمی باقی می‌مانند. طبق مصوبهٔ ۲۰۲۶-۱۰-۱۹، `ReferenceRialPerNoorAtPurchaseTime` مستقل و nullable در Snapshot خرید بای‌مانی ثبت می‌شود؛ منبع آن تنظیم `ConversionRate:RialToNoor` بای‌مانی و واحد آن ریال به‌ازای نور است. این مقدار صرفاً اطلاعاتی است و از Strapi یا درخواست کاربر دریافت نمی‌شود؛ در مبلغ نوری، Wallet، Ledger یا نرخ Snapshot شارژ اثر ندارد. نبود نرخ معتبر و سوابق پیش از migration مقدار null دارند. خواندن این نرخ در رسید I11-P موجود است؛ payload تحویل آن را مصرف نمی‌کند. مدل و قرارداد سبد دوره در I09-C مشخص‌اند؛ تعمیم به فصل/کالا هنوز قرارداد کامل خرید نیست.
 
-### endpoint هدف قبلی؛ هنوز نیازمند تکمیل
+### تحویل موجود تک‌دوره
 
-`POST /api/integrations/byemoney/v1/purchases/confirm`
+`POST /api/integrations/byemoney/v1/purchases/confirm` در Strapi با کلید سرویس I03 موجود است. سرویس `byeMoneyPurchaseService` شناسه را از `purchaseId` و برای سازگاری از `dealId`، خریدار را از `buyerExternalUserId` یا `strapiUserId`، و دوره را از `courseId` یا `item.externalId` می‌خواند. شناسهٔ خریدار و دوره، documentId هستند؛ این aliasها قرارداد سبد را جایگزین نمی‌کنند.
 
-سند قدیمی eventId و dealId داشت؛ DTO کد بای‌مانی بررسی‌شده PurchaseId می‌فرستد. پیش از اتصال باید نام wire و نگاشت یکسان شود؛ صرفاً یکی فرض نشود. پیشنهاد: یک شناسه خرید پایدار با alias سازگار برای قرارداد قدیمی.
-
-payload مفهومی: eventId، شناسه خرید، buyerExternalUserId، item یا items، snapshot و purchasedAt. کد فعلی اعلان یک course دارد؛ سبد نیاز شناسه ردیف و وضعیت هر ردیف دارد. eventId برای retry همان رویداد ثابت بماند؛ شناسه خرید/ردیف نیز برای dedup کافی و پایدار تعریف شود.
-
-همان شناسه با همان محتوا پس از تکمیل → success/no-op؛ همان شناسه با محتوای متناقض → conflict. درخواست تکراری خرید در بای‌مانی نیز جداگانه کنترل شود؛ dedup گیرنده جای جلوگیری از debit دوباره را نمی‌گیرد.
+پاسخ شامل `success,purchaseId,status,message` است. خرید ثبت‌شده با همان شناسه/کاربر/دوره، `already_granted` می‌دهد؛ شناسه با کاربر/دوره متفاوت تعارض دارد. کنترل تکرار گیرنده جای جلوگیری از برداشت دوباره در بای‌مانی نیست. تحویل سبد چنددوره از مسیر commit در I09-C انجام می‌شود.
 
 ## I09 — تحویل قابل بازیابی و Outbox
 
@@ -389,7 +390,7 @@ Legacy فقط گزارش: `GET /api/integrations/byemoney/v1/legacy-sales` در 
 
 ### I11-P — خواندن خریدهای دوره و رسید از بای‌مانی — ۲۰۲۶-۱۰-۱۹
 
-این مسیرها در بای‌مانی پیاده شده‌اند؛ فقط دیتابیس بای‌مانی را می‌خوانند و سفارش استراپی، عملیات مالی، همگام‌سازی پروفایل یا تلاش تحویل ایجاد نمی‌کنند. هر ردیف یک `CoursePurchase` است و دوره‌های یک سبد `cartId` مشترک دارند. اتصال رابط فرانت به این مسیرها در این تسک انجام نشده است.
+این مسیرها در بای‌مانی پیاده شده‌اند؛ فقط دیتابیس بای‌مانی را می‌خوانند و سفارش استراپی، عملیات مالی، همگام‌سازی پروفایل یا تلاش تحویل ایجاد نمی‌کنند. هر ردیف یک `CoursePurchase` است و دوره‌های یک سبد `cartId` مشترک دارند. اتصال فهرست و رسید کاربر و مسیر رسید ادمین در فرانت موجود است؛ وضعیت پذیرش محیط مقصد در TASKS و شواهد ۲۰ اکتبر ثبت است.
 
 | روش و مسیر | دسترسی و پارامترها |
 |---|---|
@@ -435,11 +436,11 @@ Legacy فقط گزارش: `GET /api/integrations/byemoney/v1/legacy-sales` در 
 
 پاسخ‌های ۴۰۰/۴۰۱/۴۰۳/۴۰۴ مطابق middleware و احراز هویت موجودند؛ خطای دامنه‌ای رسید و اعتبارسنجی DTO صریح `MiddlewareErrorResponse` با `title,status,errors` دارد. پیام‌ها فارسی و وضعیت‌ها رشته‌اند. آزمون HTTP با احراز هویت کنترل‌شده و PostgreSQL مستقل انجام شده؛ JWT واقعی استراپی، انتشار و رابط فرانت با این شاهد پذیرفته‌شده محسوب نمی‌شوند.
 
-### I11-T — قرارداد هدف فهرست پیگیری خرید — ۲۰۲۶-۱۰-۲۰
+### I11-T — قرارداد فهرست پیگیری خرید — ۲۰۲۶-۱۰-۲۰
 
-**وضعیت: پیاده‌سازی محلی در ۲۰۲۶-۱۰-۲۰؛ پذیرش PostgreSQL/HTTP باقی است.** APIهای خواندنی این بخش در بای‌مانی افزوده شدند؛ شواهد و محدودیت محیط در [گزارش آزمون](../testing/Verification-Summary.md) ثبت‌اند. فرانت و استراپی در این مرحله تغییر نمی‌کنند. محدوده، دورهٔ کامل و داده‌های موجود بای‌مانی است؛ فصل، کالا، ارسال فیزیکی و تجمیع فروش ریالی قدیمی استراپی به این تسک افزوده نمی‌شوند. I11-P همچنان قرارداد فهرست خریدهای موفق و رسید هر خرید است؛ فهرست پیگیری، API افزوده و مستقل دارد.
+**وضعیت: پیاده‌سازی محلی؛ PostgreSQL و HTTP با احراز هویت کنترل‌شده در شاهد ۳۲۹تایی ۲۰ اکتبر موفق‌اند. پذیرش JWT واقعی و محیط مقصد باقی است.** APIهای خواندنی این بخش در بای‌مانی افزوده شدند؛ شواهد و محدودیت محیط در [گزارش آزمون](../testing/Verification-Summary.md) ثبت‌اند. فرانت بخش کاربر را مصرف می‌کند؛ اتصال فهرست ادمین و یکسان‌سازی سراسری وضعیت‌ها در TRACK-03/04 باقی است. محدوده، دورهٔ کامل و داده‌های موجود بای‌مانی است؛ فصل، کالا، ارسال فیزیکی و تجمیع فروش ریالی قدیمی استراپی به این تسک افزوده نمی‌شوند. I11-P همچنان قرارداد فهرست خریدهای موفق و رسید هر خرید است؛ فهرست پیگیری، API افزوده و مستقل دارد.
 
-**مشاهدهٔ کد:** در شاخهٔ محلی `codex/complete-course-checkout`، مبنای HEAD برابر `0ea6be2` و تغییرات ثبت‌نشدهٔ موجود، `PurchaseHistoryReader.PaidPurchases` فقط `Debited|NotificationSent|NotificationFailed` را می‌خواند. بنابراین نبود اقدام پرداخت در این فهرست، به‌تنهایی به معنی ثبت‌نشدن سبد نیست. `CourseCart` پیش از پرداخت موجود است؛ `CoursePurchase.CartId` ارتباط خرید نهایی را نگه می‌دارد و `TopUpRequestId/TopUpRequestIds` شارژ جاری و قبلی همان سبد را مشخص می‌کنند. این مشاهده، شاهد انتشار یا آزمون محیط مقصد نیست.
+`PurchaseHistoryReader` فقط خریدهای موفق مالی را می‌خواند؛ `CourseOrderReader` اقدام‌های قبل از پرداخت و ارتباط سبد/خرید/شارژ را نیز ارائه می‌کند. نبود یک اقدام در فهرست خرید موفق به معنی نبود سبد نیست.
 
 #### شناسه و واحد هر ردیف
 
@@ -505,7 +506,7 @@ Legacy فقط گزارش: `GET /api/integrations/byemoney/v1/legacy-sales` در 
 
 پیاده‌سازی فقط خواندنی و در بای‌مانی است: query/DTO و نگاشت در Application، LINQ و تصویر سازگار خواندن با تراکنش RepeatableRead در Infrastructure و کنترلر نازک با MediatR. GET نباید checkout، خرید، همگام‌سازی، retry تحویل یا تغییر وضعیت اجرا کند. پاسخ‌ها از دادهٔ محلی خوانده شوند و قطع استراپی مانع نمایش سابقه نباشد. endpointهای فعلی I09-C/I11-P و payload تحویل تغییر نکردند. مدل پایدارسازی تغییر نکرده و migration جدید لازم نیست.
 
-معیارهای آزمون خودکار: نمایش قبل از پرداخت؛ یک ردیف برای سبد چندقلمی پس از پرداخت؛ حفظ شناسه با شارژهای متعدد/Reopen؛ شارژ موفق و خرید ناموفق؛ نتیجهٔ مبهم و پروندهٔ باز؛ رایگان؛ تحویل ناقص/تکراری؛ خرید قدیمی بدون سبد/نرخ؛ ارتباط قطعی شارژ قدیمی و جلوگیری از انتساب بر اساس خریدار/دوره؛ صفحه‌بندی و totalCount پس از حذف تکرار؛ GET هم‌زمان با commit؛ مالکیت و مجوز ادمین؛ و بی‌اثربودن GET بر داده و وابستگی خارجی. آزمون‌ها اضافه شدند؛ نتیجهٔ اجرای واحد و موارد اجرا‌نشدهٔ HTTP/PostgreSQL با نسخه و محیط در گزارش آزمون تفکیک می‌شوند. اتصال فهرست و یکسان‌سازی نمایش وضعیت‌ها در فرانت، تسک‌های جدا و پس از اتمام کار فعلی فرانت هستند.
+معیارهای آزمون خودکار: نمایش قبل از پرداخت؛ یک ردیف برای سبد چندقلمی پس از پرداخت؛ حفظ شناسه با شارژهای متعدد/Reopen؛ شارژ موفق و خرید ناموفق؛ نتیجهٔ مبهم و پروندهٔ باز؛ رایگان؛ تحویل ناقص/تکراری؛ خرید قدیمی بدون سبد/نرخ؛ ارتباط قطعی شارژ قدیمی و جلوگیری از انتساب بر اساس خریدار/دوره؛ صفحه‌بندی و totalCount پس از حذف تکرار؛ GET هم‌زمان با commit؛ مالکیت و مجوز ادمین؛ و بی‌اثربودن GET بر داده و وابستگی خارجی. آزمون‌ها اضافه شدند؛ نتیجهٔ واحد و PostgreSQL/HTTP کنترل‌شده با نسخه و محیط در گزارش آزمون ثبت است. پذیرش یکپارچه، اتصال فهرست ادمین و یکسان‌سازی نمایش وضعیت‌ها در TASKS پیگیری می‌شوند.
 
 محدودیت پیاده‌سازی فعلی: نگاشت و حذف تکرار از تصویر محلیِ سوابق خریداران انتخاب‌شده انجام می‌شود و سپس فیلتر و صفحه‌بندی اعمال می‌شوند؛ در فهرست ادمین بدون فیلتر خریدار، همهٔ سوابق محلی خوانده می‌شوند. ظرفیت این مسیر برای حجم زیاد هنوز سنجیده نشده است. ارتباط نامعتبر یا مغایرت مبلغ قطعی با تخصیص Snapshot، RequiresReview می‌شود؛ خرید دارای CartId ناموجود برای جلوگیری از حذف سابقه، با شناسهٔ purchase و RequiresReview حفظ می‌شود.
 
@@ -517,57 +518,20 @@ Legacy فقط گزارش: `GET /api/integrations/byemoney/v1/legacy-sales` در 
 
 قاعده قدیمی «Move card-to-card payment into ByeMoney ممنوع» دیگر معتبر نیست. درخواست/تأیید مالی و Ledger به بای‌مانی منتقل می‌شوند؛ عملیات دستی بانک و ذخیره رسانه رسید می‌توانند خارج هسته باشند. مالک اجرای درگاه آتی هنوز جدا تصمیم می‌خواهد.
 
-## I13 — وضعیت مشاهده‌شده کد و منابع
+## I13 — مبنای تطبیق و شواهد
 
-به‌روزرسانی محدود در ۲۰۲۶-۱۰-۰۵: در شاخه `feature/permission-matrix` روی مبنای کامیت `e9e4190` و تغییرات محلی این تسک، خروجی استعلام مجوزهای I02-P تکمیل شد. در محیط محلی Windows با .NET SDK `10.0.400`، ساخت و اجرای پروژه `src/ByeMoney.UnitTests/ByeMoney.UnitTests.csproj` موفق بود: ۱۲۷ تست موفق، صفر ناموفق و صفر ردشده. تست‌های `UserPermissionsTests` نگاشت آرایه‌ها، فلگ‌های سازگار، نقش JWT غیرمرجع، کاربر بدون مجوز، هویت ناموجود و شکل JSON را پوشش می‌دهند. آزمون HTTP با JWT واقعی یا اتصال به پایگاه داده در این تسک اجرا نشد؛ این نتیجه تأیید سایر قراردادهای زیر نیست.
+بازبینی مستندات در ۲۰۲۶-۱۰-۲۰ بر مبنای کد محلی: بای‌مانی `master/a4b108d`، فرانت `ByeMoney/9943e54` و بک `byeMoney/80095ff`. تغییر قبلی `types/generated/contentTypes.d.ts` بک خارج از این پاک‌سازی است. رفرنس‌های origin محلی‌اند و fetch یا تطبیق نسخهٔ مستقر انجام نشده است.
 
-تاریخ بررسی کد مبنا ۲۰۲۶-۰۹-۱۴ است؛ در ۱۵ سپتامبر متن دو سند مرجع دوباره خوانده شد، نه تمام کد. هیچ build، تست یکپارچه یا تراکنش پروداکشن توسط این بررسی اجرا نشده است. عبارت «implemented and tested» سند قدیمی گزارش تاریخی تیم است، نه نتیجه تازه این کار.
+مسیرهای I04، I06، I07، I08 و I11 با کنترلرها، DTOها و مصرف‌کننده‌های مرتبط تطبیق داده شدند؛ این بررسی اجرای API یا تأیید همهٔ رفتارهای مالی نیست. شواهد تاریخی ساخت، migration، آزمون و محدودیت‌ها فقط در [خلاصهٔ شواهد](../testing/Verification-Summary.md) نگهداری می‌شوند. جزئیات بررسی‌های قدیمی و فهرست فایل‌های تغییرکرده در Git قابل بازیابی‌اند.
 
-| مخزن/برنچ | شناسه ثبت‌شده |
-|---|---|
-| FrontendArtist/front-end / master | commit 5c35c178c5a7b9cc75078928075b53522f3ef494 |
-| FrontendArtist/front-end / ByeMoney | commit f83b898d19d91c46bef0e0c8a8d9e28b71164c4c |
-| FrontendArtist/tarhelahi-backend / byeMoney | tree 38c5ebdff5cfb4e7a3c3a88e0dadb53d44ca5058؛ شناسه درخت، نه commit |
-| AfsaneMovaghar/ByeMoney / feature/course-purchase-slice | SHA کامیت بررسی قبلی ثبت نشده؛ محدودیت تطبیق دقیق |
-
-master طبق اعلام کاربر production است؛ استقرار مستقلاً تأیید نشده. مخزن قدیمی AfsaneMovaghar/tarhelahi-backend مبنای بک نهایی نیست. برنچ فرانت ByeMoney نسبت به master در بررسی ۳ کامیت جلو و ۲ عقب بود؛ تغییرات sync به معنی اتصال خرید نیست. لینک‌های برنچی زیر ممکن است تغییر کنند.
-
-| شاهد | مشاهده و اقدام |
-|---|---|
-| [Strapi routes](https://github.com/FrontendArtist/tarhelahi-backend/blob/byeMoney/src/api/integration/routes/integration.js) | فقط GET کاربر/دوره؛ confirm/status/legacy و فصل/محصول در این routes نبود |
-| [Strapi controller](https://github.com/FrontendArtist/tarhelahi-backend/blob/byeMoney/src/api/integration/controllers/integration.js) | documentId و DTO محدود؛ قیمت بدون تخفیف/تبدیل واحد صریح |
-| [policy](https://github.com/FrontendArtist/tarhelahi-backend/blob/byeMoney/src/policies/is-service-authenticated.js) | کلید سرویس و timingSafeEqual موجود |
-| [coupon](https://github.com/FrontendArtist/tarhelahi-backend/blob/byeMoney/src/api/coupon/services/coupon.js) | محاسبه از item.price، تخفیف احتمالی شارژ، شمارنده read+update؛ نیاز اصلاح و آزمون رقابت |
-| [order lifecycle](https://github.com/FrontendArtist/tarhelahi-backend/blob/byeMoney/src/api/order/content-types/order/lifecycles.js) | دسترسی/موجودی/اکسل؛ خطا فقط log، برگشت موجودی در همین فایل مشاهده نشد |
-| [Next orders](https://github.com/FrontendArtist/front-end/blob/master/src/app/api/orders/route.js) | دوره/فصل/محصول/شارژ، کوپن و free؛ بعضی وضعیت‌ها و قیمت از request پذیرفته می‌شوند |
-| [Next light](https://github.com/FrontendArtist/front-end/blob/master/src/app/api/payment-light/route.js) | افزایش مستقیم light بدون اثبات پرداخت در این handler؛ جایگزین شود |
-| [Next admin order](https://github.com/FrontendArtist/front-end/blob/master/src/app/api/admin/orders/%5Bid%5D/route.js) | مقدار نور از notes و امکان شارژ تکراری؛ جایگزین شود |
-| [Next manual](https://github.com/FrontendArtist/front-end/blob/master/src/app/api/admin/orders/manual/route.js) | کاربر موجود/جدید و اعطای دوره/فصل؛ در مهاجرت حفظ شود |
-| [Next verify](https://github.com/FrontendArtist/front-end/blob/master/src/app/api/payment/verify/route.js) | Verify بانکی تکمیل نشده؛ شبیه‌سازی مسدود شود |
-| [Next constants](https://github.com/FrontendArtist/front-end/blob/master/src/lib/constants.js) | نرخ ثابت ۱۰۰۰ تومان؛ با Settings جایگزین شود |
-| [Next sync](https://github.com/FrontendArtist/front-end/blob/ByeMoney/src/lib/byeMoneySync.js) | POST /api/auth/sync با JWT و retry یک‌باره؛ خرید/کیف پول نیست |
-| [Purchase handler](https://github.com/AfsaneMovaghar/ByeMoney/blob/feature/course-purchase-slice/src/ByeMoney.Application/Modules/Purchases/Commands/PurchaseCourse/PurchaseCourseCommandHandler.cs) | خرید تک‌دوره، نرخ/Snapshot، debit و credit سیستم، Save قبل اعلان |
-| [Purchase validator](https://github.com/AfsaneMovaghar/ByeMoney/blob/feature/course-purchase-slice/src/ByeMoney.Application/Modules/Purchases/Commands/PurchaseCourse/PurchaseCourseCommandValidator.cs) | فعالیت/انتشار/مالکیت/موجودی؛ قیمت صفر رد می‌شود |
-| [TopUp confirm](https://github.com/AfsaneMovaghar/ByeMoney/blob/feature/course-purchase-slice/src/ByeMoney.Application/Modules/Wallet/Commands/ConfirmTopUp/ConfirmTopUpCommandHandler.cs) | دو Ledger، کنترل تکرار ترتیبی؛ هم‌زمانی آزموده نیست |
-| [TopUp create](https://github.com/AfsaneMovaghar/ByeMoney/blob/feature/course-purchase-slice/src/ByeMoney.Application/Modules/Wallet/Commands/CreateTopUpRequest/CreateTopUpRequestCommandHandler.cs) | Amount/روش/شناسه خارجی؛ Snapshot ریال/نرخ در این جریان نیست |
-| [Notifier](https://github.com/AfsaneMovaghar/ByeMoney/blob/feature/course-purchase-slice/src/ByeMoney.Application/Modules/Purchases/Services/CoursePurchaseNotifier.cs) | وضعیت اعلان/خطا؛ EventId در هر call جدید است، PurchaseId پایدار باید برای dedup لحاظ شود |
-| [Settings](https://github.com/AfsaneMovaghar/ByeMoney/blob/feature/course-purchase-slice/src/ByeMoney.Infrastructure/Modules/Settings/Persistence/SystemSettingRepository.cs) | نرخ پویا با fallback؛ سیاست تنظیم نامعتبر روشن شود |
-
-شواهد مکمل: درخت بای‌مانی unit test و retry background service دارد؛ اجرا نشده‌اند. در WalletConfiguration خوانده‌شده دقت ۴ اعشار و index یکتای User/Account هست؛ concurrency token دیده نشد. در CoursePurchaseConfiguration خوانده‌شده index خریدار/وضعیت هست؛ قید یکتایی خرید کاربر/قلم مشاهده نشد. این مشاهده محدود جای بررسی همه کنترل‌های repository/transaction را نمی‌گیرد.
-
-برای ادامه: SHA جدید را ثبت و diff فایل‌های مرتبط را بخوانید؛ موارد متاثر این جدول و تست مرتبط به‌روز شوند. برای بای‌مانی که SHA قبلی نداریم، تطبیق فایل‌های کلیدی لازم است و مقایسه دقیق commit قبلی قابل ادعا نیست.
-
-### راستی‌آزمایی وضعیت رسیدگی — ۲۰۲۶-۱۰-۰۶
-
-روی محیط محلی Development، مهاجرت `20261006041413_ResolveReviewedTopUpStatuses` اعمال شد. رکورد `TR-6PE2FSD2` در دیتابیس و پاسخ API با وضعیت `ManuallyRefunded` و حفاظت برگشت وجه تأیید شد؛ هیچ پرونده بسته با نتیجه `MANUAL_REFUND` یا `NO_MATCHING_DEPOSIT` در `Pending` باقی نماند. ۱۹۳ تست بای‌مانی، ۳۹ تست مرتبط فرانت‌اند و ۳۶ تست مرتبط بک‌اند طرح الهی موفق شدند. آزمون‌ها شامل تأیید دیرهنگام بعد از بازگشایی، جلوگیری از شارژ و برگشت مضاعف، حفظ سابقه و تازه‌سازی وضعیت نمایشی پرونده‌های قبلی‌اند. تغییرات هنوز کامیت و منتشر نشده‌اند؛ این شواهد تأیید انتشار تولید نیستند.
 ## I14 — طراحی‌های باز اتصال
 
 | ID | خروجی لازم | زمان |
 |---|---|---|
 | IC01 | تطبیق واحد واقعی price و serialization decimal با قواعد گردکردن D06/D07؛ تعیین نرخ fallback | پیش از قیمت نهایی |
-| IC02 | integrationId فصل، نگاشت داده قدیمی و Product DTO | پیش از خرید فصل/کالا |
+| IC02 | پذیرش دادهٔ integrationId فصل/محصول در محیط مقصد و تکمیل قرارداد خرید آن‌ها | پیش از خرید فصل/کالا |
 | IC03 | قرارداد سبد دوره در I09-C پیاده و روی PostgreSQL مستقل آزموده شد؛ پذیرش HTTP سه برنامه و تعمیم به فصل/کالا باقی است | پیش از عرضه و تعمیم دامنه |
-| IC04 | یکسان‌سازی dealId/PurchaseId، EventId پایدار، سبد و شناسه ردیف | پیش از confirm |
+| IC04 | پذیرش تکرار/تعارض تحویل I08 و I09-C؛ alias تک‌دوره و شناسه‌های سبد در کد موجودند | پیش از confirm |
 | IC05 | idempotency ایجاد شارژ/خرید و کنترل رقابت DB | پیش از عرضه |
 | IC06 | حفظ اتمیک داده ارسال، retry، reconciliation و رسیدگی دائمی | پیش از تحویل |
 | IC07 | freshness وضعیت کاربر، revoke و TokenVersion احتمالی | پیش از اعتبارسنجی نهایی هویت |
@@ -575,27 +539,14 @@ master طبق اعلام کاربر production است؛ استقرار مستق�
 | IC09 | قرارداد لیست رسید/گردش/خروج، خطاها و مجوزها | پیش از پنل |
 | IC10 | schema Legacy، pagination/update، زمان و مالک سفارش باز | پیش از انتقال |
 | IC11 | مدل تلاش و رویداد نتیجهٔ SEP، Verify/Reverse، تحویل پایدار به TopUp بای‌مانی و آزمون عملی درگاه | کد اتصال موجود؛ پذیرش عملی با محیط SEP و تعیین Q01 هنوز لازم است |
-| IC12 | تعریف enum نوع شارژ در بای‌مانی و قرارداد دقیق مسیر یک‌مرحله‌ای ثبت کارت‌به‌کارت توسط ادمین به‌نیابت از کاربر | پیش از پیاده‌سازی مسیر کارت‌به‌کارت ادمین |
+| IC12 | تطبیق مسیر assisted موجود با رسید اختیاری D06 و پذیرش B3 | پیش از پذیرش مسیر ادمین |
 
-این‌ها کار طراحی تیم‌اند؛ اصل قابلیت‌های پاسخ‌داده‌شده در Decisions دوباره باز نشود. نام endpoint پیشنهادی تا پیاده‌سازی/آزمون برچسب «هدف» حفظ کند.
+این جدول نمای موضوع‌های قراردادی است؛ وضعیت و اقدام اجرایی فقط در TASKS نگهداری شود. اصل قابلیت‌های پاسخ‌داده‌شده در Decisions دوباره باز نشود. نام endpoint پیشنهادی تا پیاده‌سازی/آزمون برچسب «هدف» حفظ کند.
 
 ## I15 — پذیرش اتصال و انتشار
 
-- [ ] JWT نامعتبر/فاقد documentId و کلید سرویس نامعتبر رد شوند؛ DTO هیچ secret برنگرداند.
-- [ ] واحد ریال/تومان و نور از ابتدا تا Ledger یکسان؛ قیمت مرورگر دستکاری‌شده بی‌اثر باشد.
-- [ ] شارژ با تأیید ترتیبی/هم‌زمان فقط یک اثر؛ رد هیچ اثر مالی؛ تغییر نرخ Snapshot را عوض نکند.
-- [ ] خرید و اعلام نتیجه تکراری فقط یک debit و یک اعطای دسترسی ایجاد کنند؛ payload متناقض خطا دهد.
-- [ ] قطع Strapi پس از commit قابل بازیابی باشد؛ قیمت نامعتبر پیش از commit مصرف نشود.
-- [ ] رایگان، تخفیف ۱۰۰٪، ترکیب تخفیف، سقف کوپن، فصل و مالکیت قدیمی آزموده شوند.
-- [ ] تعداد و هزینه ارسال درست؛ آخرین موجودی هم‌زمان بیش‌فروش نشود؛ لغو مجاز فیزیکی هماهنگ برگشت دهد.
-- [ ] کاربر فاقد مجوز خروج/تأیید/رسید دیگران را نتواند انجام/مشاهده کند؛ تگ تسویه مالی نباشد.
-- [ ] light و API شبیه‌سازی نتوانند حقیقت مالی بسازند؛ Legacy Ledger نور تولید نکند.
-- [ ] نسخه سه پروژه، تنظیمات محیط، migration، پشتیبان، recovery و سفارش‌های باز ثبت شده باشند.
+معیارهای کسب‌وکار و اختلال در D12 سند تصمیم‌ها و تمام سناریوها، پذیرش SEP، چک‌لیست انتشار و بازگشت در [پذیرش و انتشار](../testing/05-Acceptance-Release.md) نگهداری می‌شوند. نتیجهٔ اجرا با نسخه، محیط و محدودیت در [خلاصهٔ شواهد](../testing/Verification-Summary.md) و کار باقی‌مانده فقط در [TASKS](../../TASKS.md) ثبت شود. کد موجود، آزمون شبیه‌سازی‌شده و ادغام در master، پذیرش بانک واقعی یا انتشار نیستند.
 
-تمام موارد بالا در این بازنویسی اجرا نشده‌اند. نتیجه واقعی، محیط و کامیت پس از اجرا ثبت شوند. اصلاح ارجاع در ۲۰۲۶-۱۰-۱۵: [سناریوهای پذیرش و انتشار](../testing/05-Acceptance-Release.md) در مخزن موجود است و جزئیات اجرای آزمون را نگه می‌دارد؛ همین بخش و D12 سند Decisions مرجع قواعد پذیرش‌اند. وضعیت کارهای باقی‌مانده فقط در [TASKS](../../TASKS.md) ثبت شود.
+## I16 — سابقهٔ قرارداد
 
-## I16 — تغییرات نسبت به قرارداد قدیمی
-
-محتوای کامل ۲۱ بخش نسخه قبلی بررسی شد. شناسه‌ها، User/Course DTO، کلید سرویس، فصل پایدار، Snapshot، Outbox، confirmation/status و Legacy حفظ و وضعیتشان روشن شد. اصلاحات: فیزیکی داخل دامنه؛ انتقال TopUp/تأیید کارت‌به‌کارت مجاز و لازم؛ واحد price نیاز راستی‌آزمایی؛ EventId/PurchaseId نیاز هماهنگی؛ ادعای تست تاریخی جدا از مشاهده فعلی؛ Go-Live با مالک جریان؛ دریافت نتیجه و خواندن قیمت دو وابستگی جدا هستند.
-
-نسخه منبع از docs/integration/ByeMoney-Strapi-Integration.md در feature/course-purchase-slice خوانده شد؛ blob برابر 5cccba2b0e4d4db8d31a4e8fa33f51e19896ad06. قواعد تجاری جدید در D15 خلاصه شده‌اند. این سند جای نسخه قبلی هم‌نام است، نه تغییر خودکار APIهای اجراشده.
+نسخه‌های پیشین در تاریخچهٔ Git همین فایل قابل بازیابی‌اند. در تعارض، آخرین تصمیم صریح مالک و قواعد D01 مقدم‌اند؛ تغییر متن سند به‌تنهایی قرارداد اجراشده یا نسخهٔ مستقر را تغییر نمی‌دهد.
