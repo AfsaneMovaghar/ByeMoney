@@ -25,15 +25,6 @@ using Npgsql;
 
 namespace ByeMoney.UnitTests;
 
-public sealed class CartPostgresFactAttribute : FactAttribute
-{
-    public CartPostgresFactAttribute()
-    {
-        if (Environment.GetEnvironmentVariable("BYEMONEY_CART_PG_TESTS") != "1")
-            Skip = "اجرای آزمون مستقل PostgreSQL با BYEMONEY_CART_PG_TESTS=1 فعال می‌شود.";
-    }
-}
-
 public sealed class CourseCartPostgresTests : IAsyncLifetime
 {
     private readonly string _schema = "cart_test_" + Guid.NewGuid().ToString("N");
