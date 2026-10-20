@@ -19,11 +19,3 @@ public record PurchaseCoursesApiResponse(
             i.Status)).ToList(),
         result.PurchasedAtUtc);
 }
-
-public record PurchasedCourseItemApiResponse(
-    Guid PurchaseId,
-    string ExternalCourseId,
-    string CourseTitle,
-    decimal PriceInNoor,
-    string Status);
-

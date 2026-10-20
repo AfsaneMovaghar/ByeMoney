@@ -1,6 +1,6 @@
+using ByeMoney.API.Contracts.Errors;
 using System.Net;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using ByeMoney.API.Resources;
 using ByeMoney.API.Contracts.Purchases;
 using ByeMoney.Application.Modules.Purchases.Commands.PurchaseCourses;
@@ -11,11 +11,6 @@ using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 
 namespace ByeMoney.API.Middleware;
-
-public sealed record MiddlewareErrorResponse(
-    [property: JsonPropertyName("title")] string Title,
-    [property: JsonPropertyName("status")] int Status,
-    [property: JsonPropertyName("errors")] IReadOnlyList<object> Errors);
 
 public class GlobalExceptionHandlingMiddleware
 {

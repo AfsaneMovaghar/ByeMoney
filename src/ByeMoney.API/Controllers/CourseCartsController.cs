@@ -1,3 +1,4 @@
+using ByeMoney.API.Contracts.CourseCarts;
 using ByeMoney.Application.Modules.Purchases.Cart.Constants;
 using ByeMoney.Application.Modules.Purchases.Cart.DTOs;
 using ByeMoney.Application.Modules.Purchases.Commands.CancelCourseCart;
@@ -13,15 +14,6 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ByeMoney.API.Controllers;
-
-public sealed record PrepareCourseCartRequest(
-    Guid CartId,
-    string[] ExternalCourseIds,
-    string? CouponCode);
-
-public sealed record CourseCartErrorResponse(
-    string Code,
-    string Error);
 
 [ApiController]
 [Authorize]
