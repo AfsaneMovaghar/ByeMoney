@@ -1,4 +1,3 @@
-using ByeMoney.Domain.Common.Generic;
 using ByeMoney.Domain.Common;
 using ByeMoney.Domain.Modules.Wallet.TopUps;
 using MediatR;

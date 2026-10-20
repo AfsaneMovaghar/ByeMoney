@@ -1,5 +1,4 @@
 using ByeMoney.Domain.Common.Generic;
-using ByeMoney.Domain.Common;
 using ByeMoney.Domain.Common.Exceptions;
 using ByeMoney.Domain.Resources;
 

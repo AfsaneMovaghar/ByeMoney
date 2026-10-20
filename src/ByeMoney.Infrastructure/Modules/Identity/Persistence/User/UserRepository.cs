@@ -3,6 +3,7 @@ using ByeMoney.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
 namespace ByeMoney.Infrastructure.Modules.Identity.Persistence.User;
+
 using ByeMoney.Domain.Modules.Identity.Users;
 public class UserRepository(ApplicationDbContext context) : BaseRepository<User, UserId>(context), IUserRepository
 {

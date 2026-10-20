@@ -5,9 +5,6 @@ using ByeMoney.Application.Modules.Identity.Users.Commands.SyncUserFromStrapi;
 using ByeMoney.Application.Resources;
 using ByeMoney.Application.Modules.Wallet.Commands.CreateAdminCardToCardTopUp;
 using ByeMoney.Application.Modules.Wallet.Interfaces;
-using ByeMoney.Domain.Modules.Wallet.Accounts;
-using ByeMoney.Domain.Modules.Wallet.Ledgers;
-using ByeMoney.Domain.Modules.Wallet.Wallets;
 using ByeMoney.Application.Modules.Wallet.Services;
 using ByeMoney.Domain.Modules.Identity.Users;
 using ByeMoney.Domain.Common.Exceptions;
@@ -15,7 +12,6 @@ using ByeMoney.Domain.Modules.Wallet.TopUps;
 using FluentAssertions;
 using Moq;
 using MediatR;
-using Xunit;
 
 namespace ByeMoney.UnitTests;
 

@@ -5,7 +5,6 @@ using ByeMoney.Application.Modules.Wallet.Interfaces;
 using ByeMoney.Domain.Modules.Wallet.TopUps;
 using FluentAssertions;
 using Moq;
-using Xunit;
 using ByeMoney.Application.Modules.TarhElahiIntegration.Interfaces;
 using ByeMoney.Application.Modules.TarhElahiIntegration.DTOs;
 using ByeMoney.Domain.Common.Exceptions;

@@ -1,4 +1,3 @@
-using ByeMoney.Domain.Common.Generic;
 using ByeMoney.API.Contracts.Courses;
 using ByeMoney.Application.Modules.Purchases.Commands.AdminPurchaseCourses;
 using ByeMoney.Domain.Common;

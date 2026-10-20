@@ -1,17 +1,14 @@
-using ByeMoney.Domain.Common.Generic;
 using ByeMoney.Application.Common.Interfaces;
 using ByeMoney.Application.Modules.Wallet.Commands.RejectTopUp;
 using ByeMoney.Application.Modules.Wallet.Interfaces;
 using ByeMoney.Domain.Common;
 using ByeMoney.Domain.Common.Exceptions;
 using ByeMoney.Domain.Modules.Identity.Users;
-using ByeMoney.Domain.Modules.Wallet.Ledgers;
 using ByeMoney.Domain.Modules.Wallet.TopUps;
 using ByeMoney.Infrastructure.Modules.Wallet.Services;
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
-using Xunit;
 
 namespace ByeMoney.UnitTests;
 

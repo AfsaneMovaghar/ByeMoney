@@ -1,5 +1,4 @@
 using ByeMoney.Domain.Common.Generic;
-using ByeMoney.Domain.Common;
 using MediatR;
 
 namespace ByeMoney.Application.Modules.Purchases.Commands.PurchaseCourses;

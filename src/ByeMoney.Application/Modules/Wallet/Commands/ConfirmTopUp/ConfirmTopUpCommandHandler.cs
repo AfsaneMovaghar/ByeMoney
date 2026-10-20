@@ -1,8 +1,6 @@
-using ByeMoney.Domain.Common.Generic;
 using ByeMoney.Application.Modules.Wallet.Events;
 using ByeMoney.Application.Modules.Wallet.Constants;
 using ByeMoney.Application.Modules.Wallet.Interfaces;
-using ByeMoney.Application.Modules.Wallet.Services;
 using ByeMoney.Application.Resources;
 using ByeMoney.Domain.Common;
 using ByeMoney.Domain.Modules.Wallet.TopUps;

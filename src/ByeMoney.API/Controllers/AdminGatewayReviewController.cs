@@ -1,4 +1,3 @@
-using ByeMoney.Domain.Common.Generic;
 using ByeMoney.API.Contracts.TopUp;
 using ByeMoney.Application.Modules.Wallet.Commands.ResolveGatewayReview;
 using ByeMoney.Application.Modules.Wallet.Queries.GetGatewayReview;

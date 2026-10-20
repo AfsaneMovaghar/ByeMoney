@@ -1,6 +1,4 @@
 using ByeMoney.Domain.Common.Generic;
-using ByeMoney.Domain.Common;
-using ByeMoney.Domain.Common.Exceptions;
 using ByeMoney.Domain.Modules.Identity.Users;
 
 namespace ByeMoney.Domain.Modules.Wallet.Accounts;

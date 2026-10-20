@@ -4,7 +4,6 @@ using ByeMoney.API.Controllers;
 using ByeMoney.Application.Modules.Identity.Users.Commands.SyncUserFromStrapi;
 using ByeMoney.Application.Modules.Purchases.Commands.AdminPurchaseCourses;
 using ByeMoney.Application.Modules.Purchases.Commands.PurchaseCourses;
-using ByeMoney.Domain.Common;
 using ByeMoney.Domain.Modules.Identity.Constants;
 using FluentAssertions;
 using MediatR;

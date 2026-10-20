@@ -1,8 +1,4 @@
 using ByeMoney.Domain.Common.Generic;
-using ByeMoney.Domain.Common;
-using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace ByeMoney.Application.Common.Interfaces;
 

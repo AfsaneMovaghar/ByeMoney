@@ -1,5 +1,3 @@
-using ByeMoney.Domain.Resources;
-
 namespace ByeMoney.Domain.Common;
 
 public enum ResultStatus

@@ -8,7 +8,6 @@ using FluentAssertions;
 using FluentValidation.TestHelper;
 using Microsoft.Extensions.Logging;
 using Moq;
-using Xunit;
 
 namespace ByeMoney.UnitTests;
 

@@ -1,10 +1,8 @@
 using ByeMoney.Application.Modules.Identity.Users.Interfaces;
 using ByeMoney.Application.Modules.Identity.Users.Commands.CreateUser;
 using ByeMoney.Application.Resources;
-using ByeMoney.Domain.Modules.Identity.Users;
 using FluentAssertions;
 using Moq;
-using Xunit;
 
 namespace ByeMoney.UnitTests;
 

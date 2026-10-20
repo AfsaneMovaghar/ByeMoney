@@ -1,6 +1,5 @@
 using ByeMoney.Domain.Common.Generic;
 using ByeMoney.Domain.Modules.Wallet.TopUps;
-using ByeMoney.Domain.Common;
 using MediatR;
 
 namespace ByeMoney.Application.Modules.Wallet.Commands.CreateAdminCardToCardTopUp;

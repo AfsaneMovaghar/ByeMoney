@@ -1,5 +1,3 @@
-using MediatR;
-
 namespace ByeMoney.Application.Modules.Identity.Queries.GetUserPermissions;
 
 public sealed record UserPermissionsResponse(

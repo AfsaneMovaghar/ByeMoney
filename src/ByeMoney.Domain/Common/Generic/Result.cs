@@ -1,5 +1,4 @@
 using ByeMoney.Domain.Resources;
-using ByeMoney.Domain.Common;
 
 namespace ByeMoney.Domain.Common.Generic;
 

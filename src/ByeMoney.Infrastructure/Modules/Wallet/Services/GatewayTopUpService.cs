@@ -107,7 +107,7 @@ public sealed class GatewayTopUpService(
             return await RetryOpenInFreshScopeAsync(clientReferenceCode, caseId, reasonCode, ct);
         }
         catch (DbUpdateException ex) when (ex.InnerException is PostgresException
-            { SqlState: PostgresErrorCodes.UniqueViolation, ConstraintName: "IX_TopUpRequests_ReviewCaseId" })
+        { SqlState: PostgresErrorCodes.UniqueViolation, ConstraintName: "IX_TopUpRequests_ReviewCaseId" })
         {
             return Result<GatewayReviewState>.Conflict(DomainErrors.TopUpRequest_ReviewConflict,
                 GatewayTopUpErrorCodes.ReviewConflict);
@@ -167,7 +167,7 @@ public sealed class GatewayTopUpService(
                     GatewayTopUpErrorCodes.ReviewConflict);
             }
             catch (DbUpdateException ex) when (ex.InnerException is PostgresException
-                { SqlState: PostgresErrorCodes.UniqueViolation, ConstraintName: "IX_TopUpRequests_ReviewCaseId" })
+            { SqlState: PostgresErrorCodes.UniqueViolation, ConstraintName: "IX_TopUpRequests_ReviewCaseId" })
             {
                 return Result<GatewayReviewState>.Conflict(DomainErrors.TopUpRequest_ReviewConflict,
                     GatewayTopUpErrorCodes.ReviewConflict);
@@ -282,7 +282,7 @@ public sealed class GatewayTopUpService(
                 GatewayTopUpErrorCodes.TopUpConcurrentConfirmation);
         }
         catch (DbUpdateException ex) when (ex.InnerException is PostgresException
-            { SqlState: PostgresErrorCodes.UniqueViolation, ConstraintName: "IX_TopUpRequests_ExternalTransactionId" })
+        { SqlState: PostgresErrorCodes.UniqueViolation, ConstraintName: "IX_TopUpRequests_ExternalTransactionId" })
         {
             return Result.Conflict(ApplicationErrors.TopUpRequest_IdempotencyConflict,
                 GatewayTopUpErrorCodes.RefNumConflict);
@@ -367,7 +367,7 @@ public sealed class GatewayTopUpService(
             return await HandleConfirmationConcurrencyAsync(command, ct);
         }
         catch (DbUpdateException ex) when (ex.InnerException is PostgresException
-            { SqlState: PostgresErrorCodes.UniqueViolation, ConstraintName: "IX_TopUpRequests_ExternalTransactionId" })
+        { SqlState: PostgresErrorCodes.UniqueViolation, ConstraintName: "IX_TopUpRequests_ExternalTransactionId" })
         {
             return new GatewayConfirmationOutcome(Result.Conflict(
                 ApplicationErrors.TopUpRequest_IdempotencyConflict,

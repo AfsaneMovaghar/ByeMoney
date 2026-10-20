@@ -1,5 +1,3 @@
-using ByeMoney.Domain.Common;
-
 namespace ByeMoney.Domain.Common.Generic;
 
 public abstract class BaseEntity<TId>

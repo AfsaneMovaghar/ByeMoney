@@ -1,4 +1,3 @@
-using ByeMoney.Domain.Common.Generic;
 using ByeMoney.API.Contracts.TopUp;
 using ByeMoney.API.Controllers;
 using ByeMoney.Application.Common.Interfaces;
@@ -6,7 +5,6 @@ using ByeMoney.Application.Modules.Wallet.Commands.CancelGatewayTopUp;
 using ByeMoney.Application.Modules.Wallet.Commands.ConfirmGatewayTopUp;
 using ByeMoney.Application.Modules.Wallet.Constants;
 using ByeMoney.Application.Modules.Wallet.Interfaces;
-using ByeMoney.Application.Modules.Wallet.Services;
 using ByeMoney.Domain.Common;
 using ByeMoney.Domain.Modules.Identity.Users;
 using ByeMoney.Domain.Modules.Wallet.TopUps;
