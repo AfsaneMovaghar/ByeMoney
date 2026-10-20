@@ -15,7 +15,8 @@ public static class CourseCartPayment
     public static CourseCartPaymentRecords Apply(
         CourseCart cart,
         ProvisionedUserWallet wallet,
-        Account? system)
+        Account? system,
+        decimal? referenceRate = null)
     {
         if (cart.Status is not (CourseCartStatus.Ready or CourseCartStatus.AwaitingTopUp))
         {
@@ -42,7 +43,12 @@ public static class CourseCartPayment
         foreach (var item in cart.Items)
         {
             var amount = allocations[item.ExternalCourseId].AmountInNoor;
-            var snapshot = ProductSnapshot.Create(item.ExternalCourseId, item.Title, amount, isFree: amount == 0);
+            var snapshot = ProductSnapshot.Create(
+                item.ExternalCourseId,
+                item.Title,
+                amount,
+                isFree: amount == 0,
+                referenceRialPerNoorAtPurchaseTime: referenceRate);
             var purchase = CoursePurchase.Create(
                 new UserId(cart.BuyerId),
                 snapshot,

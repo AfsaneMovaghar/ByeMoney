@@ -94,6 +94,66 @@ public sealed class CourseCartPostgresTests : IAsyncLifetime
         var ledger = await db.Set<LedgerEntry>().ToListAsync();
         return (wallet.Balance, await db.Set<CoursePurchase>().CountAsync(), -ledger.Where(x => x.Amount < 0 && x.ReferenceType == LedgerReferenceType.Purchase).Sum(x => x.Amount), ledger.Sum(x => x.Amount));
     }
+
+    [CartPostgresFact]
+    public async Task PurchaseReferenceRateIsFrozenAtPaymentAcrossReplayAndFreePurchase()
+    {
+        var paid = await Ready();
+        using var scope = _provider.CreateScope();
+        var settings = scope.ServiceProvider.GetRequiredService<ISystemSettingRepository>();
+        var service = scope.ServiceProvider.GetRequiredService<CourseCartService>();
+        await settings.SetValueAsync("ConversionRate:RialToNoor", "137");
+        (await service.PurchaseAsync(_buyer.Id.Value, paid.Id, default)).IsSuccess.Should().BeTrue();
+        await settings.SetValueAsync("ConversionRate:RialToNoor", "991");
+        (await service.PurchaseAsync(_buyer.Id.Value, paid.Id, default)).IsSuccess.Should().BeTrue();
+
+        var free = await Ready(["free"], free: true);
+        (await service.PurchaseAsync(_buyer.Id.Value, free.Id, default)).IsSuccess.Should().BeTrue();
+
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var purchases = await db.Set<CoursePurchase>().AsNoTracking().ToListAsync();
+        purchases.Where(x => x.CartId == paid.Id).Should().HaveCount(2)
+            .And.OnlyContain(x => x.Snapshot.ReferenceRialPerNoorAtPurchaseTime == 137m);
+        purchases.Single(x => x.CartId == free.Id).Snapshot.ReferenceRialPerNoorAtPurchaseTime.Should().Be(991m);
+        (await Financials()).Should().Be((811m, 3, 189m, 0m));
+    }
+
+    [CartPostgresFact]
+    public async Task MissingOrInvalidReferenceRateDoesNotPreventCartPayment()
+    {
+        using var scope = _provider.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        await db.Set<Domain.Modules.Settings.SystemSetting>().ExecuteDeleteAsync();
+        var service = scope.ServiceProvider.GetRequiredService<CourseCartService>();
+        var first = await Ready(["missing"]);
+        (await service.PurchaseAsync(_buyer.Id.Value, first.Id, default)).IsSuccess.Should().BeTrue();
+        db.Add(Domain.Modules.Settings.SystemSetting.Create("ConversionRate:RialToNoor", "invalid"));
+        await db.SaveChangesAsync();
+        var second = await Ready(["invalid"]);
+        (await service.PurchaseAsync(_buyer.Id.Value, second.Id, default)).IsSuccess.Should().BeTrue();
+
+        var purchases = await db.Set<CoursePurchase>().AsNoTracking().ToListAsync();
+        purchases.Should().HaveCount(2).And.OnlyContain(x => x.Snapshot.ReferenceRialPerNoorAtPurchaseTime == null);
+        (await Financials()).Should().Be((812m, 2, 188m, 0m));
+    }
+    [CartPostgresFact]
+    public async Task ReferenceRateMigrationLeavesExistingPurchasesNull()
+    {
+        var cart = await Ready();
+        (await Store.PayAsync(cart.Id, _buyer.Id.Value, cart.ReservationId, default)).IsSuccess.Should().BeTrue();
+        using var scope = _provider.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var migrator = db.GetService<IMigrator>();
+        await migrator.MigrateAsync("20261018095758_MoveCourseCartDiscountsToCart");
+        await scope.ServiceProvider.GetRequiredService<ISystemSettingRepository>()
+            .SetValueAsync("ConversionRate:RialToNoor", "991");
+        await migrator.MigrateAsync();
+
+        var purchases = await db.Set<CoursePurchase>().AsNoTracking().ToListAsync();
+        purchases.Should().HaveCount(2).And.OnlyContain(x => x.Snapshot.ReferenceRialPerNoorAtPurchaseTime == null);
+        (await Financials()).Should().Be((811m, 2, 189m, 0m));
+    }
+
     [CartPostgresFact]
     public async Task MigrationClearsTestCartsButPreservesPurchasesWalletAndLedger()
     {
@@ -338,7 +398,13 @@ public sealed class CourseCartPostgresTests : IAsyncLifetime
     [CartPostgresFact]
     public async Task ConfirmedTopUpIsPurchasedByRecoveryWithoutBrowserAndPreservesFrozenPrice()
     {
-        var cart = await AwaitingTopUp(); await ConfirmTopUp(cart);
+        var cart = await AwaitingTopUp();
+        using (var rateScope = _provider.CreateScope())
+        {
+            await rateScope.ServiceProvider.GetRequiredService<ISystemSettingRepository>()
+                .SetValueAsync("ConversionRate:RialToNoor", "991");
+        }
+        await ConfirmTopUp(cart);
         (await Store.GetPendingAsync(default)).Should().Contain(x => x.Id == cart.Id);
         using var scope = _provider.CreateScope();
         var service = scope.ServiceProvider.GetRequiredService<CourseCartService>();
@@ -347,6 +413,11 @@ public sealed class CourseCartPostgresTests : IAsyncLifetime
         result.Value.Status.Should().Be("Paid"); result.Value.Courses.Should().OnlyContain(x => x.PurchaseStatus == "Completed");
         result.Value.PriceInNoor.Should().Be(189); result.Value.TopUpStatus.Should().Be("Confirmed");
         (await Financials()).Should().Be((.2m, 2, 189m, 0m));
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var purchases = await db.Set<CoursePurchase>().AsNoTracking().ToListAsync();
+        purchases.Should().OnlyContain(x => x.Snapshot.ReferenceRialPerNoorAtPurchaseTime == 991m);
+        var topUp = await db.Set<TopUpRequest>().AsNoTracking().SingleAsync();
+        topUp.RialPerNoorSnapshot.Should().Be(137m);
         _pricing.Verify(x => x.PrepareAsync(It.IsAny<CartQuoteRequest>(), It.IsAny<CancellationToken>()), Times.Never);
         (await Store.FindByTopUpAsync(cart.TopUpRequestId!.Value, _buyer.Id.Value, default))!.Id.Should().Be(cart.Id);
         (await Store.FindByTopUpAsync(cart.TopUpRequestId.Value, Guid.NewGuid(), default)).Should().BeNull();

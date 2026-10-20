@@ -81,6 +81,11 @@ public class CoursePurchaseConfiguration : IEntityTypeConfiguration<CoursePurcha
                 .HasColumnName("ConversionRateAtPurchaseTime")
                 .HasPrecision(18, 4);
 
+            snapshotBuilder.Property(s => s.ReferenceRialPerNoorAtPurchaseTime)
+                .HasColumnName("ReferenceRialPerNoorAtPurchaseTime")
+                .HasPrecision(18, 0)
+                .IsRequired(false);
+
             snapshotBuilder.Property(s => s.PriceInNoorAtPurchaseTime)
                 .HasColumnName("PriceInNoorAtPurchaseTime")
                 .HasPrecision(18, 4)

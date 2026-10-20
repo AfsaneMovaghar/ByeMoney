@@ -1,6 +1,8 @@
 using ByeMoney.Application.Common.Interfaces;
 using ByeMoney.Application.Modules.Identity.Users.Interface;
 using ByeMoney.Application.Modules.Purchases.Interfaces;
+using ByeMoney.Application.Modules.Purchases.Services;
+using ByeMoney.Application.Modules.Settings;
 using ByeMoney.Application.Modules.TarhElahiIntegration.DTOs;
 using ByeMoney.Application.Modules.TarhElahiIntegration.Interfaces;
 using ByeMoney.Application.Modules.Wallet.Events;
@@ -17,6 +19,7 @@ namespace ByeMoney.Application.Modules.Purchases.EventHandlers;
 
 public class TopUpConfirmedPurchaseHandler : INotificationHandler<TopUpConfirmed>
 {
+    private readonly ISystemSettingRepository _settings;
     private readonly IUserRepository _userRepository;
     private readonly ITarhElahiIntegrationClient _tarhElahiClient;
     private readonly ICoursePurchaseRepository _coursePurchaseRepository;
@@ -36,8 +39,10 @@ public class TopUpConfirmedPurchaseHandler : INotificationHandler<TopUpConfirmed
         IRepository<LedgerEntry, LedgerEntryId> ledgerRepository,
         IUnitOfWork unitOfWork,
         ICoursePurchaseNotifier notifier,
-        ILogger<TopUpConfirmedPurchaseHandler> logger)
+        ILogger<TopUpConfirmedPurchaseHandler> logger,
+        ISystemSettingRepository settings)
     {
+        _settings = settings;
         _userRepository = userRepository;
         _tarhElahiClient = tarhElahiClient;
         _coursePurchaseRepository = coursePurchaseRepository;
@@ -97,6 +102,8 @@ public class TopUpConfirmedPurchaseHandler : INotificationHandler<TopUpConfirmed
 
         var itemsToPurchase = new List<(CoursePurchase Purchase, TarhElahiCourseDto Course, ProductSnapshot Snapshot, decimal PriceInNoor)>();
 
+        var referenceRate = await PurchaseReferenceRateReader.ReadAsync(_settings, cancellationToken);
+
         foreach (var item in unpurchasedItems)
         {
             var course = await _tarhElahiClient.GetCourseAsync(item.ExternalId, cancellationToken);
@@ -121,7 +128,8 @@ public class TopUpConfirmedPurchaseHandler : INotificationHandler<TopUpConfirmed
                 course.ExternalId,
                 course.Title,
                 priceInNoor,
-                course.Source);
+                course.Source,
+                referenceRialPerNoorAtPurchaseTime: referenceRate);
 
             var purchase = CoursePurchase.Create(notification.UserId, snapshot,
                 purchaseId: TopUpPurchaseId.For(notification.TopUpRequestId, item.ExternalId));

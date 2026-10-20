@@ -41,6 +41,12 @@ public class RolePermissionConfiguration : IEntityTypeConfiguration<RolePermissi
             new
             {
                 RoleId = RoleConfiguration.AdminRoleId,
+                PermissionId = PermissionConfiguration.PurchasesViewPermissionId,
+                CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc)
+            },
+            new
+            {
+                RoleId = RoleConfiguration.AdminRoleId,
                 PermissionId = PermissionConfiguration.NoorInjectPermissionId,
                 CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc)
             },

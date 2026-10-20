@@ -6,6 +6,7 @@ namespace ByeMoney.Infrastructure.Modules.Identity.Persistence.Permission;
 
 public class PermissionConfiguration : IEntityTypeConfiguration<Domain.Modules.Identity.Permissions.Permission>
 {
+    public static readonly PermissionId PurchasesViewPermissionId = new(Guid.Parse("66666666-6666-6666-6666-666666666666"));
     public static readonly PermissionId NoorInjectPermissionId = new(Guid.Parse("22222222-2222-2222-2222-222222222222"));
     public static readonly PermissionId TopUpReviewPermissionId = new(Guid.Parse("33333333-3333-3333-3333-333333333333"));
     public static readonly PermissionId CoursesManagePermissionId = new(Guid.Parse("44444444-4444-4444-4444-444444444444"));
@@ -36,6 +37,14 @@ public class PermissionConfiguration : IEntityTypeConfiguration<Domain.Modules.I
             .IsRequired();
 
         builder.HasData(
+            new
+            {
+                Id = PurchasesViewPermissionId,
+                Code = Permissions.Purchases.View,
+                Description = "Permission to view course purchase history",
+                CreatedAtUtc = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+                UpdatedAt = (DateTime?)null
+            },
             new
             {
                 Id = NoorInjectPermissionId,

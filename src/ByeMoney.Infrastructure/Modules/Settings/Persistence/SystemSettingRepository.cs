@@ -39,6 +39,14 @@ public class SystemSettingRepository : ISystemSettingRepository
             .FirstOrDefaultAsync(s => s.Key == key, ct);
     }
 
+    public Task<string?> GetValueByKeyAsync(string key, CancellationToken ct = default)
+    {
+        return _context.Set<SystemSetting>()
+            .Where(setting => setting.Key == key)
+            .Select(setting => setting.Value)
+            .SingleOrDefaultAsync(ct);
+    }
+
     public async Task SetValueAsync(string key, string value, string? description = null, CancellationToken ct = default)
     {
         if (key == SystemSettingConstants.Keys.RialToNoor &&

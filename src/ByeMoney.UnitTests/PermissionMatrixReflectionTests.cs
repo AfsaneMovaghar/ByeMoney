@@ -22,6 +22,7 @@ public class PermissionMatrixReflectionTests
 
     private static readonly Dictionary<string, string> PolicyToPermissionMap = new()
     {
+        [PolicyNames.RequirePurchasesView] = Permissions.Purchases.View,
         [PolicyNames.RequireNoorInject] = Permissions.Noor.Inject,
         [PolicyNames.RequireTopUpReview] = Permissions.TopUp.Review,
         [PolicyNames.RequireCoursesManage] = Permissions.Courses.Manage,
@@ -177,6 +178,7 @@ public class PermissionMatrixReflectionTests
         sb.AppendLine($"| `{Permissions.TopUp.Review}` | `{PolicyNames.RequireTopUpReview}` | مجوز بررسی، تأیید یا رد درخواست‌های شارژ حساب |");
         sb.AppendLine($"| `{Permissions.Courses.Manage}` | `{PolicyNames.RequireCoursesManage}` | مجوز ثبت و مدیریت خرید دوره به‌نیابت از کاربر |");
         sb.AppendLine($"| `{Permissions.Wallet.View}` | `{PolicyNames.RequireWalletView}` | مجوز استعلام دسته‌جمعی مانده کیف‌پول‌ها |");
+        sb.AppendLine($"| `{Permissions.Purchases.View}` | `{PolicyNames.RequirePurchasesView}` | مجوز خواندن فهرست خریدهای دوره |");
         sb.AppendLine();
         sb.AppendLine("## ۲. ماتریس احراز هویت و دسترسی اندپوینت‌ها (Endpoint Authorization Matrix)");
         sb.AppendLine();

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <data name="NotFound" xml:space="preserve"><value>سفارش مورد نظر یافت نشد.</value></data>
+  <data name="InvalidOrderId" xml:space="preserve"><value>شناسهٔ پیگیری سفارش معتبر نیست.</value></data>
+  <data name="InvalidSourceType" xml:space="preserve"><value>نوع منبع سفارش معتبر نیست.</value></data>
+</root>

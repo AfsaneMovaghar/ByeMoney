@@ -2,6 +2,11 @@ namespace ByeMoney.Domain.Modules.Identity.Permissions;
 
 public static class Permissions
 {
+    public static class Purchases
+    {
+        public const string View = "Purchases.View";
+    }
+
     public static class Noor
     {
         public const string Inject = "Noor.Inject";

@@ -1,6 +1,8 @@
 using ByeMoney.Application.Common.Interfaces;
 using ByeMoney.Application.Modules.Identity.Users.Interface;
 using ByeMoney.Application.Modules.Purchases.Interfaces;
+using ByeMoney.Application.Modules.Purchases.Services;
+using ByeMoney.Application.Modules.Settings;
 using ByeMoney.Application.Modules.TarhElahiIntegration.DTOs;
 using ByeMoney.Application.Modules.TarhElahiIntegration.Interfaces;
 using ByeMoney.Application.Modules.Wallet.Interfaces;
@@ -15,6 +17,7 @@ namespace ByeMoney.Application.Modules.Purchases.Commands.PurchaseCourses;
 
 public class PurchaseCoursesCommandHandler : IRequestHandler<PurchaseCoursesCommand, Result<PurchaseCoursesResponse>>
 {
+    private readonly ISystemSettingRepository _settings;
     private readonly IUserRepository _userRepository;
     private readonly ITarhElahiIntegrationClient _tarhElahiClient;
     private readonly IUserWalletProvisioningService _walletProvisioningService;
@@ -32,8 +35,10 @@ public class PurchaseCoursesCommandHandler : IRequestHandler<PurchaseCoursesComm
         IRepository<LedgerEntry, LedgerEntryId> ledgerRepository,
         ICoursePurchaseRepository coursePurchaseRepository,
         IUnitOfWork unitOfWork,
-        ICoursePurchaseNotifier notifier)
+        ICoursePurchaseNotifier notifier,
+        ISystemSettingRepository settings)
     {
+        _settings = settings;
         _userRepository = userRepository;
         _tarhElahiClient = tarhElahiClient;
         _walletProvisioningService = walletProvisioningService;
@@ -51,6 +56,8 @@ public class PurchaseCoursesCommandHandler : IRequestHandler<PurchaseCoursesComm
 
         var purchaseList = new List<(CoursePurchase Purchase, TarhElahiCourseDto Course, ProductSnapshot Snapshot, decimal PriceInNoor)>();
 
+        var referenceRate = await PurchaseReferenceRateReader.ReadAsync(_settings, cancellationToken);
+
         foreach (var courseId in request.ExternalCourseIds)
         {
             var course = (await _tarhElahiClient.GetCourseAsync(courseId, cancellationToken))!;
@@ -61,7 +68,8 @@ public class PurchaseCoursesCommandHandler : IRequestHandler<PurchaseCoursesComm
                 course.Title,
                 priceInNoor,
                 course.Source,
-                request.IsFree);
+                request.IsFree,
+                referenceRialPerNoorAtPurchaseTime: referenceRate);
 
             var purchase = CoursePurchase.Create(buyerUserId, snapshot, request.IsFree, request.FreeReason);
             await _coursePurchaseRepository.AddAsync(purchase, cancellationToken);

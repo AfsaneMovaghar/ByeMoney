@@ -43,7 +43,7 @@ public sealed class CourseCartRefreshTests
         var result = await Service().PrepareAsync(_buyer.Id.Value, cart.Id, ["course"], null, default);
         result.ErrorCode.Should().Be(CartErrorCodes.Conflict);
         _pricing.Verify(x => x.PrepareAsync(It.IsAny<CartQuoteRequest>(), It.IsAny<CancellationToken>()), Times.Never);
-        _store.Verify(x => x.PayAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
+        _store.Verify(x => x.PayAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>(), It.IsAny<decimal?>()), Times.Never);
     }
     [Fact]
     public async Task ReopeningAvailableCartPreservesFrozenPrice()

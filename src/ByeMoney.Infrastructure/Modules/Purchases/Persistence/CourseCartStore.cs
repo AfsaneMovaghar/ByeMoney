@@ -129,7 +129,12 @@ public sealed class CourseCartStore(IServiceScopeFactory scopes) : ICourseCartSt
         return cart;
     });
 
-    public async Task<Result<CourseCart>> PayAsync(Guid id, Guid buyerId, Guid reservationId, CancellationToken ct)
+    public async Task<Result<CourseCart>> PayAsync(
+        Guid id,
+        Guid buyerId,
+        Guid reservationId,
+        CancellationToken ct,
+        decimal? referenceRate = null)
     {
         try
         {
@@ -195,7 +200,7 @@ public sealed class CourseCartStore(IServiceScopeFactory scopes) : ICourseCartSt
                 }
 
                 var system = cart.Total > 0 ? await provisioning.GetOrCreateSystemAccountAsync(ct) : null;
-                var payment = CourseCartPayment.Apply(cart, provisioned, system);
+                var payment = CourseCartPayment.Apply(cart, provisioned, system, referenceRate);
                 db.AddRange(payment.Purchases);
                 db.AddRange(payment.LedgerEntries);
                 await db.SaveChangesAsync(ct);

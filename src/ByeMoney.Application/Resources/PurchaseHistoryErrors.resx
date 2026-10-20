@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <data name="NotFound" xml:space="preserve"><value>خرید پیدا نشد.</value></data>
+  <data name="InvalidPage" xml:space="preserve"><value>شماره صفحه باید مثبت و اندازه صفحه بین ۱ تا ۱۰۰ باشد.</value></data>
+  <data name="InvalidBuyer" xml:space="preserve"><value>شناسه کاربر باید معتبر و حداکثر ۱۰۰ نویسه باشد.</value></data>
+  <data name="InvalidDateRange" xml:space="preserve"><value>انتهای بازه زمانی باید بعد از ابتدای آن باشد.</value></data>
+  <data name="InvalidStatus" xml:space="preserve"><value>وضعیت مالی یا تحویل معتبر نیست.</value></data>
+  <data name="InvalidPurchaseId" xml:space="preserve"><value>شناسه خرید معتبر نیست.</value></data>
+  <data name="InvalidFilter" xml:space="preserve"><value>فیلتر خریدها معتبر نیست.</value></data>
+</root>

@@ -1,4 +1,6 @@
 using ByeMoney.Application.Common.Interfaces;
+using ByeMoney.Application.Modules.Settings;
+using ByeMoney.Domain.Modules.Settings;
 using ByeMoney.Application.Modules.Identity.Users.Interface;
 using ByeMoney.Application.Modules.Purchases.EventHandlers;
 using ByeMoney.Application.Modules.Purchases.Interfaces;
@@ -22,6 +24,7 @@ namespace ByeMoney.UnitTests;
 
 public class TopUpConfirmedPurchaseHandlerTests
 {
+    private readonly Mock<ISystemSettingRepository> _settingsMock = new();
     private readonly Mock<IUserRepository> _userRepoMock = new();
     private readonly Mock<ITarhElahiIntegrationClient> _tarhElahiClientMock = new();
     private readonly Mock<ICoursePurchaseRepository> _coursePurchaseRepoMock = new();
@@ -45,12 +48,23 @@ public class TopUpConfirmedPurchaseHandlerTests
             _ledgerRepoMock.Object,
             _unitOfWorkMock.Object,
             _notifierMock.Object,
-            _loggerMock.Object);
+            _loggerMock.Object,
+            _settingsMock.Object);
     }
 
-    [Fact]
-    public async Task Handle_WhenCourseIsPurchasable_ShouldHonorFrozenSnapshot_AndExecutePurchase_AndDebitWallet_AndWriteBalancedLedgerEntries_AndNotify()
+    [Theory]
+    [InlineData("137", 137)]
+    [InlineData("991", 991)]
+    [InlineData(null, null)]
+    [InlineData("invalid", null)]
+    [InlineData("0", null)]
+    [InlineData("-1", null)]
+    [InlineData("1.5", null)]
+    [InlineData("1000000000000000000", null)]
+    public async Task Handle_WhenCourseIsPurchasable_ShouldHonorFrozenSnapshot_AndExecutePurchase_AndDebitWallet_AndWriteBalancedLedgerEntries_AndNotify(string? rateValue, int? expectedRate)
     {
+        _settingsMock.Setup(x => x.GetValueByKeyAsync(SystemSettingConstants.Keys.RialToNoor, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(rateValue);
         // Arrange
         var userId = UserId.New();
         var user = User.CreateFromStrapi("strapi-user-1", "09123456789", confirmed: true, blocked: false);
@@ -127,11 +141,15 @@ public class TopUpConfirmedPurchaseHandlerTests
         savedLedgerEntries.Sum(e => e.Amount).Should().Be(0m);
 
         savedPurchase.Should().NotBeNull();
-        savedPurchase!.BuyerId.Should().Be(userId);
+        savedPurchase!.Snapshot.ReferenceRialPerNoorAtPurchaseTime.Should().Be(expectedRate);
+        savedPurchase.BuyerId.Should().Be(userId);
         savedPurchase.Status.Should().Be(CoursePurchaseStatus.Debited);
         savedPurchase.Snapshot.PriceInRialAtPurchaseTime.Should().BeNull();
         savedPurchase.Snapshot.ConversionRateAtPurchaseTime.Should().BeNull();
         savedPurchase.Snapshot.PriceInNoorAtPurchaseTime.Should().Be(1_000m);
+        _settingsMock.Setup(x => x.GetValueByKeyAsync(SystemSettingConstants.Keys.RialToNoor, It.IsAny<CancellationToken>()))
+            .ReturnsAsync("222");
+        savedPurchase.Snapshot.ReferenceRialPerNoorAtPurchaseTime.Should().Be(expectedRate);
 
         _unitOfWorkMock.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
 

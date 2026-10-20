@@ -20,6 +20,9 @@ public class ProductSnapshot
     /// <summary>Historical conversion rate, retained only for old purchases.</summary>
     public decimal? ConversionRateAtPurchaseTime { get; private set; }
 
+    /// <summary>نرخ مرجع ریال به‌ازای یک نور هنگام خرید؛ صرفاً اطلاعاتی و مستقل از محاسبات مالی.</summary>
+    public decimal? ReferenceRialPerNoorAtPurchaseTime { get; private set; }
+
     /// <summary>Final calculated Noor price at full decimal(18,4) precision.</summary>
     public decimal PriceInNoorAtPurchaseTime { get; private set; }
 
@@ -33,7 +36,8 @@ public class ProductSnapshot
         string productTitle,
         decimal priceNoor,
         string productSource = ProductCatalogSources.TarhElahi,
-        bool isFree = false)
+        bool isFree = false,
+        decimal? referenceRialPerNoorAtPurchaseTime = null)
     {
         if (string.IsNullOrWhiteSpace(externalProductId))
             throw new DomainException(DomainErrors.ProductSnapshot_ExternalProductIdRequired);
@@ -50,6 +54,7 @@ public class ProductSnapshot
             ExternalProductId = externalProductId.Trim(),
             ProductTitle = productTitle.Trim(),
             PriceInNoorAtPurchaseTime = priceNoor,
+            ReferenceRialPerNoorAtPurchaseTime = referenceRialPerNoorAtPurchaseTime,
             PurchasedAt = DateTime.UtcNow
         };
     }

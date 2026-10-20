@@ -114,3 +114,58 @@ migration `20261018095758_MoveCourseCartDiscountsToCart` روی `ByeMoney_Dev` �
 - **انتشار:** نتیجهٔ واقعی بانک، مجوزها و کلیدهای محیط مقصد، migration، سفارش‌های قدیمی، پشتیبان و بازیابی همچنان به شاهد محیط مقصد نیاز دارند. مرجع اجرا [چک‌لیست پذیرش](05-Acceptance-Release.md) و [آزمون SEP](SEP-TopUp-Sandbox-Checklist.md) است.
 
 برای نتیجهٔ تازه فقط تاریخ، نسخهٔ سه پروژه، محیط، دامنهٔ آزمون، نتیجه و پذیرشِ اثبات‌نشده ثبت شود. فهرست تسک موازی یا شرح تلاش‌های ناموفق ابزارها اضافه نشود. گزارش‌های مفصل قبلی در تاریخچهٔ Git، با نام‌های تاریخ‌دار زیر `docs/testing/` قابل بازیابی‌اند.
+
+
+## Snapshot نرخ مرجع خرید — ۲۰۲۶-۱۰-۱۹
+
+نسخه: تغییرات محلی بای‌مانی روی شاخهٔ `codex/complete-course-checkout`؛ فایل‌های فرانت‌اند و بک‌اند طرح الهی تغییر نکردند؛ این شاهد ادعای ادغام یا انتشار نیست.
+
+فیلد nullable `ReferenceRialPerNoorAtPurchaseTime` با دقت `numeric(18,0)` مستقل از نرخ تاریخی و Snapshot شارژ اضافه شد. خرید مستقیم/ادمین، خرید خودکار پس از شارژ و پرداخت سبد مقدار فعلی تنظیم را یک‌بار برای اقلام همان عملیات می‌خوانند؛ اقلام رایگان نیز پوشش دارند. نرخ ناموجود/نامعتبر null می‌شود؛ هیچ محاسبهٔ مبلغ، Wallet یا Ledger به آن وابسته نیست. migration `20261019112253_AddCoursePurchaseReferenceRateSnapshot` فقط ستون nullable بدون default یا backfill می‌افزاید. پاسخ‌های خرید و endpoint رسید تغییر نکردند.
+
+اعتبارسنجی محلی: ساخت پروژه و آزمون‌ها با پیکربندی خروجی مستقل `ReferenceRateVerification`، صفر هشدار و خطا؛ تطبیق EF مدل و migration بدون تغییر معلق. اجرای درون‌فرایندی xUnit با همان اسمبلی آزمون‌ها: ۲۶۱ موفق، صفر ناموفق و ۲۴ آزمون اختیاری PostgreSQL اجرا‌نشده. اجرای معمول VSTest در اتصال به testhost متوقف شد؛ نتیجهٔ درون‌فرایندی جایگزین اجرای واحد است. نرخ‌های معتبر متفاوت، ناموجود، غیرعددی، صفر، منفی، اعشاری و خارج از ظرفیت در خرید مستقیم/رایگان و خودکار بررسی شدند؛ مبالغ و Ledger ثابت ماندند و تغییر تنظیمات Snapshot ساخته‌شده را تغییر نداد.
+
+تکمیل پذیرش آزمون در ۲۰۲۶-۱۰-۱۹، ساعت ۱۵:۰۱ تهران: طبق خروجی اجرای کاربر در Package Manager Console از همین مخزن، فرمان `dotnet test src/ByeMoney.UnitTests/ByeMoney.UnitTests.csproj --no-build --no-restore -c ReferenceRateVerification -m:1` با `BYEMONEY_CART_PG_TESTS=1` در ۱۱ ثانیه به نتیجهٔ **۲۸۳ موفق، صفر ناموفق و ۲ اجرا‌نشده از مجموع ۲۸۵** رسید. هر ۲۲ آزمون PostgreSQL سبد، شامل ماندگاری Snapshot، replay، خرید رایگان، ادامه پس از شارژ با نرخ جدید و null ماندن سوابق قدیمی پس از migration، موفق شدند. دو آزمون اجرا‌نشده متعلق به `WalletConcurrencyIntegrationTests` هستند و به `BYEMONEY_TEST_CONNECTION_STRING` مستقل نیاز دارند. این شاهد جایگزین محدودیت اجرای آزمون‌های PostgreSQL در نشست عامل است.
+
+تکمیل پذیرش migration در ۲۰۲۶-۱۰-۱۹: طبق خروجی اجرای کاربر در Package Manager Console، فرمان `dotnet ef database update --project src/ByeMoney.Infrastructure --startup-project src/ByeMoney.API --configuration ReferenceRateVerification --no-build -- --environment Development` با `Done.` پایان یافت؛ دیتابیس هدف توسعه با آخرین migration، شامل `20261019112253_AddCoursePurchaseReferenceRateSnapshot`، همگام است. پیام `HostAbortedException` هنگام ساخت میزبان در زمان طراحی EF مانع موفقیت فرمان نشده است؛ این خروجی شاهد خرابی اجرای API نیست. ردیف پذیرش این تسک از TASKS حذف شد.
+
+حدود پذیرش: این شاهد مربوط به دیتابیس توسعه و خروجی ارائه‌شدهٔ کاربر است؛ ادغام، انتشار، بانک یا HTTP واقعی را اثبات نمی‌کند. دو آزمون مستقل Wallet همچنان اجرا‌نشده‌اند؛ پاسخ‌ها و endpointهای رسید به تسک جدا تعلق دارند.
+
+## نمایش خرید و رسید از بای‌مانی — ۲۰۲۶-۱۰-۱۹
+
+در شاخهٔ `codex/complete-course-checkout` با حفظ تغییرات محلی قبلی نرخ مرجع، سه endpoint فقط‌خواندنی I11-P سند اتصال اضافه شدند. هر خرید فقط از دیتابیس بای‌مانی خوانده می‌شود؛ سفارش استراپی ساخته نمی‌شود. نرخ رسید مستقیماً از Snapshot ذخیره‌شده است و مقدار ناموجود حتی با وجود نرخ تبدیل تاریخی، `null` می‌ماند. خرید صفرمبلغ و تحویل Pending/NotificationFailed رسید `Paid` دارند. جزئیات خرید دیگران و خرید ناموجود پاسخ یکسان ۴۰۴ می‌دهند؛ پنل فقط با `Purchases.View` مجاز است.
+
+شاهد اجرا در Windows/.NET SDK 10.0.400: ساخت موفق؛ مجموعهٔ آزمون‌ها ۲۷۴ موفق، صفر ناموفق و ۲۵ آزمون مشروط غیرفعال. اجرای جداگانهٔ `PurchaseHistory` و `PermissionMatrixReflection` با `BYEMONEY_CART_PG_TESTS=1` شامل ۱۶ آزمون موفق و صفر ناموفق/غیرفعال بود. PostgreSQL با schema تصادفی اختصاصی و حذف همان schema در پایان آزموده شد؛ آزمون HTTP سرور محلی با احراز هویت کنترل‌شده، کنترلرهای واقعی، MediatR، اعتبارسنجی، middleware، پالیسی واقعی و reader واقعی را پوشش داد. سناریوها: ۴۰۱ ناشناس، ۴۰۳ فقدان مجوز یا داشتن صرفاً `Courses.Manage`، ۴۰۴ یکسان مالکیت، پیش‌فرض و حدود صفحه‌بندی، ترتیب جدیدترین، فیلتر کاربر/تاریخ با انتهای غیرشامل/تحویل، دقت decimal، نرخ ثابت و null قدیمی، رسید فوری رایگان و عدم تغییر خرید/کیف پول/Ledger/تلاش تحویل.
+
+migration `20261019113906_AddPurchasesViewPermission` فقط مجوز و انتساب به نقش Admin موجود را اضافه می‌کند و با `dotnet ef database update --project src/ByeMoney.Infrastructure --startup-project src/ByeMoney.API --no-build -- --environment Development` روی دیتابیس توسعه با نتیجه `Done.` اعمال شد. migration و تغییرات نرخ مرجع قبلی حفظ شدند؛ خریدهای قدیمی بازنویسی نشدند.
+
+حدود پذیرش: این نتیجه اتصال فرانت، JWT واقعی استراپی، پرداخت بانکی، انتشار یا پایان کل D1 را اثبات نمی‌کند. قرارداد JSON و کمبود داده‌های تاریخی در I11-P سند اتصال ثبت‌اند؛ فهرست کامل تغییرات همین تسک در ادامه است و فایل‌های تغییرکردهٔ تسک قبلی نرخ مرجع در این فهرست نیامده‌اند.
+
+- API: `src/ByeMoney.API/Controllers/MyCoursePurchasesController.cs`، `src/ByeMoney.API/Controllers/AdminCoursePurchasesController.cs`، `src/ByeMoney.API/DependencyInjection.cs`.
+- Application: `src/ByeMoney.Application/Modules/Purchases/Queries/History/PurchaseHistoryContracts.cs`، `src/ByeMoney.Application/Modules/Purchases/Queries/History/PurchaseHistoryQueries.cs`، `src/ByeMoney.Application/Resources/PurchaseHistoryErrors.cs`، `src/ByeMoney.Application/Resources/PurchaseHistoryErrors.resx`.
+- Domain: `src/ByeMoney.Domain/Modules/Identity/Constants/PolicyNames.cs`، `src/ByeMoney.Domain/Modules/Identity/Permissions/Permissions.cs`.
+- Infrastructure: `src/ByeMoney.Infrastructure/DependencyInjection.cs`، `src/ByeMoney.Infrastructure/Modules/Purchases/Persistence/PurchaseHistoryReader.cs`، `src/ByeMoney.Infrastructure/Modules/Identity/Persistence/Permission/PermissionConfiguration.cs`، `src/ByeMoney.Infrastructure/Modules/Identity/Persistence/Role/RolePermissionConfiguration.cs`.
+- مهاجرت: `src/ByeMoney.Infrastructure/Persistence/Migrations/20261019113906_AddPurchasesViewPermission.cs`، `src/ByeMoney.Infrastructure/Persistence/Migrations/20261019113906_AddPurchasesViewPermission.Designer.cs`، `src/ByeMoney.Infrastructure/Persistence/Migrations/ApplicationDbContextModelSnapshot.cs`.
+- آزمون: `src/ByeMoney.UnitTests/PurchaseHistoryTests.cs`، `src/ByeMoney.UnitTests/PurchaseHistoryPostgresTests.cs`، `src/ByeMoney.UnitTests/PurchaseHistoryHttpChecks.cs`، `src/ByeMoney.UnitTests/PermissionMatrixReflectionTests.cs`.
+- اسناد: `docs/integration/ByeMoney-Strapi-Integration.md`، `docs/architecture/Permissions-Matrix.md`، `docs/testing/Verification-Summary.md`.
+## فهرست پیگیری خرید — ۲۰۲۶-۱۰-۲۰
+
+پیاده‌سازی محلی روی `codex/complete-course-checkout` در ادامهٔ تغییرات ثبت‌نشدهٔ قبلی انجام شد. در پایان نشست HEAD برابر `2e026e2` بود و کد فهرست پیگیری، رسید و تغییرات قبلی را شامل می‌شود؛ این عامل دستور ایجاد شاخه یا git commit اجرا نکرد. ادغام و انتشار از این مشاهده نتیجه نمی‌شود. تغییرات قبلی سبد و رسید حفظ شدند. قرارداد مرجع: I11-T سند اتصال؛ دامنه فقط بای‌مانی و دورهٔ کامل است.
+
+APIهای افزوده: `GET /api/me/course-orders`، `GET /api/me/course-orders/{orderId}` و `GET /api/admin/course-orders` با `RequirePurchasesView`. شناسهٔ ثابت هر سبد و شارژ خرید قدیمی حفظ می‌شود؛ خرید بدون شاهد ارتباط، مستقل باقی می‌ماند. تفکیک مالی/تحویل، آرایهٔ همهٔ شارژهای مرتبط، Snapshot قیمت و تخصیص نهایی، فیلتر زمان ایجاد/وضعیت/منبع/خریدار و شمارش پس از حذف تکرار پیاده شدند. رسیدهای I11-P و API پرداخت تغییر نکردند. GET فقط از دادهٔ محلی و بدون فراخوانی استراپی یا پردازش مالی استفاده می‌کند. خواندن چند کوئری زیر RepeatableRead انجام می‌شود؛ مدل پایدارسازی تغییر نکرد و migration جدید لازم نشد.
+
+شاهد اجرا در Windows/.NET SDK `10.0.400`:
+
+- ساخت پروژهٔ آزمون و تمام وابستگی‌ها با configuration مجزای `OrderTrackingVerification` و `-m:1 -nodeReuse:false` موفق بود. در restore اجراگر موقت هشدار NU1900 به علت مسدودبودن دسترسی به منبع اطلاعات آسیب‌پذیری NuGet ثبت شد؛ پکیجی به پروژه اضافه نشد.
+- اجرای استاندارد `dotnet test` پس از ۹۰ ثانیه با ناتوانی اتصال vstest به testhost قطع شد. بنابراین نتیجهٔ زیر خروجی اجرای استاندارد xUnit نیست: اجراگر موقت داخل یک فرایند، متدهای Fact/Theory و InlineData را با تبدیل نوع پارامترها و InitializeAsync/DisposeAsync اجرا کرد. فایل‌های موقت آن در `.artifacts/order-tracking-runner` هستند و بخشی از تغییر محصول نیستند.
+- اجرای اختصاصی `CourseOrderTests`: **۲۱ موفق، صفر شکست**. شامل آماده‌سازی بدون مبلغ ساختگی، سبد چندقلمی و رایگان، تخفیف و قیمت پایه، تحویل ناقص و تکمیل تحویل، شارژ موفق/خرید ناموفق، بازگشایی و چند شارژ، نتیجهٔ مبهم و پروندهٔ باز، ارتباط مفقود/مالک متفاوت، سبد Paid بدون خرید کامل، ارتباط قطعی شارژ قدیمی و نبود انتساب حدسی، خرید مستقل و Pending، انقضای پایدار، ترتیب/فیلتر/صفحه‌بندی، هویت و پالیسی و ورودی نامعتبر است.
+- اجرای گستردهٔ همان اجراگر: **۲۹۴ موفق، ۱ شکست دسترسی محیط، ۲۷ اجرا‌نشده طبق شرط آزمون**. تنها شکست `PrivateReceiptStorageTests.SaveAsync_DistinguishesDifferentImagesWithTheSameIdempotencyKey` با `UnauthorizedAccessException` هنگام `File.Move` در مسیر موقت بود؛ کد ذخیرهٔ رسید در این تسک تغییر نکرد. شکست آزمون استاندارد، محدودیت اجراگر موقت و این خطای محیط به معنی عبور کامل مجموعه نیستند. ماتریس مجوزها از کد بازتولید شد و سه مسیر جدید را دارد.
+- اجرای دارای `BYEMONEY_CART_PG_TESTS=1` در اتصال اولیهٔ PostgreSQL به `127.0.0.1:5432` با SocketException **10013** مسدود شد. آزمون‌های PostgreSQL و HTTP این نشست اجرا/پذیرفته نشده‌اند؛ وضعیت migration دیتابیس توسعه نیز در این نشست بررسی نشد. آزمون‌های اضافه‌شده در `PurchaseHistoryPostgresTests` شامل خواندن هم‌زمان با commit واقعی بین کوئری‌ها، حفظ تمام شارژها و ارتباط قدیمی و نبود تغییر Purchase/TopUp/Wallet/Ledger هستند. `PurchaseHistoryHttpChecks` نیز مسیرهای جدید، ۴۰۰/۴۰۱/۴۰۳/۴۰۴، مالکیت، فیلتر و عدم افشای خطای داخلی تحویل را پوشش می‌دهد؛ این بخش به دسترسی socket نیاز دارد.
+
+برای پذیرش در محیط دارای دسترسی:
+
+```powershell
+$env:BYEMONEY_CART_PG_TESTS = '1'
+dotnet test src/ByeMoney.UnitTests/ByeMoney.UnitTests.csproj --configuration OrderTrackingVerification -m:1 -nodeReuse:false --filter "FullyQualifiedName~CourseOrderTests|FullyQualifiedName~PurchaseHistoryPostgresTests" --logger "console;verbosity=normal"
+```
+
+محدودیت ظرفیت: فیلتر خریدار در دیتابیس اعمال می‌شود، ولی حذف تکرار/نگاشت وضعیت/فیلتر نهایی و صفحه‌بندی روی تصویر سوابق در Application هستند؛ فهرست ادمین بدون فیلتر خریدار، همهٔ سوابق محلی را می‌خواند. آزمون حجم زیاد انجام نشده و بهینه‌سازی بدون اندازه‌گیری در این تسک اضافه نشد. علت دقیق شکست و تاریخچهٔ کامل همهٔ تلاش‌ها در مدل قدیمی موجود نیست و ساخته نمی‌شود. خرید دارای CartId مفقود با منبع Purchase و RequiresReview حفظ می‌شود. اتصال فرانت و یکسان‌سازی نمایش وضعیت‌ها مستقل‌اند؛ انتشار یا پذیرش محیط مقصد از این گزارش نتیجه نمی‌شود.

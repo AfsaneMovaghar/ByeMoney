@@ -11,6 +11,7 @@
 | `TopUp.Review` | `RequireTopUpReview` | مجوز بررسی، تأیید یا رد درخواست‌های شارژ حساب |
 | `Courses.Manage` | `RequireCoursesManage` | مجوز ثبت و مدیریت خرید دوره به‌نیابت از کاربر |
 | `Wallet.View` | `RequireWalletView` | مجوز استعلام دسته‌جمعی مانده کیف‌پول‌ها |
+| `Purchases.View` | `RequirePurchasesView` | مجوز خواندن فهرست خریدهای دوره |
 
 ## ۲. ماتریس احراز هویت و دسترسی اندپوینت‌ها (Endpoint Authorization Matrix)
 
@@ -19,6 +20,8 @@
 | ماژول / کنترلر | متد | مسیر (Route) | سطح دسترسی / پالیسی | پرمیژن مورد نیاز |
 | :--- | :--- | :--- | :--- | :--- |
 | AdminAssistedTopUp | `POST` | `/api/admin/topups/assisted` | نیازمند پالیسی `RequireTopUpReview` | `TopUp.Review` |
+| AdminCourseOrders | `GET` | `/api/admin/course-orders` | نیازمند پالیسی `RequirePurchasesView` | `Purchases.View` |
+| AdminCoursePurchases | `GET` | `/api/admin/course-purchases` | نیازمند پالیسی `RequirePurchasesView` | `Purchases.View` |
 | AdminCourses | `POST` | `/api/admin/courses/purchase` | نیازمند پالیسی `RequireCoursesManage` | `Courses.Manage` |
 | AdminGatewayReview | `GET` | `/api/admin/topups/gateway-reviews/{clientReferenceCode}` | نیازمند پالیسی `RequireTopUpReview` | `TopUp.Review` |
 | AdminGatewayReview | `POST` | `/api/admin/topups/gateway-reviews/resolve` | نیازمند پالیسی `RequireTopUpReview` | `TopUp.Review` |
@@ -42,6 +45,10 @@
 | GatewayTopUp | `POST` | `/api/integrations/topups/v1/gateway-reviews/open` | عمومی (Anonymous) | — |
 | GatewayTopUp | `POST` | `/api/integrations/topups/gateway-results` | عمومی (Anonymous) | — |
 | GatewayTopUp | `POST` | `/api/integrations/topups/v1/gateway-reviews/reopen` | عمومی (Anonymous) | — |
+| MyCourseOrders | `GET` | `/api/me/course-orders/{orderId}` | احراز هویت شده (JWT) | — |
+| MyCourseOrders | `GET` | `/api/me/course-orders` | احراز هویت شده (JWT) | — |
+| MyCoursePurchases | `GET` | `/api/me/course-purchases` | احراز هویت شده (JWT) | — |
+| MyCoursePurchases | `GET` | `/api/me/course-purchases/{purchaseId:guid}` | احراز هویت شده (JWT) | — |
 | Settings | `GET` | `/api/settings/conversion-rate` | عمومی (Public / بدون Authorize) | — |
 | TopUp | `POST` | `/api/topup/requests` | احراز هویت شده (JWT) | — |
 | TopUp | `GET` | `/api/topup/{topUpId:guid}/checkout` | احراز هویت شده (JWT) | — |

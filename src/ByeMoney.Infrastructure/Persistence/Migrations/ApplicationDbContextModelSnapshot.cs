@@ -52,6 +52,13 @@ namespace ByeMoney.Infrastructure.Migrations
                     b.HasData(
                         new
                         {
+                            Id = new Guid("66666666-6666-6666-6666-666666666666"),
+                            Code = "Purchases.View",
+                            CreatedAtUtc = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Description = "Permission to view course purchase history"
+                        },
+                        new
+                        {
                             Id = new Guid("22222222-2222-2222-2222-222222222222"),
                             Code = "Noor.Inject",
                             CreatedAtUtc = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
@@ -130,6 +137,12 @@ namespace ByeMoney.Infrastructure.Migrations
                     b.ToTable("RolePermissions", (string)null);
 
                     b.HasData(
+                        new
+                        {
+                            RoleId = new Guid("11111111-1111-1111-1111-111111111111"),
+                            PermissionId = new Guid("66666666-6666-6666-6666-666666666666"),
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
                         new
                         {
                             RoleId = new Guid("11111111-1111-1111-1111-111111111111"),
@@ -825,6 +838,11 @@ namespace ByeMoney.Infrastructure.Migrations
                             b1.Property<DateTime>("PurchasedAt")
                                 .HasColumnType("timestamp with time zone")
                                 .HasColumnName("PurchasedAt");
+
+                            b1.Property<decimal?>("ReferenceRialPerNoorAtPurchaseTime")
+                                .HasPrecision(18)
+                                .HasColumnType("numeric(18,0)")
+                                .HasColumnName("ReferenceRialPerNoorAtPurchaseTime");
 
                             b1.HasKey("CoursePurchaseId");
 

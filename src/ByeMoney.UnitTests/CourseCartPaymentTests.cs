@@ -34,11 +34,12 @@ public sealed class CourseCartPaymentTests
         ]);
 
         var payment = CourseCartPayment.Apply(cart, new ProvisionedUserWallet(account, wallet),
-            cart.Total > 0 ? Account.CreateSystemAccount() : null);
+            cart.Total > 0 ? Account.CreateSystemAccount() : null, referenceRate: 137m);
 
         cart.Items.Select(x => x.PriceInNoor).Should().Equal(105m, 105m);
         payment.Purchases.Select(x => x.Snapshot.PriceInNoorAtPurchaseTime)
             .Should().Equal(firstPayment, secondPayment);
+        payment.Purchases.Should().OnlyContain(x => x.Snapshot.ReferenceRialPerNoorAtPurchaseTime == 137m);
         wallet.Balance.Should().Be(1000 - firstPayment - secondPayment);
         payment.LedgerEntries.Sum(x => x.Amount).Should().Be(0);
         payment.LedgerEntries.Where(x => x.Amount < 0).Sum(x => -x.Amount).Should().Be(cart.Total);

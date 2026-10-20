@@ -1,5 +1,6 @@
 using ByeMoney.Application.Modules.Identity.Users.Interface;
 using ByeMoney.Application.Modules.Purchases.Interfaces;
+using ByeMoney.Application.Modules.Purchases.Services;
 using ByeMoney.Application.Modules.Settings;
 using ByeMoney.Application.Modules.Wallet.Commands.CreateTopUpRequest;
 using ByeMoney.Application.Modules.Wallet.Interfaces;
@@ -212,7 +213,8 @@ public sealed class CourseCartService(
             return Copy<CartResponse>(check);
         }
 
-        var result = await store.PayAsync(id, buyerId, cart.ReservationId, ct);
+        var referenceRate = await PurchaseReferenceRateReader.ReadAsync(settings, ct);
+        var result = await store.PayAsync(id, buyerId, cart.ReservationId, ct, referenceRate);
         if (result.IsFailure)
         {
             if (result.ErrorCode == CartErrorCodes.Conflict || cart.Status == CourseCartStatus.AwaitingTopUp)

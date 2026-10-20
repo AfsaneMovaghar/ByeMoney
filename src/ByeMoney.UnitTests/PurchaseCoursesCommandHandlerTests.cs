@@ -1,4 +1,6 @@
 using ByeMoney.Application.Common.Interfaces;
+using ByeMoney.Application.Modules.Settings;
+using ByeMoney.Domain.Modules.Settings;
 using ByeMoney.Application.Modules.Identity.Users.Interface;
 using ByeMoney.Application.Modules.Purchases.Commands.PurchaseCourses;
 using ByeMoney.Application.Modules.Purchases.Interfaces;
@@ -19,6 +21,7 @@ namespace ByeMoney.UnitTests;
 
 public class PurchaseCoursesCommandHandlerTests
 {
+    private readonly Mock<ISystemSettingRepository> _settingsMock = new();
     private readonly Mock<IUserRepository> _userRepoMock = new();
     private readonly Mock<ITarhElahiIntegrationClient> _tarhElahiClientMock = new();
     private readonly Mock<IUserWalletProvisioningService> _walletProvisioningMock = new();
@@ -40,12 +43,23 @@ public class PurchaseCoursesCommandHandlerTests
             _ledgerRepoMock.Object,
             _coursePurchaseRepoMock.Object,
             _unitOfWorkMock.Object,
-            _notifierMock.Object);
+            _notifierMock.Object,
+            _settingsMock.Object);
     }
 
-    [Fact]
-    public async Task Handle_ComplimentaryPurchaseWithEmptyWallet_ShouldPersistZeroPriceAndNotify()
+    [Theory]
+    [InlineData("137", 137)]
+    [InlineData("991", 991)]
+    [InlineData(null, null)]
+    [InlineData("invalid", null)]
+    [InlineData("0", null)]
+    [InlineData("-1", null)]
+    [InlineData("1.5", null)]
+    [InlineData("1000000000000000000", null)]
+    public async Task Handle_ComplimentaryPurchaseWithEmptyWallet_ShouldPersistZeroPriceAndNotify(string? rateValue, int? expectedRate)
     {
+        _settingsMock.Setup(x => x.GetValueByKeyAsync(SystemSettingConstants.Keys.RialToNoor, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(rateValue);
         var userId = UserId.New();
         var user = User.CreateFromStrapi("strapi-user-1", "09123456789", confirmed: true, blocked: false);
         var course = new TarhElahiCourseDto
@@ -80,6 +94,7 @@ public class PurchaseCoursesCommandHandlerTests
         savedPurchase.LedgerTransactionId.Should().Be(result.Value.TransactionId);
         savedPurchase.IsFree.Should().BeTrue();
         savedPurchase.FreeReason.Should().Be("Admin gift");
+        savedPurchase.Snapshot.ReferenceRialPerNoorAtPurchaseTime.Should().Be(expectedRate);
         savedPurchase.Snapshot.PriceInRialAtPurchaseTime.Should().BeNull();
         savedPurchase.Snapshot.PriceInNoorAtPurchaseTime.Should().Be(0m);
         _walletProvisioningMock.Verify(x => x.GetOrCreateUserWalletAsync(It.IsAny<UserId>(), It.IsAny<CancellationToken>()), Times.Never);
@@ -90,9 +105,19 @@ public class PurchaseCoursesCommandHandlerTests
             It.Is<ProductSnapshot>(s => s.PriceInNoorAtPurchaseTime == 0m), It.IsAny<CancellationToken>()), Times.Once);
     }
 
-    [Fact]
-    public async Task Handle_BasketOfTwoValidCourses_ShouldDebitWalletTotal_WriteBalancedLedgerEntriesForEach_AndTriggerNotifications()
+    [Theory]
+    [InlineData("137", 137)]
+    [InlineData("991", 991)]
+    [InlineData(null, null)]
+    [InlineData("invalid", null)]
+    [InlineData("0", null)]
+    [InlineData("-1", null)]
+    [InlineData("1.5", null)]
+    [InlineData("1000000000000000000", null)]
+    public async Task Handle_BasketOfTwoValidCourses_ShouldDebitWalletTotal_WriteBalancedLedgerEntriesForEach_AndTriggerNotifications(string? rateValue, int? expectedRate)
     {
+        _settingsMock.Setup(x => x.GetValueByKeyAsync(SystemSettingConstants.Keys.RialToNoor, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(rateValue);
         // Arrange
         var userId = UserId.New();
         var user = User.CreateFromStrapi("strapi-user-1", "09123456789", confirmed: true, blocked: false);
@@ -166,6 +191,8 @@ public class PurchaseCoursesCommandHandlerTests
 
         // 2. Exactly 2 CoursePurchase rows created with status Debited
         savedPurchases.Should().HaveCount(2);
+        savedPurchases.Should().OnlyContain(x => x.Snapshot.ReferenceRialPerNoorAtPurchaseTime == expectedRate);
+        _settingsMock.Verify(x => x.GetValueByKeyAsync(SystemSettingConstants.Keys.RialToNoor, It.IsAny<CancellationToken>()), Times.Once);
         savedPurchases[0].Status.Should().Be(CoursePurchaseStatus.Debited);
         savedPurchases[1].Status.Should().Be(CoursePurchaseStatus.Debited);
 
