@@ -1,7 +1,8 @@
 using ByeMoney.Application.Common.Interfaces;
 using ByeMoney.Domain.Modules.Identity.Users;
 
-namespace ByeMoney.Application.Modules.Identity.Users.Interface;
+namespace ByeMoney.Application.Modules.Identity.Users.Interfaces;
+
 public interface IUserRepository : IRepository<User, UserId>
 {
     Task<bool> ExistsByExternalUserIdAsync(string externalUserId, CancellationToken ct);

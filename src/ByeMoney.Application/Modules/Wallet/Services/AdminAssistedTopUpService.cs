@@ -1,7 +1,7 @@
+using ByeMoney.Application.Modules.Identity.Users.Interfaces;
 using ByeMoney.Domain.Common.Generic;
 using ByeMoney.Application.Common.Interfaces;
 using ByeMoney.Application.Modules.Identity.Users.Commands.SyncUserFromStrapi;
-using ByeMoney.Application.Modules.Identity.Users.Interface;
 using ByeMoney.Application.Modules.Settings;
 using ByeMoney.Application.Modules.Wallet.Commands.CreateAdminCardToCardTopUp;
 using ByeMoney.Application.Modules.Wallet.Interfaces;

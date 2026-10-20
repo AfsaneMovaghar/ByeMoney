@@ -1,4 +1,4 @@
-using ByeMoney.Application.Modules.Identity.Users.Interface;
+using ByeMoney.Application.Modules.Identity.Users.Interfaces;
 using ByeMoney.Application.Modules.Wallet.Interfaces;
 using ByeMoney.Domain.Modules.Wallet.TopUps;
 using MediatR;

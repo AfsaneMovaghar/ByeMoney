@@ -1,5 +1,5 @@
+using ByeMoney.Application.Modules.Identity.Users.Interfaces;
 using ByeMoney.Application.Common.Interfaces;
-using ByeMoney.Application.Modules.Identity.Users.Interface;
 using ByeMoney.Application.Modules.TarhElahiIntegration.Exceptions;
 using ByeMoney.Application.Modules.TarhElahiIntegration.Interfaces;
 using ByeMoney.Application.Resources;

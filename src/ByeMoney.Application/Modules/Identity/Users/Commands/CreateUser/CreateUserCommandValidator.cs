@@ -1,5 +1,5 @@
+using ByeMoney.Application.Modules.Identity.Users.Interfaces;
 
-using ByeMoney.Application.Modules.Identity.Users.Interface;
 using ByeMoney.Application.Resources;
 using FluentValidation;
 

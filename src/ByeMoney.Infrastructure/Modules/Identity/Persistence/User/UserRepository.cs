@@ -1,4 +1,4 @@
-using ByeMoney.Application.Modules.Identity.Users.Interface;
+using ByeMoney.Application.Modules.Identity.Users.Interfaces;
 using ByeMoney.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 

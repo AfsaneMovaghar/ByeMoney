@@ -1,9 +1,9 @@
+using ByeMoney.Application.Modules.Identity.Users.Interfaces;
 using ByeMoney.Domain.Common.Generic;
 using ByeMoney.Application.Modules.Wallet.Interfaces;
 using ByeMoney.Domain.Common;
 using MediatR;
 using ByeMoney.Application.Common.Interfaces;
-using ByeMoney.Application.Modules.Identity.Users.Interface;
 using ByeMoney.Application.Resources;
 using ByeMoney.Domain.Modules.Identity.Users;
 using ByeMoney.Domain.Modules.Wallet.TopUps;
