@@ -1,3 +1,4 @@
+using ByeMoney.Domain.Common.Generic;
 using ByeMoney.Application.Modules.Wallet.Commands.CancelGatewayTopUp;
 using ByeMoney.Application.Modules.Wallet.Commands.ConfirmGatewayTopUp;
 using ByeMoney.Application.Modules.Wallet.Commands.RecordGatewayResult;

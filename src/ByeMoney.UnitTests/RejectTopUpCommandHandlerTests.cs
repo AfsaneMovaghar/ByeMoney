@@ -1,3 +1,4 @@
+using ByeMoney.Domain.Common.Generic;
 using ByeMoney.Application.Common.Interfaces;
 using ByeMoney.Application.Modules.Wallet.Commands.RejectTopUp;
 using ByeMoney.Application.Modules.Wallet.Interfaces;

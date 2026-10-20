@@ -1,3 +1,4 @@
+using ByeMoney.Domain.Common.Generic;
 using ByeMoney.Domain.Common;
 
 namespace ByeMoney.Application.Modules.Wallet.Interfaces;

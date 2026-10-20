@@ -1,3 +1,4 @@
+using ByeMoney.Domain.Common.Generic;
 using ByeMoney.API.Contracts.Courses;
 using ByeMoney.Application.Modules.Purchases.Queries.Checkout;
 using ByeMoney.Application.Common.Interfaces;

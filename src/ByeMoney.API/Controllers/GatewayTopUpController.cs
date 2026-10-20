@@ -1,3 +1,4 @@
+using ByeMoney.Domain.Common.Generic;
 using ByeMoney.API.Authentication;
 using ByeMoney.API.Contracts.TopUp;
 using ByeMoney.API.Resources;

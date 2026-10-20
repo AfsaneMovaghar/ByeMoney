@@ -1,4 +1,5 @@
-﻿using ByeMoney.Domain.Common;
+using ByeMoney.Domain.Common.Generic;
+using ByeMoney.Domain.Common;
 using System;
 using System.Collections.Generic;
 using System.Text;

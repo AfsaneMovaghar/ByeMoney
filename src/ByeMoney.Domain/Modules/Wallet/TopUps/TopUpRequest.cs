@@ -1,3 +1,4 @@
+using ByeMoney.Domain.Common.Generic;
 using System.Security.Cryptography;
 using ByeMoney.Domain.Common;
 using ByeMoney.Domain.Common.Exceptions;

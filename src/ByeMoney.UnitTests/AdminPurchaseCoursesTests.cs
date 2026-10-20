@@ -1,3 +1,4 @@
+using ByeMoney.Domain.Common.Generic;
 using ByeMoney.API.Contracts.Courses;
 using ByeMoney.API.Controllers;
 using ByeMoney.Application.Modules.Identity.Users.Commands.SyncUserFromStrapi;

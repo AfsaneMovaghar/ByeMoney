@@ -1,3 +1,4 @@
+using ByeMoney.Domain.Common.Generic;
 using ByeMoney.Domain.Common;
 using ByeMoney.Domain.Modules.Wallet.Accounts;
 using ByeMoney.Domain.Modules.Identity.Users;

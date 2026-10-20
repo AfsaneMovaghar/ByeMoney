@@ -1,3 +1,4 @@
+using ByeMoney.Domain.Common.Generic;
 using System.Net;
 using System.Net.Http.Json;
 using ByeMoney.Application.Modules.Purchases.Cart;

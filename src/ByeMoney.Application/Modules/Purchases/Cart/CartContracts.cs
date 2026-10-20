@@ -1,3 +1,4 @@
+using ByeMoney.Domain.Common.Generic;
 using ByeMoney.Domain.Common;
 using ByeMoney.Domain.Modules.Purchases;
 using ByeMoney.Application.Modules.Wallet.Commands.CreateTopUpRequest;

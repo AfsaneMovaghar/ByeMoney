@@ -1,3 +1,4 @@
+using ByeMoney.Domain.Common.Generic;
 using ByeMoney.Application.Modules.Wallet.Services;
 using ByeMoney.Domain.Common;
 using MediatR;

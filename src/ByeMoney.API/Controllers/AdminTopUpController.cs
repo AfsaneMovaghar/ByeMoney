@@ -1,3 +1,4 @@
+using ByeMoney.Domain.Common.Generic;
 using ByeMoney.API.Contracts.TopUp;
 using ByeMoney.Application.Modules.Identity.Queries.GetUserPermissions;
 using ByeMoney.Application.Modules.Wallet.Commands.ConfirmTopUp;

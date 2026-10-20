@@ -1,3 +1,4 @@
+using ByeMoney.Domain.Common.Generic;
 using ByeMoney.Application.Modules.Wallet.Events;
 using ByeMoney.Application.Modules.Wallet.Constants;
 using ByeMoney.Application.Modules.Wallet.Interfaces;
