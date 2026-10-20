@@ -1,5 +1,5 @@
+using ByeMoney.Application.Modules.Settings.Interfaces;
 using ByeMoney.Application.Common.Interfaces;
-using ByeMoney.Application.Modules.Settings;
 using ByeMoney.Application.Modules.Wallet.Commands.CreateTopUpRequest;
 using ByeMoney.Application.Modules.Wallet.Interfaces;
 using ByeMoney.Domain.Modules.Wallet.TopUps;

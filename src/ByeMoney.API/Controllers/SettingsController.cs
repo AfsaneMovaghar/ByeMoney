@@ -1,5 +1,5 @@
+using ByeMoney.Application.Modules.Settings.Interfaces;
 using ByeMoney.API.Contracts.Settings;
-using ByeMoney.Application.Modules.Settings;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ByeMoney.API.Controllers;

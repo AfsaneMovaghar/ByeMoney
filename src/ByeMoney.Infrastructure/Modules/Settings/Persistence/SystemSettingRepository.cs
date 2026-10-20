@@ -1,5 +1,5 @@
+using ByeMoney.Application.Modules.Settings.Interfaces;
 using System.Globalization;
-using ByeMoney.Application.Modules.Settings;
 using ByeMoney.Application.Resources;
 using ByeMoney.Domain.Modules.Settings;
 using ByeMoney.Domain.Common.Exceptions;

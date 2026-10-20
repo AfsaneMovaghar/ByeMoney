@@ -1,6 +1,6 @@
+using ByeMoney.Application.Modules.Settings.Interfaces;
 using ByeMoney.API.Contracts.Settings;
 using ByeMoney.API.Controllers;
-using ByeMoney.Application.Modules.Settings;
 using FluentAssertions;
 using Microsoft.AspNetCore.Mvc;
 using Moq;

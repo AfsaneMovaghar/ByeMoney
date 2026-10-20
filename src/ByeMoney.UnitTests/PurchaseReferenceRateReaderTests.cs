@@ -1,5 +1,5 @@
+using ByeMoney.Application.Modules.Settings.Interfaces;
 using ByeMoney.Application.Modules.Purchases.Services;
-using ByeMoney.Application.Modules.Settings;
 using ByeMoney.Domain.Modules.Settings;
 using FluentAssertions;
 using Moq;

@@ -1,6 +1,6 @@
+using ByeMoney.Application.Modules.Settings.Interfaces;
 using ByeMoney.Application.Modules.Identity.Users.Interfaces;
 using ByeMoney.Application.Common.Interfaces;
-using ByeMoney.Application.Modules.Settings;
 using ByeMoney.Domain.Modules.Settings;
 using ByeMoney.Application.Modules.Purchases.EventHandlers;
 using ByeMoney.Application.Modules.Purchases.Interfaces;

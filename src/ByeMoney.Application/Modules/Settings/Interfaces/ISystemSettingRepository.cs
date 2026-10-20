@@ -1,6 +1,6 @@
-﻿using ByeMoney.Domain.Modules.Settings;
+using ByeMoney.Domain.Modules.Settings;
 
-namespace ByeMoney.Application.Modules.Settings;
+namespace ByeMoney.Application.Modules.Settings.Interfaces;
 
 public interface ISystemSettingRepository
 {
