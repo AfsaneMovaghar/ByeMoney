@@ -2,14 +2,8 @@ using ByeMoney.Application.Common.Interfaces;
 using ByeMoney.Application.Modules.Wallet.Interfaces;
 using ByeMoney.Domain.Modules.Wallet.Ledgers;
 using ByeMoney.Domain.Modules.Wallet.TopUps;
-using ByeMoney.Domain.Modules.Wallet.Wallets;
 
 namespace ByeMoney.Application.Modules.Wallet.Services;
-
-public interface ITopUpSettlementService
-{
-    Task SettleAsync(TopUpRequest topUp, CancellationToken ct = default);
-}
 
 public sealed class TopUpSettlementService(
     IUserWalletProvisioningService provisioning,

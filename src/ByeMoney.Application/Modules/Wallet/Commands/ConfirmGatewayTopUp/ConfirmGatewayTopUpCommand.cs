@@ -1,5 +1,3 @@
-using ByeMoney.Domain.Common.Generic;
-using ByeMoney.Domain.Common;
 using MediatR;
 
 namespace ByeMoney.Application.Modules.Wallet.Commands.ConfirmGatewayTopUp;
@@ -11,5 +9,3 @@ public sealed record ConfirmGatewayTopUpCommand(
     string BankReferenceNumber,
     decimal OriginalAmountRial,
     decimal AffectiveAmountRial) : IRequest<GatewayConfirmationOutcome>;
-
-public sealed record GatewayConfirmationOutcome(Result Result, bool Idempotent = false);

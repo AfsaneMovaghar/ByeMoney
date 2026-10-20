@@ -1,19 +1,16 @@
-using ByeMoney.Domain.Common.Generic;
+using ByeMoney.Application.Modules.Wallet.DTOs;
 using ByeMoney.Application.Common.Interfaces;
 using ByeMoney.Application.Modules.Wallet.Commands.ConfirmTopUp;
 using ByeMoney.Application.Modules.Wallet.Events;
-using ByeMoney.Application.Modules.Wallet.Services;
 using ByeMoney.Application.Modules.Wallet.Interfaces;
 using ByeMoney.Domain.Common;
 using ByeMoney.Domain.Modules.Identity.Users;
 using ByeMoney.Domain.Modules.Wallet.Accounts;
 using ByeMoney.Domain.Modules.Wallet.Ledgers;
 using ByeMoney.Domain.Modules.Wallet.TopUps;
-using ByeMoney.Domain.Modules.Wallet.Wallets;
 using FluentAssertions;
 using MediatR;
 using Moq;
-using Xunit;
 using WalletEntity = ByeMoney.Domain.Modules.Wallet.Wallets.Wallet;
 
 namespace ByeMoney.UnitTests;

@@ -1,10 +1,8 @@
+using ByeMoney.Application.Modules.Wallet.DTOs;
 using ByeMoney.Domain.Modules.Identity.Users;
 using ByeMoney.Domain.Modules.Wallet.Accounts;
-using WalletEntity = ByeMoney.Domain.Modules.Wallet.Wallets.Wallet;
 
 namespace ByeMoney.Application.Modules.Wallet.Interfaces;
-
-public record ProvisionedUserWallet(Account Account, WalletEntity Wallet);
 
 public interface IUserWalletProvisioningService
 {

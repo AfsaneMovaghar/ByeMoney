@@ -1,3 +1,4 @@
+using ByeMoney.Application.Modules.Wallet.DTOs;
 using ByeMoney.Domain.Common.Generic;
 using ByeMoney.Application.Modules.Wallet.Commands.CancelGatewayTopUp;
 using ByeMoney.Application.Modules.Wallet.Commands.ConfirmGatewayTopUp;
@@ -20,8 +21,3 @@ public interface IGatewayTopUpService
     Task<Result> CancelAsync(CancelGatewayTopUpCommand command, CancellationToken ct = default);
     Task<Result> RecordResultAsync(RecordGatewayResultCommand command, CancellationToken ct = default);
 }
-
-public sealed record GatewayReviewState(string ClientReferenceCode, string CaseId, string TopUpStatus,
-    string ReasonCode, DateTime OpenedAtUtc, DateTime? ResolvedAtUtc, string? OutcomeCode,
-    string? ResolutionFinancialReferenceId, int Revision = 0,
-    IReadOnlyList<FinancialReviewAudit>? Audit = null, string? ManualRefundReference = null);

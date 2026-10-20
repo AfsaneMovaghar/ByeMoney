@@ -6,19 +6,12 @@ using ByeMoney.Application.Modules.Identity.Users.Commands.SyncUserFromStrapi;
 using ByeMoney.Application.Modules.Wallet.Commands.CreateAdminCardToCardTopUp;
 using ByeMoney.Application.Modules.Wallet.Interfaces;
 using ByeMoney.Application.Resources;
-using ByeMoney.Domain.Common;
 using ByeMoney.Domain.Common.Exceptions;
 using ByeMoney.Domain.Modules.Identity.Users;
 using ByeMoney.Domain.Modules.Wallet.TopUps;
 using MediatR;
 
 namespace ByeMoney.Application.Modules.Wallet.Services;
-
-public interface IAdminAssistedTopUpService
-{
-    Task<Result<CreateTopUpRequestResponse>> CreateAsync(CreateAdminCardToCardTopUpCommand request, CancellationToken ct);
-    Task DeleteUnreferencedReceiptAsync(string receiptId, string idempotencyKey, CancellationToken ct);
-}
 
 public sealed class AdminAssistedTopUpService(
     IUserRepository users,

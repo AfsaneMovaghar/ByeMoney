@@ -1,4 +1,4 @@
-using ByeMoney.Domain.Common.Generic;
+using ByeMoney.Application.Modules.Wallet.DTOs;
 using ByeMoney.API.Authentication;
 using ByeMoney.API.Contracts.TopUp;
 using ByeMoney.API.Resources;
@@ -6,10 +6,8 @@ using ByeMoney.Application.Modules.Wallet.Commands.CancelGatewayTopUp;
 using ByeMoney.Application.Modules.Wallet.Commands.ConfirmGatewayTopUp;
 using ByeMoney.Application.Modules.Wallet.Commands.RecordGatewayResult;
 using ByeMoney.Application.Modules.Wallet.Commands.OpenGatewayReview;
-using ByeMoney.Application.Modules.Wallet.Commands.ResolveGatewayReview;
 using ByeMoney.Application.Modules.Wallet.Commands.ReopenGatewayReview;
 using ByeMoney.Application.Modules.Wallet.Queries.GetGatewayReview;
-using ByeMoney.Application.Modules.Wallet.Interfaces;
 using ByeMoney.Application.Modules.Wallet.Queries.GetGatewayTopUpDetails;
 using ByeMoney.Domain.Common;
 using MediatR;

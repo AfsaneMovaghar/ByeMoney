@@ -1,11 +1,10 @@
+using ByeMoney.Application.Modules.Wallet.Interfaces;
 using ByeMoney.Domain.Common.Generic;
 using ByeMoney.API.Contracts.TopUp;
 using ByeMoney.API.Controllers;
 using ByeMoney.Application.Common.Interfaces;
 using ByeMoney.Application.Modules.Wallet.Commands.CreateAdminCardToCardTopUp;
-using ByeMoney.Application.Modules.Wallet.Services;
 using ByeMoney.Application.Resources;
-using ByeMoney.Domain.Common;
 using FluentAssertions;
 using MediatR;
 using Microsoft.AspNetCore.Http;
