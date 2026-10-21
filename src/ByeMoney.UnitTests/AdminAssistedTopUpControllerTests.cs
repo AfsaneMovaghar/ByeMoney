@@ -16,6 +16,49 @@ namespace ByeMoney.UnitTests;
 public class AdminAssistedTopUpControllerTests
 {
     [Fact]
+    public async Task Create_WithoutReceiptDoesNotAccessStorageOrCleanup()
+    {
+        var actorId = Guid.NewGuid();
+        var receipts = new Mock<IReceiptStorage>(MockBehavior.Strict);
+        var topUps = new Mock<IAdminAssistedTopUpService>(MockBehavior.Strict);
+        var sender = new Mock<ISender>();
+        sender.Setup(x => x.Send(It.Is<CreateAdminCardToCardTopUpCommand>(command =>
+                command.ReceiptId == null && command.IdempotencyKey == "same-key" && command.ActorUserId == actorId),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Result<CreateTopUpRequestResponse>.Success(new(Guid.NewGuid(), "reference", 10m, 10_000m)));
+        var currentUser = new Mock<ICurrentUserService>();
+        currentUser.SetupGet(x => x.UserId).Returns(actorId);
+        var controller = new AdminAssistedTopUpController(sender.Object, currentUser.Object, receipts.Object, topUps.Object);
+
+        var result = await controller.Create(new("beneficiary", 10_000m, null), "same-key", default);
+
+        result.Should().BeOfType<OkObjectResult>();
+        receipts.VerifyNoOtherCalls();
+        topUps.VerifyNoOtherCalls();
+    }
+
+    [Theory]
+    [InlineData(0, "image/png")]
+    [InlineData(10_000_001, "image/png")]
+    [InlineData(8, "text/plain")]
+    public async Task Create_InvalidProvidedReceiptDoesNotDispatchTopUp(long length, string contentType)
+    {
+        var sender = new Mock<ISender>(MockBehavior.Strict);
+        var currentUser = new Mock<ICurrentUserService>();
+        currentUser.SetupGet(x => x.UserId).Returns(Guid.NewGuid());
+        var receipt = new Mock<IFormFile>();
+        receipt.SetupGet(x => x.Length).Returns(length);
+        receipt.SetupGet(x => x.ContentType).Returns(contentType);
+        var controller = new AdminAssistedTopUpController(sender.Object, currentUser.Object,
+            Mock.Of<IReceiptStorage>(), Mock.Of<IAdminAssistedTopUpService>());
+
+        var result = await controller.Create(new("beneficiary", 10_000m, receipt.Object), "same-key", default);
+
+        result.Should().BeOfType<BadRequestObjectResult>();
+        sender.VerifyNoOtherCalls();
+    }
+
+    [Fact]
     public async Task Create_DelegatesReceiptCleanupOnConflict()
     {
         var actorId = Guid.NewGuid();

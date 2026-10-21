@@ -17,8 +17,10 @@ namespace ByeMoney.UnitTests;
 
 public class AdminAssistedTopUpTests
 {
-    [Fact]
-    public async Task Handle_CreatesConfirmedSnapshotAndSettlesOnce()
+    [Theory]
+    [InlineData(null)]
+    [InlineData("receipt-id")]
+    public async Task Handle_CreatesConfirmedSnapshotAndSettlesOnce(string? receiptId)
     {
         var beneficiary = User.CreateFromStrapi("external-user", confirmed: true);
         var users = new Mock<IUserRepository>();
@@ -34,12 +36,13 @@ public class AdminAssistedTopUpTests
         var service = new AdminAssistedTopUpService(users.Object, settings.Object, topUps.Object, settlement.Object, Mock.Of<IReceiptStorage>(), Mock.Of<ISender>());
 
         var actorId = Guid.NewGuid();
-        var result = await service.CreateAsync(new("external-user", actorId, 25_000m, "receipt-id", "idem-1", null,
+        var result = await service.CreateAsync(new("external-user", actorId, 25_000m, receiptId, "idem-1", null,
             ChargeType.AdminAssistedCardToCard), CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
         created.Should().NotBeNull();
         created!.Status.Should().Be(TopUpStatus.Confirmed);
+        created.ReceiptId.Should().Be(receiptId);
         created.AmountNoor.Should().Be(25m);
         created.AmountRial.Should().Be(250_000m);
         created.RialPerNoorSnapshot.Should().Be(10_000m);
@@ -49,12 +52,14 @@ public class AdminAssistedTopUpTests
         settlement.Verify(x => x.SettleAsync(created, It.IsAny<CancellationToken>()), Times.Once);
     }
 
-    [Fact]
-    public async Task Handle_ReturnsExistingTopUpOnIdempotentRetryWithoutSettlingAgain()
+    [Theory]
+    [InlineData(null)]
+    [InlineData("receipt-id")]
+    public async Task Handle_ReturnsExistingTopUpOnIdempotentRetryWithoutSettlingAgain(string? receiptId)
     {
         var beneficiary = User.CreateFromStrapi("external-user", confirmed: true);
         var actorId = UserId.New();
-        var existing = TopUpRequest.CreateAdminCardToCard(beneficiary.Id, actorId, 10_000m, 10_000m, "receipt-id", "idem-1");
+        var existing = TopUpRequest.CreateAdminCardToCard(beneficiary.Id, actorId, 10_000m, 10_000m, receiptId, "idem-1");
         var users = new Mock<IUserRepository>();
         users.Setup(x => x.GetByExternalUserIdAsync("external-user", It.IsAny<CancellationToken>())).ReturnsAsync(beneficiary);
         var topUps = new Mock<ITopUpRequestRepository>();
@@ -62,7 +67,7 @@ public class AdminAssistedTopUpTests
         var settlement = new Mock<ITopUpSettlementService>();
         var service = new AdminAssistedTopUpService(users.Object, Mock.Of<ISystemSettingRepository>(), topUps.Object, settlement.Object, Mock.Of<IReceiptStorage>(), Mock.Of<ISender>());
 
-        var result = await service.CreateAsync(new("external-user", actorId.Value, 10_000m, "receipt-id", "idem-1", null,
+        var result = await service.CreateAsync(new("external-user", actorId.Value, 10_000m, receiptId, "idem-1", null,
             ChargeType.AdminAssistedCardToCard), CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
@@ -71,12 +76,15 @@ public class AdminAssistedTopUpTests
         topUps.Verify(x => x.AddAsync(It.IsAny<TopUpRequest>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
-    [Fact]
-    public async Task Handle_RejectsDifferentReceiptForTheSameIdempotencyKey()
+    [Theory]
+    [InlineData("first-receipt", "second-receipt")]
+    [InlineData(null, "receipt-id")]
+    [InlineData("receipt-id", null)]
+    public async Task Handle_RejectsDifferentReceiptForTheSameIdempotencyKey(string? originalReceiptId, string? retryReceiptId)
     {
         var beneficiary = User.CreateFromStrapi("external-user", confirmed: true);
         var actorId = UserId.New();
-        var existing = TopUpRequest.CreateAdminCardToCard(beneficiary.Id, actorId, 10_000m, 10_000m, "first-receipt", "idem-1");
+        var existing = TopUpRequest.CreateAdminCardToCard(beneficiary.Id, actorId, 10_000m, 10_000m, originalReceiptId, "idem-1");
         var users = new Mock<IUserRepository>();
         users.Setup(x => x.GetByExternalUserIdAsync("external-user", It.IsAny<CancellationToken>())).ReturnsAsync(beneficiary);
         var topUps = new Mock<ITopUpRequestRepository>();
@@ -84,7 +92,7 @@ public class AdminAssistedTopUpTests
         var settlement = new Mock<ITopUpSettlementService>();
         var service = new AdminAssistedTopUpService(users.Object, Mock.Of<ISystemSettingRepository>(), topUps.Object, settlement.Object, Mock.Of<IReceiptStorage>(), Mock.Of<ISender>());
 
-        var result = await service.CreateAsync(new("external-user", actorId.Value, 10_000m, "second-receipt", "idem-1", null,
+        var result = await service.CreateAsync(new("external-user", actorId.Value, 10_000m, retryReceiptId, "idem-1", null,
             ChargeType.AdminAssistedCardToCard), CancellationToken.None);
 
         result.Status.Should().Be(ByeMoney.Domain.Common.ResultStatus.Conflict);
@@ -192,11 +200,33 @@ public class AdminAssistedTopUpTests
         var validator = new CreateAdminCardToCardTopUpCommandValidator(receipts.Object);
 
         var result = await validator.ValidateAsync(new CreateAdminCardToCardTopUpCommand(
-            "external-user", Guid.NewGuid(), 100_000m, "", "idem-5", null,
+            "external-user", Guid.NewGuid(), 100_000m, null, "idem-5", null,
+            ChargeType.AdminAssistedCardToCard));
+
+        result.IsValid.Should().BeTrue();
+        receipts.Verify(x => x.ExistsAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public void Create_WithoutReceiptStillRequiresIdempotencyKey()
+    {
+        var create = () => TopUpRequest.CreateAdminCardToCard(
+            UserId.New(), UserId.New(), 10_000m, 10_000m, null, " ");
+
+        create.Should().Throw<DomainException>();
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("missing-receipt")]
+    public async Task Validator_RejectsInvalidProvidedReceipt(string receiptId)
+    {
+        var receipts = new Mock<IReceiptStorage>();
+        var validator = new CreateAdminCardToCardTopUpCommandValidator(receipts.Object);
+        var result = await validator.ValidateAsync(new CreateAdminCardToCardTopUpCommand(
+            "external-user", Guid.NewGuid(), 100_000m, receiptId, "idem-5", null,
             ChargeType.AdminAssistedCardToCard));
 
         result.IsValid.Should().BeFalse();
-        result.Errors.Should().ContainSingle(x => x.ErrorMessage == ApplicationErrors.TopUpRequest_ReceiptRequired);
-        receipts.Verify(x => x.ExistsAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 }

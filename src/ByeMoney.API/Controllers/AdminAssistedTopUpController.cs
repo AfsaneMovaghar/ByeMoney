@@ -33,22 +33,35 @@ public class AdminAssistedTopUpController(
         [FromHeader(Name = "Idempotency-Key")] string idempotencyKey,
         CancellationToken ct)
     {
-        if (currentUser.UserId is not Guid actorId) return Unauthorized();
-        if (string.IsNullOrWhiteSpace(idempotencyKey) || idempotencyKey.Trim().Length > 100)
-            return BadRequest(new { error = ApiErrors.TopUpRequest_InvalidIdempotencyKey });
-        idempotencyKey = idempotencyKey.Trim();
-        if (request.Receipt is null || request.Receipt.Length is <= 0 or > 10_000_000 || !request.Receipt.ContentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
-            return BadRequest(new { error = ApiErrors.TopUpReceipt_InvalidFile });
-
-        string receiptId;
-        try
+        if (currentUser.UserId is not Guid actorId)
         {
-            await using var stream = request.Receipt.OpenReadStream();
-            receiptId = await receipts.SaveAsync(stream, request.Receipt.FileName, idempotencyKey, ct);
+            return Unauthorized();
         }
-        catch (InvalidDataException)
+
+        if (string.IsNullOrWhiteSpace(idempotencyKey) || idempotencyKey.Trim().Length > 100)
         {
-            return BadRequest(new { error = ApiErrors.TopUpReceipt_InvalidFile });
+            return BadRequest(new AdminAssistedTopUpErrorResponse(ApiErrors.TopUpRequest_InvalidIdempotencyKey));
+        }
+
+        idempotencyKey = idempotencyKey.Trim();
+        string? receiptId = null;
+        if (request.Receipt is { } receipt)
+        {
+            if (receipt.Length is <= 0 or > 10_000_000 ||
+                !receipt.ContentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
+            {
+                return BadRequest(new AdminAssistedTopUpErrorResponse(ApiErrors.TopUpReceipt_InvalidFile));
+            }
+
+            try
+            {
+                await using var stream = receipt.OpenReadStream();
+                receiptId = await receipts.SaveAsync(stream, receipt.FileName, idempotencyKey, ct);
+            }
+            catch (InvalidDataException)
+            {
+                return BadRequest(new AdminAssistedTopUpErrorResponse(ApiErrors.TopUpReceipt_InvalidFile));
+            }
         }
 
         Result<CreateTopUpRequestResponse> result;
@@ -60,18 +73,28 @@ public class AdminAssistedTopUpController(
         }
         catch (Exception ex) when (ex is TarhElahiUnavailableException or ValidationException or DomainException or InvalidOperationException)
         {
-            await topUpService.DeleteUnreferencedReceiptAsync(receiptId, idempotencyKey, ct);
+            if (receiptId is not null)
+            {
+                await topUpService.DeleteUnreferencedReceiptAsync(receiptId, idempotencyKey, ct);
+            }
             throw;
         }
 
         if (result.IsSuccess)
+        {
             return Ok(result.Value);
-        await topUpService.DeleteUnreferencedReceiptAsync(receiptId, idempotencyKey, ct);
+        }
+
+        if (receiptId is not null)
+        {
+            await topUpService.DeleteUnreferencedReceiptAsync(receiptId, idempotencyKey, ct);
+        }
+
         return result.Status switch
         {
-            ResultStatus.NotFound => NotFound(new { error = result.ErrorMessage }),
-            ResultStatus.Conflict => Conflict(new { error = result.ErrorMessage }),
-            _ => BadRequest(new { error = result.ErrorMessage })
+            ResultStatus.NotFound => NotFound(new AdminAssistedTopUpErrorResponse(result.ErrorMessage)),
+            ResultStatus.Conflict => Conflict(new AdminAssistedTopUpErrorResponse(result.ErrorMessage)),
+            _ => BadRequest(new AdminAssistedTopUpErrorResponse(result.ErrorMessage))
         };
     }
 }

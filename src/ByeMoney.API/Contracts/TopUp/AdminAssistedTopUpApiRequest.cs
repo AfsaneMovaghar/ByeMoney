@@ -5,6 +5,6 @@ using Microsoft.AspNetCore.Http;
 public record AdminAssistedTopUpApiRequest(
     string BeneficiaryExternalUserId,
     decimal AmountToman,
-    IFormFile Receipt,
+    IFormFile? Receipt,
     string? ExternalTransactionId = null);
 

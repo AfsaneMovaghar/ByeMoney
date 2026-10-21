@@ -343,21 +343,31 @@ public class TopUpRequest : BaseEntity<TopUpRequestId>
         UserId createdByUserId,
         decimal amountToman,
         decimal rialPerNoor,
-        string receiptId,
+        string? receiptId,
         string idempotencyKey,
         string? externalTransactionId = null)
     {
         if (amountToman <= 0)
+        {
             throw new DomainException(DomainErrors.TopUpRequest_AmountMustBeGreaterThanZero);
+        }
+
         if (rialPerNoor <= 0 || decimal.Truncate(rialPerNoor) != rialPerNoor)
+        {
             throw new DomainException(DomainErrors.TopUpRequest_InvalidRate);
-        if (string.IsNullOrWhiteSpace(receiptId) || string.IsNullOrWhiteSpace(idempotencyKey))
-            throw new DomainException(DomainErrors.TopUpRequest_ReceiptAndIdempotencyRequired);
+        }
+
+        if (string.IsNullOrWhiteSpace(idempotencyKey))
+        {
+            throw new DomainException(DomainErrors.TopUpRequest_IdempotencyRequired);
+        }
 
         var amountRial = checked(amountToman * 10m);
         var noorAmount = decimal.Round(amountRial / rialPerNoor, 4, MidpointRounding.ToEven);
         if (noorAmount <= 0)
+        {
             throw new DomainException(DomainErrors.TopUpRequest_AmountMustBeGreaterThanZero);
+        }
 
         var now = DateTime.UtcNow;
         return new TopUpRequest
@@ -369,7 +379,7 @@ public class TopUpRequest : BaseEntity<TopUpRequestId>
             AmountNoor = noorAmount,
             AmountRial = amountRial,
             RialPerNoorSnapshot = rialPerNoor,
-            ReceiptId = receiptId.Trim(),
+            ReceiptId = receiptId?.Trim(),
             IdempotencyKey = idempotencyKey.Trim(),
             PaymentMethod = PaymentMethod.CardToCard,
             ClientReferenceCode = GenerateClientReferenceCode(),

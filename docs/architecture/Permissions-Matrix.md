@@ -1,7 +1,7 @@
 ﻿# ماتریس دسترسی و مجوزهای ByeMoney (Permission Matrix)
 
 > [!IMPORTANT]
-> جدول بر پایهٔ بازتاب کد و با تطبیق مستندی در ۲۰۲۶-۱۰-۲۰ نگهداری می‌شود؛ شاهد اجرای آزمون در Verification-Summary است. وجود مسیر یا پالیسی در جدول، تأیید تنظیمات یا مجوزهای محیط منتشرشده نیست.
+> جدول بر پایهٔ بازتاب کد و با تطبیق مستندی در ۲۰۲۶-۱۰-۲۱ نگهداری می‌شود؛ شاهد اجرای آزمون در Verification-Summary است. وجود مسیر یا پالیسی در جدول، تأیید تنظیمات یا مجوزهای محیط منتشرشده نیست.
 
 ## ۱. فهرست مجوزهای تعریف‌شده در سامانه (Permissions)
 
@@ -55,7 +55,6 @@
 | TopUp | `POST` | `/api/topup/requests` | احراز هویت شده (JWT) | — |
 | TopUp | `GET` | `/api/topup/{topUpId:guid}/checkout` | احراز هویت شده (JWT) | — |
 | TopUpReceipt | `GET` | `/api/topup/requests/{topUpId:guid}/receipt` | احراز هویت شده (JWT) | — |
-| Users | `POST` | `/api/users` | عمومی (Public / بدون Authorize) | — |
 | Wallet | `GET` | `/api/wallet/balance` | احراز هویت شده (JWT) | — |
 
 ## ۳. اصول معماری و قواعد RBAC در ByeMoney

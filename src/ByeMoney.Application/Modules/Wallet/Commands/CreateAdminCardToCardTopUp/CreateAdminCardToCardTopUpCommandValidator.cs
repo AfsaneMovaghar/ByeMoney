@@ -19,7 +19,8 @@ public class CreateAdminCardToCardTopUpCommandValidator : AbstractValidator<Crea
         RuleFor(x => x.ReceiptId).Cascade(CascadeMode.Stop)
             .NotEmpty().WithMessage(ApplicationErrors.TopUpRequest_ReceiptRequired)
             .MaximumLength(200).WithMessage(ApplicationErrors.TopUpRequest_ReceiptIdMaxLength)
-            .MustAsync((id, ct) => receipts.ExistsAsync(id, ct)).WithMessage(ApplicationErrors.TopUpRequest_ReceiptNotFound);
+            .MustAsync((id, ct) => receipts.ExistsAsync(id!, ct)).WithMessage(ApplicationErrors.TopUpRequest_ReceiptNotFound)
+            .When(x => x.ReceiptId is not null);
         RuleFor(x => x.IdempotencyKey).Cascade(CascadeMode.Stop)
             .NotEmpty().WithMessage(ApplicationErrors.TopUpRequest_IdempotencyKeyRequired)
             .MaximumLength(100).WithMessage(ApplicationErrors.TopUpRequest_IdempotencyKeyMaxLength);
