@@ -26,7 +26,7 @@ public sealed class CourseCartsController(ISender sender) : ControllerBase
         [FromBody] PrepareCourseCartRequest request,
         CancellationToken ct)
     {
-        var command = new PrepareCourseCartCommand(request.CartId, request.ExternalCourseIds, request.CouponCode);
+        var command = new PrepareCourseCartCommand(request.CartId, request.ExternalCourseIds, request.CouponCode, request.Items);
         var result = await sender.Send(command, ct);
         return Respond(result);
     }

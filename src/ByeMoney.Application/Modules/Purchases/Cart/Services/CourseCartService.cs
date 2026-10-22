@@ -24,10 +24,18 @@ public sealed class CourseCartService(
     ICoursePurchaseRepository purchases,
     ITopUpRequestRepository topUps)
 {
-    public async Task<Result<CartResponse>> PrepareAsync(
+    public Task<Result<CartResponse>> PrepareAsync(
         Guid buyerId,
         Guid id,
         string[] ids,
+        string? code,
+        CancellationToken ct) =>
+        PrepareAsync(buyerId, id, ids.Select(x => new CartItemInput(x, ProductItemType.Course, 1)).ToArray(), code, ct);
+
+    public async Task<Result<CartResponse>> PrepareAsync(
+        Guid buyerId,
+        Guid id,
+        CartItemInput[] items,
         string? code,
         CancellationToken ct)
     {
@@ -37,7 +45,7 @@ public sealed class CourseCartService(
             return Result<CartResponse>.Conflict(CartErrors.Conflict, CartErrorCodes.Conflict);
         }
 
-        var created = await store.CreateAsync(CourseCart.Create(id, buyerId, user.ExternalUserId, ids, code), ct);
+        var created = await store.CreateAsync(CourseCart.Create(id, buyerId, user.ExternalUserId, items, code), ct);
         if (created.IsFailure)
         {
             return Copy<CartResponse, CourseCart>(created);
@@ -80,7 +88,26 @@ public sealed class CourseCartService(
 
         if (cart.Status == CourseCartStatus.Preparing && cart.ExpiresAtUtc > DateTime.UtcNow)
         {
-            var quote = await pricing.PrepareAsync(new(cart.ReservationId, user.ExternalUserId, cart.ExternalCourseIds, cart.CouponCode), ct);
+            CartQuoteRequest quoteRequest;
+            if (items.Any(x => x.Type == ProductItemType.Product || x.Quantity > 1))
+            {
+                var requestItems = items.Select(x => new CartQuoteItemRequest(
+                    x.ExternalId,
+                    x.Type switch
+                    {
+                        ProductItemType.CourseChapter => "course_chapter",
+                        ProductItemType.Product => "product",
+                        _ => "course"
+                    },
+                    x.Quantity)).ToArray();
+                quoteRequest = new CartQuoteRequest(cart.ReservationId, user.ExternalUserId, null, cart.CouponCode, requestItems);
+            }
+            else
+            {
+                quoteRequest = new CartQuoteRequest(cart.ReservationId, user.ExternalUserId, cart.ExternalCourseIds, cart.CouponCode);
+            }
+
+            var quote = await pricing.PrepareAsync(quoteRequest, ct);
             if (quote.IsFailure)
             {
                 if (quote.ErrorCode != CartErrorCodes.Unavailable)
@@ -101,7 +128,7 @@ public sealed class CourseCartService(
 
             try
             {
-                cart = await store.SetQuoteAsync(id, buyerId, quote.Value.Items, cart.ReservationId, ct);
+                cart = await store.SetQuoteAsync(id, buyerId, quote.Value.Items, quote.Value.ShippingAmountInNoor, cart.ReservationId, ct);
             }
             catch (ArgumentException)
             {
@@ -308,7 +335,7 @@ public sealed class CourseCartService(
             var status = purchase?.Status == CoursePurchaseStatus.NotificationSent
                 ? "Completed"
                 : cart.Status == CourseCartStatus.Paid
-                    ? "DeliveryPending"
+                    ? (item.ItemType == ProductItemType.Product ? "Completed" : "DeliveryPending")
                     : cart.Status is CourseCartStatus.Failed or CourseCartStatus.Expired
                         ? "PurchaseIncomplete"
                         : "NotPurchased";
@@ -319,7 +346,9 @@ public sealed class CourseCartService(
                 item.PriceInNoor,
                 status,
                 item.ItemType.ToString(),
-                item.ParentExternalId));
+                item.ParentExternalId,
+                item.Quantity,
+                item.LineTotalInNoor));
         }
 
         var topUp = cart.TopUpRequestId is Guid topUpId
@@ -330,7 +359,7 @@ public sealed class CourseCartService(
             cart.Id,
             cart.Status.ToString(),
             cart.CouponCode,
-            cart.Items.Sum(x => x.PriceInNoor),
+            cart.OriginalTotal,
             cart.ItemDiscountInNoor,
             cart.CouponDiscountInNoor,
             cart.Total,
@@ -340,7 +369,8 @@ public sealed class CourseCartService(
             cart.ExpiresAtUtc,
             cart.TopUpRequestId,
             topUp?.Status.ToString(),
-            courses);
+            courses,
+            cart.ShippingAmountInNoor);
     }
 
     private static Result<T> Copy<T, U>(Result<U> result) => Copy<T>((Result)result);

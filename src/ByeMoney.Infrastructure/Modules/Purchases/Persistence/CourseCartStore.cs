@@ -114,7 +114,10 @@ public sealed class CourseCartStore(IServiceScopeFactory scopes) : ICourseCartSt
         return Result<CourseCart>.Success(cart);
     });
 
-    public Task<CourseCart> SetQuoteAsync(Guid id, Guid buyerId, IReadOnlyList<CourseCartQuoteItem> items, Guid reservationId, CancellationToken ct) => Run(async (_, db) =>
+    public Task<CourseCart> SetQuoteAsync(Guid id, Guid buyerId, IReadOnlyList<CourseCartQuoteItem> items, Guid reservationId, CancellationToken ct) =>
+        SetQuoteAsync(id, buyerId, items, 0m, reservationId, ct);
+
+    public Task<CourseCart> SetQuoteAsync(Guid id, Guid buyerId, IReadOnlyList<CourseCartQuoteItem> items, decimal shippingAmountInNoor, Guid reservationId, CancellationToken ct) => Run(async (_, db) =>
     {
         await using var tx = await db.Database.BeginTransactionAsync(ct);
         await Lock(db, id, ct);
@@ -122,7 +125,7 @@ public sealed class CourseCartStore(IServiceScopeFactory scopes) : ICourseCartSt
         var cart = await db.Set<CourseCart>().SingleAsync(x => x.Id == id && x.BuyerId == buyerId, ct);
         if (cart.ReservationId == reservationId)
         {
-            cart.SetQuote(items);
+            cart.SetQuote(items, shippingAmountInNoor);
         }
 
         await db.SaveChangesAsync(ct);
@@ -183,7 +186,10 @@ public sealed class CourseCartStore(IServiceScopeFactory scopes) : ICourseCartSt
                     return Conflict();
                 }
 
-                var productIds = cart.Items.Select(x => x.ExternalCourseId).ToArray();
+                var productIds = cart.Items
+                    .Where(x => x.ItemType != ProductItemType.Product)
+                    .Select(x => x.ExternalCourseId)
+                    .ToArray();
                 var parentIds = cart.Items
                     .Where(x => x.ItemType == ProductItemType.CourseChapter && !string.IsNullOrEmpty(x.ParentExternalId))
                     .Select(x => x.ParentExternalId!)
@@ -191,11 +197,11 @@ public sealed class CourseCartStore(IServiceScopeFactory scopes) : ICourseCartSt
                     .ToArray();
 
                 var purchaseQuery = db.Set<CoursePurchase>().Where(x => x.BuyerId == buyer);
-                var alreadyPurchased = parentIds.Length > 0
+                var alreadyPurchased = productIds.Length > 0 && (parentIds.Length > 0
                     ? await purchaseQuery.AnyAsync(x =>
                         productIds.Contains(x.Snapshot.ExternalProductId) ||
                         (x.Snapshot.ItemType == ProductItemType.Course && parentIds.Contains(x.Snapshot.ExternalProductId)), ct)
-                    : await purchaseQuery.AnyAsync(x => productIds.Contains(x.Snapshot.ExternalProductId), ct);
+                    : await purchaseQuery.AnyAsync(x => productIds.Contains(x.Snapshot.ExternalProductId), ct));
 
                 if (alreadyPurchased)
                 {
@@ -213,6 +219,7 @@ public sealed class CourseCartStore(IServiceScopeFactory scopes) : ICourseCartSt
                 var system = cart.Total > 0 ? await provisioning.GetOrCreateSystemAccountAsync(ct) : null;
                 var payment = CourseCartPayment.Apply(cart, provisioned, system, referenceRate);
                 db.AddRange(payment.Purchases);
+                db.AddRange(payment.PhysicalPurchases);
                 db.AddRange(payment.LedgerEntries);
                 await db.SaveChangesAsync(ct);
                 await tx.CommitAsync(ct);

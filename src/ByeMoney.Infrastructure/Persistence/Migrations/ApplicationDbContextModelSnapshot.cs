@@ -290,6 +290,12 @@ namespace ByeMoney.Infrastructure.Migrations
                     b.Property<Guid>("ReservationId")
                         .HasColumnType("uuid");
 
+                    b.Property<decimal>("ShippingAmountInNoor")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasDefaultValue(0m);
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(30)
@@ -322,7 +328,7 @@ namespace ByeMoney.Infrastructure.Migrations
 
                     b.ToTable("CourseCarts", null, t =>
                         {
-                            t.HasCheckConstraint("CK_CourseCarts_Discounts", "\"ItemDiscountInNoor\" >= 0 AND \"CouponDiscountInNoor\" >= 0 AND trunc(\"ItemDiscountInNoor\") = \"ItemDiscountInNoor\" AND trunc(\"CouponDiscountInNoor\") = \"CouponDiscountInNoor\"");
+                            t.HasCheckConstraint("CK_CourseCarts_Discounts", "\"ItemDiscountInNoor\" >= 0 AND \"CouponDiscountInNoor\" >= 0 AND \"ShippingAmountInNoor\" >= 0 AND trunc(\"ItemDiscountInNoor\") = \"ItemDiscountInNoor\" AND trunc(\"CouponDiscountInNoor\") = \"CouponDiscountInNoor\" AND trunc(\"ShippingAmountInNoor\") = \"ShippingAmountInNoor\"");
                         });
                 });
 
@@ -384,6 +390,62 @@ namespace ByeMoney.Infrastructure.Migrations
                     b.HasIndex("Status");
 
                     b.ToTable("CoursePurchases", (string)null);
+                });
+
+            modelBuilder.Entity("ByeMoney.Domain.Modules.Purchases.PhysicalProductPurchase", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("BuyerId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("UserId");
+
+                    b.Property<Guid>("CartId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ExternalProductId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<Guid?>("LedgerTransactionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("PaidAmountInNoor")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)");
+
+                    b.Property<string>("ProductTitle")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<int>("Quantity")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal>("UnitPriceInNoor")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BuyerId");
+
+                    b.HasIndex("CartId");
+
+                    b.ToTable("PhysicalProductPurchases", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_PhysicalProductPurchases_NonNegativeAmounts", "\"UnitPriceInNoor\" >= 0 AND \"PaidAmountInNoor\" >= 0 AND trunc(\"UnitPriceInNoor\") = \"UnitPriceInNoor\" AND trunc(\"PaidAmountInNoor\") = \"PaidAmountInNoor\"");
+
+                            t.HasCheckConstraint("CK_PhysicalProductPurchases_Quantity", "\"Quantity\" >= 1");
+                        });
                 });
 
             modelBuilder.Entity("ByeMoney.Domain.Modules.Settings.SystemSetting", b =>
@@ -746,7 +808,6 @@ namespace ByeMoney.Infrastructure.Migrations
                                 .HasColumnType("character varying(100)");
 
                             b1.Property<string>("ItemType")
-                                .IsRequired()
                                 .ValueGeneratedOnAdd()
                                 .HasMaxLength(30)
                                 .HasColumnType("character varying(30)")
@@ -760,16 +821,23 @@ namespace ByeMoney.Infrastructure.Migrations
                                 .HasPrecision(18, 4)
                                 .HasColumnType("numeric(18,4)");
 
+                            b1.Property<int>("Quantity")
+                                .ValueGeneratedOnAdd()
+                                .HasColumnType("integer")
+                                .HasDefaultValue(1);
+
                             b1.Property<string>("Title")
                                 .IsRequired()
                                 .HasMaxLength(255)
                                 .HasColumnType("character varying(255)");
 
-                            b1.HasKey("CartId", "ExternalCourseId");
+                            b1.HasKey("CartId", "ExternalCourseId", "ItemType");
 
                             b1.ToTable("CourseCartItems", null, t =>
                                 {
                                     t.HasCheckConstraint("CK_CourseCartItems_NonNegativeAmounts", "\"PriceInNoor\" >= 0");
+
+                                    t.HasCheckConstraint("CK_CourseCartItems_Quantity", "\"Quantity\" >= 1");
 
                                     t.HasCheckConstraint("CK_CourseCartItems_WholeNoorAmounts", "trunc(\"PriceInNoor\") = \"PriceInNoor\"");
                                 });
@@ -787,11 +855,17 @@ namespace ByeMoney.Infrastructure.Migrations
                                 .HasMaxLength(100)
                                 .HasColumnType("character varying(100)");
 
+                            b1.Property<string>("ItemType")
+                                .ValueGeneratedOnAdd()
+                                .HasMaxLength(30)
+                                .HasColumnType("character varying(30)")
+                                .HasDefaultValue("Course");
+
                             b1.Property<decimal>("AmountInNoor")
                                 .HasPrecision(18, 4)
                                 .HasColumnType("numeric(18,4)");
 
-                            b1.HasKey("CartId", "ExternalCourseId");
+                            b1.HasKey("CartId", "ExternalCourseId", "ItemType");
 
                             b1.ToTable("CourseCartPurchaseAllocations", null, t =>
                                 {

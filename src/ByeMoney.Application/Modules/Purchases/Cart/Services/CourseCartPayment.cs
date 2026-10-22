@@ -20,11 +20,11 @@ public static class CourseCartPayment
             throw new InvalidOperationException();
         }
 
-        var allocations = cart.PurchaseAllocations.ToDictionary(x => x.ExternalCourseId);
+        var allocations = cart.PurchaseAllocations.ToDictionary(x => (x.ExternalCourseId, x.ItemType));
         if (cart.Total < 0 || allocations.Count != cart.Items.Count ||
             allocations.Values.Any(x => x.AmountInNoor < 0 || decimal.Truncate(x.AmountInNoor) != x.AmountInNoor) ||
-            cart.Items.Any(x => !allocations.ContainsKey(x.ExternalCourseId) || allocations[x.ExternalCourseId].AmountInNoor > x.PriceInNoor) ||
-            allocations.Values.Sum(x => x.AmountInNoor) != cart.Total)
+            cart.Items.Any(x => !allocations.ContainsKey((x.ExternalCourseId, x.ItemType)) || allocations[(x.ExternalCourseId, x.ItemType)].AmountInNoor > x.LineTotalInNoor) ||
+            allocations.Values.Sum(x => x.AmountInNoor) + cart.ShippingAmountInNoor != cart.Total)
         {
             throw new ArgumentException(nameof(cart));
         }
@@ -36,40 +36,69 @@ public static class CourseCartPayment
         }
 
         var purchases = new List<CoursePurchase>();
+        var physicalPurchases = new List<PhysicalProductPurchase>();
         var ledgerEntries = new List<LedgerEntry>();
+
         foreach (var item in cart.Items)
         {
-            var amount = allocations[item.ExternalCourseId].AmountInNoor;
-            var snapshot = ProductSnapshot.Create(
-                item.ExternalCourseId,
-                item.Title,
-                amount,
-                isFree: amount == 0,
-                referenceRialPerNoorAtPurchaseTime: referenceRate,
-                itemType: item.ItemType,
-                externalParentId: item.ParentExternalId);
-            var purchase = CoursePurchase.Create(
-                new UserId(cart.BuyerId),
-                snapshot,
-                amount == 0,
-                purchaseId: CartPurchaseIds.For(cart.Id, item.ExternalCourseId));
+            var amount = allocations[(item.ExternalCourseId, item.ItemType)].AmountInNoor;
+            var purchaseIdGuid = CartPurchaseIds.For(cart.Id, item.ExternalCourseId).Value;
 
-            purchase.AttachToCart(cart.Id);
-            purchase.MarkDebited(cart.Id);
-            purchases.Add(purchase);
-
-            if (amount == 0)
+            if (item.ItemType == ProductItemType.Product)
             {
-                continue;
-            }
+                var physicalPurchase = PhysicalProductPurchase.Create(
+                    new PhysicalProductPurchaseId(purchaseIdGuid),
+                    cart.Id,
+                    new UserId(cart.BuyerId),
+                    item.ExternalCourseId,
+                    item.Title,
+                    item.Quantity,
+                    item.PriceInNoor,
+                    amount);
 
+                if (cart.Total > 0)
+                {
+                    physicalPurchase.MarkDebited(cart.Id);
+                }
+
+                physicalPurchases.Add(physicalPurchase);
+            }
+            else
+            {
+                var snapshot = ProductSnapshot.Create(
+                    item.ExternalCourseId,
+                    item.Title,
+                    amount,
+                    isFree: amount == 0,
+                    referenceRialPerNoorAtPurchaseTime: referenceRate,
+                    itemType: item.ItemType,
+                    externalParentId: item.ParentExternalId);
+
+                var purchase = CoursePurchase.Create(
+                    new UserId(cart.BuyerId),
+                    snapshot,
+                    amount == 0,
+                    purchaseId: new CoursePurchaseId(purchaseIdGuid));
+
+                purchase.AttachToCart(cart.Id);
+                if (cart.Total > 0)
+                {
+                    purchase.MarkDebited(cart.Id);
+                }
+
+                purchases.Add(purchase);
+            }
+        }
+
+        if (cart.Total > 0)
+        {
             ledgerEntries.Add(LedgerEntry.Create(
-                wallet.Account.Id, -amount, cart.Id, LedgerReferenceType.Purchase, purchase.Id.ToString()));
+                wallet.Account.Id, -cart.Total, cart.Id, LedgerReferenceType.Purchase, cart.Id.ToString()));
             ledgerEntries.Add(LedgerEntry.Create(
-                system!.Id, amount, cart.Id, LedgerReferenceType.Purchase, purchase.Id.ToString()));
+                system!.Id, cart.Total, cart.Id, LedgerReferenceType.Purchase, cart.Id.ToString()));
         }
 
         cart.MarkPaid();
-        return new CourseCartPaymentRecords(purchases, ledgerEntries);
+        return new CourseCartPaymentRecords(purchases, physicalPurchases, ledgerEntries);
     }
 }

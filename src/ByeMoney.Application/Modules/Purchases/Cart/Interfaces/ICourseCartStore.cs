@@ -12,6 +12,7 @@ public interface ICourseCartStore
     Task<Result<CourseCart>> CancelAsync(Guid id, Guid buyerId, CancellationToken ct);
     Task<Result<CourseCart>> ReopenAsync(Guid id, Guid buyerId, Guid reservationId, CancellationToken ct);
     Task<CourseCart> SetQuoteAsync(Guid id, Guid buyerId, IReadOnlyList<CourseCartQuoteItem> items, Guid reservationId, CancellationToken ct);
+    Task<CourseCart> SetQuoteAsync(Guid id, Guid buyerId, IReadOnlyList<CourseCartQuoteItem> items, decimal shippingAmountInNoor, Guid reservationId, CancellationToken ct);
     Task<Result<CourseCart>> PayAsync(
         Guid id,
         Guid buyerId,
