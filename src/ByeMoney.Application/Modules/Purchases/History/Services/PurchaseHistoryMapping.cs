@@ -28,22 +28,62 @@ public static class PurchaseHistoryMapping
 
     public static PurchaseReceipt ToReceipt(PurchaseReceiptData data)
     {
-        var purchase = data.Purchase;
-        var snapshot = purchase.Snapshot;
         var cart = data.Cart;
-        var baseAmount = cart?.Items.SingleOrDefault(
-            item => item.ExternalCourseId == snapshot.ExternalProductId)?.PriceInNoor;
         var summary = cart is null ? null : new PurchaseCartSummary(
-            cart.Items.Sum(item => item.PriceInNoor), cart.ItemDiscountInNoor,
-            cart.CouponDiscountInNoor, cart.Total);
+            cart.Items.Sum(item => item.LineTotalInNoor),
+            cart.ItemDiscountInNoor,
+            cart.CouponDiscountInNoor,
+            cart.Total);
+
+        if (data.PhysicalPurchase is { } physical)
+        {
+            var lineTotal = physical.UnitPriceInNoor * physical.Quantity;
+            var discount = lineTotal - physical.PaidAmountInNoor;
+
+            return new PurchaseReceipt(
+                physical.Id.Value,
+                physical.CartId,
+                physical.LedgerTransactionId,
+                physical.ExternalProductId,
+                physical.ProductTitle,
+                lineTotal,
+                discount,
+                cart?.CouponCode,
+                physical.PaidAmountInNoor,
+                null,
+                physical.CreatedAtUtc,
+                PurchaseFinancialStatus.Paid.ToString(),
+                PurchaseDeliveryStatus.Pending.ToString(),
+                null,
+                summary,
+                ProductItemType.Product.ToString(),
+                null);
+        }
+
+        var purchase = data.Purchase!;
+        var snapshot = purchase.Snapshot;
+        var baseAmount = cart?.Items.SingleOrDefault(
+            item => item.ExternalCourseId == snapshot.ExternalProductId && item.ItemType == snapshot.ItemType)?.LineTotalInNoor
+            ?? cart?.Items.SingleOrDefault(
+            item => item.ExternalCourseId == snapshot.ExternalProductId)?.LineTotalInNoor;
 
         return new PurchaseReceipt(
-            purchase.Id.Value, purchase.CartId, purchase.LedgerTransactionId,
-            snapshot.ExternalProductId, snapshot.ProductTitle, baseAmount,
-            baseAmount - snapshot.PriceInNoorAtPurchaseTime, cart?.CouponCode,
-            snapshot.PriceInNoorAtPurchaseTime, snapshot.ReferenceRialPerNoorAtPurchaseTime,
-            snapshot.PurchasedAt, PurchaseFinancialStatus.Paid.ToString(),
-            DeliveryStatus(purchase.Status), purchase.CompletedAtUtc, summary,
-            snapshot.ItemType.ToString(), snapshot.ExternalParentId);
+            purchase.Id.Value,
+            purchase.CartId,
+            purchase.LedgerTransactionId,
+            snapshot.ExternalProductId,
+            snapshot.ProductTitle,
+            baseAmount,
+            baseAmount - snapshot.PriceInNoorAtPurchaseTime,
+            cart?.CouponCode,
+            snapshot.PriceInNoorAtPurchaseTime,
+            snapshot.ReferenceRialPerNoorAtPurchaseTime,
+            snapshot.PurchasedAt,
+            PurchaseFinancialStatus.Paid.ToString(),
+            DeliveryStatus(purchase.Status),
+            purchase.CompletedAtUtc,
+            summary,
+            snapshot.ItemType.ToString(),
+            snapshot.ExternalParentId);
     }
 }

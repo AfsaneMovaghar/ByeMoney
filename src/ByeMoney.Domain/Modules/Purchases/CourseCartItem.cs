@@ -10,3 +10,4 @@ public sealed record CourseCartItem(
 {
     public decimal LineTotalInNoor => Quantity * PriceInNoor;
 }
+

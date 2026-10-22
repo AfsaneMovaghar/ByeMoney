@@ -40,3 +40,4 @@ public class PhysicalProductPurchaseConfiguration : IEntityTypeConfiguration<Phy
         builder.Property(x => x.UpdatedAt);
     }
 }
+

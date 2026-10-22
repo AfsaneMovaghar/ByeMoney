@@ -15,3 +15,4 @@ public sealed record CartQuoteItemRequest(
     string ExternalId,
     string Type,
     int Quantity);
+

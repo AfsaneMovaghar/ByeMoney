@@ -17,3 +17,4 @@ public sealed record CartResponse(
     IReadOnlyList<CartCourseResponse> Courses,
     decimal ShippingAmountInNoor = 0m,
     string? ShippingRuleLabel = null);
+

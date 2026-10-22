@@ -19,3 +19,4 @@ public sealed class PrepareCourseCartCommandHandler(CourseCartService service, I
         return service.PrepareAsync(Buyer, request.CartId, items, request.CouponCode, ct);
     }
 }
+

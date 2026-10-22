@@ -6,3 +6,4 @@ public readonly record struct PhysicalProductPurchaseId(Guid Value)
     public static PhysicalProductPurchaseId Empty => new(Guid.Empty);
     public override string ToString() => Value.ToString();
 }
+

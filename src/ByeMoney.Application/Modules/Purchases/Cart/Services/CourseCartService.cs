@@ -128,7 +128,7 @@ public sealed class CourseCartService(
 
             try
             {
-                cart = await store.SetQuoteAsync(id, buyerId, quote.Value.Items, quote.Value.ShippingAmountInNoor, cart.ReservationId, ct);
+                cart = await store.SetQuoteAsync(id, buyerId, quote.Value.Items, quote.Value.ShippingAmountInNoor, quote.Value.ShippingRuleLabel, cart.ReservationId, ct);
             }
             catch (ArgumentException)
             {
@@ -370,7 +370,8 @@ public sealed class CourseCartService(
             cart.TopUpRequestId,
             topUp?.Status.ToString(),
             courses,
-            cart.ShippingAmountInNoor);
+            cart.ShippingAmountInNoor,
+            cart.ShippingRuleLabel);
     }
 
     private static Result<T> Copy<T, U>(Result<U> result) => Copy<T>((Result)result);
@@ -382,3 +383,4 @@ public sealed class CourseCartService(
         _ => Result<T>.Failure(result.ErrorMessage!, result.ErrorCode)
     };
 }
+

@@ -10,3 +10,4 @@ public sealed record PrepareCourseCartCommand(
     string[]? ExternalCourseIds = null,
     string? CouponCode = null,
     CartItemInput[]? Items = null) : IRequest<Result<CartResponse>>;
+

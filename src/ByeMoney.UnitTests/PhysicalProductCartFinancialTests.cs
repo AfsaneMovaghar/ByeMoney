@@ -1,6 +1,8 @@
 using ByeMoney.Application.Modules.Purchases.Cart.DTOs;
 using ByeMoney.Application.Modules.Purchases.Cart.Services;
 using ByeMoney.Application.Modules.Purchases.Commands.PrepareCourseCart;
+using ByeMoney.Application.Modules.Purchases.History.DTOs;
+using ByeMoney.Application.Modules.Purchases.History.Services;
 using ByeMoney.Application.Modules.Wallet.DTOs;
 using ByeMoney.Domain.Modules.Identity.Users;
 using ByeMoney.Domain.Modules.Purchases;
@@ -229,4 +231,89 @@ public sealed class PhysicalProductCartFinancialTests
         invalidPrice.Should().Throw<ArgumentException>();
         wallet.Balance.Should().Be(1000m); // untouched
     }
+
+    [Fact]
+    public void ShippingRuleLabelIsRecordedAndExposedOnCart()
+    {
+        var buyer = new UserId(Guid.NewGuid());
+        var cart = CourseCart.Create(Guid.NewGuid(), buyer.Value, "buyer-ext-label", [
+            new CartItemInput("product-label", ProductItemType.Product, 1)
+        ], null);
+
+        cart.SetQuote([
+            new CourseCartQuoteItem("product-label", "کتاب", 100m, 0m, 0m, 100m, ProductItemType.Product, null, 1)
+        ], shippingAmountInNoor: 20m, shippingRuleLabel: "ارسال ثابت سراسری");
+
+        cart.ShippingAmountInNoor.Should().Be(20m);
+        cart.ShippingRuleLabel.Should().Be("ارسال ثابت سراسری");
+    }
+
+    [Fact]
+    public void PhysicalProductPurchaseReceipt_ComputesCorrectBaseAmountAndDiscounts()
+    {
+        var buyer = new UserId(Guid.NewGuid());
+        var cart = CourseCart.Create(Guid.NewGuid(), buyer.Value, "buyer-ext-receipt", [
+            new CartItemInput("product-book", ProductItemType.Product, 3)
+        ], "OFFER");
+
+        // 3 items * 50 = 150 base. Discounts: 30 item discount, 20 coupon discount => 100 paid
+        cart.SetQuote([
+            new CourseCartQuoteItem("product-book", "کتاب فیزیکی", 50m, 30m, 20m, 100m, ProductItemType.Product, null, 3)
+        ], shippingAmountInNoor: 15m, shippingRuleLabel: "ارسال ویژه");
+
+        var physicalId = PhysicalProductPurchaseId.New();
+        var physical = PhysicalProductPurchase.Create(
+            physicalId,
+            cart.Id,
+            buyer,
+            "product-book",
+            "کتاب فیزیکی",
+            3,
+            50m,
+            100m);
+        physical.MarkDebited(cart.Id);
+
+        var receiptData = new PurchaseReceiptData(null, cart, physical);
+        var receipt = PurchaseHistoryMapping.ToReceipt(receiptData);
+
+        receipt.PurchaseId.Should().Be(physicalId.Value);
+        receipt.CartId.Should().Be(cart.Id);
+        receipt.TransactionId.Should().Be(cart.Id);
+        receipt.CourseExternalId.Should().Be("product-book");
+        receipt.CourseTitle.Should().Be("کتاب فیزیکی");
+        receipt.BaseAmountInNoor.Should().Be(150m);
+        receipt.DiscountAmountInNoor.Should().Be(50m);
+        receipt.FinalAmountInNoor.Should().Be(100m);
+        receipt.CouponCode.Should().Be("OFFER");
+        receipt.FinancialStatus.Should().Be("Paid");
+        receipt.DeliveryStatus.Should().Be("Pending");
+        receipt.ItemType.Should().Be("Product");
+        receipt.CartSummary.Should().NotBeNull();
+        receipt.CartSummary!.OriginalTotalInNoor.Should().Be(150m);
+        receipt.CartSummary.FinalAmountInNoor.Should().Be(cart.Total);
+    }
+
+    [Fact]
+    public void PurchaseListItem_MapsPhysicalProductType()
+    {
+        var row = new PurchaseReadRow(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            "کالای آزمایشی",
+            200m,
+            DateTime.UtcNow,
+            CoursePurchaseStatus.Debited,
+            "user-ext",
+            "علی",
+            "محمدی",
+            ProductItemType.Product);
+
+        var item = PurchaseHistoryMapping.ToListItem(row);
+
+        item.ItemType.Should().Be("Product");
+        item.FinancialStatus.Should().Be("Paid");
+        item.DeliveryStatus.Should().Be("Pending");
+        item.FinalAmountInNoor.Should().Be(200m);
+    }
 }
+

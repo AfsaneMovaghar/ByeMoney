@@ -6,3 +6,4 @@ public enum ProductItemType
     CourseChapter,
     Product
 }
+

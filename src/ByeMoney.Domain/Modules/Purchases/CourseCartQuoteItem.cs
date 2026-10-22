@@ -13,3 +13,4 @@ public sealed record CourseCartQuoteItem(
 {
     public decimal LineTotalInNoor => Quantity * BasePriceInNoor;
 }
+

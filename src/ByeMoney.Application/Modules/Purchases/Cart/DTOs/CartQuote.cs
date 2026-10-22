@@ -13,3 +13,4 @@ public sealed record CartQuote(
     decimal ShippingAmountInNoor = 0m,
     string? ShippingRuleLabel = null,
     decimal PriceInNoor = 0m);
+

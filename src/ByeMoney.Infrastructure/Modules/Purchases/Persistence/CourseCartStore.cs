@@ -115,9 +115,9 @@ public sealed class CourseCartStore(IServiceScopeFactory scopes) : ICourseCartSt
     });
 
     public Task<CourseCart> SetQuoteAsync(Guid id, Guid buyerId, IReadOnlyList<CourseCartQuoteItem> items, Guid reservationId, CancellationToken ct) =>
-        SetQuoteAsync(id, buyerId, items, 0m, reservationId, ct);
+        SetQuoteAsync(id, buyerId, items, 0m, null, reservationId, ct);
 
-    public Task<CourseCart> SetQuoteAsync(Guid id, Guid buyerId, IReadOnlyList<CourseCartQuoteItem> items, decimal shippingAmountInNoor, Guid reservationId, CancellationToken ct) => Run(async (_, db) =>
+    public Task<CourseCart> SetQuoteAsync(Guid id, Guid buyerId, IReadOnlyList<CourseCartQuoteItem> items, decimal shippingAmountInNoor, string? shippingRuleLabel, Guid reservationId, CancellationToken ct) => Run(async (_, db) =>
     {
         await using var tx = await db.Database.BeginTransactionAsync(ct);
         await Lock(db, id, ct);
@@ -125,7 +125,7 @@ public sealed class CourseCartStore(IServiceScopeFactory scopes) : ICourseCartSt
         var cart = await db.Set<CourseCart>().SingleAsync(x => x.Id == id && x.BuyerId == buyerId, ct);
         if (cart.ReservationId == reservationId)
         {
-            cart.SetQuote(items, shippingAmountInNoor);
+            cart.SetQuote(items, shippingAmountInNoor, shippingRuleLabel);
         }
 
         await db.SaveChangesAsync(ct);
@@ -356,3 +356,4 @@ public sealed class CourseCartStore(IServiceScopeFactory scopes) : ICourseCartSt
         return await query.Take(100).AsNoTracking().ToListAsync(ct);
     });
 }
+

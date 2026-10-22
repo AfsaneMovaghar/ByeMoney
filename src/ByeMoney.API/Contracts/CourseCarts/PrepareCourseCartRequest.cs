@@ -7,3 +7,4 @@ public sealed record PrepareCourseCartRequest(
     string[]? ExternalCourseIds = null,
     string? CouponCode = null,
     CartItemInput[]? Items = null);
+

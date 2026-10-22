@@ -15,6 +15,7 @@ public sealed class CourseCart
     public decimal ItemDiscountInNoor { get; private set; }
     public decimal CouponDiscountInNoor { get; private set; }
     public decimal ShippingAmountInNoor { get; private set; }
+    public string? ShippingRuleLabel { get; private set; }
     public CourseCartStatus Status { get; private set; }
     public Guid? TopUpRequestId { get; private set; }
     public Guid[] TopUpRequestIds { get; private set; } = [];
@@ -78,7 +79,10 @@ public sealed class CourseCart
         ExternalCourseIds.SequenceEqual(ids.Order(StringComparer.Ordinal)) &&
         CouponCode == couponCode?.Trim().ToUpperInvariant();
 
-    public void SetQuote(IReadOnlyList<CourseCartQuoteItem> items, decimal shippingAmountInNoor = 0m)
+    public void SetQuote(
+        IReadOnlyList<CourseCartQuoteItem> items,
+        decimal shippingAmountInNoor = 0m,
+        string? shippingRuleLabel = null)
     {
         if (Status != CourseCartStatus.Preparing)
         {
@@ -115,6 +119,7 @@ public sealed class CourseCart
         ItemDiscountInNoor = items.Sum(x => x.ItemDiscountInNoor);
         CouponDiscountInNoor = items.Sum(x => x.CouponDiscountInNoor);
         ShippingAmountInNoor = shippingAmountInNoor;
+        ShippingRuleLabel = string.IsNullOrWhiteSpace(shippingRuleLabel) ? null : shippingRuleLabel.Trim();
 
         if (_purchaseAllocations.Sum(x => x.AmountInNoor) + ShippingAmountInNoor != Total)
         {
@@ -211,3 +216,4 @@ public sealed class CourseCart
         LastSyncErrorCode = succeeded ? null : errorCode;
     }
 }
+

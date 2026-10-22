@@ -11,3 +11,4 @@ public sealed record CartCourseResponse(
     string? ParentExternalId = null,
     int Quantity = 1,
     decimal? LineTotalInNoor = null);
+

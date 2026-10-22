@@ -20,6 +20,7 @@ public sealed class CourseCartConfiguration : IEntityTypeConfiguration<CourseCar
         b.Property(x => x.ExternalCourseIds).HasColumnType("text[]");
         b.Property(x => x.TopUpRequestIds).HasColumnType("uuid[]");
         b.Property(x => x.ShippingAmountInNoor).HasPrecision(18, 4).HasDefaultValue(0m);
+        b.Property(x => x.ShippingRuleLabel).HasMaxLength(200);
         b.OwnsMany(x => x.Items, items =>
         {
             items.ToTable("CourseCartItems", table =>
@@ -65,3 +66,4 @@ public sealed class CourseCartConfiguration : IEntityTypeConfiguration<CourseCar
         b.HasIndex(x => x.BuyerId);
     }
 }
+

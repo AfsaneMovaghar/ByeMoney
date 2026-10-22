@@ -14,6 +14,7 @@ namespace ByeMoney.API.Controllers;
 public sealed class AdminCoursePurchasesController(ISender sender) : ControllerBase
 {
     [HttpGet]
+    [HttpGet("/api/admin/purchases")]
     [ProducesResponseType(typeof(PurchasePage<AdminPurchaseListItem>), StatusCodes.Status200OK)]
     public async Task<ActionResult<PurchasePage<AdminPurchaseListItem>>> List(
         [FromQuery] PurchaseHistoryFilter filter, CancellationToken ct)
@@ -22,6 +23,7 @@ public sealed class AdminCoursePurchasesController(ISender sender) : ControllerB
     }
 
     [HttpGet("{purchaseId:guid}")]
+    [HttpGet("/api/admin/purchases/{purchaseId:guid}")]
     [ProducesResponseType(typeof(PurchaseReceipt), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<PurchaseReceipt>> Receipt(Guid purchaseId, CancellationToken ct)
