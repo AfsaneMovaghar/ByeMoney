@@ -5,11 +5,63 @@ using ByeMoney.Domain.Modules.Purchases;
 using ByeMoney.Domain.Modules.Wallet.Accounts;
 using ByeMoney.Domain.Modules.Wallet.Wallets;
 using FluentAssertions;
+using ByeMoney.Application.Modules.Purchases.Cart.DTOs;
+using ByeMoney.Application.Modules.Purchases.Services;
+using ByeMoney.Infrastructure.Modules.TarhElahiIntegration.Clients;
+using System.Net;
+using System.Text;
+using System.Text.Json;
 
 namespace ByeMoney.UnitTests;
 
 public sealed class CourseCartPaymentTests
 {
+    [Fact]
+    public async Task ChapterQuoteFromStrapiPreservesFinancialAndDeliveryIdentity()
+    {
+        var buyer = UserId.New();
+        var account = Account.CreateUserAccount(buyer);
+        var wallet = Wallet.Create(account.Id, buyer);
+        wallet.ApplyCredit(1000);
+        var cart = CourseCart.Create(Guid.NewGuid(), buyer.Value, "buyer", ["chapter-uuid"], null);
+        var json = $$"""
+            {"cartId":"{{cart.Id}}","buyerExternalUserId":"buyer","couponCode":null,
+             "items":[{"externalCourseId":"chapter-uuid","type":"course_chapter",
+             "parentExternalId":"parent-document","title":"فصل","basePriceInNoor":120,
+             "itemDiscountInNoor":0,"couponDiscountInNoor":20,"priceInNoor":100}]}
+            """;
+        using var http = new HttpClient(new QuoteResponseHandler(json)) { BaseAddress = new Uri("https://strapi.test/") };
+        var client = new CartPricingClient(http);
+        var quote = await client.PrepareAsync(new CartQuoteRequest(cart.Id, "buyer", ["chapter-uuid"], null), default);
+        quote.IsSuccess.Should().BeTrue();
+        cart.SetQuote(quote.Value.Items);
+
+        var payment = CourseCartPayment.Apply(cart, new ProvisionedUserWallet(account, wallet), Account.CreateSystemAccount());
+
+        wallet.Balance.Should().Be(900);
+        payment.LedgerEntries.Sum(entry => entry.Amount).Should().Be(0);
+        var snapshot = payment.Purchases.Single().Snapshot;
+        snapshot.ItemType.Should().Be(ProductItemType.CourseChapter);
+        snapshot.ExternalProductId.Should().Be("chapter-uuid");
+        snapshot.ExternalParentId.Should().Be("parent-document");
+        using var item = JsonDocument.Parse(JsonSerializer.Serialize(PurchaseNotificationItem.FromSnapshot(snapshot),
+            new JsonSerializerOptions(JsonSerializerDefaults.Web)));
+        item.RootElement.GetProperty("type").GetString().Should().Be("course_chapter");
+        item.RootElement.GetProperty("externalId").GetString().Should().Be("chapter-uuid");
+        item.RootElement.GetProperty("parentExternalId").GetString().Should().Be("parent-document");
+    }
+
+    private sealed class QuoteResponseHandler(string json) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(json, Encoding.UTF8, "application/json")
+            });
+        }
+    }
+
     [Theory]
     [InlineData(0, 21, 0, 0)]
     [InlineData(10, 20, 0, 0)]

@@ -100,7 +100,7 @@ public class PurchaseCoursesCommandHandlerTests
         _walletRepoMock.Verify(x => x.Update(It.IsAny<WalletEntity>()), Times.Never);
         _ledgerRepoMock.Verify(x => x.AddAsync(It.IsAny<LedgerEntry>(), It.IsAny<CancellationToken>()), Times.Never);
         _unitOfWorkMock.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
-        _notifierMock.Verify(x => x.NotifyAsync(savedPurchase, user.ExternalUserId, course,
+        _notifierMock.Verify(x => x.NotifyAsync(savedPurchase, user.ExternalUserId,
             It.Is<ProductSnapshot>(s => s.PriceInNoorAtPurchaseTime == 0m), It.IsAny<CancellationToken>()), Times.Once);
     }
 
@@ -171,7 +171,7 @@ public class PurchaseCoursesCommandHandlerTests
             .Returns(Task.CompletedTask);
 
         _notifierMock
-            .Setup(n => n.NotifyAsync(It.IsAny<CoursePurchase>(), It.IsAny<string>(), It.IsAny<TarhElahiCourseDto>(), It.IsAny<ProductSnapshot>(), It.IsAny<CancellationToken>()))
+            .Setup(n => n.NotifyAsync(It.IsAny<CoursePurchase>(), It.IsAny<string>(), It.IsAny<ProductSnapshot>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
         var command = new PurchaseCoursesCommand(userId.Value, new[] { "course-1", "course-2" });
@@ -215,7 +215,6 @@ public class PurchaseCoursesCommandHandlerTests
         _notifierMock.Verify(n => n.NotifyAsync(
             It.IsAny<CoursePurchase>(),
             user.ExternalUserId,
-            It.IsAny<TarhElahiCourseDto>(),
             It.IsAny<ProductSnapshot>(),
             It.IsAny<CancellationToken>()), Times.Exactly(2));
     }
@@ -281,7 +280,6 @@ public class PurchaseCoursesCommandHandlerTests
         _notifierMock.Verify(n => n.NotifyAsync(
             It.Is<CoursePurchase>(p => p.Id.Value == purchasedItem.PurchaseId && p.BuyerId == userId),
             user.ExternalUserId,
-            course,
             It.Is<ProductSnapshot>(s => s.ExternalProductId == course.ExternalId && s.PriceInNoorAtPurchaseTime == course.PriceNoor),
             It.IsAny<CancellationToken>()), Times.Once);
     }
@@ -331,6 +329,6 @@ public class PurchaseCoursesCommandHandlerTests
 
         // Assert
         await act.Should().ThrowAsync<InvalidOperationException>();
-        _notifierMock.Verify(n => n.NotifyAsync(It.IsAny<CoursePurchase>(), It.IsAny<string>(), It.IsAny<TarhElahiCourseDto>(), It.IsAny<ProductSnapshot>(), It.IsAny<CancellationToken>()), Times.Never);
+        _notifierMock.Verify(n => n.NotifyAsync(It.IsAny<CoursePurchase>(), It.IsAny<string>(), It.IsAny<ProductSnapshot>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 }

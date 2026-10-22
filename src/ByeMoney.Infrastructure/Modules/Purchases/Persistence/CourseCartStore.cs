@@ -183,14 +183,23 @@ public sealed class CourseCartStore(IServiceScopeFactory scopes) : ICourseCartSt
                     return Conflict();
                 }
 
-                foreach (var item in cart.Items)
+                var productIds = cart.Items.Select(x => x.ExternalCourseId).ToArray();
+                var parentIds = cart.Items
+                    .Where(x => x.ItemType == ProductItemType.CourseChapter && !string.IsNullOrEmpty(x.ParentExternalId))
+                    .Select(x => x.ParentExternalId!)
+                    .Distinct()
+                    .ToArray();
+
+                var purchaseQuery = db.Set<CoursePurchase>().Where(x => x.BuyerId == buyer);
+                var alreadyPurchased = parentIds.Length > 0
+                    ? await purchaseQuery.AnyAsync(x =>
+                        productIds.Contains(x.Snapshot.ExternalProductId) ||
+                        (x.Snapshot.ItemType == ProductItemType.Course && parentIds.Contains(x.Snapshot.ExternalProductId)), ct)
+                    : await purchaseQuery.AnyAsync(x => productIds.Contains(x.Snapshot.ExternalProductId), ct);
+
+                if (alreadyPurchased)
                 {
-                    var alreadyPurchased = await db.Set<CoursePurchase>()
-                        .AnyAsync(x => x.BuyerId == buyer && x.Snapshot.ExternalProductId == item.ExternalCourseId, ct);
-                    if (alreadyPurchased)
-                    {
-                        return Conflict();
-                    }
+                    return Conflict();
                 }
 
                 var provisioning = sp.GetRequiredService<IUserWalletProvisioningService>();

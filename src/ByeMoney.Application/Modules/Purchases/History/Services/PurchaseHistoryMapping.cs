@@ -13,7 +13,8 @@ public static class PurchaseHistoryMapping
 
     public static PurchaseListItem ToListItem(PurchaseReadRow row) => new(
         row.PurchaseId, row.CartId, row.CourseTitle, row.FinalAmountInNoor,
-        row.PurchasedAtUtc, PurchaseFinancialStatus.Paid.ToString(), DeliveryStatus(row.Status));
+        row.PurchasedAtUtc, PurchaseFinancialStatus.Paid.ToString(), DeliveryStatus(row.Status),
+        row.ItemType.ToString(), row.ParentExternalId);
 
     public static AdminPurchaseListItem ToAdminListItem(PurchaseReadRow row)
     {
@@ -21,7 +22,8 @@ public static class PurchaseHistoryMapping
         return new AdminPurchaseListItem(
             row.PurchaseId, row.CartId, row.CourseTitle, row.FinalAmountInNoor,
             row.PurchasedAtUtc, PurchaseFinancialStatus.Paid.ToString(), DeliveryStatus(row.Status),
-            row.BuyerExternalUserId, string.IsNullOrWhiteSpace(name) ? null : name);
+            row.BuyerExternalUserId, string.IsNullOrWhiteSpace(name) ? null : name,
+            row.ItemType.ToString(), row.ParentExternalId);
     }
 
     public static PurchaseReceipt ToReceipt(PurchaseReceiptData data)
@@ -41,6 +43,7 @@ public static class PurchaseHistoryMapping
             baseAmount - snapshot.PriceInNoorAtPurchaseTime, cart?.CouponCode,
             snapshot.PriceInNoorAtPurchaseTime, snapshot.ReferenceRialPerNoorAtPurchaseTime,
             snapshot.PurchasedAt, PurchaseFinancialStatus.Paid.ToString(),
-            DeliveryStatus(purchase.Status), purchase.CompletedAtUtc, summary);
+            DeliveryStatus(purchase.Status), purchase.CompletedAtUtc, summary,
+            snapshot.ItemType.ToString(), snapshot.ExternalParentId);
     }
 }

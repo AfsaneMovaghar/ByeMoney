@@ -58,6 +58,18 @@ public class CoursePurchaseConfiguration : IEntityTypeConfiguration<CoursePurcha
 
         builder.OwnsOne(cp => cp.Snapshot, snapshotBuilder =>
         {
+            snapshotBuilder.Property(s => s.ItemType)
+                .HasColumnName("ItemType").HasConversion<string>().HasMaxLength(30)
+                .HasDefaultValue(ProductItemType.Course);
+            snapshotBuilder.Property(s => s.ExternalParentId)
+                .HasColumnName("ExternalParentId").HasMaxLength(100);
+            // ستون خریدار با مالک مشترک است تا ایندکس تاریخی در مدل EF نیز بازنمایی شود.
+            snapshotBuilder.Property<UserId>("BuyerId")
+                .HasConversion(id => id.Value, value => new UserId(value))
+                .HasColumnName("UserId");
+            snapshotBuilder.HasIndex("BuyerId", nameof(ProductSnapshot.ExternalProductId))
+                .IsUnique().HasDatabaseName("IX_CoursePurchases_UserId_ExternalProductId");
+
             snapshotBuilder.Property(s => s.ProductSource)
                 .HasColumnName("ProductSource")
                 .HasMaxLength(50)

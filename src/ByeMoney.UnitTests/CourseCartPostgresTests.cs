@@ -90,6 +90,95 @@ public sealed class CourseCartPostgresTests : IAsyncLifetime
     }
 
     [CartPostgresFact]
+    public async Task ChapterPaymentPersistsIdentityAndDebitsQuotedAllocationOnce()
+    {
+        var chapterId = Guid.NewGuid().ToString();
+        var cart = CourseCart.Create(Guid.NewGuid(), _buyer.Id.Value, _buyer.ExternalUserId, [chapterId], null);
+        await Store.CreateAsync(cart, default);
+        cart = await Store.SetQuoteAsync(cart.Id, _buyer.Id.Value,
+            [new(chapterId, "فصل", 120, 0, 20, 100, ProductItemType.CourseChapter, "parent")],
+            cart.ReservationId, default);
+
+        (await Store.PayAsync(cart.Id, _buyer.Id.Value, cart.ReservationId, default)).IsSuccess.Should().BeTrue();
+        (await Store.PayAsync(cart.Id, _buyer.Id.Value, cart.ReservationId, default)).IsSuccess.Should().BeTrue();
+
+        using var scope = _provider.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var purchase = await db.Set<CoursePurchase>().AsNoTracking().SingleAsync();
+        purchase.Snapshot.ItemType.Should().Be(ProductItemType.CourseChapter);
+        purchase.Snapshot.ExternalProductId.Should().Be(chapterId);
+        purchase.Snapshot.ExternalParentId.Should().Be("parent");
+        purchase.Snapshot.PriceInNoorAtPurchaseTime.Should().Be(100);
+        (await Store.FindAsync(cart.Id, _buyer.Id.Value, default))!.Items.Single().ItemType
+            .Should().Be(ProductItemType.CourseChapter);
+        (await Financials()).Should().Be((900m, 1, 100m, 0m));
+    }
+
+    [CartPostgresFact]
+    public async Task ConcurrentCartsForSameChapterHaveOnlyOneFinancialEffect()
+    {
+        var chapterId = Guid.NewGuid().ToString();
+        async Task<CourseCart> ChapterCart()
+        {
+            var cart = CourseCart.Create(Guid.NewGuid(), _buyer.Id.Value, _buyer.ExternalUserId, [chapterId], null);
+            await Store.CreateAsync(cart, default);
+            return await Store.SetQuoteAsync(cart.Id, _buyer.Id.Value,
+                [new(chapterId, "فصل", 100, 0, 0, 100, ProductItemType.CourseChapter, "parent")],
+                cart.ReservationId, default);
+        }
+
+        var first = await ChapterCart();
+        var second = await ChapterCart();
+        var results = await Task.WhenAll(
+            Store.PayAsync(first.Id, _buyer.Id.Value, first.ReservationId, default),
+            Store.PayAsync(second.Id, _buyer.Id.Value, second.ReservationId, default));
+
+        results.Count(result => result.IsSuccess).Should().Be(1);
+        (await Financials()).Should().Be((900m, 1, 100m, 0m));
+
+        using var scope = _provider.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var duplicate = CoursePurchase.Create(_buyer.Id,
+            ProductSnapshot.Create(chapterId, "فصل", 100,
+                itemType: ProductItemType.CourseChapter, externalParentId: "parent"));
+        db.Add(duplicate);
+        Func<Task> saveDuplicate = async () => await db.SaveChangesAsync();
+        var failure = await saveDuplicate.Should().ThrowAsync<DbUpdateException>();
+        failure.Which.InnerException.Should().BeOfType<PostgresException>()
+            .Which.ConstraintName.Should().Be("IX_CoursePurchases_UserId_ExternalProductId");
+    }
+
+    [CartPostgresFact]
+    public async Task OwningWholeCoursePreventsChapterDebit()
+    {
+        var parent = await Ready(["parent"]);
+        (await Store.PayAsync(parent.Id, _buyer.Id.Value, parent.ReservationId, default)).IsSuccess.Should().BeTrue();
+        var before = await Financials();
+        var chapterId = Guid.NewGuid().ToString();
+        var chapter = CourseCart.Create(Guid.NewGuid(), _buyer.Id.Value, _buyer.ExternalUserId, [chapterId], null);
+        await Store.CreateAsync(chapter, default);
+        chapter = await Store.SetQuoteAsync(chapter.Id, _buyer.Id.Value,
+            [new(chapterId, "فصل", 100, 0, 0, 100, ProductItemType.CourseChapter, "parent")],
+            chapter.ReservationId, default);
+
+        (await Store.PayAsync(chapter.Id, _buyer.Id.Value, chapter.ReservationId, default)).IsSuccess.Should().BeFalse();
+        (await Financials()).Should().Be(before);
+    }
+
+    [CartPostgresFact]
+    public async Task StrapiRejectionOfWholeChapteredCoursePreventsPayment()
+    {
+        var cart = await Ready(["chaptered-parent"]);
+        _pricing.Setup(x => x.TransitionAsync(It.IsAny<CartTransitionRequest>(), "check", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Result.Conflict(CartErrors.Conflict, CartErrorCodes.Conflict));
+        using var scope = _provider.CreateScope();
+        var service = scope.ServiceProvider.GetRequiredService<CourseCartService>();
+
+        (await service.PurchaseAsync(_buyer.Id.Value, cart.Id, default)).IsSuccess.Should().BeFalse();
+        (await Financials()).Should().Be((1000m, 0, 0m, 0m));
+    }
+
+    [CartPostgresFact]
     public async Task PurchaseReferenceRateIsFrozenAtPaymentAcrossReplayAndFreePurchase()
     {
         var paid = await Ready();

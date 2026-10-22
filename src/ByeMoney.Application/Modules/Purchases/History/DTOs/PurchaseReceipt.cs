@@ -6,4 +6,4 @@ public sealed record PurchaseReceipt(
     string? CouponCode, decimal FinalAmountInNoor,
     decimal? ReferenceRialPerNoorAtPurchaseTime, DateTime PurchasedAtUtc,
     string FinancialStatus, string DeliveryStatus, DateTime? DeliveredAtUtc,
-    PurchaseCartSummary? CartSummary);
+    PurchaseCartSummary? CartSummary, string ItemType = "Course", string? ParentExternalId = null);

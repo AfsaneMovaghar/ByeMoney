@@ -58,7 +58,8 @@ public sealed class PurchaseHistoryReader(ApplicationDbContext db) : IPurchaseHi
             .Select(row => new PurchaseReadRow(
                 row.Purchase.Id.Value, row.Purchase.CartId, row.Purchase.Snapshot.ProductTitle,
                 row.Purchase.Snapshot.PriceInNoorAtPurchaseTime, row.Purchase.Snapshot.PurchasedAt,
-                row.Purchase.Status, row.Buyer.ExternalUserId, row.Buyer.FirstName, row.Buyer.LastName))
+                row.Purchase.Status, row.Buyer.ExternalUserId, row.Buyer.FirstName, row.Buyer.LastName,
+                row.Purchase.Snapshot.ItemType, row.Purchase.Snapshot.ExternalParentId))
             .ToListAsync(ct);
 
         return new PurchasePage<PurchaseReadRow>(items, filter.Page, filter.PageSize, count);

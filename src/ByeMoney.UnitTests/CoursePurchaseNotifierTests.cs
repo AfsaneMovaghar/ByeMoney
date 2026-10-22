@@ -47,7 +47,7 @@ public class CoursePurchaseNotifierTests
             .Setup(c => c.NotifyCoursePurchaseAsync(It.IsAny<CoursePurchaseNotificationDto>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
 
-        await _notifier.NotifyAsync(purchase, "buyer-ext-1", courseDto, snapshot, CancellationToken.None);
+        await _notifier.NotifyAsync(purchase, "buyer-ext-1", snapshot, CancellationToken.None);
 
         purchase.Status.Should().Be(CoursePurchaseStatus.NotificationSent);
         _coursePurchaseRepoMock.Verify(r => r.Update(purchase), Times.Once);
@@ -72,7 +72,7 @@ public class CoursePurchaseNotifierTests
             .Setup(c => c.NotifyCoursePurchaseAsync(It.IsAny<CoursePurchaseNotificationDto>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(false);
 
-        await _notifier.NotifyAsync(purchase, "buyer-ext-1", courseDto, snapshot, CancellationToken.None);
+        await _notifier.NotifyAsync(purchase, "buyer-ext-1", snapshot, CancellationToken.None);
 
         purchase.Status.Should().Be(CoursePurchaseStatus.NotificationFailed);
         purchase.NotificationAttempts.Should().Be(1);
@@ -99,7 +99,7 @@ public class CoursePurchaseNotifierTests
             .Setup(c => c.NotifyCoursePurchaseAsync(It.IsAny<CoursePurchaseNotificationDto>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new HttpRequestException("Network error"));
 
-        await _notifier.NotifyAsync(purchase, "buyer-ext-1", courseDto, snapshot, CancellationToken.None);
+        await _notifier.NotifyAsync(purchase, "buyer-ext-1", snapshot, CancellationToken.None);
 
         purchase.Status.Should().Be(CoursePurchaseStatus.NotificationFailed);
         purchase.NotificationFailureReason.Should().Contain("Network error");

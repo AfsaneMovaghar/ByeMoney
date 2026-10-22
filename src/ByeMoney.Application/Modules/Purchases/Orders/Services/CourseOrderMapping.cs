@@ -88,7 +88,8 @@ public static class CourseOrderMapping
             var quote = cart.Items.SingleOrDefault(item => item.ExternalCourseId == id);
             var allocation = cart.PurchaseAllocations.SingleOrDefault(item => item.ExternalCourseId == id);
             var purchase = purchases.FirstOrDefault(item => item.Snapshot.ExternalProductId == id);
-            return MapItem(id, quote?.Title, quote?.PriceInNoor, purchase, status, allocation?.AmountInNoor);
+            return MapItem(id, quote?.Title, quote?.PriceInNoor, purchase, status, allocation?.AmountInNoor,
+                quote?.ItemType, quote?.ParentExternalId);
         }).ToArray();
         var hasQuote = cart.Items.Count > 0 && expectedIds.All(
             id => cart.Items.Any(item => item.ExternalCourseId == id));
@@ -156,7 +157,8 @@ public static class CourseOrderMapping
 
     private static CourseOrderItem MapItem(
         string externalId, string? title, decimal? basePrice, CoursePurchase? purchase,
-        CourseOrderFinancialStatus orderStatus, decimal? allocation = null)
+        CourseOrderFinancialStatus orderStatus, decimal? allocation = null,
+        ProductItemType? itemType = null, string? parentExternalId = null)
     {
         var paid = purchase is not null && IsPaid(purchase);
         var status = paid ? CourseOrderFinancialStatus.Paid
@@ -167,7 +169,9 @@ public static class CourseOrderMapping
         return new CourseOrderItem(externalId, purchase?.Snapshot.ProductTitle ?? title, basePrice,
             purchase?.Snapshot.PriceInNoorAtPurchaseTime ?? allocation,
             purchase?.Id.Value, purchase?.LedgerTransactionId, purchase?.Snapshot.PurchasedAt,
-            status.ToString(), delivery.ToString());
+            status.ToString(), delivery.ToString(),
+            (purchase?.Snapshot.ItemType ?? itemType ?? ProductItemType.Course).ToString(),
+            purchase?.Snapshot.ExternalParentId ?? parentExternalId);
     }
 
     private static bool CompletePurchases(string[] ids, CoursePurchase[] purchases) => ids.Length > 0 &&

@@ -31,6 +31,8 @@ public sealed class CourseCartConfiguration : IEntityTypeConfiguration<CourseCar
             items.WithOwner().HasForeignKey("CartId");
             items.HasKey("CartId", nameof(CourseCartItem.ExternalCourseId));
             items.Property(x => x.ExternalCourseId).HasMaxLength(100);
+            items.Property(x => x.ItemType).HasConversion<string>().HasMaxLength(30).HasDefaultValue(ProductItemType.Course);
+            items.Property(x => x.ParentExternalId).HasMaxLength(100);
             items.Property(x => x.Title).HasMaxLength(255).IsRequired();
             items.Property(x => x.PriceInNoor).HasPrecision(18, 4);
         });

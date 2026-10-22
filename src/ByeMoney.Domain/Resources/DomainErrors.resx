@@ -121,6 +121,9 @@
   <data name="ProductSnapshot_ProductTitleRequired" xml:space="preserve">
     <value>عنوان محصول الزامی است.</value>
   </data>
+  <data name="ProductSnapshot_InvalidItemTypeOrParent" xml:space="preserve">
+    <value>نوع محصول یا شناسه والد مرتبط با آن معتبر نیست.</value>
+  </data>
   <data name="SystemSetting_KeyRequired" xml:space="preserve">
     <value>کلید تنظیم سیستم الزامی است.</value>
   </data>

@@ -45,7 +45,9 @@ public static class CourseCartPayment
                 item.Title,
                 amount,
                 isFree: amount == 0,
-                referenceRialPerNoorAtPurchaseTime: referenceRate);
+                referenceRialPerNoorAtPurchaseTime: referenceRate,
+                itemType: item.ItemType,
+                externalParentId: item.ParentExternalId);
             var purchase = CoursePurchase.Create(
                 new UserId(cart.BuyerId),
                 snapshot,

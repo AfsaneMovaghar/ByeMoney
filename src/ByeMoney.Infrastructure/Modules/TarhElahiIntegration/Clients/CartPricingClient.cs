@@ -4,19 +4,25 @@ using ByeMoney.Application.Modules.Purchases.Cart.Interfaces;
 using ByeMoney.Domain.Common.Generic;
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using ByeMoney.Domain.Common;
 
 namespace ByeMoney.Infrastructure.Modules.TarhElahiIntegration.Clients;
 
 public sealed class CartPricingClient(HttpClient http) : ICartPricingClient
 {
+    private static readonly JsonSerializerOptions QuoteJsonOptions = new(JsonSerializerDefaults.Web)
+    {
+        Converters = { new JsonStringEnumConverter(JsonNamingPolicy.SnakeCaseLower, allowIntegerValues: false) }
+    };
     public async Task<Result<CartQuote>> PrepareAsync(CartQuoteRequest request, CancellationToken ct)
     {
         try
         {
             using var response = await http.PostAsJsonAsync("api/integrations/byemoney/v1/carts/prepare", request, ct);
             if (!response.IsSuccessStatusCode) return Failure<CartQuote>(response.StatusCode);
-            var quote = await response.Content.ReadFromJsonAsync<CartQuote>(ct);
+            var quote = await response.Content.ReadFromJsonAsync<CartQuote>(QuoteJsonOptions, ct);
             return quote is null ? Result<CartQuote>.Failure(CartErrors.Invalid, CartErrorCodes.Invalid) : Result<CartQuote>.Success(quote);
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }

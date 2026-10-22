@@ -155,7 +155,7 @@ public class TopUpConfirmedPurchaseHandler : INotificationHandler<TopUpConfirmed
 
         foreach (var item in itemsToPurchase)
         {
-            await _notifier.NotifyAsync(item.Purchase, user.ExternalUserId, item.Course, item.Snapshot, cancellationToken);
+            await _notifier.NotifyAsync(item.Purchase, user.ExternalUserId, item.Snapshot, cancellationToken);
 
             _logger.LogInformation(
                 "Auto-purchase on TopUpConfirmed executed successfully: PurchaseId {PurchaseId} for Course {CourseId} by User {UserId}.",

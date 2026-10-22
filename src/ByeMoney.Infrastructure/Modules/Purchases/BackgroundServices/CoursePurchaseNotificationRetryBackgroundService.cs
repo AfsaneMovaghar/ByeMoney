@@ -1,6 +1,7 @@
 using ByeMoney.Application.Modules.Identity.Users.Interfaces;
 using ByeMoney.Application.Common.Interfaces;
 using ByeMoney.Application.Modules.Purchases.Interfaces;
+using ByeMoney.Application.Modules.Purchases.Services;
 using ByeMoney.Application.Modules.TarhElahiIntegration.DTOs;
 using ByeMoney.Application.Modules.TarhElahiIntegration.Interfaces;
 using Microsoft.Extensions.DependencyInjection;
@@ -97,12 +98,7 @@ public class CoursePurchaseNotificationRetryBackgroundService : BackgroundServic
                 EventId = Guid.NewGuid(),
                 PurchaseId = purchase.Id.Value,
                 BuyerExternalUserId = user.ExternalUserId,
-                Item = new TarhElahiNotificationItemDto
-                {
-                    Type = TarhElahiCatalogItemType.Course,
-                    ExternalId = purchase.Snapshot.ExternalProductId,
-                    ParentExternalId = null
-                },
+                Item = PurchaseNotificationItem.FromSnapshot(purchase.Snapshot),
                 Snapshot = new TarhElahiNotificationSnapshotDto
                 {
                     ProductSource = purchase.Snapshot.ProductSource,

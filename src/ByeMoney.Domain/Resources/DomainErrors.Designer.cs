@@ -250,6 +250,15 @@ namespace ByeMoney.Domain.Resources {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to نوع محصول یا شناسه والد مرتبط با آن معتبر نیست..
+        /// </summary>
+        public static string ProductSnapshot_InvalidItemTypeOrParent {
+            get {
+                return ResourceManager.GetString("ProductSnapshot_InvalidItemTypeOrParent", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to کلید تنظیم سیستم الزامی است..
         /// </summary>
         public static string SystemSetting_KeyRequired {

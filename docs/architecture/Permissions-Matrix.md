@@ -1,7 +1,7 @@
 ﻿# ماتریس دسترسی و مجوزهای ByeMoney (Permission Matrix)
 
 > [!IMPORTANT]
-> جدول بر پایهٔ بازتاب کد و با تطبیق مستندی در ۲۰۲۶-۱۰-۲۱ نگهداری می‌شود؛ شاهد اجرای آزمون در Verification-Summary است. وجود مسیر یا پالیسی در جدول، تأیید تنظیمات یا مجوزهای محیط منتشرشده نیست.
+> این سند بر اساس بازتاب (Reflection) مستقیم کدهای واقعی پروژه، کنترلرها و `Permissions.cs` تولید شده است و منعکس‌کننده دقیق وضعیت واقعی اندپوینت‌ها و پالیسی‌ها است.
 
 ## ۱. فهرست مجوزهای تعریف‌شده در سامانه (Permissions)
 
@@ -25,7 +25,6 @@
 | AdminCoursePurchases | `GET` | `/api/admin/course-purchases/{purchaseId:guid}` | نیازمند پالیسی `RequirePurchasesView` | `Purchases.View` |
 | AdminCourses | `POST` | `/api/admin/courses/purchase` | نیازمند پالیسی `RequireCoursesManage` | `Courses.Manage` |
 | AdminGatewayReview | `GET` | `/api/admin/topups/gateway-reviews/{clientReferenceCode}` | نیازمند پالیسی `RequireTopUpReview` | `TopUp.Review` |
-| AdminGatewayReview | `POST` | `/api/integrations/topups/v1/gateway-reviews/resolve` | نیازمند پالیسی `RequireTopUpReview` | `TopUp.Review` |
 | AdminGatewayReview | `POST` | `/api/admin/topups/gateway-reviews/resolve` | نیازمند پالیسی `RequireTopUpReview` | `TopUp.Review` |
 | AdminTopUp | `POST` | `/api/admin/topups/{id:guid}/confirm` | نیازمند پالیسی `RequireTopUpReview` | `TopUp.Review` |
 | AdminTopUp | `GET` | `/api/admin/topups/by-reference/{clientReferenceCode}` | نیازمند پالیسی `RequireTopUpReview` | `TopUp.Review` |

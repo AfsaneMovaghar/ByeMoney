@@ -61,13 +61,19 @@ public sealed class CourseCart
         if (items.Count != ExternalCourseIds.Length ||
             items.Sum(x => x.BasePriceInNoor) > MaximumOriginalTotalInNoor ||
             !items.Select(x => x.ExternalCourseId).SequenceEqual(ExternalCourseIds) ||
-            items.Any(HasInvalidPrice))
+            items.Any(HasInvalidPrice) ||
+            items.Any(x => !Enum.IsDefined(x.Type) ||
+                (x.Type == ProductItemType.CourseChapter
+                    ? string.IsNullOrWhiteSpace(x.ParentExternalId) || x.ParentExternalId.Length > 100 ||
+                      x.ParentExternalId == x.ExternalCourseId
+                    : x.ParentExternalId is not null)))
         {
             throw new ArgumentException(nameof(items));
         }
 
         _items.Clear();
-        _items.AddRange(items.Select(x => new CourseCartItem(x.ExternalCourseId, x.Title, x.BasePriceInNoor)));
+        _items.AddRange(items.Select(x => new CourseCartItem(
+            x.ExternalCourseId, x.Title, x.BasePriceInNoor, x.Type, x.ParentExternalId)));
         _purchaseAllocations.Clear();
         _purchaseAllocations.AddRange(items.Select(x => new CourseCartPurchaseAllocation(x.ExternalCourseId, x.PriceInNoor)));
         ItemDiscountInNoor = items.Sum(x => x.ItemDiscountInNoor);

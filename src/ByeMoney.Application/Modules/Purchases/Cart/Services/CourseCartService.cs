@@ -317,7 +317,9 @@ public sealed class CourseCartService(
                 item.ExternalCourseId,
                 item.Title,
                 item.PriceInNoor,
-                status));
+                status,
+                item.ItemType.ToString(),
+                item.ParentExternalId));
         }
 
         var topUp = cart.TopUpRequestId is Guid topUpId

@@ -5,6 +5,10 @@ namespace ByeMoney.Domain.Modules.Purchases;
 
 public class ProductSnapshot
 {
+    public ProductItemType ItemType { get; private set; }
+
+    public string? ExternalParentId { get; private set; }
+
     /// <summary>Origin catalog system identifier, e.g. "tarh_elahi".</summary>
     public string ProductSource { get; private set; } = null!;
 
@@ -37,7 +41,9 @@ public class ProductSnapshot
         decimal priceNoor,
         string productSource = ProductCatalogSources.TarhElahi,
         bool isFree = false,
-        decimal? referenceRialPerNoorAtPurchaseTime = null)
+        decimal? referenceRialPerNoorAtPurchaseTime = null,
+        ProductItemType itemType = ProductItemType.Course,
+        string? externalParentId = null)
     {
         if (string.IsNullOrWhiteSpace(externalProductId))
             throw new DomainException(DomainErrors.ProductSnapshot_ExternalProductIdRequired);
@@ -48,8 +54,19 @@ public class ProductSnapshot
         if (priceNoor < 0 || (!isFree && priceNoor == 0))
             throw new DomainException(DomainErrors.CoursePurchase_InvalidPrice);
 
+        if (!Enum.IsDefined(itemType) ||
+            (itemType == ProductItemType.CourseChapter
+                ? string.IsNullOrWhiteSpace(externalParentId) || externalParentId.Length > 100 ||
+                  externalParentId == externalProductId
+                : externalParentId is not null))
+        {
+            throw new DomainException(DomainErrors.ProductSnapshot_InvalidItemTypeOrParent);
+        }
+
         return new ProductSnapshot
         {
+            ItemType = itemType,
+            ExternalParentId = externalParentId,
             ProductSource = productSource,
             ExternalProductId = externalProductId.Trim(),
             ProductTitle = productTitle.Trim(),

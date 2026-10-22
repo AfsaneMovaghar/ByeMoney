@@ -332,6 +332,7 @@ namespace ByeMoney.Infrastructure.Migrations
                         .HasColumnType("uuid");
 
                     b.Property<Guid>("BuyerId")
+                        .ValueGeneratedOnUpdateSometimes()
                         .HasColumnType("uuid")
                         .HasColumnName("UserId");
 
@@ -744,6 +745,17 @@ namespace ByeMoney.Infrastructure.Migrations
                                 .HasMaxLength(100)
                                 .HasColumnType("character varying(100)");
 
+                            b1.Property<string>("ItemType")
+                                .IsRequired()
+                                .ValueGeneratedOnAdd()
+                                .HasMaxLength(30)
+                                .HasColumnType("character varying(30)")
+                                .HasDefaultValue("Course");
+
+                            b1.Property<string>("ParentExternalId")
+                                .HasMaxLength(100)
+                                .HasColumnType("character varying(100)");
+
                             b1.Property<decimal>("PriceInNoor")
                                 .HasPrecision(18, 4)
                                 .HasColumnType("numeric(18,4)");
@@ -802,16 +814,34 @@ namespace ByeMoney.Infrastructure.Migrations
                             b1.Property<Guid>("CoursePurchaseId")
                                 .HasColumnType("uuid");
 
+                            b1.Property<Guid>("BuyerId")
+                                .ValueGeneratedOnUpdateSometimes()
+                                .HasColumnType("uuid")
+                                .HasColumnName("UserId");
+
                             b1.Property<decimal?>("ConversionRateAtPurchaseTime")
                                 .HasPrecision(18, 4)
                                 .HasColumnType("numeric(18,4)")
                                 .HasColumnName("ConversionRateAtPurchaseTime");
+
+                            b1.Property<string>("ExternalParentId")
+                                .HasMaxLength(100)
+                                .HasColumnType("character varying(100)")
+                                .HasColumnName("ExternalParentId");
 
                             b1.Property<string>("ExternalProductId")
                                 .IsRequired()
                                 .HasMaxLength(100)
                                 .HasColumnType("character varying(100)")
                                 .HasColumnName("ExternalProductId");
+
+                            b1.Property<string>("ItemType")
+                                .IsRequired()
+                                .ValueGeneratedOnAdd()
+                                .HasMaxLength(30)
+                                .HasColumnType("character varying(30)")
+                                .HasDefaultValue("Course")
+                                .HasColumnName("ItemType");
 
                             b1.Property<decimal>("PriceInNoorAtPurchaseTime")
                                 .HasPrecision(18, 4)
@@ -845,6 +875,10 @@ namespace ByeMoney.Infrastructure.Migrations
                                 .HasColumnName("ReferenceRialPerNoorAtPurchaseTime");
 
                             b1.HasKey("CoursePurchaseId");
+
+                            b1.HasIndex("BuyerId", "ExternalProductId")
+                                .IsUnique()
+                                .HasDatabaseName("IX_CoursePurchases_UserId_ExternalProductId");
 
                             b1.ToTable("CoursePurchases");
 

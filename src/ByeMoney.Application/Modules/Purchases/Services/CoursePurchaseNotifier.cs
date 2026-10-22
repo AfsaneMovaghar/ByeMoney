@@ -29,7 +29,6 @@ public class CoursePurchaseNotifier : ICoursePurchaseNotifier
     public async Task NotifyAsync(
         CoursePurchase purchase,
         string buyerExternalUserId,
-        TarhElahiCourseDto course,
         ProductSnapshot snapshot,
         CancellationToken cancellationToken = default)
     {
@@ -38,12 +37,7 @@ public class CoursePurchaseNotifier : ICoursePurchaseNotifier
             EventId = Guid.NewGuid(),
             PurchaseId = purchase.Id.Value,
             BuyerExternalUserId = buyerExternalUserId,
-            Item = new TarhElahiNotificationItemDto
-            {
-                Type = TarhElahiCatalogItemType.Course,
-                ExternalId = course.ExternalId,
-                ParentExternalId = course.ParentExternalId
-            },
+            Item = PurchaseNotificationItem.FromSnapshot(snapshot),
             Snapshot = new TarhElahiNotificationSnapshotDto
             {
                 ProductSource = snapshot.ProductSource,

@@ -97,7 +97,7 @@ public class PurchaseCoursesCommandHandler : IRequestHandler<PurchaseCoursesComm
 
         foreach (var item in purchaseList)
         {
-            await _notifier.NotifyAsync(item.Purchase, user.ExternalUserId, item.Course, item.Snapshot, cancellationToken);
+            await _notifier.NotifyAsync(item.Purchase, user.ExternalUserId, item.Snapshot, cancellationToken);
         }
 
         var items = purchaseList.Select(p => new PurchasedCourseItemResponse(

@@ -155,7 +155,6 @@ public class TopUpConfirmedPurchaseHandlerTests
         _notifierMock.Verify(n => n.NotifyAsync(
             savedPurchase,
             user.ExternalUserId,
-            course,
             savedPurchase.Snapshot,
             It.IsAny<CancellationToken>()), Times.Once);
     }
@@ -240,7 +239,7 @@ public class TopUpConfirmedPurchaseHandlerTests
         savedLedgerEntries.Should().HaveCount(4); // 2 pairs of debit/credit
         savedLedgerEntries.Sum(e => e.Amount).Should().Be(0m);
         _unitOfWorkMock.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
-        _notifierMock.Verify(n => n.NotifyAsync(It.IsAny<CoursePurchase>(), user.ExternalUserId, It.IsAny<TarhElahiCourseDto>(), It.IsAny<ProductSnapshot>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
+        _notifierMock.Verify(n => n.NotifyAsync(It.IsAny<CoursePurchase>(), user.ExternalUserId, It.IsAny<ProductSnapshot>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
     }
 
     [Fact]
@@ -278,7 +277,7 @@ public class TopUpConfirmedPurchaseHandlerTests
         _ledgerRepoMock.Verify(l => l.AddAsync(It.IsAny<LedgerEntry>(), It.IsAny<CancellationToken>()), Times.Never);
         _walletRepoMock.Verify(w => w.Update(It.IsAny<WalletEntity>()), Times.Never);
         _unitOfWorkMock.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
-        _notifierMock.Verify(n => n.NotifyAsync(It.IsAny<CoursePurchase>(), It.IsAny<string>(), It.IsAny<TarhElahiCourseDto>(), It.IsAny<ProductSnapshot>(), It.IsAny<CancellationToken>()), Times.Never);
+        _notifierMock.Verify(n => n.NotifyAsync(It.IsAny<CoursePurchase>(), It.IsAny<string>(), It.IsAny<ProductSnapshot>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
@@ -325,7 +324,7 @@ public class TopUpConfirmedPurchaseHandlerTests
         _coursePurchaseRepoMock.Verify(r => r.AddAsync(It.IsAny<CoursePurchase>(), It.IsAny<CancellationToken>()), Times.Never);
         _ledgerRepoMock.Verify(l => l.AddAsync(It.IsAny<LedgerEntry>(), It.IsAny<CancellationToken>()), Times.Never);
         _walletRepoMock.Verify(w => w.Update(It.IsAny<WalletEntity>()), Times.Never);
-        _notifierMock.Verify(n => n.NotifyAsync(It.IsAny<CoursePurchase>(), It.IsAny<string>(), It.IsAny<TarhElahiCourseDto>(), It.IsAny<ProductSnapshot>(), It.IsAny<CancellationToken>()), Times.Never);
+        _notifierMock.Verify(n => n.NotifyAsync(It.IsAny<CoursePurchase>(), It.IsAny<string>(), It.IsAny<ProductSnapshot>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
@@ -355,7 +354,7 @@ public class TopUpConfirmedPurchaseHandlerTests
         _coursePurchaseRepoMock.Verify(r => r.AddAsync(It.IsAny<CoursePurchase>(), It.IsAny<CancellationToken>()), Times.Never);
         _ledgerRepoMock.Verify(l => l.AddAsync(It.IsAny<LedgerEntry>(), It.IsAny<CancellationToken>()), Times.Never);
         _walletRepoMock.Verify(w => w.Update(It.IsAny<WalletEntity>()), Times.Never);
-        _notifierMock.Verify(n => n.NotifyAsync(It.IsAny<CoursePurchase>(), It.IsAny<string>(), It.IsAny<TarhElahiCourseDto>(), It.IsAny<ProductSnapshot>(), It.IsAny<CancellationToken>()), Times.Never);
+        _notifierMock.Verify(n => n.NotifyAsync(It.IsAny<CoursePurchase>(), It.IsAny<string>(), It.IsAny<ProductSnapshot>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
@@ -411,7 +410,7 @@ public class TopUpConfirmedPurchaseHandlerTests
         _coursePurchaseRepoMock.Verify(r => r.AddAsync(It.IsAny<CoursePurchase>(), It.IsAny<CancellationToken>()), Times.Never);
         _ledgerRepoMock.Verify(l => l.AddAsync(It.IsAny<LedgerEntry>(), It.IsAny<CancellationToken>()), Times.Never);
         _walletRepoMock.Verify(w => w.Update(It.IsAny<WalletEntity>()), Times.Never);
-        _notifierMock.Verify(n => n.NotifyAsync(It.IsAny<CoursePurchase>(), It.IsAny<string>(), It.IsAny<TarhElahiCourseDto>(), It.IsAny<ProductSnapshot>(), It.IsAny<CancellationToken>()), Times.Never);
+        _notifierMock.Verify(n => n.NotifyAsync(It.IsAny<CoursePurchase>(), It.IsAny<string>(), It.IsAny<ProductSnapshot>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 }
 
