@@ -87,3 +87,4 @@ public static class PurchaseHistoryMapping
             snapshot.ExternalParentId);
     }
 }
+

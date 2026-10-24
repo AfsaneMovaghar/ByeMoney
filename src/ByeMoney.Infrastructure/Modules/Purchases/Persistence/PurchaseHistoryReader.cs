@@ -173,3 +173,4 @@ public sealed class PurchaseHistoryReader(ApplicationDbContext db) : IPurchaseHi
         return null;
     }
 }
+

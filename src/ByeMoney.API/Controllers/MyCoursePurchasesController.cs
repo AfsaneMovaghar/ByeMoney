@@ -30,3 +30,4 @@ public sealed class MyCoursePurchasesController(ISender sender) : ControllerBase
         return Ok(await sender.Send(new GetMyCoursePurchaseReceiptQuery(purchaseId), ct));
     }
 }
+

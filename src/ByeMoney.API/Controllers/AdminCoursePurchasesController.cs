@@ -31,3 +31,4 @@ public sealed class AdminCoursePurchasesController(ISender sender) : ControllerB
         return Ok(await sender.Send(new GetAdminCoursePurchaseReceiptQuery(purchaseId), ct));
     }
 }
+

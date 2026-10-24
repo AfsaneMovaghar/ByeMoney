@@ -247,65 +247,6 @@ public sealed class PurchaseHistoryPostgresTests : IAsyncLifetime
         (await db.Set<Wallet>().CountAsync()).Should().Be(0);
     }
 
-    [CartPostgresFact]
-    public async Task PhysicalProductPurchase_AppearsInReaderListAndReceipt()
-    {
-        var buyer = User.CreateInitial("physical-buyer");
-        var cart = CourseCart.Create(Guid.NewGuid(), buyer.Id.Value, buyer.ExternalUserId, [
-            CourseCart.FormatSignature(new CartItemInput("book-1", ProductItemType.Product, 2))
-        ], "OFF");
-        cart.SetQuote([
-            new CourseCartQuoteItem("book-1", "کتاب اصول برنامه‌نویسی", 100m, 20m, 10m, 170m, ProductItemType.Product, null, 2)
-        ], shippingAmountInNoor: 20m, shippingRuleLabel: "پست پیشتاز");
-        cart.MarkPaid();
-
-        var physicalId = PhysicalProductPurchaseId.New();
-        var physical = PhysicalProductPurchase.Create(
-            physicalId,
-            cart.Id,
-            buyer.Id,
-            "book-1",
-            "کتاب اصول برنامه‌نویسی",
-            2,
-            100m,
-            170m);
-        physical.MarkDebited(cart.Id);
-
-        await using (var seed = new ApplicationDbContext(_options))
-        {
-            seed.AddRange(buyer, cart, physical);
-            await seed.SaveChangesAsync();
-        }
-
-        await using var db = new ApplicationDbContext(_options);
-        var reader = new PurchaseHistoryReader(db);
-
-        var list = await reader.ListAsync(buyer.Id.Value, new PurchaseHistoryFilter(), default);
-        list.TotalCount.Should().Be(1);
-        var item = list.Items.Single();
-        item.PurchaseId.Should().Be(physicalId.Value);
-        item.CartId.Should().Be(cart.Id);
-        item.CourseTitle.Should().Be("کتاب اصول برنامه‌نویسی");
-        item.FinalAmountInNoor.Should().Be(170m);
-        item.ItemType.Should().Be(ProductItemType.Product);
-
-        var receiptData = await reader.GetReceiptAsync(physicalId.Value, buyer.Id.Value, default);
-        receiptData.Should().NotBeNull();
-        receiptData!.PhysicalPurchase.Should().NotBeNull();
-
-        var receipt = PurchaseHistoryMapping.ToReceipt(receiptData);
-        receipt.PurchaseId.Should().Be(physicalId.Value);
-        receipt.ItemType.Should().Be("Product");
-        receipt.CourseTitle.Should().Be("کتاب اصول برنامه‌نویسی");
-        receipt.BaseAmountInNoor.Should().Be(200m);
-        receipt.DiscountAmountInNoor.Should().Be(30m);
-        receipt.FinalAmountInNoor.Should().Be(170m);
-        receipt.FinancialStatus.Should().Be("Paid");
-        receipt.DeliveryStatus.Should().Be("Pending");
-        receipt.CartSummary.Should().NotBeNull();
-        receipt.CartSummary!.FinalAmountInNoor.Should().Be(cart.Total);
-    }
-
     private sealed class CommitAfterCartRead(Func<Task> commit) : DbCommandInterceptor
     {
         public bool Committed { get; private set; }

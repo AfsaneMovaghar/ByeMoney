@@ -315,5 +315,63 @@ public sealed class PhysicalProductCartFinancialTests
         item.DeliveryStatus.Should().Be("Pending");
         item.FinalAmountInNoor.Should().Be(200m);
     }
+
+    [Theory]
+    [InlineData("course", ProductItemType.Course)]
+    [InlineData("Course", ProductItemType.Course)]
+    [InlineData("course_chapter", ProductItemType.CourseChapter)]
+    [InlineData("CourseChapter", ProductItemType.CourseChapter)]
+    [InlineData("chapter", ProductItemType.CourseChapter)]
+    [InlineData("product", ProductItemType.Product)]
+    [InlineData("Product", ProductItemType.Product)]
+    public void CartItemInput_DeserializesTypeFromString(string typeString, ProductItemType expected)
+    {
+        var json = $"{{\"externalId\":\"test-id\",\"type\":\"{typeString}\",\"quantity\":2}}";
+        var options = new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+        var item = System.Text.Json.JsonSerializer.Deserialize<CartItemInput>(json, options);
+
+        item.Should().NotBeNull();
+        item!.ExternalId.Should().Be("test-id");
+        item.Type.Should().Be(expected);
+        item.Quantity.Should().Be(2);
+    }
+
+    [Fact]
+    public void PrepareCourseCartRequest_DeserializesFrontendPayloadSuccessfully()
+    {
+        var json = """
+        {
+            "cartId": "11111111-2222-3333-4444-555555555555",
+            "items": [
+                {
+                    "externalId": "chap-123",
+                    "type": "course_chapter",
+                    "quantity": 1
+                },
+                {
+                    "externalId": "prod-456",
+                    "type": "product",
+                    "quantity": 3
+                }
+            ],
+            "externalCourseIds": ["chap-123"],
+            "couponCode": "OFF10"
+        }
+        """;
+        var options = new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+        var request = System.Text.Json.JsonSerializer.Deserialize<ByeMoney.API.Contracts.CourseCarts.PrepareCourseCartRequest>(json, options);
+
+        request.Should().NotBeNull();
+        request!.CartId.Should().Be(Guid.Parse("11111111-2222-3333-4444-555555555555"));
+        request.Items.Should().HaveCount(2);
+        request.Items![0].ExternalId.Should().Be("chap-123");
+        request.Items[0].Type.Should().Be(ProductItemType.CourseChapter);
+        request.Items[0].Quantity.Should().Be(1);
+        request.Items[1].ExternalId.Should().Be("prod-456");
+        request.Items[1].Type.Should().Be(ProductItemType.Product);
+        request.Items[1].Quantity.Should().Be(3);
+        request.ExternalCourseIds.Should().ContainSingle().Which.Should().Be("chap-123");
+        request.CouponCode.Should().Be("OFF10");
+    }
 }
 
