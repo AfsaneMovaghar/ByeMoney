@@ -10,6 +10,7 @@ using ByeMoney.Application.Modules.Wallet.Interfaces;
 using ByeMoney.Domain.Common;
 using ByeMoney.Domain.Modules.Identity.Users;
 using ByeMoney.Domain.Modules.Purchases;
+using ByeMoney.Domain.Modules.Wallet.TopUps;
 using FluentAssertions;
 using Moq;
 
@@ -115,5 +116,39 @@ public sealed class CourseCartRefreshTests
         _pricing.Setup(x => x.TransitionAsync(It.IsAny<CartTransitionRequest>(), "release", It.IsAny<CancellationToken>()))
             .ReturnsAsync(Result.Failure(CartErrors.Unavailable, CartErrorCodes.Unavailable));
         (await Service().CancelAsync(_buyer.Id.Value, cart.Id, default)).ErrorCode.Should().Be(CartErrorCodes.Unavailable);
+    }
+
+    [Fact]
+    public async Task CartAwaitingTopUp_WithUnknownResultAndReviewCase_ExposesUnderReviewStatus()
+    {
+        var topUp = TopUpRequest.CreateGateway(new UserId(_buyer.Id.Value), 105m, 137m);
+        topUp.RecordGatewayResult("evt-1", "SEP", GatewayResultKinds.Unknown, null, null, "-6", 14385m, 14385m, DateTime.UtcNow);
+        topUp.OpenFinancialReview("case-cart-1", "VERIFY_UNKNOWN");
+
+        var topUps = new Mock<ITopUpRequestRepository>();
+        topUps.Setup(x => x.GetByIdAsync(topUp.Id, It.IsAny<CancellationToken>())).ReturnsAsync(topUp);
+
+        var cart = CourseCart.Create(Guid.NewGuid(), _buyer.Id.Value, "buyer", ["course"], null);
+        cart.SetQuote([new("course", "دوره", 105, 0, 0, 105)]);
+        cart.AwaitTopUp(topUp.Id.Value);
+
+        _store.Setup(x => x.FindAsync(cart.Id, _buyer.Id.Value, It.IsAny<CancellationToken>())).ReturnsAsync(cart);
+
+        var users = new Mock<IUserRepository>();
+        users.Setup(x => x.GetByIdAsync(_buyer.Id, It.IsAny<CancellationToken>())).ReturnsAsync(_buyer);
+        var settings = new Mock<ISystemSettingRepository>();
+        settings.Setup(x => x.GetRialToNoorConversionRateAsync(It.IsAny<CancellationToken>())).ReturnsAsync(137);
+
+        var service = new CourseCartService(_store.Object, _pricing.Object, users.Object,
+            Mock.Of<IWalletRepository>(), settings.Object, Mock.Of<ICoursePurchaseRepository>(), topUps.Object);
+
+        var response = (await service.GetAsync(_buyer.Id.Value, cart.Id, default)).Value;
+
+        response.Status.Should().Be("AwaitingTopUp");
+        response.TopUpStatus.Should().Be("Pending");
+        response.IsUnderReview.Should().BeTrue();
+        response.ReviewCaseId.Should().Be("case-cart-1");
+        response.ReviewReasonCode.Should().Be("VERIFY_UNKNOWN");
+        response.GatewayResultKind.Should().Be(GatewayResultKinds.Unknown);
     }
 }

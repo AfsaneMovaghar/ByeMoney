@@ -34,6 +34,14 @@ public sealed class GetTopUpCheckoutQueryHandler(
             courses.Add(new(item.ExternalId, status));
         }
         var cart = carts is null ? null : await carts.FindByTopUpAsync(topUp.Id.Value, userId.Value, ct);
-        return new(topUp.Id.Value, topUp.Status.ToString(), courses, cart?.Id);
+        return new(
+            topUp.Id.Value,
+            topUp.Status.ToString(),
+            courses,
+            cart?.Id,
+            topUp.IsUnderReview,
+            topUp.ReviewCaseId,
+            topUp.ReviewReasonCode,
+            topUp.GatewayResultKind);
     }
 }

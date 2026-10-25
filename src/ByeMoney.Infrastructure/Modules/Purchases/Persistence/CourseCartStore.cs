@@ -1,4 +1,4 @@
-using ByeMoney.Application.Modules.Purchases.Cart.Constants;
+﻿using ByeMoney.Application.Modules.Purchases.Cart.Constants;
 using ByeMoney.Application.Modules.Purchases.Cart.Interfaces;
 using ByeMoney.Application.Modules.Purchases.Cart.Services;
 using ByeMoney.Application.Modules.Settings.Interfaces;
@@ -25,10 +25,14 @@ public sealed class CourseCartStore(IServiceScopeFactory scopes) : ICourseCartSt
     }
 
     private static Task Lock(ApplicationDbContext db, Guid id, CancellationToken ct) =>
-        db.Database.ExecuteSqlInterpolatedAsync($"SELECT pg_advisory_xact_lock(1869767797, hashtext({id.ToString()}))", ct);
+        db.Database.IsNpgsql()
+            ? db.Database.ExecuteSqlInterpolatedAsync($"SELECT pg_advisory_xact_lock(1869767797, hashtext({id.ToString()}))", ct)
+            : Task.CompletedTask;
 
     private static Task LockBuyer(ApplicationDbContext db, Guid id, CancellationToken ct) =>
-        db.Database.ExecuteSqlInterpolatedAsync($"SELECT pg_advisory_xact_lock(1869767798, hashtext({id.ToString()}))", ct);
+        db.Database.IsNpgsql()
+            ? db.Database.ExecuteSqlInterpolatedAsync($"SELECT pg_advisory_xact_lock(1869767798, hashtext({id.ToString()}))", ct)
+            : Task.CompletedTask;
 
     public Task<CourseCart?> FindAsync(Guid id, Guid buyerId, CancellationToken ct) =>
         Run((_, db) => db.Set<CourseCart>()
@@ -200,8 +204,11 @@ public sealed class CourseCartStore(IServiceScopeFactory scopes) : ICourseCartSt
                 var alreadyPurchased = productIds.Length > 0 && (parentIds.Length > 0
                     ? await purchaseQuery.AnyAsync(x =>
                         productIds.Contains(x.Snapshot.ExternalProductId) ||
+                        (x.Snapshot.ExternalParentId != null && productIds.Contains(x.Snapshot.ExternalParentId)) ||
                         (x.Snapshot.ItemType == ProductItemType.Course && parentIds.Contains(x.Snapshot.ExternalProductId)), ct)
-                    : await purchaseQuery.AnyAsync(x => productIds.Contains(x.Snapshot.ExternalProductId), ct));
+                    : await purchaseQuery.AnyAsync(x =>
+                        productIds.Contains(x.Snapshot.ExternalProductId) ||
+                        (x.Snapshot.ExternalParentId != null && productIds.Contains(x.Snapshot.ExternalParentId)), ct));
 
                 if (alreadyPurchased)
                 {

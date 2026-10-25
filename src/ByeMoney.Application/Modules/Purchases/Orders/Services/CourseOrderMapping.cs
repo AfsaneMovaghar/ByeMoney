@@ -181,10 +181,11 @@ public static class CourseOrderMapping
     private static bool IsPaid(CoursePurchase purchase) => purchase.Status is
         CoursePurchaseStatus.Debited or CoursePurchaseStatus.NotificationSent or CoursePurchaseStatus.NotificationFailed;
 
-    private static bool NeedsReview(TopUpRequest? topUp) => topUp is not null &&
-        (topUp.Status == TopUpStatus.Unresolved ||
-         topUp.GatewayResultKind is GatewayResultKinds.Unknown or GatewayResultKinds.ReverseFailed ||
-         topUp.ReviewOpenedAtUtc.HasValue && !topUp.ReviewResolvedAtUtc.HasValue);
+    private static bool NeedsReview(TopUpRequest? topUp) => topUp?.IsUnderReview ?? false;
+
+
+
+
 
     private static CourseOrderDeliveryStatus Delivery(IReadOnlyList<CourseOrderItem> items)
     {

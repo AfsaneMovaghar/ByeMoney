@@ -196,6 +196,23 @@ public class TopUpRequestTests
         var actZeroPrice = () => TopUpRequest.Create(userId, 100m, PaymentMethod.Gateway,
             pendingItems: new[] { new PendingItemSnapshot(PendingItemType.Course, "c1", 0m) }, rialPerNoor: 1000m);
         actZeroPrice.Should().Throw<DomainException>();
+    }
+
+    [Fact]
+    public void IsUnderReview_ShouldReflectFinancialReviewAndAmbiguousGatewayStatus()
+    {
+        var request = TopUpRequest.CreateGateway(UserId.New(), 100m, 137m);
+        request.IsUnderReview.Should().BeFalse();
+
+        request.RecordGatewayResult("evt-unknown", "SEP", GatewayResultKinds.Unknown,
+            null, null, "-6", 13700m, 13700m, DateTime.UtcNow);
+        request.IsUnderReview.Should().BeTrue();
+        request.Status.Should().Be(TopUpStatus.Pending);
+
+        request.OpenFinancialReview("case-123", "VERIFY_UNKNOWN");
+        request.IsUnderReview.Should().BeTrue();
+        request.ReviewCaseId.Should().Be("case-123");
+        request.ReviewReasonCode.Should().Be("VERIFY_UNKNOWN");
 
     }
 }

@@ -119,4 +119,22 @@ public class CourseCheckoutTests
         (await handler.Handle(new("course-1"), CancellationToken.None)).PurchaseStatus.Should().Be(CheckoutStates.Completed);
         _catalog.Verify(x => x.GetCourseAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
     }
+
+    [Fact]
+    public async Task TopUpCheckout_WithUnknownGatewayAndReviewCase_ExposesUnderReviewInfo()
+    {
+        var topUp = TopUpRequest.CreateGateway(_userId, 50m, 137m, [new(PendingItemType.Course, "course-1", 50m)]);
+        topUp.RecordGatewayResult("evt-1", "SEP", GatewayResultKinds.Unknown, null, null, "-6", 6850m, 6850m, DateTime.UtcNow);
+        topUp.OpenFinancialReview("case-999", "VERIFY_UNKNOWN");
+        _topUps.Setup(x => x.GetByIdAsync(topUp.Id, It.IsAny<CancellationToken>())).ReturnsAsync(topUp);
+
+        var handler = new GetTopUpCheckoutQueryHandler(_current.Object, _topUps.Object, _purchases.Object);
+        var response = await handler.Handle(new(topUp.Id.Value), CancellationToken.None);
+
+        response.TopUpStatus.Should().Be("Pending");
+        response.IsUnderReview.Should().BeTrue();
+        response.ReviewCaseId.Should().Be("case-999");
+        response.ReviewReasonCode.Should().Be("VERIFY_UNKNOWN");
+        response.GatewayResultKind.Should().Be(GatewayResultKinds.Unknown);
+    }
 }

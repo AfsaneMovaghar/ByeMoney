@@ -16,5 +16,9 @@ public sealed record CartResponse(
     string? TopUpStatus,
     IReadOnlyList<CartCourseResponse> Courses,
     decimal ShippingAmountInNoor = 0m,
-    string? ShippingRuleLabel = null);
+    string? ShippingRuleLabel = null,
+    bool IsUnderReview = false,
+    string? ReviewCaseId = null,
+    string? ReviewReasonCode = null,
+    string? GatewayResultKind = null);
 

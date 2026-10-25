@@ -76,6 +76,14 @@ public class TopUpRequest : BaseEntity<TopUpRequestId>
     /// <summary>فهرست رویدادهای رسیدگی و شواهد آن‌ها؛ به‌صورت JSONB برای ممیزی تاریخچه تصمیم‌های مالی ذخیره می‌شود.</summary>
     public IReadOnlyList<FinancialReviewAudit> ReviewAudit { get; private set; } = [];
 
+    /// <summary>نشان می‌دهد آیا شارژ در وضعیت ابهام یا پرونده رسیدگی مالی باز قرار دارد یا خیر.</summary>
+    public bool IsUnderReview =>
+        !ReviewResolvedAtUtc.HasValue &&
+        (Status == TopUpStatus.Unresolved ||
+         GatewayResultKind is GatewayResultKinds.Unknown or GatewayResultKinds.ReverseFailed ||
+         ReviewCaseId is not null ||
+         ReviewOpenedAtUtc.HasValue);
+
     /// <summary>اقلام خرید موقت متصل به شارژ و snapshot نوع، شناسه و قیمت هر قلم؛ برای ادامه خرید پس از تأیید پرداخت ذخیره می‌شود.</summary>
     public IReadOnlyList<PendingItemSnapshot> PendingItems { get; private set; } = [];
 

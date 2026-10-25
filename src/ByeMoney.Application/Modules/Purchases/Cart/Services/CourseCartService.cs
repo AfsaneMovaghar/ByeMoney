@@ -1,4 +1,4 @@
-using ByeMoney.Application.Modules.Purchases.Cart.Constants;
+﻿using ByeMoney.Application.Modules.Purchases.Cart.Constants;
 using ByeMoney.Application.Modules.Purchases.Cart.DTOs;
 using ByeMoney.Application.Modules.Purchases.Cart.Interfaces;
 using ByeMoney.Application.Modules.Settings.Interfaces;
@@ -41,6 +41,17 @@ public sealed class CourseCartService(
     {
         var user = await users.GetByIdAsync(new UserId(buyerId), ct);
         if (user is null || !user.IsActive)
+        {
+            return Result<CartResponse>.Conflict(CartErrors.Conflict, CartErrorCodes.Conflict);
+        }
+
+        var courseExternalIds = items
+            .Where(x => x.Type != ProductItemType.Product)
+            .Select(x => x.ExternalId)
+            .Distinct()
+            .ToArray();
+
+        if (courseExternalIds.Length > 0 && await purchases.HasPurchasedAnyAsync(new UserId(buyerId), courseExternalIds, ct: ct))
         {
             return Result<CartResponse>.Conflict(CartErrors.Conflict, CartErrorCodes.Conflict);
         }
@@ -124,6 +135,23 @@ public sealed class CourseCartService(
                 quote.Value.CouponCode != cart.CouponCode)
             {
                 return Result<CartResponse>.Failure(CartErrors.Invalid, CartErrorCodes.Invalid);
+            }
+
+            var quoteProductIds = quote.Value.Items
+                .Where(x => x.Type != ProductItemType.Product)
+                .Select(x => x.ExternalCourseId)
+                .ToArray();
+            var quoteParentIds = quote.Value.Items
+                .Where(x => x.Type == ProductItemType.CourseChapter && !string.IsNullOrEmpty(x.ParentExternalId))
+                .Select(x => x.ParentExternalId!)
+                .Distinct()
+                .ToArray();
+
+            if (await purchases.HasPurchasedAnyAsync(new UserId(buyerId), quoteProductIds, quoteParentIds, ct))
+            {
+                await store.FailAsync(id, buyerId, false, cart.ReservationId, ct);
+                await SynchronizeAsync(id, buyerId, ct);
+                return Result<CartResponse>.Conflict(CartErrors.Conflict, CartErrorCodes.Conflict);
             }
 
             try
@@ -371,7 +399,11 @@ public sealed class CourseCartService(
             topUp?.Status.ToString(),
             courses,
             cart.ShippingAmountInNoor,
-            cart.ShippingRuleLabel);
+            cart.ShippingRuleLabel,
+            topUp?.IsUnderReview ?? false,
+            topUp?.ReviewCaseId,
+            topUp?.ReviewReasonCode,
+            topUp?.GatewayResultKind);
     }
 
     private static Result<T> Copy<T, U>(Result<U> result) => Copy<T>((Result)result);

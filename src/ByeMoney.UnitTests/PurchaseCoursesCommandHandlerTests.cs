@@ -34,6 +34,13 @@ public class PurchaseCoursesCommandHandlerTests
 
     public PurchaseCoursesCommandHandlerTests()
     {
+        _coursePurchaseRepoMock
+            .Setup(r => r.ExecutePurchaseTransactionAsync(It.IsAny<UserId>(), It.IsAny<Func<Task>>(), It.IsAny<CancellationToken>()))
+            .Returns<UserId, Func<Task>, CancellationToken>(async (_, action, _) =>
+            {
+                await action();
+                return ByeMoney.Domain.Common.Result.Success();
+            });
         _handler = new PurchaseCoursesCommandHandler(
             _userRepoMock.Object,
             _tarhElahiClientMock.Object,

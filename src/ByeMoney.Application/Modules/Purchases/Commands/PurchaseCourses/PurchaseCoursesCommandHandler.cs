@@ -1,3 +1,5 @@
+using ByeMoney.Application.Modules.Purchases.Cart.Constants;
+using ByeMoney.Application.Modules.Purchases.Constants;
 using ByeMoney.Application.Modules.Wallet.DTOs;
 using ByeMoney.Application.Modules.Settings.Interfaces;
 using ByeMoney.Application.Modules.Identity.Users.Interfaces;
@@ -8,6 +10,7 @@ using ByeMoney.Application.Modules.Purchases.Services;
 using ByeMoney.Application.Modules.TarhElahiIntegration.DTOs;
 using ByeMoney.Application.Modules.TarhElahiIntegration.Interfaces;
 using ByeMoney.Application.Modules.Wallet.Interfaces;
+using ByeMoney.Application.Resources;
 using ByeMoney.Domain.Modules.Identity.Users;
 using ByeMoney.Domain.Modules.Purchases;
 using ByeMoney.Domain.Modules.Wallet.Ledgers;
@@ -52,15 +55,34 @@ public class PurchaseCoursesCommandHandler : IRequestHandler<PurchaseCoursesComm
     public async Task<Result<PurchaseCoursesResponse>> Handle(PurchaseCoursesCommand request, CancellationToken cancellationToken)
     {
         var buyerUserId = new UserId(request.BuyerUserId);
-        var user = (await _userRepository.GetByIdAsync(buyerUserId, cancellationToken))!;
+        var user = await _userRepository.GetByIdAsync(buyerUserId, cancellationToken);
+        if (user is null || !user.IsActive)
+        {
+            return Result<PurchaseCoursesResponse>.Conflict(
+                ApplicationErrors.CoursePurchase_UserNotFound,
+                CartErrorCodes.Conflict);
+        }
+
+        if (await _coursePurchaseRepository.HasPurchasedAnyAsync(buyerUserId, request.ExternalCourseIds, ct: cancellationToken))
+        {
+            return Result<PurchaseCoursesResponse>.Conflict(
+                ApplicationErrors.CoursePurchase_AlreadyPurchased,
+                PurchaseErrorCodes.AlreadyPurchased);
+        }
 
         var purchaseList = new List<(CoursePurchase Purchase, TarhElahiCourseDto Course, ProductSnapshot Snapshot, decimal PriceInNoor)>();
-
         var referenceRate = await PurchaseReferenceRateReader.ReadAsync(_settings, cancellationToken);
 
         foreach (var courseId in request.ExternalCourseIds)
         {
-            var course = (await _tarhElahiClient.GetCourseAsync(courseId, cancellationToken))!;
+            var course = await _tarhElahiClient.GetCourseAsync(courseId, cancellationToken);
+            if (course is null)
+            {
+                return Result<PurchaseCoursesResponse>.Failure(
+                    ApplicationErrors.CoursePurchase_CourseNotFound,
+                    CartErrorCodes.NotFound);
+            }
+
             var priceInNoor = request.IsFree ? 0m : course.PriceNoor;
 
             var snapshot = ProductSnapshot.Create(
@@ -72,27 +94,43 @@ public class PurchaseCoursesCommandHandler : IRequestHandler<PurchaseCoursesComm
                 referenceRialPerNoorAtPurchaseTime: referenceRate);
 
             var purchase = CoursePurchase.Create(buyerUserId, snapshot, request.IsFree, request.FreeReason);
-            await _coursePurchaseRepository.AddAsync(purchase, cancellationToken);
-
             purchaseList.Add((purchase, course, snapshot, priceInNoor));
         }
 
         var transactionId = Guid.NewGuid();
 
-        if (request.IsFree)
-        {
-            foreach (var item in purchaseList)
+        var persistenceResult = await _coursePurchaseRepository.ExecutePurchaseTransactionAsync(
+            buyerUserId,
+            async () =>
             {
-                item.Purchase.MarkDebited(transactionId);
-                _coursePurchaseRepository.Update(item.Purchase);
-            }
+                foreach (var item in purchaseList)
+                {
+                    await _coursePurchaseRepository.AddAsync(item.Purchase, cancellationToken);
+                }
 
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
-        }
-        else
+                if (request.IsFree)
+                {
+                    foreach (var item in purchaseList)
+                    {
+                        item.Purchase.MarkDebited(transactionId);
+                        _coursePurchaseRepository.Update(item.Purchase);
+                    }
+
+                    await _unitOfWork.SaveChangesAsync(cancellationToken);
+                }
+                else
+                {
+                    var provisioned = await _walletProvisioningService.GetOrCreateUserWalletAsync(buyerUserId, cancellationToken);
+                    await ExecuteFinancialTransactionAsync(provisioned, purchaseList, transactionId, cancellationToken);
+                }
+            },
+            cancellationToken);
+
+        if (persistenceResult.IsFailure)
         {
-            var provisioned = await _walletProvisioningService.GetOrCreateUserWalletAsync(buyerUserId, cancellationToken);
-            await ExecuteFinancialTransactionAsync(provisioned, purchaseList, transactionId, cancellationToken);
+            return Result<PurchaseCoursesResponse>.Conflict(
+                persistenceResult.ErrorMessage ?? ApplicationErrors.CoursePurchase_AlreadyPurchased,
+                persistenceResult.ErrorCode ?? PurchaseErrorCodes.AlreadyPurchased);
         }
 
         foreach (var item in purchaseList)
