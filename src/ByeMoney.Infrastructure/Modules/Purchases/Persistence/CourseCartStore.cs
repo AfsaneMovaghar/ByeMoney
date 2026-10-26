@@ -1,4 +1,4 @@
-﻿using ByeMoney.Application.Modules.Purchases.Cart.Constants;
+using ByeMoney.Application.Modules.Purchases.Cart.Constants;
 using ByeMoney.Application.Modules.Purchases.Cart.Interfaces;
 using ByeMoney.Application.Modules.Purchases.Cart.Services;
 using ByeMoney.Application.Modules.Settings.Interfaces;
@@ -105,7 +105,7 @@ public sealed class CourseCartStore(IServiceScopeFactory scopes) : ICourseCartSt
         if (cart.TopUpRequestId is Guid topUpId)
         {
             var topUp = await db.Set<TopUpRequest>().FindAsync([new TopUpRequestId(topUpId)], ct);
-            if (topUp?.Status is not (TopUpStatus.Rejected or TopUpStatus.Confirmed))
+            if (topUp?.Status is not (TopUpStatus.Rejected or TopUpStatus.Confirmed or TopUpStatus.Unresolved or TopUpStatus.ManuallyRefunded))
             {
                 return Conflict();
             }

@@ -151,4 +151,124 @@ public sealed class CourseCartRefreshTests
         response.ReviewReasonCode.Should().Be("VERIFY_UNKNOWN");
         response.GatewayResultKind.Should().Be(GatewayResultKinds.Unknown);
     }
+
+    [Fact]
+    public async Task CartAwaitingTopUp_WhenTopUpIsUnresolved_TransitionsToFailedAndReopensCart()
+    {
+        var topUp = TopUpRequest.CreateGateway(new UserId(_buyer.Id.Value), 105m, 137m);
+        topUp.OpenFinancialReview("case-1", FinancialReviewReasonCodes.NoCallback);
+        topUp.ResolveManualReview("case-1", FinancialReviewOutcomeCodes.NoMatchingDeposit, null,
+            new(Guid.NewGuid(), 1, new DateOnly(2026, 9, 30), false, null, null, null, null, null),
+            Guid.NewGuid(), "حسابدار");
+
+        var topUps = new Mock<ITopUpRequestRepository>();
+        topUps.Setup(x => x.GetByIdAsync(topUp.Id, It.IsAny<CancellationToken>())).ReturnsAsync(topUp);
+
+        var cart = Ready();
+        cart.AwaitTopUp(topUp.Id.Value);
+
+        _store.Setup(x => x.FailAsync(cart.Id, _buyer.Id.Value, false, cart.ReservationId, It.IsAny<CancellationToken>()))
+            .Callback(() => cart.Fail(false))
+            .Returns(Task.CompletedTask);
+
+        _pricing.Setup(x => x.TransitionAsync(It.IsAny<CartTransitionRequest>(), "release", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Result.Success());
+
+        _pricing.Setup(x => x.TransitionAsync(It.IsAny<CartTransitionRequest>(), "check", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Result.Success());
+
+        _store.Setup(x => x.RecordSynchronizationAsync(cart.Id, _buyer.Id.Value, true, null, It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .Callback(() => cart.RecordSynchronization(true, null))
+            .Returns(Task.CompletedTask);
+
+        _store.Setup(x => x.ReopenAsync(cart.Id, _buyer.Id.Value, cart.ReservationId, It.IsAny<CancellationToken>()))
+            .Callback(() => cart.Reopen())
+            .ReturnsAsync(Result<CourseCart>.Success(cart));
+
+        _store.Setup(x => x.SetQuoteAsync(cart.Id, _buyer.Id.Value, It.IsAny<IReadOnlyList<CourseCartQuoteItem>>(), It.IsAny<decimal>(), It.IsAny<string?>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .Callback((Guid _, Guid _, IReadOnlyList<CourseCartQuoteItem> items, decimal sAmt, string? sRule, Guid res, CancellationToken _) => cart.SetQuote(items, sAmt, sRule))
+            .ReturnsAsync(cart);
+
+        _pricing.Setup(x => x.PrepareAsync(It.IsAny<CartQuoteRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((CartQuoteRequest request, CancellationToken _) => Result<CartQuote>.Success(
+                new(request.CartId, request.BuyerExternalUserId, request.CouponCode,
+                    [new("course", "دوره", 105, 0, 0, 105)])));
+
+        var users = new Mock<IUserRepository>();
+        users.Setup(x => x.GetByIdAsync(_buyer.Id, It.IsAny<CancellationToken>())).ReturnsAsync(_buyer);
+        var settings = new Mock<ISystemSettingRepository>();
+        settings.Setup(x => x.GetRialToNoorConversionRateAsync(It.IsAny<CancellationToken>())).ReturnsAsync(137);
+
+        var service = new CourseCartService(_store.Object, _pricing.Object, users.Object,
+            Mock.Of<IWalletRepository>(), settings.Object, Mock.Of<ICoursePurchaseRepository>(), topUps.Object);
+
+        var result = await service.PrepareAsync(_buyer.Id.Value, cart.Id, ["course"], null, default);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Status.Should().Be("Ready");
+        cart.TopUpRequestId.Should().BeNull();
+        cart.TopUpRequestIds.Should().Contain(topUp.Id.Value);
+        _store.Verify(x => x.FailAsync(cart.Id, _buyer.Id.Value, false, It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Once);
+        _store.Verify(x => x.ReopenAsync(cart.Id, _buyer.Id.Value, It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task CartAwaitingTopUp_WhenTopUpIsManuallyRefunded_TransitionsToFailedAndReopensCart()
+    {
+        var topUp = TopUpRequest.CreateGateway(new UserId(_buyer.Id.Value), 105m, 137m);
+        topUp.OpenFinancialReview("case-2", FinancialReviewReasonCodes.NoCallback);
+        topUp.ResolveManualReview("case-2", FinancialReviewOutcomeCodes.ManualRefund, null,
+            new(Guid.NewGuid(), 1, new DateOnly(2026, 9, 30), null, null, null, null, null, "refund-123"),
+            Guid.NewGuid(), "حسابدار");
+
+        var topUps = new Mock<ITopUpRequestRepository>();
+        topUps.Setup(x => x.GetByIdAsync(topUp.Id, It.IsAny<CancellationToken>())).ReturnsAsync(topUp);
+
+        var cart = Ready();
+        cart.AwaitTopUp(topUp.Id.Value);
+
+        _store.Setup(x => x.FailAsync(cart.Id, _buyer.Id.Value, false, cart.ReservationId, It.IsAny<CancellationToken>()))
+            .Callback(() => cart.Fail(false))
+            .Returns(Task.CompletedTask);
+
+        _pricing.Setup(x => x.TransitionAsync(It.IsAny<CartTransitionRequest>(), "release", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Result.Success());
+
+        _pricing.Setup(x => x.TransitionAsync(It.IsAny<CartTransitionRequest>(), "check", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Result.Success());
+
+        _store.Setup(x => x.RecordSynchronizationAsync(cart.Id, _buyer.Id.Value, true, null, It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .Callback(() => cart.RecordSynchronization(true, null))
+            .Returns(Task.CompletedTask);
+
+        _store.Setup(x => x.ReopenAsync(cart.Id, _buyer.Id.Value, cart.ReservationId, It.IsAny<CancellationToken>()))
+            .Callback(() => cart.Reopen())
+            .ReturnsAsync(Result<CourseCart>.Success(cart));
+
+        _store.Setup(x => x.SetQuoteAsync(cart.Id, _buyer.Id.Value, It.IsAny<IReadOnlyList<CourseCartQuoteItem>>(), It.IsAny<decimal>(), It.IsAny<string?>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .Callback((Guid _, Guid _, IReadOnlyList<CourseCartQuoteItem> items, decimal sAmt, string? sRule, Guid res, CancellationToken _) => cart.SetQuote(items, sAmt, sRule))
+            .ReturnsAsync(cart);
+
+        _pricing.Setup(x => x.PrepareAsync(It.IsAny<CartQuoteRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((CartQuoteRequest request, CancellationToken _) => Result<CartQuote>.Success(
+                new(request.CartId, request.BuyerExternalUserId, request.CouponCode,
+                    [new("course", "دوره", 105, 0, 0, 105)])));
+
+        var users = new Mock<IUserRepository>();
+        users.Setup(x => x.GetByIdAsync(_buyer.Id, It.IsAny<CancellationToken>())).ReturnsAsync(_buyer);
+        var settings = new Mock<ISystemSettingRepository>();
+        settings.Setup(x => x.GetRialToNoorConversionRateAsync(It.IsAny<CancellationToken>())).ReturnsAsync(137);
+
+        var service = new CourseCartService(_store.Object, _pricing.Object, users.Object,
+            Mock.Of<IWalletRepository>(), settings.Object, Mock.Of<ICoursePurchaseRepository>(), topUps.Object);
+
+        var result = await service.PrepareAsync(_buyer.Id.Value, cart.Id, ["course"], null, default);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Status.Should().Be("Ready");
+        cart.TopUpRequestId.Should().BeNull();
+        cart.TopUpRequestIds.Should().Contain(topUp.Id.Value);
+        _store.Verify(x => x.FailAsync(cart.Id, _buyer.Id.Value, false, It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Once);
+        _store.Verify(x => x.ReopenAsync(cart.Id, _buyer.Id.Value, It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
 }

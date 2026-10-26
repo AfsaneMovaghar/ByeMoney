@@ -577,7 +577,7 @@ public sealed class CourseCartPostgresTests : IAsyncLifetime
     }
 
     [CartPostgresFact]
-    public async Task PendingOrUnresolvedBankPaymentCannotBeReopened()
+    public async Task PendingBankPaymentCannotBeReopened()
     {
         var cart = await AwaitingTopUp();
         using var scope = _provider.CreateScope();
@@ -586,12 +586,117 @@ public sealed class CourseCartPostgresTests : IAsyncLifetime
         preview.Value.Status.Should().Be("AwaitingTopUp");
         _pricing.Verify(x => x.PrepareAsync(It.IsAny<CartQuoteRequest>(), It.IsAny<CancellationToken>()), Times.Never);
         (await Store.ReopenAsync(cart.Id, _buyer.Id.Value, cart.ReservationId, default)).IsFailure.Should().BeTrue();
-        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        await db.Database.ExecuteSqlInterpolatedAsync($"UPDATE \"TopUpRequests\" SET \"Status\" = 'Unresolved' WHERE \"Id\" = {cart.TopUpRequestId!.Value}");
-        // مانند هر درخواست مستقل، وضعیت تازه در context تازه خوانده می‌شود.
+        (await Financials()).Should().Be((20.2m, 0, 0m, 0m));
+    }
+
+    [CartPostgresFact]
+    public async Task UnresolvedPaymentRetriesSameCartWithFreshQuoteAndRetainsOldTopUp()
+    {
+        var cart = await AwaitingTopUp();
+        var previousTopUp = cart.TopUpRequestId!.Value;
+        using (var scope = _provider.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var topUp = await db.Set<TopUpRequest>().FindAsync(new TopUpRequestId(previousTopUp));
+            topUp!.OpenFinancialReview("case-unres", FinancialReviewReasonCodes.NoCallback);
+            topUp.ResolveManualReview("case-unres", FinancialReviewOutcomeCodes.NoMatchingDeposit, null,
+                new(Guid.NewGuid(), 1, new DateOnly(2026, 9, 30), false, null, null, null, null, null),
+                Guid.NewGuid(), "حسابدار").IsSuccess.Should().BeTrue();
+            await db.SaveChangesAsync();
+        }
+
+        _pricing.Setup(x => x.PrepareAsync(It.IsAny<CartQuoteRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((CartQuoteRequest request, CancellationToken _) => Result<CartQuote>.Success(
+                new(request.CartId, request.BuyerExternalUserId, request.CouponCode,
+                    [new("a", "الف", 200, 0, 20, 180), new("b", "ب", 100, 0, 10, 90)])));
+
+        // مسیر ۱: کاربر در حالی که سبد هنوز AwaitingTopUp است مستقیماً PrepareAsync را صدا می‌زند
+        using var serviceScope = _provider.CreateScope();
+        var service = serviceScope.ServiceProvider.GetRequiredService<CourseCartService>();
+        var preview = await service.PrepareAsync(_buyer.Id.Value, cart.Id, ["a", "b"], "OFF", default);
+        preview.IsSuccess.Should().BeTrue();
+        preview.Value.CartId.Should().Be(cart.Id);
+        preview.Value.PriceInNoor.Should().Be(270);
+
+        var current = (await Store.FindAsync(cart.Id, _buyer.Id.Value, default))!;
+        current.ReservationId.Should().NotBe(cart.ReservationId);
+        current.TopUpRequestId.Should().BeNull();
+        current.TopUpRequestIds.Should().Contain(previousTopUp);
+
+        // پرداخت تازه با شناسه و درگاه تازه
+        var attempts = await Task.WhenAll(Enumerable.Range(0, 3).Select(_ => Store.CreateTopUpAsync(cart.Id, _buyer.Id.Value, default)));
+        attempts.Should().OnlyContain(x => x.IsSuccess);
+        var retryTopUpId = attempts[0].Value.TopUpRequestId;
+        retryTopUpId.Should().NotBe(previousTopUp);
+
+        using var verifyScope = _provider.CreateScope();
+        var verifyDb = verifyScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var retryTopUp = await verifyDb.Set<TopUpRequest>().FindAsync(new TopUpRequestId(retryTopUpId));
+        retryTopUp!.ConfirmGateway("retry-bank-ref", "retry-rrn", "SEP").IsSuccess.Should().BeTrue();
+        await verifyScope.ServiceProvider.GetRequiredService<ITopUpSettlementService>().SettleAsync(retryTopUp);
+
+        current = (await Store.FindAsync(cart.Id, _buyer.Id.Value, default))!;
+        await service.ProcessAsync(current, default);
+        (await service.GetAsync(_buyer.Id.Value, cart.Id, default)).Value.Status.Should().Be("Paid");
+        (await Financials()).Should().Be((.2m, 2, 270m, 0m));
+
+        // پرداخت دیرهنگام شارژ قدیمی به صورت Verified نباید ثبت شود
+        var oldTopUp = await verifyDb.Set<TopUpRequest>().FindAsync(new TopUpRequestId(previousTopUp));
+        oldTopUp!.RecordGatewayResult("evt-late", "SEP", GatewayResultKinds.Verified, "late-ref", "late-rrn", "0", 10000, 10000, DateTime.UtcNow)
+            .IsFailure.Should().BeTrue();
+    }
+
+    [CartPostgresFact]
+    public async Task ManuallyRefundedPaymentRetriesSameCartAndProtectsRefundRecord()
+    {
+        var cart = await AwaitingTopUp();
+        var previousTopUp = cart.TopUpRequestId!.Value;
+        using (var scope = _provider.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var topUp = await db.Set<TopUpRequest>().FindAsync(new TopUpRequestId(previousTopUp));
+            topUp!.OpenFinancialReview("case-refund", FinancialReviewReasonCodes.NoCallback);
+            topUp.ResolveManualReview("case-refund", FinancialReviewOutcomeCodes.ManualRefund, null,
+                new(Guid.NewGuid(), 1, new DateOnly(2026, 9, 30), null, null, null, null, null, "refund-ref-123"),
+                Guid.NewGuid(), "حسابدار").IsSuccess.Should().BeTrue();
+            await db.SaveChangesAsync();
+        }
+
+        // مسیر ۲: بک‌گراند ProcessAsync ابتدا اجرا می‌شود و سبد را به Failed منتقل می‌کند
         using var recoveryScope = _provider.CreateScope();
         await recoveryScope.ServiceProvider.GetRequiredService<CourseCartService>().ProcessAsync(cart, default);
-        (await Store.ReopenAsync(cart.Id, _buyer.Id.Value, cart.ReservationId, default)).IsFailure.Should().BeTrue();
-        (await Financials()).Should().Be((20.2m, 0, 0m, 0m));
+
+        var failedCart = (await Store.FindAsync(cart.Id, _buyer.Id.Value, default))!;
+        failedCart.Status.Should().Be(CourseCartStatus.Failed);
+
+        _pricing.Setup(x => x.PrepareAsync(It.IsAny<CartQuoteRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((CartQuoteRequest request, CancellationToken _) => Result<CartQuote>.Success(
+                new(request.CartId, request.BuyerExternalUserId, request.CouponCode,
+                    [new("a", "الف", 200, 0, 20, 180), new("b", "ب", 100, 0, 10, 90)])));
+
+        using var serviceScope = _provider.CreateScope();
+        var service = serviceScope.ServiceProvider.GetRequiredService<CourseCartService>();
+        var preview = await service.PrepareAsync(_buyer.Id.Value, cart.Id, ["a", "b"], "OFF", default);
+        preview.IsSuccess.Should().BeTrue();
+        preview.Value.PriceInNoor.Should().Be(270);
+
+        var current = (await Store.FindAsync(cart.Id, _buyer.Id.Value, default))!;
+        current.ReservationId.Should().NotBe(cart.ReservationId);
+        current.TopUpRequestId.Should().BeNull();
+        current.TopUpRequestIds.Should().Contain(previousTopUp);
+
+        var createRetry = await Store.CreateTopUpAsync(cart.Id, _buyer.Id.Value, default);
+        createRetry.IsSuccess.Should().BeTrue();
+        createRetry.Value.TopUpRequestId.Should().NotBe(previousTopUp);
+
+        using var verifyScope = _provider.CreateScope();
+        var verifyDb = verifyScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var oldTopUp = await verifyDb.Set<TopUpRequest>().FindAsync(new TopUpRequestId(previousTopUp));
+        oldTopUp!.ManualRefundReference.Should().Be("refund-ref-123");
+        oldTopUp.Status.Should().Be(TopUpStatus.ManuallyRefunded);
+
+        // پرداخت دیرهنگام برای شارژ با مرجع بازپرداخت دستی نامعتبر است و نباید پذیرفته شود
+        oldTopUp.RecordGatewayResult("evt-late-refund", "SEP", GatewayResultKinds.Verified, "late-ref", "late-rrn", "0", 10000, 10000, DateTime.UtcNow)
+            .IsFailure.Should().BeTrue();
     }
 }

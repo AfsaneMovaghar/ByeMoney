@@ -1,4 +1,4 @@
-﻿using ByeMoney.Application.Modules.Purchases.Cart.Constants;
+using ByeMoney.Application.Modules.Purchases.Cart.Constants;
 using ByeMoney.Application.Modules.Purchases.Cart.DTOs;
 using ByeMoney.Application.Modules.Purchases.Cart.Interfaces;
 using ByeMoney.Application.Modules.Settings.Interfaces;
@@ -66,7 +66,7 @@ public sealed class CourseCartService(
         if (cart.Status == CourseCartStatus.AwaitingTopUp && cart.TopUpRequestId is Guid previousTopUpId)
         {
             var previousTopUp = await topUps.GetByIdAsync(new TopUpRequestId(previousTopUpId), ct);
-            if (previousTopUp?.Status == TopUpStatus.Rejected)
+            if (previousTopUp?.Status is TopUpStatus.Rejected or TopUpStatus.Unresolved or TopUpStatus.ManuallyRefunded)
             {
                 await store.FailAsync(id, buyerId, false, cart.ReservationId, ct);
                 cart = (await store.FindAsync(id, buyerId, ct))!;
