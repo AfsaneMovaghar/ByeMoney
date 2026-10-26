@@ -56,7 +56,11 @@ public static class CourseCartPayment
                     item.PriceInNoor,
                     amount);
 
-                if (cart.Total > 0)
+                if (amount == 0)
+                {
+                    physicalPurchase.MarkFree(cart.Id);
+                }
+                else
                 {
                     physicalPurchase.MarkDebited(cart.Id);
                 }
@@ -81,7 +85,11 @@ public static class CourseCartPayment
                     purchaseId: new CoursePurchaseId(purchaseIdGuid));
 
                 purchase.AttachToCart(cart.Id);
-                if (cart.Total > 0)
+                if (purchase.IsFree)
+                {
+                    purchase.MarkFree(cart.Id);
+                }
+                else
                 {
                     purchase.MarkDebited(cart.Id);
                 }

@@ -285,5 +285,7 @@ namespace ByeMoney.Domain.Resources {
         public static string TopUpRequest_ExternalTransactionMismatch => ResourceManager.GetString("TopUpRequest_ExternalTransactionMismatch", resourceCulture)!;
         public static string TopUpRequest_GatewayUnpaidWithBankTransaction => ResourceManager.GetString("TopUpRequest_GatewayUnpaidWithBankTransaction", resourceCulture)!;
         public static string TopUpRequest_CannotRecordResultForStatus => ResourceManager.GetString("TopUpRequest_CannotRecordResultForStatus", resourceCulture)!;
+        public static string CoursePurchase_CannotMarkNonFreeAsFree => ResourceManager.GetString("CoursePurchase_CannotMarkNonFreeAsFree", resourceCulture)!;
+        public static string PhysicalProductPurchase_CannotMarkNonFreeAsFree => ResourceManager.GetString("PhysicalProductPurchase_CannotMarkNonFreeAsFree", resourceCulture)!;
     }
 }

@@ -4,6 +4,7 @@ using ByeMoney.Application.Modules.Purchases.Commands.PrepareCourseCart;
 using ByeMoney.Application.Modules.Purchases.History.DTOs;
 using ByeMoney.Application.Modules.Purchases.History.Services;
 using ByeMoney.Application.Modules.Wallet.DTOs;
+using ByeMoney.Domain.Common.Exceptions;
 using ByeMoney.Domain.Modules.Identity.Users;
 using ByeMoney.Domain.Modules.Purchases;
 using ByeMoney.Domain.Modules.Wallet.Accounts;
@@ -132,6 +133,43 @@ public sealed class PhysicalProductCartFinancialTests
         wallet.Balance.Should().Be(50m);
         payment.LedgerEntries.Should().BeEmpty();
         payment.PhysicalPurchases.Should().HaveCount(1);
+        payment.PhysicalPurchases.Single().LedgerTransactionId.Should().Be(cart.Id);
+    }
+
+    [Fact]
+    public void PhysicalProductPurchase_MarkFree_OnPaidProduct_ThrowsDomainException()
+    {
+        var product = PhysicalProductPurchase.Create(
+            PhysicalProductPurchaseId.New(),
+            Guid.NewGuid(),
+            UserId.New(),
+            "prod-1",
+            "کتاب",
+            1,
+            100m,
+            100m);
+
+        var act = () => product.MarkFree(Guid.NewGuid());
+
+        act.Should().Throw<DomainException>();
+    }
+
+    [Fact]
+    public void PhysicalProductPurchase_MarkFree_WithEmptyGuid_ThrowsDomainException()
+    {
+        var product = PhysicalProductPurchase.Create(
+            PhysicalProductPurchaseId.New(),
+            Guid.NewGuid(),
+            UserId.New(),
+            "prod-free",
+            "هدیه",
+            1,
+            0m,
+            0m);
+
+        var act = () => product.MarkFree(Guid.Empty);
+
+        act.Should().Throw<DomainException>();
     }
 
     [Fact]

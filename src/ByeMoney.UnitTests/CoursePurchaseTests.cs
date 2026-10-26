@@ -148,4 +148,97 @@ public class CoursePurchaseTests
         // Assert
         act.Should().Throw<DomainException>();
     }
+
+    [Fact]
+    public void MarkFree_ShouldTransitionToDebited_AndSetLedgerTransactionId_WhenPendingAndFree()
+    {
+        // Arrange
+        var freeSnapshot = ProductSnapshot.Create(
+            externalProductId: "course-free-1",
+            productTitle: "دوره رایگان",
+            priceNoor: 0m,
+            isFree: true);
+        var purchase = CoursePurchase.Create(_buyerId, freeSnapshot, isFree: true, freeReason: "هدیه");
+        var referenceId = Guid.NewGuid();
+
+        // Act
+        purchase.MarkFree(referenceId);
+
+        // Assert
+        purchase.Status.Should().Be(CoursePurchaseStatus.Debited);
+        purchase.LedgerTransactionId.Should().Be(referenceId);
+        purchase.UpdatedAt.Should().NotBeNull();
+    }
+
+    [Fact]
+    public void MarkFree_ShouldThrowDomainException_WhenNotFree()
+    {
+        // Arrange
+        var purchase = CoursePurchase.Create(_buyerId, _validSnapshot, isFree: false);
+
+        // Act
+        var act = () => purchase.MarkFree(Guid.NewGuid());
+
+        // Assert
+        act.Should().Throw<DomainException>();
+    }
+
+    [Fact]
+    public void MarkFree_ShouldThrowDomainException_WhenNotPending()
+    {
+        // Arrange
+        var freeSnapshot = ProductSnapshot.Create("free-1", "رایگان", 0m, isFree: true);
+        var purchase = CoursePurchase.Create(_buyerId, freeSnapshot, isFree: true);
+        purchase.MarkFree(Guid.NewGuid());
+
+        // Act
+        var act = () => purchase.MarkFree(Guid.NewGuid());
+
+        // Assert
+        act.Should().Throw<DomainException>();
+    }
+
+    [Fact]
+    public void MarkFree_ShouldThrowDomainException_WhenTransactionIdIsEmptyGuid()
+    {
+        // Arrange
+        var freeSnapshot = ProductSnapshot.Create("free-1", "رایگان", 0m, isFree: true);
+        var purchase = CoursePurchase.Create(_buyerId, freeSnapshot, isFree: true);
+
+        // Act
+        var act = () => purchase.MarkFree(Guid.Empty);
+
+        // Assert
+        act.Should().Throw<DomainException>();
+    }
+
+    [Fact]
+    public void MarkNotificationSent_ShouldThrowDomainException_WhenPending_EvenIfFree()
+    {
+        // Arrange
+        var freeSnapshot = ProductSnapshot.Create("free-1", "رایگان", 0m, isFree: true);
+        var purchase = CoursePurchase.Create(_buyerId, freeSnapshot, isFree: true);
+
+        // Act
+        var act = () => purchase.MarkNotificationSent();
+
+        // Assert
+        act.Should().Throw<DomainException>();
+    }
+
+    [Fact]
+    public void MarkNotificationSent_ShouldSucceed_WhenFreeAndDebited()
+    {
+        // Arrange
+        var freeSnapshot = ProductSnapshot.Create("free-1", "رایگان", 0m, isFree: true);
+        var purchase = CoursePurchase.Create(_buyerId, freeSnapshot, isFree: true);
+        purchase.MarkFree(Guid.NewGuid());
+
+        // Act
+        purchase.MarkNotificationSent();
+
+        // Assert
+        purchase.Status.Should().Be(CoursePurchaseStatus.NotificationSent);
+        purchase.CompletedAtUtc.Should().NotBeNull();
+    }
 }

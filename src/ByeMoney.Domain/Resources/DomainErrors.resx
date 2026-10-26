@@ -140,4 +140,6 @@
   <data name="TopUpRequest_ExternalTransactionMismatch" xml:space="preserve"><value>شناسه تراکنش بانکی با شناسه ثبت‌شده برای این درخواست همخوانی ندارد.</value></data>
   <data name="TopUpRequest_GatewayUnpaidWithBankTransaction" xml:space="preserve"><value>نتیجه پرداخت‌نشده نباید دارای شناسه تراکنش بانکی باشد.</value></data>
   <data name="TopUpRequest_CannotRecordResultForStatus" xml:space="preserve"><value>امکان ثبت نتیجه درگاه «{0}» برای درخواست با وضعیت «{1}» وجود ندارد.</value></data>
+  <data name="CoursePurchase_CannotMarkNonFreeAsFree" xml:space="preserve"><value>امکان ثبت رایگان تنها برای خریدهای رایگان وجود دارد.</value></data>
+  <data name="PhysicalProductPurchase_CannotMarkNonFreeAsFree" xml:space="preserve"><value>امکان ثبت رایگان تنها برای کالاهای با مبلغ پرداختی صفر وجود دارد.</value></data>
 </root>

@@ -55,6 +55,29 @@ public class CoursePurchase : BaseEntity<CoursePurchaseId>
         };
     }
 
+    public void MarkFree(Guid? referenceId = null)
+    {
+        if (!IsFree)
+        {
+            throw new DomainException(DomainErrors.CoursePurchase_CannotMarkNonFreeAsFree);
+        }
+
+        if (Status != CoursePurchaseStatus.Pending)
+        {
+            throw new DomainException(string.Format(
+                DomainErrors.CoursePurchase_CannotDebitNonPending, Status));
+        }
+
+        if (referenceId.HasValue && referenceId.Value == Guid.Empty)
+        {
+            throw new DomainException(DomainErrors.CoursePurchase_InvalidLedgerTransactionId);
+        }
+
+        Status = CoursePurchaseStatus.Debited;
+        LedgerTransactionId = referenceId;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
     public void MarkDebited(Guid ledgerTransactionId)
     {
         if (Status != CoursePurchaseStatus.Pending)

@@ -102,4 +102,47 @@ public sealed class CourseCartPaymentTests
         replay.Should().Throw<InvalidOperationException>();
         wallet.Balance.Should().Be(1000 - firstPayment - secondPayment);
     }
+
+    [Fact]
+    public void FreeCourseCart_TransitionsPurchasesToDebited_CreatesNoLedger_AndAllowsNotificationSent()
+    {
+        // Arrange
+        var buyer = new UserId(Guid.NewGuid());
+        var account = Account.CreateUserAccount(buyer);
+        var wallet = Wallet.Create(account.Id, buyer);
+        wallet.ApplyCredit(500m);
+        var cart = CourseCart.Create(Guid.NewGuid(), buyer.Value, "buyer-free", ["course-free-1", "course-free-2"], "100OFF");
+
+        cart.SetQuote([
+            new("course-free-1", "دوره اول", 200m, 0m, 200m, 0m),
+            new("course-free-2", "دوره دوم", 150m, 50m, 100m, 0m)
+        ], shippingAmountInNoor: 0m);
+
+        cart.Total.Should().Be(0m);
+
+        // Act
+        var payment = CourseCartPayment.Apply(
+            cart,
+            new ProvisionedUserWallet(account, wallet),
+            system: null,
+            referenceRate: 150m);
+
+        // Assert
+        cart.Status.Should().Be(CourseCartStatus.Paid);
+        wallet.Balance.Should().Be(500m);
+        payment.LedgerEntries.Should().BeEmpty();
+        payment.Purchases.Should().HaveCount(2);
+
+        foreach (var purchase in payment.Purchases)
+        {
+            purchase.IsFree.Should().BeTrue();
+            purchase.Status.Should().Be(CoursePurchaseStatus.Debited);
+            purchase.LedgerTransactionId.Should().Be(cart.Id);
+
+            // Access sync / notification transition must succeed without DomainException
+            var act = () => purchase.MarkNotificationSent();
+            act.Should().NotThrow();
+            purchase.Status.Should().Be(CoursePurchaseStatus.NotificationSent);
+        }
+    }
 }

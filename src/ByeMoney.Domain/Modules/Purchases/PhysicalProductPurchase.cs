@@ -1,5 +1,7 @@
 using ByeMoney.Domain.Common.Generic;
+using ByeMoney.Domain.Common.Exceptions;
 using ByeMoney.Domain.Modules.Identity.Users;
+using ByeMoney.Domain.Resources;
 
 namespace ByeMoney.Domain.Modules.Purchases;
 
@@ -52,6 +54,22 @@ public class PhysicalProductPurchase : BaseEntity<PhysicalProductPurchaseId>
             UnitPriceInNoor = unitPriceInNoor,
             PaidAmountInNoor = paidAmountInNoor
         };
+    }
+
+    public void MarkFree(Guid? referenceId = null)
+    {
+        if (PaidAmountInNoor > 0)
+        {
+            throw new DomainException(DomainErrors.PhysicalProductPurchase_CannotMarkNonFreeAsFree);
+        }
+
+        if (referenceId.HasValue && referenceId.Value == Guid.Empty)
+        {
+            throw new DomainException(DomainErrors.CoursePurchase_InvalidLedgerTransactionId);
+        }
+
+        LedgerTransactionId = referenceId;
+        UpdatedAt = DateTime.UtcNow;
     }
 
     public void MarkDebited(Guid ledgerTransactionId)
