@@ -87,7 +87,7 @@ public sealed class GatewayResultRecordingTests
     {
         var (service, topUp, settlement, _) = Create();
         await service.RecordResultAsync(Command(topUp, GatewayResultKinds.ReverseFailed, "reverse-failed"));
-        topUp.Status.Should().Be(TopUpStatus.Pending);
+        topUp.Status.Should().Be(TopUpStatus.UnderReview);
 
         (await service.RecordResultAsync(Command(topUp, GatewayResultKinds.ReverseSucceeded,
             "reverse-success"))).IsSuccess.Should().BeTrue();

@@ -79,7 +79,7 @@ public class TopUpRequest : BaseEntity<TopUpRequestId>
     /// <summary>نشان می‌دهد آیا شارژ در وضعیت ابهام یا پرونده رسیدگی مالی باز قرار دارد یا خیر.</summary>
     public bool IsUnderReview =>
         !ReviewResolvedAtUtc.HasValue &&
-        (Status == TopUpStatus.Unresolved ||
+        (Status is TopUpStatus.UnderReview or TopUpStatus.Unresolved ||
          GatewayResultKind is GatewayResultKinds.Unknown or GatewayResultKinds.ReverseFailed ||
          ReviewCaseId is not null ||
          ReviewOpenedAtUtc.HasValue);
@@ -102,6 +102,10 @@ public class TopUpRequest : BaseEntity<TopUpRequestId>
         ReviewRevision = 1;
         ReviewReasonCode = reasonCode;
         ReviewOpenedAtUtc = DateTime.UtcNow;
+        if (Status == TopUpStatus.Pending)
+        {
+            Status = TopUpStatus.UnderReview;
+        }
         UpdatedAt = DateTime.UtcNow;
         return Result.Success();
     }
@@ -192,7 +196,7 @@ public class TopUpRequest : BaseEntity<TopUpRequestId>
             DateTime.UtcNow, null, null, null, null, null, note)];
         ReviewResolvedAtUtc = null;
         if (Status == TopUpStatus.Unresolved)
-            Status = TopUpStatus.Pending;
+            Status = TopUpStatus.UnderReview;
         ReviewOutcomeCode = null;
         ReviewResolutionFinancialReferenceId = null;
         UpdatedAt = DateTime.UtcNow;
@@ -306,7 +310,7 @@ public class TopUpRequest : BaseEntity<TopUpRequestId>
                 : Result.Conflict(DomainErrors.TopUpRequest_GatewayEventPayloadMismatch);
         if (Status is TopUpStatus.Unresolved or TopUpStatus.ManuallyRefunded)
             return Result.Conflict(DomainErrors.TopUpRequest_ReviewStateMismatch);
-        if (kind == GatewayResultKinds.Unknown && Status != TopUpStatus.Pending)
+        if (kind == GatewayResultKinds.Unknown && Status is not (TopUpStatus.Pending or TopUpStatus.UnderReview))
             return Result.Success();
         if (Status == TopUpStatus.Confirmed && kind != GatewayResultKinds.Verified)
             return Result.Conflict(string.Format(DomainErrors.TopUpRequest_CannotRecordResultForStatus, kind, Status));
@@ -342,6 +346,8 @@ public class TopUpRequest : BaseEntity<TopUpRequestId>
             ExternalTransactionId = bankTransactionId;
         if (bankReferenceNumber is not null)
             BankReferenceNumber = bankReferenceNumber;
+        if (Status == TopUpStatus.Pending && kind is GatewayResultKinds.Unknown or GatewayResultKinds.ReverseFailed)
+            Status = TopUpStatus.UnderReview;
         UpdatedAt = DateTime.UtcNow;
         return Result.Success();
     }
@@ -413,7 +419,7 @@ public class TopUpRequest : BaseEntity<TopUpRequestId>
             return Result.Failure(DomainErrors.TopUpRequest_CannotConfirmRejected);
         }
 
-        if (Status == TopUpStatus.Pending)
+        if (Status is TopUpStatus.Pending or TopUpStatus.UnderReview)
         {
             Status = TopUpStatus.Confirmed;
             ExternalTransactionId = externalTransactionId;
@@ -428,7 +434,7 @@ public class TopUpRequest : BaseEntity<TopUpRequestId>
 
     public void Reject(string reason)
     {
-        if (Status != TopUpStatus.Pending)
+        if (Status is not (TopUpStatus.Pending or TopUpStatus.UnderReview))
             throw new DomainException(string.Format(DomainErrors.TopUpRequest_CannotRejectStatus, Status));
 
         if (string.IsNullOrWhiteSpace(reason))

@@ -577,16 +577,292 @@ public sealed class CourseCartPostgresTests : IAsyncLifetime
     }
 
     [CartPostgresFact]
-    public async Task PendingBankPaymentCannotBeReopened()
+    public async Task PendingPaymentAllowsRepaymentWithFreshQuoteAndRetainsOldTopUp()
     {
         var cart = await AwaitingTopUp();
-        using var scope = _provider.CreateScope();
-        var service = scope.ServiceProvider.GetRequiredService<CourseCartService>();
+        var previousTopUp = cart.TopUpRequestId!.Value;
+
+        _pricing.Setup(x => x.PrepareAsync(It.IsAny<CartQuoteRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((CartQuoteRequest request, CancellationToken _) => Result<CartQuote>.Success(
+                new(request.CartId, request.BuyerExternalUserId, request.CouponCode,
+                    [new("a", "الف", 200, 0, 20, 180), new("b", "ب", 100, 0, 10, 90)])));
+
+        using var serviceScope = _provider.CreateScope();
+        var service = serviceScope.ServiceProvider.GetRequiredService<CourseCartService>();
         var preview = await service.PrepareAsync(_buyer.Id.Value, cart.Id, ["a", "b"], "OFF", default);
-        preview.Value.Status.Should().Be("AwaitingTopUp");
-        _pricing.Verify(x => x.PrepareAsync(It.IsAny<CartQuoteRequest>(), It.IsAny<CancellationToken>()), Times.Never);
-        (await Store.ReopenAsync(cart.Id, _buyer.Id.Value, cart.ReservationId, default)).IsFailure.Should().BeTrue();
-        (await Financials()).Should().Be((20.2m, 0, 0m, 0m));
+        preview.IsSuccess.Should().BeTrue();
+        preview.Value.CartId.Should().Be(cart.Id);
+        preview.Value.PriceInNoor.Should().Be(270);
+
+        var current = (await Store.FindAsync(cart.Id, _buyer.Id.Value, default))!;
+        current.ReservationId.Should().NotBe(cart.ReservationId);
+        current.TopUpRequestId.Should().BeNull();
+        current.TopUpRequestIds.Should().Contain(previousTopUp);
+
+        var attempts = await Task.WhenAll(Enumerable.Range(0, 3).Select(_ => Store.CreateTopUpAsync(cart.Id, _buyer.Id.Value, default)));
+        attempts.Should().OnlyContain(x => x.IsSuccess);
+        var retryTopUpId = attempts[0].Value.TopUpRequestId;
+        retryTopUpId.Should().NotBe(previousTopUp);
+
+        using var verifyScope = _provider.CreateScope();
+        var verifyDb = verifyScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        (await verifyDb.Set<TopUpRequest>().CountAsync()).Should().Be(2);
+        var oldTopUp = await verifyDb.Set<TopUpRequest>().FindAsync(new TopUpRequestId(previousTopUp));
+        oldTopUp!.Status.Should().Be(TopUpStatus.Pending);
+    }
+
+    [CartPostgresFact]
+    public async Task AmbiguousGatewayResultMovesTopUpToUnderReviewAndAllowsCartRepayment()
+    {
+        var cart = await AwaitingTopUp();
+        var previousTopUp = cart.TopUpRequestId!.Value;
+
+        using (var scope = _provider.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var topUp = await db.Set<TopUpRequest>().FindAsync(new TopUpRequestId(previousTopUp));
+            var result = topUp!.RecordGatewayResult(
+                "evt-ambig-1",
+                "SEP",
+                GatewayResultKinds.Unknown,
+                "ambig-ref",
+                "ambig-rrn",
+                "-2",
+                10000,
+                10000,
+                DateTime.UtcNow);
+            result.IsSuccess.Should().BeTrue();
+            topUp.Status.Should().Be(TopUpStatus.UnderReview);
+            topUp.IsUnderReview.Should().BeTrue();
+
+            topUp.OpenFinancialReview("case-ambig-1", FinancialReviewReasonCodes.VerifyUnknown);
+            topUp.ReviewCaseId.Should().Be("case-ambig-1");
+            topUp.Status.Should().Be(TopUpStatus.UnderReview);
+
+            await db.SaveChangesAsync();
+        }
+
+        _pricing.Setup(x => x.PrepareAsync(It.IsAny<CartQuoteRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((CartQuoteRequest request, CancellationToken _) => Result<CartQuote>.Success(
+                new(request.CartId, request.BuyerExternalUserId, request.CouponCode,
+                    [new("a", "الف", 200, 0, 20, 180), new("b", "ب", 100, 0, 10, 90)])));
+
+        using var serviceScope = _provider.CreateScope();
+        var service = serviceScope.ServiceProvider.GetRequiredService<CourseCartService>();
+        var preview = await service.PrepareAsync(_buyer.Id.Value, cart.Id, ["a", "b"], "OFF", default);
+        preview.IsSuccess.Should().BeTrue();
+        preview.Value.PriceInNoor.Should().Be(270);
+
+        var current = (await Store.FindAsync(cart.Id, _buyer.Id.Value, default))!;
+        current.ReservationId.Should().NotBe(cart.ReservationId);
+        current.TopUpRequestId.Should().BeNull();
+        current.TopUpRequestIds.Should().Contain(previousTopUp);
+
+        var attempts = await Task.WhenAll(Enumerable.Range(0, 3).Select(_ => Store.CreateTopUpAsync(cart.Id, _buyer.Id.Value, default)));
+        attempts.Should().OnlyContain(x => x.IsSuccess);
+        var retryTopUpId = attempts[0].Value.TopUpRequestId;
+        retryTopUpId.Should().NotBe(previousTopUp);
+
+        var order = await service.GetAsync(_buyer.Id.Value, cart.Id, default);
+        order.Value.Status.Should().Be("AwaitingTopUp");
+        order.Value.TopUpRequestId.Should().Be(retryTopUpId);
+        order.Value.IsUnderReview.Should().BeFalse();
+
+        var cartInDb = (await Store.FindAsync(cart.Id, _buyer.Id.Value, default))!;
+        cartInDb.TopUpRequestIds.Should().Contain(previousTopUp);
+    }
+
+    [CartPostgresFact]
+    public async Task LateConfirmationOfOldTopUpUnderReviewOnlyCreditsNoorWithoutDuplicatePurchase()
+    {
+        var cart = await AwaitingTopUp();
+        var previousTopUpId = cart.TopUpRequestId!.Value;
+
+        using (var scope = _provider.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var topUp = await db.Set<TopUpRequest>().FindAsync(new TopUpRequestId(previousTopUpId));
+            topUp!.RecordGatewayResult(
+                "evt-ambig-2",
+                "SEP",
+                GatewayResultKinds.Unknown,
+                "ambig-ref-2",
+                "ambig-rrn-2",
+                "-2",
+                10000,
+                10000,
+                DateTime.UtcNow);
+            await db.SaveChangesAsync();
+        }
+
+        _pricing.Setup(x => x.PrepareAsync(It.IsAny<CartQuoteRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((CartQuoteRequest request, CancellationToken _) => Result<CartQuote>.Success(
+                new(request.CartId, request.BuyerExternalUserId, request.CouponCode,
+                    [new("a", "الف", 200, 0, 20, 180), new("b", "ب", 100, 0, 10, 90)])));
+
+        using var serviceScope = _provider.CreateScope();
+        var service = serviceScope.ServiceProvider.GetRequiredService<CourseCartService>();
+        await service.PrepareAsync(_buyer.Id.Value, cart.Id, ["a", "b"], "OFF", default);
+
+        var retryAttempt = await Store.CreateTopUpAsync(cart.Id, _buyer.Id.Value, default);
+        var retryTopUpId = retryAttempt.Value.TopUpRequestId;
+
+        using (var settleScope = _provider.CreateScope())
+        {
+            var db = settleScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var retryTopUp = await db.Set<TopUpRequest>().FindAsync(new TopUpRequestId(retryTopUpId));
+            retryTopUp!.ConfirmGateway("retry-bank-ref", "retry-rrn", "SEP").IsSuccess.Should().BeTrue();
+            await settleScope.ServiceProvider.GetRequiredService<ITopUpSettlementService>().SettleAsync(retryTopUp);
+        }
+
+        var current = (await Store.FindAsync(cart.Id, _buyer.Id.Value, default))!;
+        await service.ProcessAsync(current, default);
+        (await service.GetAsync(_buyer.Id.Value, cart.Id, default)).Value.Status.Should().Be("Paid");
+
+        var financialsAfterPurchase = await Financials();
+        financialsAfterPurchase.Purchases.Should().Be(2);
+
+        // تأیید دیرهنگام شارژ قبلی در حال بررسی
+        using (var lateScope = _provider.CreateScope())
+        {
+            var db = lateScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var oldTopUp = await db.Set<TopUpRequest>().FindAsync(new TopUpRequestId(previousTopUpId));
+            oldTopUp!.ConfirmGateway("late-bank-ref", "late-rrn", "SEP").IsSuccess.Should().BeTrue();
+            await lateScope.ServiceProvider.GetRequiredService<ITopUpSettlementService>().SettleAsync(oldTopUp);
+        }
+
+        // پردازش مجدد سبد توسط ریکاوری پس‌زمینه
+        await service.ProcessAsync(current, default);
+
+        var financialsAfterLateConfirm = await Financials();
+        financialsAfterLateConfirm.Purchases.Should().Be(2);
+        financialsAfterLateConfirm.Debit.Should().Be(financialsAfterPurchase.Debit);
+        financialsAfterLateConfirm.Balance.Should().Be(financialsAfterPurchase.Balance + 169m);
+    }
+
+    [CartPostgresFact]
+    public async Task ManualRefundProtectionRejectsSubsequentGatewayConfirmation()
+    {
+        var cart = await AwaitingTopUp();
+        var topUpId = cart.TopUpRequestId!.Value;
+
+        using (var scope = _provider.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var topUp = await db.Set<TopUpRequest>().FindAsync(new TopUpRequestId(topUpId));
+            topUp!.RecordGatewayResult("evt-rev-fail", "SEP", GatewayResultKinds.ReverseFailed, "ref-1", "rrn-1", null, 10000, 10000, DateTime.UtcNow);
+            topUp.Status.Should().Be(TopUpStatus.UnderReview);
+
+            topUp.OpenFinancialReview("case-refund-prot", FinancialReviewReasonCodes.ReverseUnknown);
+            topUp.ResolveManualReview("case-refund-prot", FinancialReviewOutcomeCodes.ManualRefund, null,
+                new(Guid.NewGuid(), 1, new DateOnly(2026, 10, 27), null, null, null, null, null, "bank-refund-slip-999"),
+                Guid.NewGuid(), "مدیر مالی").IsSuccess.Should().BeTrue();
+
+            topUp.Status.Should().Be(TopUpStatus.ManuallyRefunded);
+            topUp.ManualRefundReference.Should().Be("bank-refund-slip-999");
+            await db.SaveChangesAsync();
+        }
+
+        using (var scope = _provider.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var topUp = await db.Set<TopUpRequest>().FindAsync(new TopUpRequestId(topUpId));
+            var recordLate = topUp!.RecordGatewayResult("evt-late-after-refund", "SEP", GatewayResultKinds.Verified, "late-ref", "late-rrn", "0", 10000, 10000, DateTime.UtcNow);
+            recordLate.IsFailure.Should().BeTrue();
+
+            var confirmResult = topUp.ConfirmGateway("late-ref", "late-rrn", "SEP");
+            confirmResult.IsFailure.Should().BeTrue();
+
+            topUp.Status.Should().Be(TopUpStatus.ManuallyRefunded);
+        }
+    }
+
+    [CartPostgresFact]
+    public async Task ConcurrentCreateTopUpAttemptsProduceSingleActiveTopUpAndPreserveHistory()
+    {
+        var cart = await AwaitingTopUp();
+        var firstTopUpId = cart.TopUpRequestId!.Value;
+
+        using (var scope = _provider.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var topUp = await db.Set<TopUpRequest>().FindAsync(new TopUpRequestId(firstTopUpId));
+            topUp!.RecordGatewayResult("evt-unknown", "SEP", GatewayResultKinds.Unknown, "ref-u", "rrn-u", "-2", 10000, 10000, DateTime.UtcNow);
+            await db.SaveChangesAsync();
+        }
+
+        _pricing.Setup(x => x.PrepareAsync(It.IsAny<CartQuoteRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((CartQuoteRequest request, CancellationToken _) => Result<CartQuote>.Success(
+                new(request.CartId, request.BuyerExternalUserId, request.CouponCode,
+                    [new("a", "الف", 200, 0, 20, 180), new("b", "ب", 100, 0, 10, 90)])));
+
+        using var serviceScope = _provider.CreateScope();
+        var service = serviceScope.ServiceProvider.GetRequiredService<CourseCartService>();
+        await service.PrepareAsync(_buyer.Id.Value, cart.Id, ["a", "b"], "OFF", default);
+
+        var tasks = Enumerable.Range(0, 5).Select(_ => Store.CreateTopUpAsync(cart.Id, _buyer.Id.Value, default)).ToArray();
+        var results = await Task.WhenAll(tasks);
+
+        results.Should().OnlyContain(r => r.IsSuccess);
+        var activeTopUpIds = results.Select(r => r.Value.TopUpRequestId).Distinct().ToList();
+        activeTopUpIds.Should().ContainSingle();
+        var newTopUpId = activeTopUpIds[0];
+        newTopUpId.Should().NotBe(firstTopUpId);
+
+        using var verifyScope = _provider.CreateScope();
+        var verifyDb = verifyScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        (await verifyDb.Set<TopUpRequest>().CountAsync()).Should().Be(2);
+
+        var finalCart = (await Store.FindAsync(cart.Id, _buyer.Id.Value, default))!;
+        finalCart.TopUpRequestId.Should().Be(newTopUpId);
+        finalCart.TopUpRequestIds.Should().Contain(firstTopUpId);
+    }
+
+    [CartPostgresFact]
+    public async Task BuyerCourseUniqueConstraintExistsInEfModelAndPostgresDatabase()
+    {
+        using var scope = _provider.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+        // ۱. بررسی مدل EF Core
+        var entityType = db.Model.FindEntityType(typeof(CoursePurchase));
+        entityType.Should().NotBeNull();
+        var ownership = entityType!.FindNavigation(nameof(CoursePurchase.Snapshot))!.TargetEntityType;
+        var efIndex = ownership.GetIndexes()
+            .FirstOrDefault(i => i.GetDatabaseName() == "IX_CoursePurchases_UserId_ExternalProductId");
+        efIndex.Should().NotBeNull();
+        efIndex!.IsUnique.Should().BeTrue();
+        efIndex.Properties.Select(p => p.GetColumnName()).Should().Contain(["UserId", "ExternalProductId"]);
+
+        // ۲. بررسی وجود واقعی در کاتالوگ دیتابیس پستگرس (pg_indexes)
+        var connection = (NpgsqlConnection)db.Database.GetDbConnection();
+        if (connection.State != System.Data.ConnectionState.Open)
+        {
+            await connection.OpenAsync();
+        }
+        await using var cmd = connection.CreateCommand();
+        cmd.CommandText = "SELECT indexname, indexdef FROM pg_indexes WHERE tablename = 'CoursePurchases' AND indexname = 'IX_CoursePurchases_UserId_ExternalProductId';";
+        await using var reader = await cmd.ExecuteReaderAsync();
+        var foundInPg = await reader.ReadAsync();
+        foundInPg.Should().BeTrue();
+        var indexDef = reader.GetString(1);
+        indexDef.Should().Contain("UNIQUE INDEX");
+        indexDef.Should().Contain("\"UserId\", \"ExternalProductId\"");
+        await reader.CloseAsync();
+
+        // ۳. بررسی رفتار عینی دیتابیس در ثبت تکراری (Unique Violation 23505)
+        var courseId = Guid.NewGuid().ToString("N");
+        var first = CoursePurchase.Create(_buyer.Id, ProductSnapshot.Create(courseId, "دوره آزمایشی", 100));
+        db.Add(first);
+        await db.SaveChangesAsync();
+
+        var duplicate = CoursePurchase.Create(_buyer.Id, ProductSnapshot.Create(courseId, "دوره آزمایشی مجدد", 100));
+        db.Add(duplicate);
+        Func<Task> saveDuplicate = async () => await db.SaveChangesAsync();
+        var ex = await saveDuplicate.Should().ThrowAsync<DbUpdateException>();
+        var pgEx = ex.Which.InnerException.Should().BeOfType<PostgresException>().Which;
+        pgEx.SqlState.Should().Be(PostgresErrorCodes.UniqueViolation);
+        pgEx.ConstraintName.Should().Be("IX_CoursePurchases_UserId_ExternalProductId");
     }
 
     [CartPostgresFact]

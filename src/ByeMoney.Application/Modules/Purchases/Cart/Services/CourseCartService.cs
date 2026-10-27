@@ -66,7 +66,7 @@ public sealed class CourseCartService(
         if (cart.Status == CourseCartStatus.AwaitingTopUp && cart.TopUpRequestId is Guid previousTopUpId)
         {
             var previousTopUp = await topUps.GetByIdAsync(new TopUpRequestId(previousTopUpId), ct);
-            if (previousTopUp?.Status is TopUpStatus.Rejected or TopUpStatus.Unresolved or TopUpStatus.ManuallyRefunded)
+            if (previousTopUp?.Status is TopUpStatus.Pending or TopUpStatus.UnderReview or TopUpStatus.Rejected or TopUpStatus.Unresolved or TopUpStatus.ManuallyRefunded)
             {
                 await store.FailAsync(id, buyerId, false, cart.ReservationId, ct);
                 cart = (await store.FindAsync(id, buyerId, ct))!;
@@ -335,7 +335,7 @@ public sealed class CourseCartService(
             {
                 await PurchaseAsync(cart.BuyerId, cart.Id, ct, cart.ReservationId);
             }
-            else if (topUp?.Status is TopUpStatus.Rejected or TopUpStatus.ManuallyRefunded or TopUpStatus.Unresolved)
+            else if (topUp?.Status is TopUpStatus.Rejected or TopUpStatus.ManuallyRefunded or TopUpStatus.Unresolved or TopUpStatus.UnderReview)
             {
                 await store.FailAsync(cart.Id, cart.BuyerId, false, cart.ReservationId, ct);
             }

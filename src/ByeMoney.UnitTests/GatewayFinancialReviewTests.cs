@@ -29,7 +29,7 @@ public sealed class GatewayFinancialReviewTests
         topUp.OpenFinancialReview("case-1", FinancialReviewReasonCodes.NoCallback).IsSuccess.Should().BeTrue();
 
         topUp.ReviewOpenedAtUtc.Should().Be(opened);
-        topUp.Status.Should().Be(TopUpStatus.Pending);
+        topUp.Status.Should().Be(TopUpStatus.UnderReview);
     }
 
     [Fact]

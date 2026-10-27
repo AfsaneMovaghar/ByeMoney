@@ -223,8 +223,6 @@ public sealed class GatewayTopUpService(
             return Result.Conflict(recorded.ErrorMessage!, repeated
                 ? GatewayTopUpErrorCodes.GatewayResultConflict
                 : GatewayTopUpErrorCodes.TopUpRequiresReview);
-        if (command.Kind == GatewayResultKinds.Unknown && topUp.Status != TopUpStatus.Pending)
-            return Result.Success();
         if (repeated && command.Kind != GatewayResultKinds.Verified)
             return Result.Success();
 
@@ -243,7 +241,7 @@ public sealed class GatewayTopUpService(
         }
 
         if (command.Kind is GatewayResultKinds.Unpaid or GatewayResultKinds.ReverseSucceeded &&
-            topUp.Status == TopUpStatus.Pending)
+            topUp.Status is TopUpStatus.Pending or TopUpStatus.UnderReview)
         {
             topUp.Reject(command.Kind == GatewayResultKinds.Unpaid
                 ? ApplicationErrors.TopUpRequest_GatewayUnpaid
@@ -337,14 +335,16 @@ public sealed class GatewayTopUpService(
                 DomainErrors.TopUpRequest_CannotConfirmRejected,
                 GatewayTopUpErrorCodes.TopUpRequiresReview));
 
-        if (topUp.Status == TopUpStatus.Unresolved)
-            return new GatewayConfirmationOutcome(Result.Conflict(
-                DomainErrors.TopUpRequest_ReviewStateMismatch, GatewayTopUpErrorCodes.TopUpRequiresReview));
+        if (topUp.Status is not (TopUpStatus.Pending or TopUpStatus.UnderReview))
+        {
+            if (topUp.Status == TopUpStatus.Unresolved)
+                return new GatewayConfirmationOutcome(Result.Conflict(
+                    DomainErrors.TopUpRequest_ReviewStateMismatch, GatewayTopUpErrorCodes.TopUpRequiresReview));
 
-        if (topUp.Status != TopUpStatus.Pending)
             return new GatewayConfirmationOutcome(Result.Conflict(
                 string.Format(DomainErrors.TopUpRequest_CannotConfirmStatus, topUp.Status),
                 GatewayTopUpErrorCodes.RefNumConflict));
+        }
 
         var confirmResult = topUp.ConfirmGateway(command.ExternalTransactionId, command.BankReferenceNumber, command.Gateway);
         if (confirmResult.IsFailure)

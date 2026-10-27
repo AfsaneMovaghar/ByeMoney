@@ -145,7 +145,7 @@ public sealed class CourseCartRefreshTests
         var response = (await service.GetAsync(_buyer.Id.Value, cart.Id, default)).Value;
 
         response.Status.Should().Be("AwaitingTopUp");
-        response.TopUpStatus.Should().Be("Pending");
+        response.TopUpStatus.Should().Be("UnderReview");
         response.IsUnderReview.Should().BeTrue();
         response.ReviewCaseId.Should().Be("case-cart-1");
         response.ReviewReasonCode.Should().Be("VERIFY_UNKNOWN");

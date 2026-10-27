@@ -105,7 +105,7 @@ public sealed class CourseCartStore(IServiceScopeFactory scopes) : ICourseCartSt
         if (cart.TopUpRequestId is Guid topUpId)
         {
             var topUp = await db.Set<TopUpRequest>().FindAsync([new TopUpRequestId(topUpId)], ct);
-            if (topUp?.Status is not (TopUpStatus.Rejected or TopUpStatus.Confirmed or TopUpStatus.Unresolved or TopUpStatus.ManuallyRefunded))
+            if (topUp?.Status is not (TopUpStatus.Pending or TopUpStatus.UnderReview or TopUpStatus.Rejected or TopUpStatus.Confirmed or TopUpStatus.Unresolved or TopUpStatus.ManuallyRefunded))
             {
                 return Conflict();
             }
@@ -263,6 +263,33 @@ public sealed class CourseCartStore(IServiceScopeFactory scopes) : ICourseCartSt
         if (cart.TopUpRequestId is Guid topUpId)
         {
             topUp = await db.Set<TopUpRequest>().FindAsync([new TopUpRequestId(topUpId)], ct);
+            if (topUp?.Status is TopUpStatus.UnderReview or TopUpStatus.Rejected or TopUpStatus.Unresolved or TopUpStatus.ManuallyRefunded)
+            {
+                if (cart.ExpiresAtUtc <= DateTime.UtcNow)
+                {
+                    return Result<CreateTopUpRequestResponse>.Conflict(CartErrors.Conflict, CartErrorCodes.Conflict);
+                }
+
+                var wallet = await sp.GetRequiredService<IWalletRepository>().GetByUserIdAsync(new UserId(buyerId), ct);
+                var amount = decimal.Ceiling(cart.Total - (wallet?.Balance ?? 0m));
+                if (amount <= 0)
+                {
+                    return Result<CreateTopUpRequestResponse>.Conflict(CartErrors.Conflict, CartErrorCodes.Conflict);
+                }
+
+                var rate = await sp.GetRequiredService<ISystemSettingRepository>().GetRialToNoorConversionRateAsync(ct);
+                if (rate <= 0 || decimal.Truncate(rate) != rate)
+                {
+                    return Result<CreateTopUpRequestResponse>.Failure(CartErrors.Invalid, CartErrorCodes.Invalid);
+                }
+
+                topUp = TopUpRequest.CreateGateway(new UserId(buyerId), amount, rate);
+                db.Add(topUp);
+                cart.AwaitTopUp(topUp.Id.Value);
+
+                await db.SaveChangesAsync(ct);
+                await tx.CommitAsync(ct);
+            }
         }
         else
         {

@@ -6,6 +6,6 @@ public enum TopUpStatus
     Confirmed = 2,
     Rejected = 3,
     ManuallyRefunded = 4,
-    Unresolved = 5
+    Unresolved = 5,
+    UnderReview = 6
 }
-

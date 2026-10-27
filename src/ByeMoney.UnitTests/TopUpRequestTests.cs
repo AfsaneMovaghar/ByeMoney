@@ -207,7 +207,7 @@ public class TopUpRequestTests
         request.RecordGatewayResult("evt-unknown", "SEP", GatewayResultKinds.Unknown,
             null, null, "-6", 13700m, 13700m, DateTime.UtcNow);
         request.IsUnderReview.Should().BeTrue();
-        request.Status.Should().Be(TopUpStatus.Pending);
+        request.Status.Should().Be(TopUpStatus.UnderReview);
 
         request.OpenFinancialReview("case-123", "VERIFY_UNKNOWN");
         request.IsUnderReview.Should().BeTrue();

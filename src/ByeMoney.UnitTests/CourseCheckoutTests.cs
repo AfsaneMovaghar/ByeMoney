@@ -131,7 +131,7 @@ public class CourseCheckoutTests
         var handler = new GetTopUpCheckoutQueryHandler(_current.Object, _topUps.Object, _purchases.Object);
         var response = await handler.Handle(new(topUp.Id.Value), CancellationToken.None);
 
-        response.TopUpStatus.Should().Be("Pending");
+        response.TopUpStatus.Should().Be("UnderReview");
         response.IsUnderReview.Should().BeTrue();
         response.ReviewCaseId.Should().Be("case-999");
         response.ReviewReasonCode.Should().Be("VERIFY_UNKNOWN");

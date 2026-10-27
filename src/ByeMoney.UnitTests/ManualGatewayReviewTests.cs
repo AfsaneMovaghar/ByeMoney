@@ -70,7 +70,7 @@ public class ManualGatewayReviewTests
         topUp.ReopenFinancialReview("case-1", "new-evidence", "مدرک تازه").IsSuccess.Should().BeTrue();
         topUp.ReviewRevision.Should().Be(2);
         topUp.ReviewResolvedAtUtc.Should().BeNull();
-        topUp.Status.Should().Be(TopUpStatus.Pending);
+        topUp.Status.Should().Be(TopUpStatus.UnderReview);
         topUp.ReviewAudit.Should().HaveCount(2);
         topUp.ResolveManualReview("case-1", FinancialReviewOutcomeCodes.NoMatchingDeposit, null, Evidence(), actor, null)
             .IsFailure.Should().BeTrue();
@@ -85,7 +85,7 @@ public class ManualGatewayReviewTests
         topUp.ResolveManualReview("case-1", FinancialReviewOutcomeCodes.PaidAndConfirmed, "report-deposit-id",
             Evidence() with { MatchingDepositFound = true, DepositReference = "report-deposit-id", DepositDate = new(2026, 9, 30), DepositAmountRial = 10000 },
             Guid.NewGuid(), null).IsFailure.Should().BeTrue();
-        topUp.Status.Should().Be(TopUpStatus.Pending);
+        topUp.Status.Should().Be(TopUpStatus.UnderReview);
         topUp.ExternalTransactionId.Should().BeNull();
     }
 

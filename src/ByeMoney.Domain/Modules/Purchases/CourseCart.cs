@@ -145,7 +145,7 @@ public sealed class CourseCart
 
     public void AwaitTopUp(Guid id)
     {
-        if (Status != CourseCartStatus.Ready)
+        if (Status is not (CourseCartStatus.Ready or CourseCartStatus.AwaitingTopUp))
         {
             throw new InvalidOperationException();
         }
