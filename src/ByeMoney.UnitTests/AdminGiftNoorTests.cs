@@ -274,8 +274,7 @@ public sealed class AdminGiftNoorTests
     {
         var validator = new AdminGrantGiftNoorCommandValidator(new GiftSettings
         {
-            MaxUsersPerBatch = 2,
-            MaxAmountNoorPerUser = 500m
+            MaxUsersPerBatch = 2
         });
 
         // شناسه تکراری
@@ -295,12 +294,11 @@ public sealed class AdminGiftNoorTests
         // بیش از سقف کاربر
         var usersLimitResult = await validator.ValidateAsync(new AdminGrantGiftNoorCommand(["u1", "u2", "u3"], 100m, "دلیل", "key-users", null));
         usersLimitResult.IsValid.Should().BeFalse();
-        usersLimitResult.Errors.Should().Contain(e => e.ErrorMessage == ApplicationErrors.Gift_UsersExceedsLimit);
+        usersLimitResult.Errors.Should().Contain(e => e.ErrorMessage == string.Format(ApplicationErrors.Gift_UsersExceedsLimit, 2));
 
-        // بیش از سقف مبلغ
-        var amountLimitResult = await validator.ValidateAsync(new AdminGrantGiftNoorCommand(["u1"], 600m, "دلیل", "key-amount", null));
-        amountLimitResult.IsValid.Should().BeFalse();
-        amountLimitResult.Errors.Should().Contain(e => e.ErrorMessage == ApplicationErrors.Gift_AmountExceedsLimit);
+        // مبالغ بزرگ مجاز هستند و سقف مبلغ وجود ندارد
+        var largeAmountResult = await validator.ValidateAsync(new AdminGrantGiftNoorCommand(["u1", "u2"], 10_000_000m, "علت موجه", "key-large", null));
+        largeAmountResult.IsValid.Should().BeTrue();
 
         // درخواست معتبر
         var validResult = await validator.ValidateAsync(new AdminGrantGiftNoorCommand(["u1", "u2"], 500m, "علت موجه", "key-valid", null));

@@ -239,7 +239,7 @@
   <data name="Gift_AmountMustBePositiveInteger" xml:space="preserve"><value>مقدار نور هدیه باید یک عدد صحیح مثبت باشد.</value></data>
   <data name="Gift_AmountExceedsLimit" xml:space="preserve"><value>مقدار نور هدیه بیشتر از سقف مجاز است.</value></data>
   <data name="Gift_UsersRequired" xml:space="preserve"><value>فهرست کاربران الزامی است.</value></data>
-  <data name="Gift_UsersExceedsLimit" xml:space="preserve"><value>تعداد کاربران بیشتر از سقف مجاز است.</value></data>
+  <data name="Gift_UsersExceedsLimit" xml:space="preserve"><value>تعداد کاربران در هر بار ثبت هدیه نمی‌تواند بیشتر از {0} نفر باشد.</value></data>
   <data name="Gift_DuplicateUsersNotAllowed" xml:space="preserve"><value>شناسه تکراری در فهرست کاربران مجاز نیست.</value></data>
   <data name="Gift_UserBlocked" xml:space="preserve"><value>کاربر در سامانه مسدود است.</value></data>
   <data name="Gift_UserNotFound" xml:space="preserve"><value>کاربر در سامانه مبدأ یافت نشد.</value></data>

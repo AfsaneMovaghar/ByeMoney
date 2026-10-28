@@ -23,14 +23,14 @@ public class AdminGrantGiftNoorCommandValidator : AbstractValidator<AdminGrantGi
         RuleFor(x => x.AmountNoor)
             .Cascade(CascadeMode.Stop)
             .GreaterThan(0).WithMessage(ApplicationErrors.Gift_AmountMustBePositiveInteger)
-            .Must(amount => amount == decimal.Floor(amount)).WithMessage(ApplicationErrors.Gift_AmountMustBePositiveInteger)
-            .LessThanOrEqualTo(config.MaxAmountNoorPerUser).WithMessage(ApplicationErrors.Gift_AmountExceedsLimit);
+            .Must(amount => amount == decimal.Floor(amount)).WithMessage(ApplicationErrors.Gift_AmountMustBePositiveInteger);
 
         RuleFor(x => x.ExternalUserIds)
             .Cascade(CascadeMode.Stop)
             .NotNull().WithMessage(ApplicationErrors.Gift_UsersRequired)
             .NotEmpty().WithMessage(ApplicationErrors.Gift_UsersRequired)
-            .Must(users => users.Count <= config.MaxUsersPerBatch).WithMessage(ApplicationErrors.Gift_UsersExceedsLimit)
+            .Must(users => users.Count <= config.MaxUsersPerBatch)
+            .WithMessage(string.Format(ApplicationErrors.Gift_UsersExceedsLimit, config.MaxUsersPerBatch))
             .Must(users => users.Distinct(StringComparer.Ordinal).Count() == users.Count)
             .WithMessage(ApplicationErrors.Gift_DuplicateUsersNotAllowed);
 
