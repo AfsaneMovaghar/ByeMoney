@@ -11,5 +11,6 @@ public interface IWalletRepository : IRepository<WalletEntity, WalletId>
     Task<WalletEntity?> GetByUserIdAsync(UserId userId, CancellationToken ct = default);
     Task<WalletEntity?> GetByAccountIdAsync(AccountId accountId, CancellationToken ct = default);
     Task<Dictionary<string, decimal>> GetBalancesByExternalUserIdsAsync(IReadOnlyCollection<string> externalUserIds, CancellationToken ct = default);
+    Task<(Dictionary<string, decimal> Balances, Dictionary<string, decimal> GiftBalances)> GetBalancesAndGiftBalancesByExternalUserIdsAsync(IReadOnlyCollection<string> externalUserIds, CancellationToken ct = default);
 }
 

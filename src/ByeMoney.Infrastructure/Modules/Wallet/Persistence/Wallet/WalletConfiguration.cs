@@ -38,6 +38,12 @@ public class WalletConfiguration : IEntityTypeConfiguration<WalletEntity>
             .IsConcurrencyToken()
             .IsRequired();
 
+        builder.Property(w => w.GiftBalance)
+            .HasPrecision(18, 4)
+            .HasDefaultValue(0m)
+            .IsConcurrencyToken()
+            .IsRequired();
+
         builder.Property(w => w.LastUpdatedAtUtc)
             .IsRequired();
 

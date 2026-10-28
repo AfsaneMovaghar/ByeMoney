@@ -80,6 +80,9 @@ public static class DependencyInjection
             options.AddPolicy(PolicyNames.RequireNoorInject, policy =>
                 policy.Requirements.Add(new PermissionRequirement(Permissions.Noor.Inject)));
 
+            options.AddPolicy(PolicyNames.RequireNoorGift, policy =>
+                policy.Requirements.Add(new PermissionRequirement(Permissions.Noor.Gift)));
+
             options.AddPolicy(PolicyNames.RequireTopUpReview, policy =>
                 policy.Requirements.Add(new PermissionRequirement(Permissions.TopUp.Review)));
 
@@ -113,3 +116,4 @@ public static class DependencyInjection
         return services;
     }
 }
+

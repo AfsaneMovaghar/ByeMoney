@@ -26,6 +26,7 @@
 | AdminCourses | `POST` | `/api/admin/courses/purchase` | نیازمند پالیسی `RequireCoursesManage` | `Courses.Manage` |
 | AdminGatewayReview | `GET` | `/api/admin/topups/gateway-reviews/{clientReferenceCode}` | نیازمند پالیسی `RequireTopUpReview` | `TopUp.Review` |
 | AdminGatewayReview | `POST` | `/api/admin/topups/gateway-reviews/resolve` | نیازمند پالیسی `RequireTopUpReview` | `TopUp.Review` |
+| AdminGift | `POST` | `/api/admin/noor-gifts` | نیازمند پالیسی `RequireNoorGift` | — |
 | AdminTopUp | `POST` | `/api/admin/topups/{id:guid}/confirm` | نیازمند پالیسی `RequireTopUpReview` | `TopUp.Review` |
 | AdminTopUp | `GET` | `/api/admin/topups/by-reference/{clientReferenceCode}` | نیازمند پالیسی `RequireTopUpReview` | `TopUp.Review` |
 | AdminTopUp | `GET` | `/api/admin/topups/permissions` | احراز هویت شده (JWT) | — |

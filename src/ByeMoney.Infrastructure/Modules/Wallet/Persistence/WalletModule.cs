@@ -1,5 +1,6 @@
 using ByeMoney.Application.Modules.Wallet.Interfaces;
 using ByeMoney.Infrastructure.Modules.Wallet.Persistence.Account;
+using ByeMoney.Infrastructure.Modules.Wallet.Persistence.Gifts;
 using ByeMoney.Infrastructure.Modules.Wallet.Persistence.TopUp;
 using ByeMoney.Infrastructure.Modules.Wallet.Persistence.Wallet;
 using ByeMoney.Infrastructure.Modules.Wallet.Services;
@@ -14,8 +15,10 @@ public static class WalletModule
         services.AddScoped<IAccountRepository, AccountRepository>();
         services.AddScoped<IWalletRepository, WalletRepository>();
         services.AddScoped<ITopUpRequestRepository, TopUpRequestRepository>();
+        services.AddScoped<IGiftGrantRepository, GiftGrantRepository>();
         services.AddScoped<IGatewayTopUpService, GatewayTopUpService>();
         services.AddScoped<ITopUpRejectionService, TopUpRejectionService>();
         return services;
     }
 }
+

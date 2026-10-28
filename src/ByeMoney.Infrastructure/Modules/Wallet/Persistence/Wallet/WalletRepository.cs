@@ -43,5 +43,27 @@ public class WalletRepository : BaseRepository<WalletEntity, WalletId>, IWalletR
 
         return balances.ToDictionary(x => x.ExternalUserId, x => x.Balance, StringComparer.Ordinal);
     }
+
+    public async Task<(Dictionary<string, decimal> Balances, Dictionary<string, decimal> GiftBalances)> GetBalancesAndGiftBalancesByExternalUserIdsAsync(
+        IReadOnlyCollection<string> externalUserIds, CancellationToken ct = default)
+    {
+        if (externalUserIds.Count == 0)
+        {
+            return (new Dictionary<string, decimal>(StringComparer.Ordinal), new Dictionary<string, decimal>(StringComparer.Ordinal));
+        }
+
+        var results = await (
+            from user in Context.Set<User>()
+            join wallet in DbSet on user.Id equals wallet.UserId
+            where externalUserIds.Contains(user.ExternalUserId)
+            select new { user.ExternalUserId, wallet.Balance, wallet.GiftBalance })
+            .AsNoTracking()
+            .ToListAsync(ct);
+
+        var balances = results.ToDictionary(x => x.ExternalUserId, x => x.Balance, StringComparer.Ordinal);
+        var giftBalances = results.ToDictionary(x => x.ExternalUserId, x => x.GiftBalance, StringComparer.Ordinal);
+
+        return (balances, giftBalances);
+    }
 }
 

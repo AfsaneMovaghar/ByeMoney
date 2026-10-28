@@ -23,6 +23,9 @@ public class LedgerEntry : BaseEntity<LedgerEntryId>
     /// <summary>نوع مرجع سند در دفتر کل (مانند شارژ، خرید، برگشت وجه یا اعطای سیستمی).</summary>
     public LedgerReferenceType ReferenceType { get; private set; }
 
+    /// <summary>نشانگر نوع مانده (عادی یا هدیه).</summary>
+    public LedgerBalanceType BalanceType { get; private set; }
+
     private LedgerEntry() { }
 
     public static LedgerEntry Create(
@@ -31,7 +34,8 @@ public class LedgerEntry : BaseEntity<LedgerEntryId>
         Guid transactionId,
         LedgerReferenceType referenceType,
         string? referenceId = null,
-        UserId? performedByUserId = null)
+        UserId? performedByUserId = null,
+        LedgerBalanceType balanceType = LedgerBalanceType.Regular)
     {
         return new LedgerEntry
         {
@@ -41,7 +45,9 @@ public class LedgerEntry : BaseEntity<LedgerEntryId>
             Amount = amount,
             TransactionId = transactionId,
             ReferenceId = referenceId,
-            ReferenceType = referenceType
+            ReferenceType = referenceType,
+            BalanceType = balanceType
         };
     }
 }
+

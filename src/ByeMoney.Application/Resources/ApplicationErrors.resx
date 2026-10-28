@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <root>
   <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
     <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
@@ -234,4 +234,15 @@
   <data name="Cart_NotFound" xml:space="preserve"><value>سبد خرید یافت نشد.</value></data>
   <data name="Cart_InsufficientBalance" xml:space="preserve"><value>موجودی نور برای خرید سبد کافی نیست.</value></data>
   <data name="Cart_Unavailable" xml:space="preserve"><value>ارتباط با سرویس خرید برقرار نشد؛ وضعیت همین سبد را دوباره پیگیری کنید.</value></data>
+  <data name="Gift_IdempotencyKeyRequired" xml:space="preserve"><value>Ú©Ù„ÛŒØ¯ ØªÚ©Ø±Ø§Ø± Ø¯Ø±Ø®ÙˆØ§Ø³Øª (Idempotency-Key) Ø§Ù„Ø²Ø§Ù…ÛŒ Ø§Ø³Øª.</value></data>
+  <data name="Gift_ReasonRequired" xml:space="preserve"><value>Ø¹Ù„Øª Ø§Ø¹Ø·Ø§ÛŒ Ù‡Ø¯ÛŒÙ‡ Ø§Ù„Ø²Ø§Ù…ÛŒ Ø§Ø³Øª.</value></data>
+  <data name="Gift_AmountMustBePositiveInteger" xml:space="preserve"><value>Ù…Ù‚Ø¯Ø§Ø± Ù†ÙˆØ± Ù‡Ø¯ÛŒÙ‡ Ø¨Ø§ÛŒØ¯ ÛŒÚ© Ø¹Ø¯Ø¯ ØµØ­ÛŒØ­ Ù…Ø«Ø¨Øª Ø¨Ø§Ø´Ø¯.</value></data>
+  <data name="Gift_AmountExceedsLimit" xml:space="preserve"><value>Ù…Ù‚Ø¯Ø§Ø± Ù†ÙˆØ± Ù‡Ø¯ÛŒÙ‡ Ø¨ÛŒØ´ØªØ± Ø§Ø² Ø³Ù‚Ù Ù…Ø¬Ø§Ø² Ø§Ø³Øª.</value></data>
+  <data name="Gift_UsersRequired" xml:space="preserve"><value>ÙÙ‡Ø±Ø³Øª Ú©Ø§Ø±Ø¨Ø±Ø§Ù† Ø§Ù„Ø²Ø§Ù…ÛŒ Ø§Ø³Øª.</value></data>
+  <data name="Gift_UsersExceedsLimit" xml:space="preserve"><value>ØªØ¹Ø¯Ø§Ø¯ Ú©Ø§Ø±Ø¨Ø±Ø§Ù† Ø¨ÛŒØ´ØªØ± Ø§Ø² Ø³Ù‚Ù Ù…Ø¬Ø§Ø² Ø§Ø³Øª.</value></data>
+  <data name="Gift_DuplicateUsersNotAllowed" xml:space="preserve"><value>Ø´Ù†Ø§Ø³Ù‡ ØªÚ©Ø±Ø§Ø±ÛŒ Ø¯Ø± ÙÙ‡Ø±Ø³Øª Ú©Ø§Ø±Ø¨Ø±Ø§Ù† Ù…Ø¬Ø§Ø² Ù†ÛŒØ³Øª.</value></data>
+  <data name="Gift_UserBlocked" xml:space="preserve"><value>Ú©Ø§Ø±Ø¨Ø± Ø¯Ø± Ø³Ø§Ù…Ø§Ù†Ù‡ Ù…Ø³Ø¯ÙˆØ¯ Ø§Ø³Øª.</value></data>
+  <data name="Gift_UserNotFound" xml:space="preserve"><value>Ú©Ø§Ø±Ø¨Ø± Ø¯Ø± Ø³Ø§Ù…Ø§Ù†Ù‡ Ù…Ø¨Ø¯Ø£ ÛŒØ§ÙØª Ù†Ø´Ø¯.</value></data>
+  <data name="Gift_UserInactive" xml:space="preserve"><value>Ú©Ø§Ø±Ø¨Ø± ØºÛŒØ±ÙØ¹Ø§Ù„ Ø§Ø³Øª.</value></data>
+  <data name="Gift_HasInvalidUsers" xml:space="preserve"><value>Ø¨Ù‡â€ŒØ¯Ù„ÛŒÙ„ ÙˆØ¬ÙˆØ¯ Ú©Ø§Ø±Ø¨Ø±Ø§Ù† Ù†Ø§Ù…Ø¹ØªØ¨Ø± ÛŒØ§ Ù…Ø³Ø¯ÙˆØ¯ØŒ Ù‡ÛŒÚ† Ù‡Ø¯ÛŒÙ‡â€ŒØ§ÛŒ Ø«Ø¨Øª Ù†Ø´Ø¯.</value></data>
 </root>

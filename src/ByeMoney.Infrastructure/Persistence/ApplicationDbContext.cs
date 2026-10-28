@@ -1,12 +1,16 @@
 using Microsoft.EntityFrameworkCore;
 using ByeMoney.Application.Common.Interfaces;
 using ByeMoney.Domain.Modules.Wallet.Wallets;
+using ByeMoney.Domain.Modules.Wallet.Gifts;
 
 namespace ByeMoney.Infrastructure.Persistence;
 
 public class ApplicationDbContext : DbContext, IUnitOfWork   
 {
     public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options) { }
+
+    public DbSet<GiftGrantBatch> GiftGrantBatches => Set<GiftGrantBatch>();
+    public DbSet<GiftGrantRecipient> GiftGrantRecipients => Set<GiftGrantRecipient>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -29,14 +33,17 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
                 {
                     var wallet = (Wallet)entry.Entity;
                     var delta = wallet.Balance - entry.OriginalValues.GetValue<decimal>(nameof(Wallet.Balance));
+                    var giftDelta = wallet.GiftBalance - entry.OriginalValues.GetValue<decimal>(nameof(Wallet.GiftBalance));
                     var current = await entry.GetDatabaseValuesAsync(ct);
                     if (current is null) throw;
                     entry.OriginalValues.SetValues(current);
                     entry.CurrentValues.SetValues(current);
                     if (delta > 0) wallet.ApplyCredit(delta);
                     else if (delta < 0) wallet.ApplyDebit(-delta);
+                    if (giftDelta > 0) wallet.ApplyGiftCredit(giftDelta);
                 }
             }
         }
     }
 }
+

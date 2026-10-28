@@ -8,12 +8,14 @@ namespace ByeMoney.UnitTests;
 public sealed class GetBatchWalletBalancesQueryTests
 {
     [Fact]
-    public async Task Handle_ReturnsStoredBalancesAndZeroForMissingWallets()
+    public async Task Handle_ReturnsStoredBalancesAndGiftBalancesAndZeroForMissingWallets()
     {
         var wallets = new Mock<IWalletRepository>();
-        wallets.Setup(x => x.GetBalancesByExternalUserIdsAsync(
+        wallets.Setup(x => x.GetBalancesAndGiftBalancesByExternalUserIdsAsync(
                 It.IsAny<IReadOnlyCollection<string>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new Dictionary<string, decimal> { ["user-1"] = 150.25m, ["user-3"] = 500m });
+            .ReturnsAsync((
+                new Dictionary<string, decimal> { ["user-1"] = 150.25m, ["user-3"] = 500m },
+                new Dictionary<string, decimal> { ["user-1"] = 50m, ["user-3"] = 100m }));
         var handler = new GetBatchWalletBalancesQueryHandler(wallets.Object);
 
         var response = await handler.Handle(
@@ -27,7 +29,13 @@ public sealed class GetBatchWalletBalancesQueryTests
             ["user-2"] = 0m,
             ["user-3"] = 500m
         });
-        wallets.Verify(x => x.GetBalancesByExternalUserIdsAsync(
+        response.GiftBalances.Should().BeEquivalentTo(new Dictionary<string, decimal>
+        {
+            ["user-1"] = 50m,
+            ["user-2"] = 0m,
+            ["user-3"] = 100m
+        });
+        wallets.Verify(x => x.GetBalancesAndGiftBalancesByExternalUserIdsAsync(
             It.Is<IReadOnlyCollection<string>>(ids => ids.Count == 3),
             It.IsAny<CancellationToken>()), Times.Once);
     }
@@ -46,3 +54,4 @@ public sealed class GetBatchWalletBalancesQueryTests
         (await validator.ValidateAsync(new GetBatchWalletBalancesQuery(["valid-user-id"]))).IsValid.Should().BeTrue();
     }
 }
+

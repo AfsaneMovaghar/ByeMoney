@@ -10,6 +10,7 @@ public static class Permissions
     public static class Noor
     {
         public const string Inject = "Noor.Inject";
+        public const string Gift = "Noor.Gift";
     }
 
     public static class TopUp
@@ -27,3 +28,4 @@ public static class Permissions
         public const string View = "Wallet.View";
     }
 }
+

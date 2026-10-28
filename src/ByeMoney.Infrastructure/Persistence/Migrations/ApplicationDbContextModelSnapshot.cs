@@ -66,6 +66,13 @@ namespace ByeMoney.Infrastructure.Migrations
                         },
                         new
                         {
+                            Id = new Guid("77777777-7777-7777-7777-777777777777"),
+                            Code = "Noor.Gift",
+                            CreatedAtUtc = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Description = "Permission to grant gift Noor currency to users"
+                        },
+                        new
+                        {
                             Id = new Guid("33333333-3333-3333-3333-333333333333"),
                             Code = "TopUp.Review",
                             CreatedAtUtc = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
@@ -147,6 +154,12 @@ namespace ByeMoney.Infrastructure.Migrations
                         {
                             RoleId = new Guid("11111111-1111-1111-1111-111111111111"),
                             PermissionId = new Guid("22222222-2222-2222-2222-222222222222"),
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            RoleId = new Guid("11111111-1111-1111-1111-111111111111"),
+                            PermissionId = new Guid("77777777-7777-7777-7777-777777777777"),
                             CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
                         },
                         new
@@ -518,6 +531,111 @@ namespace ByeMoney.Infrastructure.Migrations
                     b.ToTable("Accounts", (string)null);
                 });
 
+            modelBuilder.Entity("ByeMoney.Domain.Modules.Wallet.Gifts.GiftGrantBatch", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("AdminUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("AmountNoorPerUser")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("IdempotencyKey")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("RequestPayloadHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<int>("Source")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal>("TotalAmountNoor")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)");
+
+                    b.Property<int>("TotalRecipients")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("IdempotencyKey")
+                        .IsUnique();
+
+                    b.ToTable("GiftGrantBatches", (string)null);
+                });
+
+            modelBuilder.Entity("ByeMoney.Domain.Modules.Wallet.Gifts.GiftGrantRecipient", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("AmountNoor")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)");
+
+                    b.Property<Guid>("BatchId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ExternalUserId")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTime>("GrantedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<decimal>("NewGiftBalance")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<Guid>("TransactionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BatchId");
+
+                    b.HasIndex("ExternalUserId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("GiftGrantRecipients", (string)null);
+                });
+
             modelBuilder.Entity("ByeMoney.Domain.Modules.Wallet.Ledgers.LedgerEntry", b =>
                 {
                     b.Property<Guid>("Id")
@@ -529,6 +647,11 @@ namespace ByeMoney.Infrastructure.Migrations
                     b.Property<decimal>("Amount")
                         .HasPrecision(18, 4)
                         .HasColumnType("numeric(18,4)");
+
+                    b.Property<int>("BalanceType")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(1);
 
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("timestamp with time zone");
@@ -550,6 +673,8 @@ namespace ByeMoney.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("BalanceType");
 
                     b.HasIndex("ReferenceType");
 
@@ -741,6 +866,13 @@ namespace ByeMoney.Infrastructure.Migrations
 
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<decimal>("GiftBalance")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasDefaultValue(0m);
 
                     b.Property<DateTime>("LastUpdatedAtUtc")
                         .HasColumnType("timestamp with time zone");
@@ -968,9 +1100,23 @@ namespace ByeMoney.Infrastructure.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("ByeMoney.Domain.Modules.Wallet.Gifts.GiftGrantRecipient", b =>
+                {
+                    b.HasOne("ByeMoney.Domain.Modules.Wallet.Gifts.GiftGrantBatch", null)
+                        .WithMany("Recipients")
+                        .HasForeignKey("BatchId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("ByeMoney.Domain.Modules.Identity.Roles.Role", b =>
                 {
                     b.Navigation("RolePermissions");
+                });
+
+            modelBuilder.Entity("ByeMoney.Domain.Modules.Wallet.Gifts.GiftGrantBatch", b =>
+                {
+                    b.Navigation("Recipients");
                 });
 #pragma warning restore 612, 618
         }

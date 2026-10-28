@@ -43,9 +43,15 @@ public class LedgerEntryConfiguration : IEntityTypeConfiguration<LedgerEntry>
         builder.Property(l => l.ReferenceType)
             .IsRequired();
 
+        builder.Property(l => l.BalanceType)
+            .HasDefaultValue(LedgerBalanceType.Regular)
+            .IsRequired();
+
         builder.HasIndex(l => l.TransactionId);
 
         builder.HasIndex(l => l.ReferenceType);
+
+        builder.HasIndex(l => l.BalanceType);
 
         builder.HasIndex(l => new { l.AccountId, l.CreatedAtUtc });
     }

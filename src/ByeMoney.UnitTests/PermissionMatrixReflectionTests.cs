@@ -1,4 +1,4 @@
-using System.Reflection;
+﻿using System.Reflection;
 using System.Text;
 using ByeMoney.Domain.Modules.Identity.Constants;
 using ByeMoney.Domain.Modules.Identity.Permissions;

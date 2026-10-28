@@ -11,7 +11,10 @@ public class Wallet : BaseEntity<WalletId>
     public AccountId AccountId { get; private set; }
     public UserId UserId { get; private set; }
     public decimal Balance { get; private set; }
+    public decimal GiftBalance { get; private set; }
     public DateTime LastUpdatedAtUtc { get; private set; }
+
+    public decimal TotalBalance => checked(Balance + GiftBalance);
 
     private Wallet() { }
 
@@ -23,6 +26,7 @@ public class Wallet : BaseEntity<WalletId>
             AccountId = accountId,
             UserId = userId,
             Balance = 0m,
+            GiftBalance = 0m,
             LastUpdatedAtUtc = DateTime.UtcNow
         };
     }
@@ -46,6 +50,16 @@ public class Wallet : BaseEntity<WalletId>
             throw new DomainException(DomainErrors.Wallet_InsufficientBalance);
 
         Balance -= amount;
+        LastUpdatedAtUtc = DateTime.UtcNow;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    public void ApplyGiftCredit(decimal amount)
+    {
+        if (amount <= 0)
+            throw new DomainException(DomainErrors.Wallet_CreditMustBeGreaterThanZero);
+
+        GiftBalance += amount;
         LastUpdatedAtUtc = DateTime.UtcNow;
         UpdatedAt = DateTime.UtcNow;
     }
