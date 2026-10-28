@@ -1,4 +1,4 @@
-﻿using System.Reflection;
+using System.Reflection;
 using System.Text;
 using ByeMoney.Domain.Modules.Identity.Constants;
 using ByeMoney.Domain.Modules.Identity.Permissions;
@@ -24,6 +24,7 @@ public class PermissionMatrixReflectionTests
     {
         [PolicyNames.RequirePurchasesView] = Permissions.Purchases.View,
         [PolicyNames.RequireNoorInject] = Permissions.Noor.Inject,
+        [PolicyNames.RequireNoorGift] = Permissions.Noor.Gift,
         [PolicyNames.RequireTopUpReview] = Permissions.TopUp.Review,
         [PolicyNames.RequireCoursesManage] = Permissions.Courses.Manage,
         [PolicyNames.RequireWalletView] = Permissions.Wallet.View

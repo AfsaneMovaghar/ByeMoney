@@ -5,6 +5,7 @@ using ByeMoney.API.Constants;
 using ByeMoney.API.Resources;
 using ByeMoney.API.Services;
 using ByeMoney.Application.Common.Interfaces;
+using ByeMoney.Application.Modules.Wallet.DTOs;
 using ByeMoney.Domain.Modules.Identity.Constants;
 using ByeMoney.Domain.Modules.Identity.Permissions;
 using Microsoft.AspNetCore.Authentication;
@@ -22,6 +23,8 @@ public static class DependencyInjection
         IConfiguration configuration)
     {
         var allowedOrigins = configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
+
+        services.AddSingleton(configuration.GetSection(GiftSettings.SectionName).Get<GiftSettings>() ?? new GiftSettings());
 
         services.AddCors(options =>
         {

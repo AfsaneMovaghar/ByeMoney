@@ -48,3 +48,4 @@ public class GiftGrantBatch : BaseEntity<Guid>
         TotalAmountNoor = TotalRecipients * AmountNoorPerUser;
     }
 }
+

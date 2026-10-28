@@ -4,3 +4,4 @@ public enum GiftRecipientStatus
 {
     Granted = 1
 }
+

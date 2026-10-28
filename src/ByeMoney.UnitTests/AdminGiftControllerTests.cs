@@ -32,7 +32,7 @@ public sealed class AdminGiftControllerTests
         var result = await controller.GrantGiftNoor(null, request, CancellationToken.None);
 
         var badRequest = result.Should().BeOfType<BadRequestObjectResult>().Subject;
-        var error = badRequest.Value.Should().BeOfType<MiddlewareErrorResponse>().Subject;
+        var error = badRequest.Value.Should().BeOfType<AdminGiftErrorResponse>().Subject;
         error.Status.Should().Be(StatusCodes.Status400BadRequest);
         error.Errors.Should().Contain(ApplicationErrors.Gift_IdempotencyKeyRequired);
     }

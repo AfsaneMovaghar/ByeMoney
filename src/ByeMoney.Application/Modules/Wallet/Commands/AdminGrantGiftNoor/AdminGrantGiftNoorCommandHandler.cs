@@ -36,7 +36,7 @@ public sealed class AdminGrantGiftNoorCommandHandler(
                     .Select(r => new GiftRecipientResponseDto(
                         r.ExternalUserId,
                         r.UserId.Value,
-                        r.Status,
+                        r.Status.ToString(),
                         r.NewGiftBalance))
                     .ToList();
 
@@ -72,11 +72,6 @@ public sealed class AdminGrantGiftNoorCommandHandler(
                 catch (NotFoundException)
                 {
                     invalidUsers.Add(new InvalidGiftUserDto(externalUserId, ApplicationErrors.Gift_UserNotFound));
-                    continue;
-                }
-                catch (Exception ex)
-                {
-                    invalidUsers.Add(new InvalidGiftUserDto(externalUserId, ex.Message));
                     continue;
                 }
             }
@@ -154,14 +149,15 @@ public sealed class AdminGrantGiftNoorCommandHandler(
                 request.AmountNoor,
                 transactionId,
                 userWallet.Wallet.GiftBalance,
-                grantedAtUtc);
+                grantedAtUtc,
+                GiftRecipientStatus.Granted);
 
             batch.AddRecipient(recipient);
 
             recipientResponses.Add(new GiftRecipientResponseDto(
                 user.ExternalUserId,
                 user.Id.Value,
-                recipient.Status,
+                recipient.Status.ToString(),
                 userWallet.Wallet.GiftBalance));
         }
 

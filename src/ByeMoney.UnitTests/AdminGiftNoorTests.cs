@@ -96,6 +96,9 @@ public sealed class AdminGiftNoorTests
         _recordedLedger.Should().OnlyContain(e => e.BalanceType == LedgerBalanceType.Gift);
         _recordedLedger.Should().OnlyContain(e => e.ReferenceType == LedgerReferenceType.AdminGrant);
 
+        result.Response.Recipients.Should().AllSatisfy(r => r.Status.Should().Be("Granted"));
+        _storedBatch!.Recipients.Should().AllSatisfy(r => r.Status.Should().Be(GiftRecipientStatus.Granted));
+
         _unitOfWork.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 

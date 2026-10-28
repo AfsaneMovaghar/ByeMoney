@@ -1,5 +1,6 @@
 using ByeMoney.API.Contracts.Errors;
 using ByeMoney.API.Contracts.Gift;
+using ByeMoney.API.Resources;
 using ByeMoney.Application.Common.Interfaces;
 using ByeMoney.Application.Modules.Wallet.Commands.AdminGrantGiftNoor;
 using ByeMoney.Application.Resources;
@@ -30,7 +31,7 @@ public sealed class AdminGiftController(
     {
         if (string.IsNullOrWhiteSpace(idempotencyKey))
         {
-            return BadRequest(new MiddlewareErrorResponse(
+            return BadRequest(new AdminGiftErrorResponse(
                 ApplicationErrors.Gift_IdempotencyKeyRequired,
                 StatusCodes.Status400BadRequest,
                 [ApplicationErrors.Gift_IdempotencyKeyRequired]));
@@ -67,10 +68,10 @@ public sealed class AdminGiftController(
                 [result.ErrorMessage ?? ApplicationErrors.TopUpRequest_IdempotencyConflict]));
         }
 
-        return BadRequest(new MiddlewareErrorResponse(
-            result.ErrorMessage ?? "خطایی در پردازش درخواست رخ داد.",
+        return BadRequest(new AdminGiftErrorResponse(
+            result.ErrorMessage ?? ApiErrors.Middleware_UnexpectedErrorMessage,
             StatusCodes.Status400BadRequest,
-            [result.ErrorMessage ?? "خطایی در پردازش درخواست رخ داد."]));
+            [result.ErrorMessage ?? ApiErrors.Middleware_UnexpectedErrorMessage]));
     }
 }
 
