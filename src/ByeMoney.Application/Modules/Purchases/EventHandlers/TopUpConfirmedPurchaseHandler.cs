@@ -1,16 +1,17 @@
-using ByeMoney.Application.Modules.Wallet.DTOs;
-using ByeMoney.Application.Modules.Settings.Interfaces;
-using ByeMoney.Application.Modules.Identity.Users.Interfaces;
 using ByeMoney.Application.Common.Interfaces;
+using ByeMoney.Application.Modules.Identity.Users.Interfaces;
 using ByeMoney.Application.Modules.Purchases.Interfaces;
 using ByeMoney.Application.Modules.Purchases.Services;
+using ByeMoney.Application.Modules.Settings.Interfaces;
 using ByeMoney.Application.Modules.TarhElahiIntegration.DTOs;
 using ByeMoney.Application.Modules.TarhElahiIntegration.Interfaces;
+using ByeMoney.Application.Modules.Wallet.DTOs;
 using ByeMoney.Application.Modules.Wallet.Events;
 using ByeMoney.Application.Modules.Wallet.Interfaces;
 using ByeMoney.Domain.Modules.Purchases;
 using ByeMoney.Domain.Modules.Wallet.Ledgers;
 using ByeMoney.Domain.Modules.Wallet.TopUps;
+using ByeMoney.Domain.Modules.Wallet.Wallets;
 using MediatR;
 using Microsoft.Extensions.Logging;
 
@@ -23,8 +24,7 @@ public class TopUpConfirmedPurchaseHandler : INotificationHandler<TopUpConfirmed
     private readonly ITarhElahiIntegrationClient _tarhElahiClient;
     private readonly ICoursePurchaseRepository _coursePurchaseRepository;
     private readonly IUserWalletProvisioningService _walletProvisioningService;
-    private readonly IWalletRepository _walletRepository;
-    private readonly IRepository<LedgerEntry, LedgerEntryId> _ledgerRepository;
+    private readonly IWalletPostingService _walletPostingService;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ICoursePurchaseNotifier _notifier;
     private readonly ILogger<TopUpConfirmedPurchaseHandler> _logger;
@@ -34,8 +34,7 @@ public class TopUpConfirmedPurchaseHandler : INotificationHandler<TopUpConfirmed
         ITarhElahiIntegrationClient tarhElahiClient,
         ICoursePurchaseRepository coursePurchaseRepository,
         IUserWalletProvisioningService walletProvisioningService,
-        IWalletRepository walletRepository,
-        IRepository<LedgerEntry, LedgerEntryId> ledgerRepository,
+        IWalletPostingService walletPostingService,
         IUnitOfWork unitOfWork,
         ICoursePurchaseNotifier notifier,
         ILogger<TopUpConfirmedPurchaseHandler> logger,
@@ -46,8 +45,7 @@ public class TopUpConfirmedPurchaseHandler : INotificationHandler<TopUpConfirmed
         _tarhElahiClient = tarhElahiClient;
         _coursePurchaseRepository = coursePurchaseRepository;
         _walletProvisioningService = walletProvisioningService;
-        _walletRepository = walletRepository;
-        _ledgerRepository = ledgerRepository;
+        _walletPostingService = walletPostingService;
         _unitOfWork = unitOfWork;
         _notifier = notifier;
         _logger = logger;
@@ -137,11 +135,11 @@ public class TopUpConfirmedPurchaseHandler : INotificationHandler<TopUpConfirmed
 
         var totalPriceInNoor = itemsToPurchase.Sum(x => x.PriceInNoor);
         var provisioned = await _walletProvisioningService.GetOrCreateUserWalletAsync(notification.UserId, cancellationToken);
-        if (provisioned.Wallet.Balance < totalPriceInNoor)
+        if (provisioned.Wallet.TotalBalance < totalPriceInNoor)
         {
             _logger.LogWarning(
-                "Auto-purchase on TopUpConfirmed skipped: Wallet balance ({Balance}) insufficient for price in Noor ({PriceInNoor}). Wallet remains credited.",
-                provisioned.Wallet.Balance, totalPriceInNoor);
+                "Auto-purchase on TopUpConfirmed skipped: Wallet total balance ({TotalBalance}) insufficient for price in Noor ({PriceInNoor}). Wallet remains credited.",
+                provisioned.Wallet.TotalBalance, totalPriceInNoor);
             return;
         }
 
@@ -169,30 +167,23 @@ public class TopUpConfirmedPurchaseHandler : INotificationHandler<TopUpConfirmed
         Guid transactionId,
         CancellationToken cancellationToken)
     {
-        var totalPriceInNoor = itemsToPurchase.Sum(x => x.PriceInNoor);
-        provisioned.Wallet.ApplyDebit(totalPriceInNoor);
-        _walletRepository.Update(provisioned.Wallet);
-
         var systemAccount = await _walletProvisioningService.GetOrCreateSystemAccountAsync(cancellationToken);
 
         foreach (var item in itemsToPurchase)
         {
-            var buyerDebitEntry = LedgerEntry.Create(
-                provisioned.Account.Id,
-                -item.PriceInNoor,
-                transactionId,
-                LedgerReferenceType.Purchase,
-                item.Purchase.Id.ToString());
-
-            var systemCreditEntry = LedgerEntry.Create(
-                systemAccount.Id,
-                item.PriceInNoor,
-                transactionId,
-                LedgerReferenceType.Purchase,
-                item.Purchase.Id.ToString());
-
-            await _ledgerRepository.AddAsync(buyerDebitEntry, cancellationToken);
-            await _ledgerRepository.AddAsync(systemCreditEntry, cancellationToken);
+            if (item.PriceInNoor > 0)
+            {
+                await _walletPostingService.PostDebitAsync(
+                    provisioned,
+                    systemAccount,
+                    item.PriceInNoor,
+                    WalletDebitPurpose.Purchase,
+                    transactionId,
+                    LedgerReferenceType.Purchase,
+                    item.Purchase.Id.ToString(),
+                    provisioned.Wallet.UserId,
+                    cancellationToken);
+            }
 
             item.Purchase.MarkDebited(transactionId);
             _coursePurchaseRepository.Update(item.Purchase);

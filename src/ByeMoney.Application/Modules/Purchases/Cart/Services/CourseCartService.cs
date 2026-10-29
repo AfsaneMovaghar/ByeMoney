@@ -347,7 +347,7 @@ public sealed class CourseCartService(
     private async Task<CartResponse> ResponseAsync(CourseCart cart, CancellationToken ct)
     {
         var wallet = await wallets.GetByUserIdAsync(new UserId(cart.BuyerId), ct);
-        var balance = wallet?.Balance ?? 0m;
+        var balance = wallet?.TotalBalance ?? 0m;
         var shortfall = cart.Status == CourseCartStatus.Ready ? decimal.Ceiling(Math.Max(0, cart.Total - balance)) : 0m;
         var rate = shortfall > 0 ? await settings.GetRialToNoorConversionRateAsync(ct) : 0m;
 

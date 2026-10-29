@@ -15,10 +15,9 @@ namespace ByeMoney.Application.Modules.Wallet.Commands.AdminGrantGiftNoor;
 
 public sealed class AdminGrantGiftNoorCommandHandler(
     IUserRepository userRepository,
-    IWalletRepository walletRepository,
     IGiftGrantRepository giftGrantRepository,
     IUserWalletProvisioningService provisioningService,
-    IRepository<LedgerEntry, LedgerEntryId> ledgerRepository,
+    IWalletPostingService postingService,
     IUnitOfWork unitOfWork,
     ISender sender) : IRequestHandler<AdminGrantGiftNoorCommand, AdminGrantGiftNoorResult>
 {
@@ -118,29 +117,16 @@ public sealed class AdminGrantGiftNoorCommandHandler(
             var userWallet = await provisioningService.GetOrCreateUserWalletAsync(user.Id, ct);
             var transactionId = Guid.NewGuid();
 
-            var userEntry = LedgerEntry.Create(
-                userWallet.Account.Id,
+            await postingService.PostCreditAsync(
+                userWallet,
+                systemAccount,
                 request.AmountNoor,
+                LedgerBalanceType.Gift,
                 transactionId,
                 LedgerReferenceType.AdminGrant,
                 batch.Id.ToString(),
                 adminUserId,
-                LedgerBalanceType.Gift);
-
-            var systemEntry = LedgerEntry.Create(
-                systemAccount.Id,
-                -request.AmountNoor,
-                transactionId,
-                LedgerReferenceType.AdminGrant,
-                batch.Id.ToString(),
-                adminUserId,
-                LedgerBalanceType.Gift);
-
-            await ledgerRepository.AddAsync(userEntry, ct);
-            await ledgerRepository.AddAsync(systemEntry, ct);
-
-            userWallet.Wallet.ApplyGiftCredit(request.AmountNoor);
-            walletRepository.Update(userWallet.Wallet);
+                ct);
 
             var recipient = GiftGrantRecipient.Create(
                 batch.Id,
@@ -184,4 +170,3 @@ public sealed class AdminGrantGiftNoorCommandHandler(
         return Convert.ToHexString(bytes).ToLowerInvariant();
     }
 }
-

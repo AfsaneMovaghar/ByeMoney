@@ -33,7 +33,8 @@ public class WalletConfiguration : IEntityTypeConfiguration<WalletEntity>
                 value => new UserId(value))
             .IsRequired();
 
-        builder.Property(w => w.Balance)
+        builder.Property(w => w.RegularBalance)
+            .HasColumnName("Balance")
             .HasPrecision(18, 4)
             .IsConcurrencyToken()
             .IsRequired();

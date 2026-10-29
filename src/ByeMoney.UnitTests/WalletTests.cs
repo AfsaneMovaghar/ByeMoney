@@ -1,7 +1,9 @@
 using ByeMoney.Domain.Common.Exceptions;
 using ByeMoney.Domain.Modules.Identity.Users;
 using ByeMoney.Domain.Modules.Wallet.Accounts;
+using ByeMoney.Domain.Modules.Wallet.Ledgers;
 using ByeMoney.Domain.Modules.Wallet.Wallets;
+using ByeMoney.Domain.Resources;
 using FluentAssertions;
 using Xunit;
 using WalletEntity = ByeMoney.Domain.Modules.Wallet.Wallets.Wallet;
@@ -13,77 +15,134 @@ public class WalletTests
     [Fact]
     public void Create_ShouldInitializeWithZeroBalance()
     {
-        // Arrange
         var accountId = AccountId.New();
         var userId = UserId.New();
 
-        // Act
         var wallet = WalletEntity.Create(accountId, userId);
 
-        // Assert
         wallet.Id.Value.Should().NotBeEmpty();
         wallet.AccountId.Should().Be(accountId);
         wallet.UserId.Should().Be(userId);
-        wallet.Balance.Should().Be(0m);
+        wallet.WithdrawableBalance.Should().Be(0m);
+        wallet.GiftBalance.Should().Be(0m);
+        wallet.TotalBalance.Should().Be(0m);
         wallet.LastUpdatedAtUtc.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(2));
     }
 
     [Fact]
-    public void ApplyCredit_ShouldIncreaseBalance()
+    public void Credit_ShouldIncreaseRegularBalance()
     {
-        // Arrange
         var wallet = WalletEntity.Create(AccountId.New(), UserId.New());
 
-        // Act
-        wallet.ApplyCredit(1500m);
+        var result = wallet.Credit(1500m, LedgerBalanceType.Regular);
 
-        // Assert
-        wallet.Balance.Should().Be(1500m);
+        result.RegularCredited.Should().Be(1500m);
+        result.GiftCredited.Should().Be(0m);
+        wallet.WithdrawableBalance.Should().Be(1500m);
+        wallet.TotalBalance.Should().Be(1500m);
+    }
+
+    [Fact]
+    public void Credit_ShouldIncreaseGiftBalance()
+    {
+        var wallet = WalletEntity.Create(AccountId.New(), UserId.New());
+
+        var result = wallet.Credit(500m, LedgerBalanceType.Gift);
+
+        result.GiftCredited.Should().Be(500m);
+        result.RegularCredited.Should().Be(0m);
+        wallet.GiftBalance.Should().Be(500m);
+        wallet.WithdrawableBalance.Should().Be(0m);
+        wallet.TotalBalance.Should().Be(500m);
     }
 
     [Theory]
     [InlineData(0)]
     [InlineData(-50)]
-    public void ApplyCredit_ShouldThrowDomainException_WhenAmountIsZeroOrNegative(decimal invalidAmount)
+    public void Credit_ShouldThrowDomainException_WhenAmountIsZeroOrNegative(decimal invalidAmount)
     {
-        // Arrange
         var wallet = WalletEntity.Create(AccountId.New(), UserId.New());
 
-        // Act
-        var act = () => wallet.ApplyCredit(invalidAmount);
+        var act = () => wallet.Credit(invalidAmount, LedgerBalanceType.Regular);
 
-        // Assert
         act.Should().Throw<DomainException>()
-            .WithMessage("*بزرگتر از صفر*");
+            .WithMessage(DomainErrors.Wallet_CreditMustBeGreaterThanZero);
     }
 
     [Fact]
-    public void ApplyDebit_ShouldDecreaseBalance_WhenSufficient()
+    public void Debit_Purchase_ShouldPrioritizeGiftBalanceFirst()
     {
-        // Arrange
         var wallet = WalletEntity.Create(AccountId.New(), UserId.New());
-        wallet.ApplyCredit(2000m);
+        wallet.Credit(100m, LedgerBalanceType.Gift);
+        wallet.Credit(200m, LedgerBalanceType.Regular);
 
-        // Act
-        wallet.ApplyDebit(800m);
+        // خرید ۱۵۰ نور: باید ۱۰۰ نور از هدیه و ۵۰ نور از عادی کسر شود
+        var result = wallet.Debit(150m, WalletDebitPurpose.Purchase);
 
-        // Assert
-        wallet.Balance.Should().Be(1200m);
+        result.GiftDebited.Should().Be(100m);
+        result.RegularDebited.Should().Be(50m);
+        wallet.GiftBalance.Should().Be(0m);
+        wallet.WithdrawableBalance.Should().Be(150m);
+        wallet.TotalBalance.Should().Be(150m);
     }
 
     [Fact]
-    public void ApplyDebit_ShouldThrowDomainException_WhenInsufficientBalance()
+    public void Debit_Purchase_ShouldDeductOnlyFromGift_WhenGiftIsSufficient()
     {
-        // Arrange
         var wallet = WalletEntity.Create(AccountId.New(), UserId.New());
-        wallet.ApplyCredit(500m);
+        wallet.Credit(100m, LedgerBalanceType.Gift);
+        wallet.Credit(50m, LedgerBalanceType.Regular);
 
-        // Act
-        var act = () => wallet.ApplyDebit(600m);
+        var result = wallet.Debit(60m, WalletDebitPurpose.Purchase);
 
-        // Assert
+        result.GiftDebited.Should().Be(60m);
+        result.RegularDebited.Should().Be(0m);
+        wallet.GiftBalance.Should().Be(40m);
+        wallet.WithdrawableBalance.Should().Be(50m);
+        wallet.TotalBalance.Should().Be(90m);
+    }
+
+    [Fact]
+    public void Debit_WithdrawalOrTransfer_ShouldOnlyDeductFromRegularBalance_AndNeverTouchGift()
+    {
+        var wallet = WalletEntity.Create(AccountId.New(), UserId.New());
+        wallet.Credit(500m, LedgerBalanceType.Gift);
+        wallet.Credit(300m, LedgerBalanceType.Regular);
+
+        var result = wallet.Debit(200m, WalletDebitPurpose.WithdrawalOrTransfer);
+
+        result.GiftDebited.Should().Be(0m);
+        result.RegularDebited.Should().Be(200m);
+        wallet.GiftBalance.Should().Be(500m);
+        wallet.WithdrawableBalance.Should().Be(100m);
+        wallet.TotalBalance.Should().Be(600m);
+    }
+
+    [Fact]
+    public void Debit_WithdrawalOrTransfer_ShouldThrow_WhenRegularBalanceInsufficient_EvenIfGiftAvailable()
+    {
+        var wallet = WalletEntity.Create(AccountId.New(), UserId.New());
+        wallet.Credit(1000m, LedgerBalanceType.Gift);
+        wallet.Credit(50m, LedgerBalanceType.Regular);
+
+        // تلاش برای خروج ۱۰۰ نور، در حالی که عادی فقط ۵۰ نور است: باید خطا دهد
+        var act = () => wallet.Debit(100m, WalletDebitPurpose.WithdrawalOrTransfer);
+
         act.Should().Throw<DomainException>()
-            .WithMessage("*کافی نیست*");
+            .WithMessage(DomainErrors.Wallet_InsufficientBalance);
+    }
+
+    [Fact]
+    public void Debit_Purchase_ShouldThrow_WhenTotalBalanceInsufficient()
+    {
+        var wallet = WalletEntity.Create(AccountId.New(), UserId.New());
+        wallet.Credit(100m, LedgerBalanceType.Gift);
+        wallet.Credit(50m, LedgerBalanceType.Regular);
+
+        var act = () => wallet.Debit(200m, WalletDebitPurpose.Purchase);
+
+        act.Should().Throw<DomainException>()
+            .WithMessage(DomainErrors.Wallet_InsufficientBalance);
     }
 }
 

@@ -218,7 +218,7 @@ public sealed class CourseCartStore(IServiceScopeFactory scopes) : ICourseCartSt
                 var provisioning = sp.GetRequiredService<IUserWalletProvisioningService>();
                 var provisioned = await provisioning.GetOrCreateUserWalletAsync(buyer, ct);
 
-                if (provisioned.Wallet.Balance < cart.Total)
+                if (provisioned.Wallet.TotalBalance < cart.Total)
                 {
                     return Result<CourseCart>.Failure(CartErrors.InsufficientBalance, CartErrorCodes.InsufficientBalance);
                 }
@@ -271,7 +271,7 @@ public sealed class CourseCartStore(IServiceScopeFactory scopes) : ICourseCartSt
                 }
 
                 var wallet = await sp.GetRequiredService<IWalletRepository>().GetByUserIdAsync(new UserId(buyerId), ct);
-                var amount = decimal.Ceiling(cart.Total - (wallet?.Balance ?? 0m));
+                var amount = decimal.Ceiling(cart.Total - (wallet?.TotalBalance ?? 0m));
                 if (amount <= 0)
                 {
                     return Result<CreateTopUpRequestResponse>.Conflict(CartErrors.Conflict, CartErrorCodes.Conflict);
@@ -299,7 +299,7 @@ public sealed class CourseCartStore(IServiceScopeFactory scopes) : ICourseCartSt
             }
 
             var wallet = await sp.GetRequiredService<IWalletRepository>().GetByUserIdAsync(new UserId(buyerId), ct);
-            var amount = decimal.Ceiling(cart.Total - (wallet?.Balance ?? 0m));
+            var amount = decimal.Ceiling(cart.Total - (wallet?.TotalBalance ?? 0m));
             if (amount <= 0)
             {
                 return Result<CreateTopUpRequestResponse>.Conflict(CartErrors.Conflict, CartErrorCodes.Conflict);

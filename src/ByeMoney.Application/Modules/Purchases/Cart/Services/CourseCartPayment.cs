@@ -4,6 +4,7 @@ using ByeMoney.Domain.Modules.Identity.Users;
 using ByeMoney.Domain.Modules.Purchases;
 using ByeMoney.Domain.Modules.Wallet.Accounts;
 using ByeMoney.Domain.Modules.Wallet.Ledgers;
+using ByeMoney.Domain.Modules.Wallet.Wallets;
 
 namespace ByeMoney.Application.Modules.Purchases.Cart.Services;
 
@@ -29,15 +30,32 @@ public static class CourseCartPayment
             throw new ArgumentException(nameof(cart));
         }
 
+        var ledgerEntries = new List<LedgerEntry>();
+
         if (cart.Total > 0)
         {
             ArgumentNullException.ThrowIfNull(system);
-            wallet.Wallet.ApplyDebit(cart.Total);
+            var debitResult = wallet.Wallet.Debit(cart.Total, WalletDebitPurpose.Purchase);
+
+            if (debitResult.GiftDebited > 0)
+            {
+                ledgerEntries.Add(LedgerEntry.Create(
+                    wallet.Account.Id, -debitResult.GiftDebited, cart.Id, LedgerReferenceType.Purchase, cart.Id.ToString(), balanceType: LedgerBalanceType.Gift));
+                ledgerEntries.Add(LedgerEntry.Create(
+                    system.Id, debitResult.GiftDebited, cart.Id, LedgerReferenceType.Purchase, cart.Id.ToString(), balanceType: LedgerBalanceType.Gift));
+            }
+
+            if (debitResult.RegularDebited > 0)
+            {
+                ledgerEntries.Add(LedgerEntry.Create(
+                    wallet.Account.Id, -debitResult.RegularDebited, cart.Id, LedgerReferenceType.Purchase, cart.Id.ToString(), balanceType: LedgerBalanceType.Regular));
+                ledgerEntries.Add(LedgerEntry.Create(
+                    system.Id, debitResult.RegularDebited, cart.Id, LedgerReferenceType.Purchase, cart.Id.ToString(), balanceType: LedgerBalanceType.Regular));
+            }
         }
 
         var purchases = new List<CoursePurchase>();
         var physicalPurchases = new List<PhysicalProductPurchase>();
-        var ledgerEntries = new List<LedgerEntry>();
 
         foreach (var item in cart.Items)
         {
@@ -96,14 +114,6 @@ public static class CourseCartPayment
 
                 purchases.Add(purchase);
             }
-        }
-
-        if (cart.Total > 0)
-        {
-            ledgerEntries.Add(LedgerEntry.Create(
-                wallet.Account.Id, -cart.Total, cart.Id, LedgerReferenceType.Purchase, cart.Id.ToString()));
-            ledgerEntries.Add(LedgerEntry.Create(
-                system!.Id, cart.Total, cart.Id, LedgerReferenceType.Purchase, cart.Id.ToString()));
         }
 
         cart.MarkPaid();

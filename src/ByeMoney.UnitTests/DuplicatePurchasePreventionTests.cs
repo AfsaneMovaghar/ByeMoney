@@ -1,4 +1,4 @@
-using ByeMoney.Application.Common.Interfaces;
+﻿using ByeMoney.Application.Common.Interfaces;
 using ByeMoney.Application.Modules.Identity.Users.Interfaces;
 using ByeMoney.Application.Modules.Purchases.Cart.Constants;
 using ByeMoney.Application.Modules.Purchases.Cart.DTOs;
@@ -207,7 +207,7 @@ public class DuplicatePurchasePreventionTests
             tarhElahiClientMock.Object,
             walletProvisioningMock.Object,
             walletRepoMock.Object,
-            ledgerRepoMock.Object,
+            new ByeMoney.Application.Modules.Wallet.Services.WalletPostingService(ledgerRepoMock.Object, walletRepoMock.Object),
             coursePurchaseRepoMock.Object,
             unitOfWorkMock.Object,
             notifierMock.Object,
@@ -299,7 +299,7 @@ public class DuplicatePurchasePreventionTests
             tarhElahiClientMock.Object,
             walletProvisioningMock.Object,
             walletRepoMock.Object,
-            ledgerRepoMock.Object,
+            new ByeMoney.Application.Modules.Wallet.Services.WalletPostingService(ledgerRepoMock.Object, walletRepoMock.Object),
             coursePurchaseRepoMock.Object,
             unitOfWorkMock.Object,
             notifierMock.Object,

@@ -1,4 +1,4 @@
-using ByeMoney.Application.Modules.Wallet.DTOs;
+﻿using ByeMoney.Application.Modules.Wallet.DTOs;
 using ByeMoney.Application.Modules.Settings.Interfaces;
 using ByeMoney.Application.Modules.Identity.Users.Interfaces;
 using ByeMoney.Application.Common.Interfaces;
@@ -46,7 +46,7 @@ public class PurchaseCoursesCommandHandlerTests
             _tarhElahiClientMock.Object,
             _walletProvisioningMock.Object,
             _walletRepoMock.Object,
-            _ledgerRepoMock.Object,
+            new ByeMoney.Application.Modules.Wallet.Services.WalletPostingService(_ledgerRepoMock.Object, _walletRepoMock.Object),
             _coursePurchaseRepoMock.Object,
             _unitOfWorkMock.Object,
             _notifierMock.Object,
@@ -94,7 +94,7 @@ public class PurchaseCoursesCommandHandlerTests
         result.Value.TransactionId.Should().NotBeEmpty();
         result.Value.TotalPriceInNoor.Should().Be(0m);
         result.Value.Items.Should().ContainSingle().Which.PriceInNoor.Should().Be(0m);
-        wallet.Balance.Should().Be(0m);
+        wallet.WithdrawableBalance.Should().Be(0m);
         savedPurchase.Should().NotBeNull();
         savedPurchase!.Status.Should().Be(CoursePurchaseStatus.Debited);
         savedPurchase.LedgerTransactionId.Should().Be(result.Value.TransactionId);
@@ -192,8 +192,8 @@ public class PurchaseCoursesCommandHandlerTests
         result.Value.Items.Should().HaveCount(2);
 
         // 1. Wallet debited by total
-        wallet.Balance.Should().Be(6_000m); // 10,000 - 4,000
-        _walletRepoMock.Verify(w => w.Update(wallet), Times.Once);
+        wallet.WithdrawableBalance.Should().Be(6_000m); // 10,000 - 4,000
+        _walletRepoMock.Verify(w => w.Update(wallet), Times.Exactly(2));
 
         // 2. Exactly 2 CoursePurchase rows created with status Debited
         savedPurchases.Should().HaveCount(2);
@@ -273,7 +273,7 @@ public class PurchaseCoursesCommandHandlerTests
         // Assert
         result.IsSuccess.Should().BeTrue();
         result.Value.TotalPriceInNoor.Should().Be(1_000m);
-        wallet.Balance.Should().Be(1_000m);
+        wallet.WithdrawableBalance.Should().Be(1_000m);
         savedLedgerEntries.Should().HaveCount(2);
         savedLedgerEntries.Should().ContainSingle(e => e.AccountId == userAccount.Id && e.Amount == -1_000m);
         savedLedgerEntries.Should().ContainSingle(e => e.AccountId == systemAccount.Id && e.Amount == 1_000m);

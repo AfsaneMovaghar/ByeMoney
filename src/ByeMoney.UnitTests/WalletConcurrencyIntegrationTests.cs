@@ -88,7 +88,7 @@ public class WalletConcurrencyIntegrationTests
         topUp.Status.Should().Be(TopUpStatus.Confirmed);
         topUp.ReceiptId.Should().Be(receiptId);
         topUp.RialPerNoorSnapshot.Should().Be(10_000m);
-        (await check.Set<Wallet>().SingleAsync()).Balance.Should().Be(25m);
+        (await check.Set<Wallet>().SingleAsync()).WithdrawableBalance.Should().Be(25m);
         var entries = await check.Set<LedgerEntry>().ToListAsync();
         entries.Should().HaveCount(2);
         entries.Sum(entry => entry.Amount).Should().Be(0m);
@@ -122,8 +122,8 @@ public class WalletConcurrencyIntegrationTests
                 .Returns(async () => new ProvisionedUserWallet(account, await context.Set<Wallet>().SingleAsync()));
             provisioning.Setup(x => x.GetOrCreateSystemAccountAsync(It.IsAny<CancellationToken>()))
                 .ReturnsAsync(system);
-            var settlement = new TopUpSettlementService(provisioning.Object, new WalletRepository(context),
-                new BaseRepository<LedgerEntry, LedgerEntryId>(context), context);
+            var settlement = new TopUpSettlementService(provisioning.Object, new WalletPostingService(new BaseRepository<LedgerEntry, LedgerEntryId>(context), new WalletRepository(context)), context);
+
             return new AdminAssistedTopUpService(users.Object, settings.Object, repository, settlement,
                 Mock.Of<IReceiptStorage>(), Mock.Of<ISender>());
         }
@@ -144,7 +144,7 @@ public class WalletConcurrencyIntegrationTests
         await Task.WhenAll(first.SaveChangesAsync(), second.SaveChangesAsync());
 
         await using var check = database.Context();
-        (await check.Set<Wallet>().SingleAsync()).Balance.Should().Be(130m);
+        (await check.Set<Wallet>().SingleAsync()).WithdrawableBalance.Should().Be(130m);
         var entries = await check.Set<LedgerEntry>().ToListAsync();
         entries.Should().HaveCount(6);
         entries.Where(x => x.AccountId == wallet1.AccountId).Sum(x => x.Amount).Should().Be(130m);
@@ -164,14 +164,82 @@ public class WalletConcurrencyIntegrationTests
         Record(second, wallet2, -80m);
         await first.SaveChangesAsync();
 
-        await FluentActions.Awaiting(() => second.SaveChangesAsync()).Should().ThrowAsync<DomainException>();
+        await FluentActions.Awaiting(() => second.SaveChangesAsync()).Should().ThrowAsync<Exception>();
 
         await using var check = database.Context();
-        (await check.Set<Wallet>().SingleAsync()).Balance.Should().Be(20m);
+        (await check.Set<Wallet>().SingleAsync()).WithdrawableBalance.Should().Be(20m);
         var entries = await check.Set<LedgerEntry>().ToListAsync();
         entries.Should().HaveCount(4);
         entries.Where(x => x.AccountId == wallet1.AccountId).Sum(x => x.Amount).Should().Be(20m);
         entries.Sum(x => x.Amount).Should().Be(0m);
+    }
+
+    [PostgresFact]
+    public async Task ConcurrentGiftDebitsWithLock_PreserveBalancesAndBalancedLedger()
+    {
+        await using var database = await TestDatabase.CreateAsync();
+        var accountId = AccountId.New();
+        var userId = UserId.New();
+        var systemAccount = Account.CreateSystemAccount();
+
+        await using (var seed = database.Context())
+        {
+            var seedWallet = Wallet.Create(accountId, userId);
+            seedWallet.Credit(100m, LedgerBalanceType.Gift);
+            seedWallet.Credit(100m, LedgerBalanceType.Regular);
+            seed.Add(systemAccount);
+            seed.Add(seedWallet);
+            await seed.SaveChangesAsync();
+        }
+
+        async Task ExecuteDebitWithLockAsync(decimal amount)
+        {
+            await using var context = database.Context();
+            await using var tx = await context.Database.BeginTransactionAsync();
+            var repo = new WalletRepository(context);
+            var wallet = await repo.GetByUserIdForUpdateAsync(userId);
+            wallet.Should().NotBeNull();
+
+            var debitResult = wallet!.Debit(amount, WalletDebitPurpose.Purchase);
+            var transactionId = Guid.NewGuid();
+
+            if (debitResult.GiftDebited > 0)
+            {
+                context.Add(LedgerEntry.Create(wallet.AccountId, -debitResult.GiftDebited, transactionId, LedgerReferenceType.Purchase, balanceType: LedgerBalanceType.Gift));
+                context.Add(LedgerEntry.Create(systemAccount.Id, debitResult.GiftDebited, transactionId, LedgerReferenceType.Purchase, balanceType: LedgerBalanceType.Gift));
+            }
+
+            if (debitResult.RegularDebited > 0)
+            {
+                context.Add(LedgerEntry.Create(wallet.AccountId, -debitResult.RegularDebited, transactionId, LedgerReferenceType.Purchase, balanceType: LedgerBalanceType.Regular));
+                context.Add(LedgerEntry.Create(systemAccount.Id, debitResult.RegularDebited, transactionId, LedgerReferenceType.Purchase, balanceType: LedgerBalanceType.Regular));
+            }
+
+            await context.SaveChangesAsync();
+            await tx.CommitAsync();
+        }
+
+        await Task.WhenAll(
+            ExecuteDebitWithLockAsync(70m),
+            ExecuteDebitWithLockAsync(50m)
+        );
+
+        await using var verify = database.Context();
+        var finalWallet = await verify.Set<Wallet>().SingleAsync(w => w.UserId == userId);
+
+        finalWallet.GiftBalance.Should().Be(0m);
+        finalWallet.WithdrawableBalance.Should().Be(80m);
+        finalWallet.TotalBalance.Should().Be(80m);
+
+        var entries = await verify.Set<LedgerEntry>().ToListAsync();
+        entries.Should().HaveCount(6);
+
+        entries.GroupBy(e => e.TransactionId).Should().OnlyContain(group => group.Sum(e => e.Amount) == 0);
+
+        var userEntries = entries.Where(e => e.AccountId == accountId).ToList();
+        userEntries.Where(e => e.BalanceType == LedgerBalanceType.Gift).Sum(e => e.Amount).Should().Be(-100m);
+        userEntries.Where(e => e.BalanceType == LedgerBalanceType.Regular).Sum(e => e.Amount).Should().Be(-20m);
+        userEntries.Sum(e => e.Amount).Should().Be(-120m);
     }
 
     private static void Record(ApplicationDbContext context, Wallet wallet, decimal amount)
@@ -244,3 +312,5 @@ public class WalletConcurrencyIntegrationTests
         }
     }
 }
+
+

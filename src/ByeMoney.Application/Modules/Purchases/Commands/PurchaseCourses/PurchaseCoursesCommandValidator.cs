@@ -127,9 +127,9 @@ public class PurchaseCoursesCommandValidator : AbstractValidator<PurchaseCourses
 
                 var provisioned = await walletProvisioningService.GetOrCreateUserWalletAsync(buyerUserId, ct);
 
-                if (provisioned.Wallet.Balance < totalPriceInNoor)
+                if (provisioned.Wallet.TotalBalance < totalPriceInNoor)
                 {
-                    var currentBalanceInNoor = provisioned.Wallet.Balance;
+                    var currentBalanceInNoor = provisioned.Wallet.TotalBalance;
                     var shortfallInNoor = decimal.Ceiling(totalPriceInNoor - currentBalanceInNoor);
 
                     var pendingSnapshots = validCourses.Select(c => new PendingItemSnapshot(

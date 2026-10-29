@@ -1,4 +1,4 @@
-using ByeMoney.Application.Modules.Purchases.Cart.Services;
+﻿using ByeMoney.Application.Modules.Purchases.Cart.Services;
 using ByeMoney.Application.Modules.Wallet.DTOs;
 using ByeMoney.Domain.Modules.Identity.Users;
 using ByeMoney.Domain.Modules.Purchases;
@@ -27,7 +27,7 @@ public sealed class CourseCartPaymentTests
         var json = $$"""
             {"cartId":"{{cart.Id}}","buyerExternalUserId":"buyer","couponCode":null,
              "items":[{"externalCourseId":"chapter-uuid","type":"course_chapter",
-             "parentExternalId":"parent-document","title":"فصل","basePriceInNoor":120,
+             "parentExternalId":"parent-document","title":"ÙØµÙ„","basePriceInNoor":120,
              "itemDiscountInNoor":0,"couponDiscountInNoor":20,"priceInNoor":100}]}
             """;
         using var http = new HttpClient(new QuoteResponseHandler(json)) { BaseAddress = new Uri("https://strapi.test/") };
@@ -38,7 +38,7 @@ public sealed class CourseCartPaymentTests
 
         var payment = CourseCartPayment.Apply(cart, new ProvisionedUserWallet(account, wallet), Account.CreateSystemAccount());
 
-        wallet.Balance.Should().Be(900);
+        wallet.WithdrawableBalance.Should().Be(900);
         payment.LedgerEntries.Sum(entry => entry.Amount).Should().Be(0);
         var snapshot = payment.Purchases.Single().Snapshot;
         snapshot.ItemType.Should().Be(ProductItemType.CourseChapter);
@@ -81,8 +81,8 @@ public sealed class CourseCartPaymentTests
         var firstPayment = 105 - firstDiscount - firstCoupon;
         var secondPayment = 105 - secondDiscount - secondCoupon;
         cart.SetQuote([
-            new("a", "الف", 105, firstDiscount, firstCoupon, firstPayment),
-            new("b", "ب", 105, secondDiscount, secondCoupon, secondPayment)
+            new("a", "Ø§Ù„Ù", 105, firstDiscount, firstCoupon, firstPayment),
+            new("b", "Ø¨", 105, secondDiscount, secondCoupon, secondPayment)
         ]);
 
         var payment = CourseCartPayment.Apply(cart, new ProvisionedUserWallet(account, wallet),
@@ -92,7 +92,7 @@ public sealed class CourseCartPaymentTests
         payment.Purchases.Select(x => x.Snapshot.PriceInNoorAtPurchaseTime)
             .Should().Equal(firstPayment, secondPayment);
         payment.Purchases.Should().OnlyContain(x => x.Snapshot.ReferenceRialPerNoorAtPurchaseTime == 137m);
-        wallet.Balance.Should().Be(1000 - firstPayment - secondPayment);
+        wallet.WithdrawableBalance.Should().Be(1000 - firstPayment - secondPayment);
         payment.LedgerEntries.Sum(x => x.Amount).Should().Be(0);
         payment.LedgerEntries.Where(x => x.Amount < 0).Sum(x => -x.Amount).Should().Be(cart.Total);
         payment.LedgerEntries.Should().NotContain(x => x.Amount == 0);
@@ -100,7 +100,7 @@ public sealed class CourseCartPaymentTests
 
         Action replay = () => CourseCartPayment.Apply(cart, new ProvisionedUserWallet(account, wallet), Account.CreateSystemAccount());
         replay.Should().Throw<InvalidOperationException>();
-        wallet.Balance.Should().Be(1000 - firstPayment - secondPayment);
+        wallet.WithdrawableBalance.Should().Be(1000 - firstPayment - secondPayment);
     }
 
     [Fact]
@@ -114,8 +114,8 @@ public sealed class CourseCartPaymentTests
         var cart = CourseCart.Create(Guid.NewGuid(), buyer.Value, "buyer-free", ["course-free-1", "course-free-2"], "100OFF");
 
         cart.SetQuote([
-            new("course-free-1", "دوره اول", 200m, 0m, 200m, 0m),
-            new("course-free-2", "دوره دوم", 150m, 50m, 100m, 0m)
+            new("course-free-1", "Ø¯ÙˆØ±Ù‡ Ø§ÙˆÙ„", 200m, 0m, 200m, 0m),
+            new("course-free-2", "Ø¯ÙˆØ±Ù‡ Ø¯ÙˆÙ…", 150m, 50m, 100m, 0m)
         ], shippingAmountInNoor: 0m);
 
         cart.Total.Should().Be(0m);
@@ -129,7 +129,7 @@ public sealed class CourseCartPaymentTests
 
         // Assert
         cart.Status.Should().Be(CourseCartStatus.Paid);
-        wallet.Balance.Should().Be(500m);
+        wallet.WithdrawableBalance.Should().Be(500m);
         payment.LedgerEntries.Should().BeEmpty();
         payment.Purchases.Should().HaveCount(2);
 

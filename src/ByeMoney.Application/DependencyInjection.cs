@@ -11,12 +11,11 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddApplicationServices(this IServiceCollection services)
     {
-
         services.AddMediatR(cfg =>
-          {
-              cfg.RegisterServicesFromAssembly(Assembly.GetExecutingAssembly());
-              cfg.AddOpenBehavior(typeof(ValidationBehavior<,>));
-          });
+        {
+            cfg.RegisterServicesFromAssembly(Assembly.GetExecutingAssembly());
+            cfg.AddOpenBehavior(typeof(ValidationBehavior<,>));
+        });
 
         services.AddValidatorsFromAssembly(Assembly.GetExecutingAssembly());
         services.AddScoped<ByeMoney.Application.Modules.Purchases.Cart.Services.CourseCartService>();
@@ -24,6 +23,7 @@ public static class DependencyInjection
         ValidatorOptions.Global.DefaultClassLevelCascadeMode = CascadeMode.Stop;
 
         services.AddScoped<IUserWalletProvisioningService, UserWalletProvisioningService>();
+        services.AddScoped<IWalletPostingService, WalletPostingService>();
         services.AddScoped<ITopUpSettlementService, TopUpSettlementService>();
         services.AddScoped<IAdminAssistedTopUpService, AdminAssistedTopUpService>();
         services.AddScoped<ByeMoney.Application.Modules.Purchases.Interfaces.ICoursePurchaseNotifier, ByeMoney.Application.Modules.Purchases.Services.CoursePurchaseNotifier>();

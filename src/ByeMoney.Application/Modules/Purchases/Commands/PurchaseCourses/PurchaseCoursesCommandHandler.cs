@@ -1,19 +1,20 @@
+using ByeMoney.Application.Common.Interfaces;
+using ByeMoney.Application.Modules.Identity.Users.Interfaces;
 using ByeMoney.Application.Modules.Purchases.Cart.Constants;
 using ByeMoney.Application.Modules.Purchases.Constants;
-using ByeMoney.Application.Modules.Wallet.DTOs;
-using ByeMoney.Application.Modules.Settings.Interfaces;
-using ByeMoney.Application.Modules.Identity.Users.Interfaces;
-using ByeMoney.Domain.Common.Generic;
-using ByeMoney.Application.Common.Interfaces;
 using ByeMoney.Application.Modules.Purchases.Interfaces;
 using ByeMoney.Application.Modules.Purchases.Services;
+using ByeMoney.Application.Modules.Settings.Interfaces;
 using ByeMoney.Application.Modules.TarhElahiIntegration.DTOs;
 using ByeMoney.Application.Modules.TarhElahiIntegration.Interfaces;
+using ByeMoney.Application.Modules.Wallet.DTOs;
 using ByeMoney.Application.Modules.Wallet.Interfaces;
 using ByeMoney.Application.Resources;
+using ByeMoney.Domain.Common.Generic;
 using ByeMoney.Domain.Modules.Identity.Users;
 using ByeMoney.Domain.Modules.Purchases;
 using ByeMoney.Domain.Modules.Wallet.Ledgers;
+using ByeMoney.Domain.Modules.Wallet.Wallets;
 using MediatR;
 
 namespace ByeMoney.Application.Modules.Purchases.Commands.PurchaseCourses;
@@ -25,7 +26,7 @@ public class PurchaseCoursesCommandHandler : IRequestHandler<PurchaseCoursesComm
     private readonly ITarhElahiIntegrationClient _tarhElahiClient;
     private readonly IUserWalletProvisioningService _walletProvisioningService;
     private readonly IWalletRepository _walletRepository;
-    private readonly IRepository<LedgerEntry, LedgerEntryId> _ledgerRepository;
+    private readonly IWalletPostingService _walletPostingService;
     private readonly ICoursePurchaseRepository _coursePurchaseRepository;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ICoursePurchaseNotifier _notifier;
@@ -35,7 +36,7 @@ public class PurchaseCoursesCommandHandler : IRequestHandler<PurchaseCoursesComm
         ITarhElahiIntegrationClient tarhElahiClient,
         IUserWalletProvisioningService walletProvisioningService,
         IWalletRepository walletRepository,
-        IRepository<LedgerEntry, LedgerEntryId> ledgerRepository,
+        IWalletPostingService walletPostingService,
         ICoursePurchaseRepository coursePurchaseRepository,
         IUnitOfWork unitOfWork,
         ICoursePurchaseNotifier notifier,
@@ -46,7 +47,7 @@ public class PurchaseCoursesCommandHandler : IRequestHandler<PurchaseCoursesComm
         _tarhElahiClient = tarhElahiClient;
         _walletProvisioningService = walletProvisioningService;
         _walletRepository = walletRepository;
-        _ledgerRepository = ledgerRepository;
+        _walletPostingService = walletPostingService;
         _coursePurchaseRepository = coursePurchaseRepository;
         _unitOfWork = unitOfWork;
         _notifier = notifier;
@@ -160,30 +161,23 @@ public class PurchaseCoursesCommandHandler : IRequestHandler<PurchaseCoursesComm
         Guid transactionId,
         CancellationToken cancellationToken)
     {
-        var totalPriceInNoor = purchaseList.Sum(p => p.PriceInNoor);
-        provisioned.Wallet.ApplyDebit(totalPriceInNoor);
-        _walletRepository.Update(provisioned.Wallet);
-
         var systemAccount = await _walletProvisioningService.GetOrCreateSystemAccountAsync(cancellationToken);
 
         foreach (var item in purchaseList)
         {
-            var buyerDebitEntry = LedgerEntry.Create(
-                provisioned.Account.Id,
-                -item.PriceInNoor,
-                transactionId,
-                LedgerReferenceType.Purchase,
-                item.Purchase.Id.ToString());
-
-            var systemCreditEntry = LedgerEntry.Create(
-                systemAccount.Id,
-                item.PriceInNoor,
-                transactionId,
-                LedgerReferenceType.Purchase,
-                item.Purchase.Id.ToString());
-
-            await _ledgerRepository.AddAsync(buyerDebitEntry, cancellationToken);
-            await _ledgerRepository.AddAsync(systemCreditEntry, cancellationToken);
+            if (item.PriceInNoor > 0)
+            {
+                await _walletPostingService.PostDebitAsync(
+                    provisioned,
+                    systemAccount,
+                    item.PriceInNoor,
+                    WalletDebitPurpose.Purchase,
+                    transactionId,
+                    LedgerReferenceType.Purchase,
+                    item.Purchase.Id.ToString(),
+                    provisioned.Wallet.UserId,
+                    cancellationToken);
+            }
 
             item.Purchase.MarkDebited(transactionId);
             _coursePurchaseRepository.Update(item.Purchase);

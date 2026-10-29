@@ -42,7 +42,7 @@ public class CreateTopUpRequestCommandHandler : IRequestHandler<CreateTopUpReque
             if (pendingItems.Count > 0)
             {
                 var wallet = await _wallets.GetByUserIdAsync(new UserId(request.UserId), cancellationToken);
-                amountNoor = decimal.Ceiling(pendingItems.Sum(i => i.PriceNoorSnapshot) - (wallet?.Balance ?? 0m));
+                amountNoor = decimal.Ceiling(pendingItems.Sum(i => i.PriceNoorSnapshot) - (wallet?.TotalBalance ?? 0m));
                 if (amountNoor <= 0)
                     throw new DomainException(ApplicationErrors.TopUpRequest_AmountMustBeGreaterThanZero);
             }

@@ -1,4 +1,4 @@
-using ByeMoney.Application.Modules.Wallet.DTOs;
+﻿using ByeMoney.Application.Modules.Wallet.DTOs;
 using ByeMoney.Application.Common.Interfaces;
 using ByeMoney.Application.Modules.Wallet.Commands.ConfirmTopUp;
 using ByeMoney.Application.Modules.Wallet.Events;
@@ -56,7 +56,7 @@ public class ConfirmTopUpCommandHandlerTests
 
         var handler = new ConfirmTopUpCommandHandler(
             topUpRepoMock.Object,
-            new ByeMoney.Application.Modules.Wallet.Services.TopUpSettlementService(walletProvisioningMock.Object, walletRepoMock.Object, ledgerRepoMock.Object, unitOfWorkMock.Object),
+            new ByeMoney.Application.Modules.Wallet.Services.TopUpSettlementService(walletProvisioningMock.Object, new ByeMoney.Application.Modules.Wallet.Services.WalletPostingService(ledgerRepoMock.Object, walletRepoMock.Object), unitOfWorkMock.Object),
             publisherMock.Object);
 
         // Act
@@ -69,7 +69,7 @@ public class ConfirmTopUpCommandHandlerTests
         topUp.Status.Should().Be(TopUpStatus.Confirmed);
         topUp.ExternalTransactionId.Should().Be("gateway_tx_777");
 
-        // بررسی تراز بودن دفتر کل (Double-entry Zero-Net invariant)
+        // Ø¨Ø±Ø±Ø³ÛŒ ØªØ±Ø§Ø² Ø¨ÙˆØ¯Ù† Ø¯ÙØªØ± Ú©Ù„ (Double-entry Zero-Net invariant)
         savedLedgerEntries.Should().HaveCount(2);
 
         var userEntry = savedLedgerEntries.Single(e => e.AccountId == userAccount.Id);
@@ -81,14 +81,14 @@ public class ConfirmTopUpCommandHandlerTests
         userEntry.ReferenceType.Should().Be(LedgerReferenceType.TopUp);
         systemEntry.ReferenceType.Should().Be(LedgerReferenceType.TopUp);
 
-        // مجموع تراکنش‌ها باید دقیقاً صفر باشد
+        // Ù…Ø¬Ù…ÙˆØ¹ ØªØ±Ø§Ú©Ù†Ø´â€ŒÙ‡Ø§ Ø¨Ø§ÛŒØ¯ Ø¯Ù‚ÛŒÙ‚Ø§Ù‹ ØµÙØ± Ø¨Ø§Ø´Ø¯
         savedLedgerEntries.Sum(e => e.Amount).Should().Be(0m);
 
-        // اسنپ‌شات کیف پول کاربر باید به میزان شارژ افزایش یافته باشد
-        wallet.Balance.Should().Be(amount);
+        // Ø§Ø³Ù†Ù¾â€ŒØ´Ø§Øª Ú©ÛŒÙ Ù¾ÙˆÙ„ Ú©Ø§Ø±Ø¨Ø± Ø¨Ø§ÛŒØ¯ Ø¨Ù‡ Ù…ÛŒØ²Ø§Ù† Ø´Ø§Ø±Ú˜ Ø§ÙØ²Ø§ÛŒØ´ ÛŒØ§ÙØªÙ‡ Ø¨Ø§Ø´Ø¯
+        wallet.WithdrawableBalance.Should().Be(amount);
         walletRepoMock.Verify(r => r.Update(wallet), Times.Once);
 
-        // تغییرات باید ذخیره شده باشند
+        // ØªØºÛŒÛŒØ±Ø§Øª Ø¨Ø§ÛŒØ¯ Ø°Ø®ÛŒØ±Ù‡ Ø´Ø¯Ù‡ Ø¨Ø§Ø´Ù†Ø¯
         unitOfWorkMock.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
 
         // Event should NOT be published because pending fields are null
@@ -136,7 +136,7 @@ public class ConfirmTopUpCommandHandlerTests
 
         var handler = new ConfirmTopUpCommandHandler(
             topUpRepoMock.Object,
-            new ByeMoney.Application.Modules.Wallet.Services.TopUpSettlementService(walletProvisioningMock.Object, walletRepoMock.Object, ledgerRepoMock.Object, unitOfWorkMock.Object),
+            new ByeMoney.Application.Modules.Wallet.Services.TopUpSettlementService(walletProvisioningMock.Object, new ByeMoney.Application.Modules.Wallet.Services.WalletPostingService(ledgerRepoMock.Object, walletRepoMock.Object), unitOfWorkMock.Object),
             publisherMock.Object);
 
         // Act
@@ -179,7 +179,7 @@ public class ConfirmTopUpCommandHandlerTests
 
         var handler = new ConfirmTopUpCommandHandler(
             topUpRepoMock.Object,
-            new ByeMoney.Application.Modules.Wallet.Services.TopUpSettlementService(walletProvisioningMock.Object, walletRepoMock.Object, ledgerRepoMock.Object, unitOfWorkMock.Object),
+            new ByeMoney.Application.Modules.Wallet.Services.TopUpSettlementService(walletProvisioningMock.Object, new ByeMoney.Application.Modules.Wallet.Services.WalletPostingService(ledgerRepoMock.Object, walletRepoMock.Object), unitOfWorkMock.Object),
             publisherMock.Object);
 
         // Act
@@ -216,7 +216,7 @@ public class ConfirmTopUpCommandHandlerTests
 
         var handler = new ConfirmTopUpCommandHandler(
             topUpRepoMock.Object,
-            new ByeMoney.Application.Modules.Wallet.Services.TopUpSettlementService(walletProvisioningMock.Object, walletRepoMock.Object, ledgerRepoMock.Object, unitOfWorkMock.Object),
+            new ByeMoney.Application.Modules.Wallet.Services.TopUpSettlementService(walletProvisioningMock.Object, new ByeMoney.Application.Modules.Wallet.Services.WalletPostingService(ledgerRepoMock.Object, walletRepoMock.Object), unitOfWorkMock.Object),
             publisherMock.Object);
 
         // Act
@@ -253,7 +253,7 @@ public class ConfirmTopUpCommandHandlerTests
 
         var handler = new ConfirmTopUpCommandHandler(
             topUpRepoMock.Object,
-            new ByeMoney.Application.Modules.Wallet.Services.TopUpSettlementService(walletProvisioningMock.Object, walletRepoMock.Object, ledgerRepoMock.Object, unitOfWorkMock.Object),
+            new ByeMoney.Application.Modules.Wallet.Services.TopUpSettlementService(walletProvisioningMock.Object, new ByeMoney.Application.Modules.Wallet.Services.WalletPostingService(ledgerRepoMock.Object, walletRepoMock.Object), unitOfWorkMock.Object),
             publisherMock.Object);
 
         // Act
@@ -292,7 +292,7 @@ public class ConfirmTopUpCommandHandlerTests
 
         var handler = new ConfirmTopUpCommandHandler(
             topUpRepoMock.Object,
-            new ByeMoney.Application.Modules.Wallet.Services.TopUpSettlementService(walletProvisioningMock.Object, walletRepoMock.Object, ledgerRepoMock.Object, unitOfWorkMock.Object),
+            new ByeMoney.Application.Modules.Wallet.Services.TopUpSettlementService(walletProvisioningMock.Object, new ByeMoney.Application.Modules.Wallet.Services.WalletPostingService(ledgerRepoMock.Object, walletRepoMock.Object), unitOfWorkMock.Object),
             publisherMock.Object);
 
         // Act
@@ -325,7 +325,7 @@ public class ConfirmTopUpCommandHandlerTests
 
         var handler = new ConfirmTopUpCommandHandler(
             topUpRepoMock.Object,
-            new ByeMoney.Application.Modules.Wallet.Services.TopUpSettlementService(walletProvisioningMock.Object, walletRepoMock.Object, ledgerRepoMock.Object, unitOfWorkMock.Object),
+            new ByeMoney.Application.Modules.Wallet.Services.TopUpSettlementService(walletProvisioningMock.Object, new ByeMoney.Application.Modules.Wallet.Services.WalletPostingService(ledgerRepoMock.Object, walletRepoMock.Object), unitOfWorkMock.Object),
             publisherMock.Object);
 
         // Act

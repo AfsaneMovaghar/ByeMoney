@@ -1,4 +1,4 @@
-using ByeMoney.Application.Modules.Wallet.DTOs;
+﻿using ByeMoney.Application.Modules.Wallet.DTOs;
 using ByeMoney.Application.Common.Interfaces;
 using ByeMoney.Application.Modules.Wallet.Interfaces;
 using ByeMoney.Application.Modules.Wallet.Services;
@@ -35,7 +35,8 @@ public class TopUpSettlementServiceTests
         ledgerRepository.Setup(x => x.AddAsync(It.IsAny<LedgerEntry>(), It.IsAny<CancellationToken>()))
             .Callback<LedgerEntry, CancellationToken>((entry, _) => entries.Add(entry)).Returns(Task.CompletedTask);
         var unitOfWork = new Mock<IUnitOfWork>();
-        var service = new TopUpSettlementService(provisioning.Object, walletRepository.Object, ledgerRepository.Object, unitOfWork.Object);
+        var postingService = new WalletPostingService(ledgerRepository.Object, walletRepository.Object);
+        var service = new TopUpSettlementService(provisioning.Object, postingService, unitOfWork.Object);
 
         await service.SettleAsync(topUp);
 
@@ -43,7 +44,7 @@ public class TopUpSettlementServiceTests
         entries.Sum(x => x.Amount).Should().Be(0m);
         entries.Should().OnlyContain(x => x.PerformedByUserId == actorId);
         entries.Select(x => x.TransactionId).Distinct().Should().ContainSingle();
-        wallet.Balance.Should().Be(10m);
+        wallet.WithdrawableBalance.Should().Be(10m);
         unitOfWork.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 }

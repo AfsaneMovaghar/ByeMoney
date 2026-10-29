@@ -23,7 +23,7 @@ public sealed class GetCourseCheckoutQueryHandler(
             ?? throw new UnauthorizedAccessException(ApplicationErrors.Wallet_UserNotAuthenticated));
         var purchase = await purchases.GetByBuyerAndCourseAsync(userId, request.ExternalCourseId, ct);
         var wallet = await wallets.GetByUserIdAsync(userId, ct);
-        var balance = wallet?.Balance ?? 0m;
+        var balance = wallet?.TotalBalance ?? 0m;
         if (purchase is not null)
             return new(request.ExternalCourseId, purchase.Snapshot.PriceInNoorAtPurchaseTime, balance, 0m, 0m, PurchaseStatus(purchase));
         var course = await catalog.GetCourseAsync(request.ExternalCourseId, ct)

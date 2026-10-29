@@ -1,4 +1,4 @@
-using ByeMoney.Application.Modules.Wallet.Interfaces;
+﻿using ByeMoney.Application.Modules.Wallet.Interfaces;
 using ByeMoney.Application.Modules.Wallet.Services;
 using ByeMoney.Domain.Modules.Identity.Users;
 using ByeMoney.Domain.Modules.Wallet.Accounts;
@@ -98,7 +98,7 @@ public class UserWalletProvisioningServiceTests
 
         result.Wallet.UserId.Should().Be(userId);
         result.Wallet.AccountId.Should().Be(result.Account.Id);
-        result.Wallet.Balance.Should().Be(0m);
+        result.Wallet.WithdrawableBalance.Should().Be(0m);
 
         _accountRepositoryMock.Verify(
             r => r.AddAsync(It.IsAny<Account>(), It.IsAny<CancellationToken>()),

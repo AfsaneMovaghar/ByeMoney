@@ -1,4 +1,4 @@
-using ByeMoney.Application.Modules.Wallet.DTOs;
+﻿using ByeMoney.Application.Modules.Wallet.DTOs;
 using ByeMoney.Application.Modules.Settings.Interfaces;
 using ByeMoney.Application.Modules.Identity.Users.Interfaces;
 using ByeMoney.Application.Common.Interfaces;
@@ -43,8 +43,7 @@ public class TopUpConfirmedPurchaseHandlerTests
             _tarhElahiClientMock.Object,
             _coursePurchaseRepoMock.Object,
             _walletProvisioningMock.Object,
-            _walletRepoMock.Object,
-            _ledgerRepoMock.Object,
+            new ByeMoney.Application.Modules.Wallet.Services.WalletPostingService(_ledgerRepoMock.Object, _walletRepoMock.Object),
             _unitOfWorkMock.Object,
             _notifierMock.Object,
             _loggerMock.Object,
@@ -127,7 +126,7 @@ public class TopUpConfirmedPurchaseHandlerTests
         await _handler.Handle(notification, CancellationToken.None);
 
         // Assert
-        wallet.Balance.Should().Be(500m); // 1,500 - 1,000
+        wallet.WithdrawableBalance.Should().Be(500m); // 1,500 - 1,000
         _walletRepoMock.Verify(w => w.Update(wallet), Times.Once);
 
         savedLedgerEntries.Should().HaveCount(2);
@@ -234,7 +233,7 @@ public class TopUpConfirmedPurchaseHandlerTests
         await _handler.Handle(notification, CancellationToken.None);
 
         // Assert
-        wallet.Balance.Should().Be(2000m); // 5000 - 3000
+        wallet.WithdrawableBalance.Should().Be(2000m); // 5000 - 3000
         savedPurchases.Should().HaveCount(2);
         savedLedgerEntries.Should().HaveCount(4); // 2 pairs of debit/credit
         savedLedgerEntries.Sum(e => e.Amount).Should().Be(0m);
@@ -406,7 +405,7 @@ public class TopUpConfirmedPurchaseHandlerTests
         await _handler.Handle(notification, CancellationToken.None);
 
         // Assert
-        wallet.Balance.Should().Be(200m);
+        wallet.WithdrawableBalance.Should().Be(200m);
         _coursePurchaseRepoMock.Verify(r => r.AddAsync(It.IsAny<CoursePurchase>(), It.IsAny<CancellationToken>()), Times.Never);
         _ledgerRepoMock.Verify(l => l.AddAsync(It.IsAny<LedgerEntry>(), It.IsAny<CancellationToken>()), Times.Never);
         _walletRepoMock.Verify(w => w.Update(It.IsAny<WalletEntity>()), Times.Never);
