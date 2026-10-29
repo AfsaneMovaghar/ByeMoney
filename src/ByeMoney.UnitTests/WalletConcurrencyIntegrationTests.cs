@@ -124,8 +124,13 @@ public class WalletConcurrencyIntegrationTests
                 .ReturnsAsync(system);
             var settlement = new TopUpSettlementService(provisioning.Object, new WalletPostingService(new BaseRepository<LedgerEntry, LedgerEntryId>(context), new WalletRepository(context)), context);
 
+            var userProvisioning = new Mock<IUserProvisioningService>();
+            userProvisioning
+                .Setup(x => x.EnsureUserFromExternalAsync(beneficiary.ExternalUserId, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new UserProvisioningResult(beneficiary, Created: false));
+
             return new AdminAssistedTopUpService(users.Object, settings.Object, repository, settlement,
-                Mock.Of<IReceiptStorage>(), Mock.Of<ISender>());
+                Mock.Of<IReceiptStorage>(), userProvisioning.Object);
         }
     }
 

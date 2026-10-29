@@ -1,5 +1,4 @@
 using ByeMoney.Application.Common.Interfaces;
-using ByeMoney.Application.Modules.Identity.Users.Commands.SyncUserFromStrapi;
 using ByeMoney.Application.Modules.Identity.Users.Interfaces;
 using ByeMoney.Application.Modules.Wallet.Commands.AdminGrantGiftNoor;
 using ByeMoney.Application.Modules.Wallet.DTOs;
@@ -13,20 +12,18 @@ using ByeMoney.Domain.Modules.Wallet.Ledgers;
 using ByeMoney.Domain.Modules.Wallet.Wallets;
 using ByeMoney.Domain.Resources;
 using FluentAssertions;
-using MediatR;
 using Moq;
 
 namespace ByeMoney.UnitTests;
 
 public sealed class AdminGiftNoorTests
 {
-    private readonly Mock<IUserRepository> _userRepo = new();
+    private readonly Mock<IUserProvisioningService> _userProvisioning = new();
     private readonly Mock<IWalletRepository> _walletRepo = new();
     private readonly Mock<IGiftGrantRepository> _giftGrantRepo = new();
     private readonly Mock<IUserWalletProvisioningService> _provisioning = new();
     private readonly Mock<IRepository<LedgerEntry, LedgerEntryId>> _ledgerRepo = new();
     private readonly Mock<IUnitOfWork> _unitOfWork = new();
-    private readonly Mock<ISender> _sender = new();
 
     private readonly Account _systemAccount = Account.CreateSystemAccount();
     private readonly List<LedgerEntry> _recordedLedger = [];
@@ -50,7 +47,7 @@ public sealed class AdminGiftNoorTests
 
         var postingService = new ByeMoney.Application.Modules.Wallet.Services.WalletPostingService(_ledgerRepo.Object, _walletRepo.Object);
         var noorCreditService = new ByeMoney.Application.Modules.Wallet.Services.NoorCreditService(_provisioning.Object, postingService);
-        return new AdminGrantGiftNoorCommandHandler(_userRepo.Object, _giftGrantRepo.Object, noorCreditService, _unitOfWork.Object, _sender.Object);
+        return new AdminGrantGiftNoorCommandHandler(_userProvisioning.Object, _giftGrantRepo.Object, noorCreditService, _unitOfWork.Object);
     }
 
     [Fact]
@@ -60,8 +57,10 @@ public sealed class AdminGiftNoorTests
         var user1 = User.CreateFromStrapi("usr-1", confirmed: true, blocked: false);
         var user2 = User.CreateFromStrapi("usr-2", confirmed: true, blocked: false);
 
-        _userRepo.Setup(x => x.GetByExternalUserIdAsync("usr-1", It.IsAny<CancellationToken>())).ReturnsAsync(user1);
-        _userRepo.Setup(x => x.GetByExternalUserIdAsync("usr-2", It.IsAny<CancellationToken>())).ReturnsAsync(user2);
+        _userProvisioning.Setup(x => x.EnsureUserFromExternalAsync("usr-1", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new UserProvisioningResult(user1, Created: false));
+        _userProvisioning.Setup(x => x.EnsureUserFromExternalAsync("usr-2", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new UserProvisioningResult(user2, Created: false));
 
         var wallet1 = Wallet.Create(Account.CreateUserAccount(user1.Id).Id, user1.Id);
         var wallet2 = Wallet.Create(Account.CreateUserAccount(user2.Id).Id, user2.Id);
@@ -102,7 +101,8 @@ public sealed class AdminGiftNoorTests
     {
         var handler = CreateHandler();
         var user = User.CreateFromStrapi("usr-1", confirmed: true, blocked: false);
-        _userRepo.Setup(x => x.GetByExternalUserIdAsync("usr-1", It.IsAny<CancellationToken>())).ReturnsAsync(user);
+        _userProvisioning.Setup(x => x.EnsureUserFromExternalAsync("usr-1", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new UserProvisioningResult(user, Created: false));
 
         var wallet = Wallet.Create(Account.CreateUserAccount(user.Id).Id, user.Id);
         _provisioning.Setup(x => x.GetOrCreateUserWalletAsync(user.Id, It.IsAny<CancellationToken>()))
@@ -129,7 +129,8 @@ public sealed class AdminGiftNoorTests
     {
         var handler = CreateHandler();
         var user = User.CreateFromStrapi("usr-1", confirmed: true, blocked: false);
-        _userRepo.Setup(x => x.GetByExternalUserIdAsync("usr-1", It.IsAny<CancellationToken>())).ReturnsAsync(user);
+        _userProvisioning.Setup(x => x.EnsureUserFromExternalAsync("usr-1", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new UserProvisioningResult(user, Created: false));
 
         var wallet = Wallet.Create(Account.CreateUserAccount(user.Id).Id, user.Id);
         _provisioning.Setup(x => x.GetOrCreateUserWalletAsync(user.Id, It.IsAny<CancellationToken>()))
@@ -154,8 +155,10 @@ public sealed class AdminGiftNoorTests
         var activeUser = User.CreateFromStrapi("usr-active", confirmed: true, blocked: false);
         var blockedUser = User.CreateFromStrapi("usr-blocked", confirmed: true, blocked: true);
 
-        _userRepo.Setup(x => x.GetByExternalUserIdAsync("usr-active", It.IsAny<CancellationToken>())).ReturnsAsync(activeUser);
-        _userRepo.Setup(x => x.GetByExternalUserIdAsync("usr-blocked", It.IsAny<CancellationToken>())).ReturnsAsync(blockedUser);
+        _userProvisioning.Setup(x => x.EnsureUserFromExternalAsync("usr-active", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new UserProvisioningResult(activeUser, Created: false));
+        _userProvisioning.Setup(x => x.EnsureUserFromExternalAsync("usr-blocked", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new UserProvisioningResult(blockedUser, Created: false));
 
         var activeWallet = Wallet.Create(Account.CreateUserAccount(activeUser.Id).Id, activeUser.Id);
         _provisioning.Setup(x => x.GetOrCreateUserWalletAsync(activeUser.Id, It.IsAny<CancellationToken>()))
@@ -175,18 +178,13 @@ public sealed class AdminGiftNoorTests
     }
 
     [Fact]
-    public async Task SyncMissingUser_CallsSyncCommandAndGrantsGiftIfValid()
+    public async Task MissingUser_IsProvisionedBeforeGrantingGift()
     {
         var handler = CreateHandler();
-        User? nullUserInitially = null;
         var syncedUser = User.CreateFromStrapi("usr-missing-initially", confirmed: true, blocked: false);
 
-        _userRepo.SetupSequence(x => x.GetByExternalUserIdAsync("usr-missing-initially", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(nullUserInitially)
-            .ReturnsAsync(syncedUser);
-
-        _sender.Setup(x => x.Send(It.IsAny<SyncUserFromStrapiCommand>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(syncedUser.Id.Value);
+        _userProvisioning.Setup(x => x.EnsureUserFromExternalAsync("usr-missing-initially", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new UserProvisioningResult(syncedUser, Created: true));
 
         var wallet = Wallet.Create(Account.CreateUserAccount(syncedUser.Id).Id, syncedUser.Id);
         _provisioning.Setup(x => x.GetOrCreateUserWalletAsync(syncedUser.Id, It.IsAny<CancellationToken>()))
@@ -198,7 +196,9 @@ public sealed class AdminGiftNoorTests
 
         result.IsSuccess.Should().BeTrue();
         wallet.GiftBalance.Should().Be(300m);
-        _sender.Verify(x => x.Send(It.Is<SyncUserFromStrapiCommand>(c => c.ExternalUserId == "usr-missing-initially"), It.IsAny<CancellationToken>()), Times.Once);
+        _userProvisioning.Verify(
+            x => x.EnsureUserFromExternalAsync("usr-missing-initially", It.IsAny<CancellationToken>()),
+            Times.Once);
     }
 
     [Fact]
@@ -206,7 +206,8 @@ public sealed class AdminGiftNoorTests
     {
         var handler = CreateHandler();
         var user = User.CreateFromStrapi("usr-recon", confirmed: true, blocked: false);
-        _userRepo.Setup(x => x.GetByExternalUserIdAsync("usr-recon", It.IsAny<CancellationToken>())).ReturnsAsync(user);
+        _userProvisioning.Setup(x => x.EnsureUserFromExternalAsync("usr-recon", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new UserProvisioningResult(user, Created: false));
 
         var userAccount = Account.CreateUserAccount(user.Id);
         var wallet = Wallet.Create(userAccount.Id, user.Id);

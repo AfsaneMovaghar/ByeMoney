@@ -1,6 +1,5 @@
 using ByeMoney.Application;
 using ByeMoney.Application.Common.Interfaces;
-using ByeMoney.Application.Modules.Identity.Users.Commands.SyncUserFromStrapi;
 using ByeMoney.Application.Modules.Identity.Users.Interfaces;
 using ByeMoney.Application.Modules.TarhElahiIntegration.DTOs;
 using ByeMoney.Application.Modules.TarhElahiIntegration.Interfaces;
@@ -13,6 +12,7 @@ using ByeMoney.Domain.Modules.Wallet.Gifts;
 using ByeMoney.Domain.Modules.Wallet.Ledgers;
 using ByeMoney.Domain.Modules.Wallet.Wallets;
 using ByeMoney.Infrastructure;
+using ByeMoney.Infrastructure.Modules.Identity.Services;
 using ByeMoney.Infrastructure.Persistence;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
@@ -90,6 +90,23 @@ public sealed class WelcomeGiftFinancialTests : IAsyncLifetime
         }
     }
 
+    private static ApplicationDbContext CreateUnconnectedContext()
+        => new(new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseNpgsql("Host=localhost;Database=unused;Username=unused;Password=unused")
+            .Options);
+
+    private static UserProvisioningService CreateProvisioningService(
+        IServiceScope scope,
+        ApplicationDbContext context,
+        Mock<ITarhElahiIntegrationClient> tarhElahiMock)
+        => new(
+            new ByeMoney.Infrastructure.Modules.Identity.Persistence.User.UserRepository(context),
+            context,
+            tarhElahiMock.Object,
+            scope.ServiceProvider.GetRequiredService<IWelcomeGiftService>(),
+            context,
+            scope.ServiceProvider.GetRequiredService<ILogger<UserProvisioningService>>());
+
     // ۱. هدیه فعال: افزایش کیف پول به میزان ۵۰ نور و ثبت متوازن سطرهای دفتر کل و ذی‌نفع هدیه
     [Fact]
     public async Task WelcomeGift_WhenCampaignActive_GrantsGift_IncreasesWallet_AndRecordsBalancedLedger()
@@ -97,7 +114,6 @@ public sealed class WelcomeGiftFinancialTests : IAsyncLifetime
         var userRepoMock = new Mock<IUserRepository>();
         var unitOfWorkMock = new Mock<IUnitOfWork>();
         var tarhElahiMock = new Mock<ITarhElahiIntegrationClient>();
-        var loggerMock = new Mock<ILogger<SyncUserFromStrapiCommandHandler>>();
         var giftSettingRepoMock = new Mock<IGiftCampaignSettingRepository>();
         var giftGrantRepoMock = new Mock<IGiftGrantRepository>();
         var provisioningMock = new Mock<IUserWalletProvisioningService>();
@@ -139,18 +155,21 @@ public sealed class WelcomeGiftFinancialTests : IAsyncLifetime
             noorCreditMock.Object,
             provisioningMock.Object);
 
-        var handler = new SyncUserFromStrapiCommandHandler(
+        using var context = CreateUnconnectedContext();
+        var provisioningService = new UserProvisioningService(
             userRepoMock.Object,
             unitOfWorkMock.Object,
             tarhElahiMock.Object,
-            loggerMock.Object,
-            welcomeGiftService);
+            welcomeGiftService,
+            context,
+            Mock.Of<ILogger<UserProvisioningService>>());
 
         // Act
-        var resultUserId = await handler.Handle(new SyncUserFromStrapiCommand(externalUserId), CancellationToken.None);
+        var result = await provisioningService.EnsureUserFromExternalAsync(externalUserId, CancellationToken.None);
 
         // Assert
-        resultUserId.Should().NotBeEmpty();
+        result.Created.Should().BeTrue();
+        result.User.ExternalUserId.Should().Be(externalUserId);
         userRepoMock.Verify(x => x.AddAsync(It.Is<User>(u => u.ExternalUserId == externalUserId), It.IsAny<CancellationToken>()), Times.Once);
         noorCreditMock.Verify(x => x.CreditAsync(It.Is<NoorCreditRequest>(r =>
             r.AmountNoor == 50m &&
@@ -173,7 +192,6 @@ public sealed class WelcomeGiftFinancialTests : IAsyncLifetime
         var userRepoMock = new Mock<IUserRepository>();
         var unitOfWorkMock = new Mock<IUnitOfWork>();
         var tarhElahiMock = new Mock<ITarhElahiIntegrationClient>();
-        var loggerMock = new Mock<ILogger<SyncUserFromStrapiCommandHandler>>();
         var giftSettingRepoMock = new Mock<IGiftCampaignSettingRepository>();
         var giftGrantRepoMock = new Mock<IGiftGrantRepository>();
         var provisioningMock = new Mock<IUserWalletProvisioningService>();
@@ -205,18 +223,21 @@ public sealed class WelcomeGiftFinancialTests : IAsyncLifetime
             noorCreditMock.Object,
             provisioningMock.Object);
 
-        var handler = new SyncUserFromStrapiCommandHandler(
+        using var context = CreateUnconnectedContext();
+        var provisioningService = new UserProvisioningService(
             userRepoMock.Object,
             unitOfWorkMock.Object,
             tarhElahiMock.Object,
-            loggerMock.Object,
-            welcomeGiftService);
+            welcomeGiftService,
+            context,
+            Mock.Of<ILogger<UserProvisioningService>>());
 
         // Act
-        var resultUserId = await handler.Handle(new SyncUserFromStrapiCommand(externalUserId), CancellationToken.None);
+        var result = await provisioningService.EnsureUserFromExternalAsync(externalUserId, CancellationToken.None);
 
         // Assert
-        resultUserId.Should().NotBeEmpty();
+        result.Created.Should().BeTrue();
+        result.User.ExternalUserId.Should().Be(externalUserId);
         userRepoMock.Verify(x => x.AddAsync(It.Is<User>(u => u.ExternalUserId == externalUserId), It.IsAny<CancellationToken>()), Times.Once);
         provisioningMock.Verify(x => x.GetOrCreateUserWalletAsync(It.IsAny<UserId>(), It.IsAny<CancellationToken>()), Times.Once);
         noorCreditMock.Verify(x => x.CreditAsync(It.IsAny<NoorCreditRequest>(), It.IsAny<CancellationToken>()), Times.Never);
@@ -231,7 +252,6 @@ public sealed class WelcomeGiftFinancialTests : IAsyncLifetime
         var userRepoMock = new Mock<IUserRepository>();
         var unitOfWorkMock = new Mock<IUnitOfWork>();
         var tarhElahiMock = new Mock<ITarhElahiIntegrationClient>();
-        var loggerMock = new Mock<ILogger<SyncUserFromStrapiCommandHandler>>();
         var giftSettingRepoMock = new Mock<IGiftCampaignSettingRepository>();
         var giftGrantRepoMock = new Mock<IGiftGrantRepository>();
         var provisioningMock = new Mock<IUserWalletProvisioningService>();
@@ -270,82 +290,86 @@ public sealed class WelcomeGiftFinancialTests : IAsyncLifetime
             noorCreditMock.Object,
             provisioningMock.Object);
 
-        var handler = new SyncUserFromStrapiCommandHandler(
+        using var context = CreateUnconnectedContext();
+        var provisioningService = new UserProvisioningService(
             userRepoMock.Object,
             unitOfWorkMock.Object,
             tarhElahiMock.Object,
-            loggerMock.Object,
-            welcomeGiftService);
+            welcomeGiftService,
+            context,
+            Mock.Of<ILogger<UserProvisioningService>>());
 
         // Act
-        var resultUserId = await handler.Handle(new SyncUserFromStrapiCommand(externalUserId), CancellationToken.None);
+        var result = await provisioningService.EnsureUserFromExternalAsync(externalUserId, CancellationToken.None);
 
         // Assert
-        resultUserId.Should().NotBeEmpty();
+        result.Created.Should().BeTrue();
+        result.User.ExternalUserId.Should().Be(externalUserId);
         noorCreditMock.Verify(x => x.CreditAsync(It.IsAny<NoorCreditRequest>(), It.IsAny<CancellationToken>()), Times.Never);
         provisioningMock.Verify(x => x.GetOrCreateUserWalletAsync(It.IsAny<UserId>(), It.IsAny<CancellationToken>()), Times.Once);
         unitOfWorkMock.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 
-    // ۴. آزمون همزمانی روی PostgreSQL مستقل: دو درخواست همزمان برای یک کاربر استرپی
+    // ۴. آزمون هم‌زمانی روی PostgreSQL مستقل: دو درخواست هم‌زمان برای یک کاربر استرپی
     [PostgresFact]
-    public async Task WelcomeGift_ConcurrentRequestsForSameUser_ExecutedOnPostgres_PreventsDuplicateCreation()
+    public async Task WelcomeGift_ConcurrentRequestsForSameUser_ExecutedOnPostgres_CreatesSingleUserAndGift()
     {
         if (_provider is null) return;
 
+        // حساب سیستمی در محیط واقعی از قبل وجود دارد؛ آن را از پیش می‌سازیم تا آزمون
+        // فقط روی تداخل قید یکتای کاربر تمرکز کند، نه روی ساخت هم‌زمان حساب سیستمی.
+        using (var seedScope = _provider.CreateScope())
+        {
+            var seedDb = seedScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            seedDb.Add(Account.CreateSystemAccount());
+            await seedDb.SaveChangesAsync();
+        }
+
         var externalUserId = "pg-concurrent-user-" + Guid.NewGuid().ToString("N");
+        var strapiUser = new TarhElahiUserDto
+        {
+            ExternalUserId = externalUserId,
+            PhoneNumber = "09124444444",
+            Email = "conc@test.com",
+            FirstName = "Reza",
+            LastName = "Rad",
+            Confirmed = true,
+            Blocked = false
+        };
+
+        // هر دو درخواست ابتدا دیتابیس را می‌خوانند؛ سد اینجا تضمین می‌کند هر دو «کاربر ناموجود» را
+        // دیده باشند و سپس هر دو تلاش کنند کاربر را بسازند تا تداخل قید یکتایی واقعاً رخ دهد.
+        var bothFetched = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var fetchCount = 0;
         var tarhElahiMock = new Mock<ITarhElahiIntegrationClient>();
         tarhElahiMock.Setup(x => x.GetUserAsync(externalUserId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new TarhElahiUserDto
+            .Returns(async () =>
             {
-                ExternalUserId = externalUserId,
-                PhoneNumber = "09124444444",
-                Email = "conc@test.com",
-                FirstName = "Reza",
-                LastName = "Rad",
-                Confirmed = true,
-                Blocked = false
+                if (Interlocked.Increment(ref fetchCount) == 2)
+                {
+                    bothFetched.SetResult();
+                }
+
+                await bothFetched.Task.WaitAsync(TimeSpan.FromSeconds(15));
+                return strapiUser;
             });
 
-        // ایجاد دو دامنه سرویس جداگانه متصل به دیتابیس مشترک پستگرس
         using var scope1 = _provider.CreateScope();
         using var scope2 = _provider.CreateScope();
 
         var db1 = scope1.ServiceProvider.GetRequiredService<ApplicationDbContext>();
         var db2 = scope2.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
-        var handler1 = new SyncUserFromStrapiCommandHandler(
-            new ByeMoney.Infrastructure.Modules.Identity.Persistence.User.UserRepository(db1),
-            db1,
-            tarhElahiMock.Object,
-            scope1.ServiceProvider.GetRequiredService<ILogger<SyncUserFromStrapiCommandHandler>>(),
-            scope1.ServiceProvider.GetRequiredService<IWelcomeGiftService>());
+        var service1 = CreateProvisioningService(scope1, db1, tarhElahiMock);
+        var service2 = CreateProvisioningService(scope2, db2, tarhElahiMock);
 
-        var handler2 = new SyncUserFromStrapiCommandHandler(
-            new ByeMoney.Infrastructure.Modules.Identity.Persistence.User.UserRepository(db2),
-            db2,
-            tarhElahiMock.Object,
-            scope2.ServiceProvider.GetRequiredService<ILogger<SyncUserFromStrapiCommandHandler>>(),
-            scope2.ServiceProvider.GetRequiredService<IWelcomeGiftService>());
+        var results = await Task.WhenAll(
+            Task.Run(() => service1.EnsureUserFromExternalAsync(externalUserId, CancellationToken.None)),
+            Task.Run(() => service2.EnsureUserFromExternalAsync(externalUserId, CancellationToken.None)));
 
-        var command = new SyncUserFromStrapiCommand(externalUserId);
-
-        var task1 = Task.Run(async () =>
-        {
-            try { return await handler1.Handle(command, CancellationToken.None); }
-            catch { return Guid.Empty; }
-        });
-
-        var task2 = Task.Run(async () =>
-        {
-            try { return await handler2.Handle(command, CancellationToken.None); }
-            catch { return Guid.Empty; }
-        });
-
-        var results = await Task.WhenAll(task1, task2);
-
-        // دقیقاً یکی از درخواست‌ها باید با موفقیت ثبت شود و دیگری با خطای ایندکس یکتا شکست بخورد
-        results.Count(id => id != Guid.Empty).Should().Be(1);
+        // هر دو درخواست موفق‌اند؛ فقط یکی واقعاً کاربر را ساخته و هدیه گرفته است.
+        results.Count(result => result.Created).Should().Be(1);
+        results.Select(result => result.User.Id.Value).Distinct().Should().ContainSingle();
 
         // در پایگاه داده بررسی شود که دقیقاً یک کاربر، یک کیف پول و یک رکورد هدیه وجود دارد
         using var verifyScope = _provider.CreateScope();
@@ -389,20 +413,13 @@ public sealed class WelcomeGiftFinancialTests : IAsyncLifetime
 
         using var scope = _provider.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var provisioningService = CreateProvisioningService(scope, db, tarhElahiMock);
 
-        // شبیه‌سازی کلاینت شکست‌خورده در تراکنش: لغو عملیات قبل از ذخیره نهایی
+        // لغو عملیات پیش از هر نوشتن: هیچ کاربر، هدیه یا سطری نباید ثبت شود
         using var cts = new CancellationTokenSource();
+        cts.Cancel();
 
-        var handler = new SyncUserFromStrapiCommandHandler(
-            new ByeMoney.Infrastructure.Modules.Identity.Persistence.User.UserRepository(db),
-            db,
-            tarhElahiMock.Object,
-            scope.ServiceProvider.GetRequiredService<ILogger<SyncUserFromStrapiCommandHandler>>(),
-            scope.ServiceProvider.GetRequiredService<IWelcomeGiftService>());
-
-        cts.Cancel(); // لغو توکن قبل از اتمام
-
-        var act = async () => await handler.Handle(new SyncUserFromStrapiCommand(externalUserId), cts.Token);
+        var act = async () => await provisioningService.EnsureUserFromExternalAsync(externalUserId, cts.Token);
         await act.Should().ThrowAsync<OperationCanceledException>();
 
         // اطمینان از پاک بودن کامل وضعیت دیتابیس (رول‌بک اتمیک)
@@ -419,4 +436,3 @@ public sealed class WelcomeGiftFinancialTests : IAsyncLifetime
         ledgerExists.Should().BeFalse();
     }
 }
-

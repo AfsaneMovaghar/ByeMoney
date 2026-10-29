@@ -1,7 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
 using ByeMoney.Application.Common.Interfaces;
-using ByeMoney.Application.Modules.Identity.Users.Commands.SyncUserFromStrapi;
 using ByeMoney.Application.Modules.Identity.Users.Interfaces;
 using ByeMoney.Application.Modules.Wallet.DTOs;
 using ByeMoney.Application.Modules.Wallet.Interfaces;
@@ -15,11 +14,10 @@ using MediatR;
 namespace ByeMoney.Application.Modules.Wallet.Commands.AdminGrantGiftNoor;
 
 public sealed class AdminGrantGiftNoorCommandHandler(
-    IUserRepository userRepository,
+    IUserProvisioningService provisioningService,
     IGiftGrantRepository giftGrantRepository,
     INoorCreditService noorCreditService,
-    IUnitOfWork unitOfWork,
-    ISender sender) : IRequestHandler<AdminGrantGiftNoorCommand, AdminGrantGiftNoorResult>
+    IUnitOfWork unitOfWork) : IRequestHandler<AdminGrantGiftNoorCommand, AdminGrantGiftNoorResult>
 {
     public async Task<AdminGrantGiftNoorResult> Handle(AdminGrantGiftNoorCommand request, CancellationToken ct)
     {
@@ -54,28 +52,19 @@ public sealed class AdminGrantGiftNoorCommandHandler(
             return AdminGrantGiftNoorResult.Conflict(ApplicationErrors.TopUpRequest_IdempotencyConflict);
         }
 
-        // ۲. همگام‌سازی ذی‌نفع‌های ناموجود با Strapi (بیرون از تراکنش دیتابیس)
+        // ۲. پیدا کردن یا ساختن ذی‌نفع‌ها از طریق سرویس واحد ساخت کاربر (بیرون از تراکنش دیتابیس)
         var invalidUsers = new List<InvalidGiftUserDto>();
         var targetUsers = new List<User>();
 
         foreach (var externalUserId in request.ExternalUserIds)
         {
-            var user = await userRepository.GetByExternalUserIdAsync(externalUserId, ct);
-            if (user is null)
-            {
-                try
-                {
-                    await sender.Send(new SyncUserFromStrapiCommand(externalUserId), ct);
-                    user = await userRepository.GetByExternalUserIdAsync(externalUserId, ct);
-                }
-                catch (NotFoundException)
-                {
-                    invalidUsers.Add(new InvalidGiftUserDto(externalUserId, ApplicationErrors.Gift_UserNotFound));
-                    continue;
-                }
-            }
+            User? user;
 
-            if (user is null)
+            try
+            {
+                user = (await provisioningService.EnsureUserFromExternalAsync(externalUserId, ct)).User;
+            }
+            catch (NotFoundException)
             {
                 invalidUsers.Add(new InvalidGiftUserDto(externalUserId, ApplicationErrors.Gift_UserNotFound));
                 continue;

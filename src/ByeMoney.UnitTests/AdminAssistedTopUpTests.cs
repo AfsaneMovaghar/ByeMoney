@@ -1,7 +1,6 @@
 using ByeMoney.Application.Modules.Settings.Interfaces;
 using ByeMoney.Application.Modules.Identity.Users.Interfaces;
 using ByeMoney.Application.Common.Interfaces;
-using ByeMoney.Application.Modules.Identity.Users.Commands.SyncUserFromStrapi;
 using ByeMoney.Application.Resources;
 using ByeMoney.Application.Modules.Wallet.Commands.CreateAdminCardToCardTopUp;
 using ByeMoney.Application.Modules.Wallet.Interfaces;
@@ -11,12 +10,20 @@ using ByeMoney.Domain.Common.Exceptions;
 using ByeMoney.Domain.Modules.Wallet.TopUps;
 using FluentAssertions;
 using Moq;
-using MediatR;
 
 namespace ByeMoney.UnitTests;
 
 public class AdminAssistedTopUpTests
 {
+    private static Mock<IUserProvisioningService> ProvisionedBeneficiary(User beneficiary, bool created = false)
+    {
+        var provisioning = new Mock<IUserProvisioningService>();
+        provisioning
+            .Setup(x => x.EnsureUserFromExternalAsync(beneficiary.ExternalUserId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new UserProvisioningResult(beneficiary, created));
+
+        return provisioning;
+    }
     [Theory]
     [InlineData(null)]
     [InlineData("receipt-id")]
@@ -33,7 +40,7 @@ public class AdminAssistedTopUpTests
             .Callback<TopUpRequest, CancellationToken>((topUp, _) => created = topUp).Returns(Task.CompletedTask);
         var settlement = new Mock<ITopUpSettlementService>();
         settlement.Setup(x => x.SettleAsync(It.IsAny<TopUpRequest>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
-        var service = new AdminAssistedTopUpService(users.Object, settings.Object, topUps.Object, settlement.Object, Mock.Of<IReceiptStorage>(), Mock.Of<ISender>());
+        var service = new AdminAssistedTopUpService(users.Object, settings.Object, topUps.Object, settlement.Object, Mock.Of<IReceiptStorage>(), ProvisionedBeneficiary(beneficiary).Object);
 
         var actorId = Guid.NewGuid();
         var result = await service.CreateAsync(new("external-user", actorId, 25_000m, receiptId, "idem-1", null,
@@ -65,7 +72,7 @@ public class AdminAssistedTopUpTests
         var topUps = new Mock<ITopUpRequestRepository>();
         topUps.Setup(x => x.GetByIdempotencyKeyAsync("idem-1", It.IsAny<CancellationToken>())).ReturnsAsync(existing);
         var settlement = new Mock<ITopUpSettlementService>();
-        var service = new AdminAssistedTopUpService(users.Object, Mock.Of<ISystemSettingRepository>(), topUps.Object, settlement.Object, Mock.Of<IReceiptStorage>(), Mock.Of<ISender>());
+        var service = new AdminAssistedTopUpService(users.Object, Mock.Of<ISystemSettingRepository>(), topUps.Object, settlement.Object, Mock.Of<IReceiptStorage>(), ProvisionedBeneficiary(beneficiary).Object);
 
         var result = await service.CreateAsync(new("external-user", actorId.Value, 10_000m, receiptId, "idem-1", null,
             ChargeType.AdminAssistedCardToCard), CancellationToken.None);
@@ -90,7 +97,7 @@ public class AdminAssistedTopUpTests
         var topUps = new Mock<ITopUpRequestRepository>();
         topUps.Setup(x => x.GetByIdempotencyKeyAsync("idem-1", It.IsAny<CancellationToken>())).ReturnsAsync(existing);
         var settlement = new Mock<ITopUpSettlementService>();
-        var service = new AdminAssistedTopUpService(users.Object, Mock.Of<ISystemSettingRepository>(), topUps.Object, settlement.Object, Mock.Of<IReceiptStorage>(), Mock.Of<ISender>());
+        var service = new AdminAssistedTopUpService(users.Object, Mock.Of<ISystemSettingRepository>(), topUps.Object, settlement.Object, Mock.Of<IReceiptStorage>(), ProvisionedBeneficiary(beneficiary).Object);
 
         var result = await service.CreateAsync(new("external-user", actorId.Value, 10_000m, retryReceiptId, "idem-1", null,
             ChargeType.AdminAssistedCardToCard), CancellationToken.None);
@@ -100,27 +107,25 @@ public class AdminAssistedTopUpTests
     }
 
     [Fact]
-    public async Task Handle_SyncsMissingBeneficiaryBeforeSettling()
+    public async Task Handle_ProvisionsMissingBeneficiaryBeforeSettling()
     {
         var beneficiary = User.CreateFromStrapi("external-user", confirmed: true);
-        var users = new Mock<IUserRepository>();
-        users.SetupSequence(x => x.GetByExternalUserIdAsync("external-user", It.IsAny<CancellationToken>()))
-            .ReturnsAsync((User?)null)
-            .ReturnsAsync(beneficiary);
-        var sender = new Mock<ISender>();
-        sender.Setup(x => x.Send(It.IsAny<SyncUserFromStrapiCommand>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(beneficiary.Id.Value);
+        var provisioning = ProvisionedBeneficiary(beneficiary, created: true);
         var settings = new Mock<ISystemSettingRepository>();
         settings.Setup(x => x.GetRialToNoorConversionRateAsync(It.IsAny<CancellationToken>())).ReturnsAsync(10_000m);
         var topUps = new Mock<ITopUpRequestRepository>();
         var settlement = new Mock<ITopUpSettlementService>();
-        var service = new AdminAssistedTopUpService(users.Object, settings.Object, topUps.Object, settlement.Object, Mock.Of<IReceiptStorage>(), sender.Object);
+        var service = new AdminAssistedTopUpService(
+            Mock.Of<IUserRepository>(), settings.Object, topUps.Object, settlement.Object,
+            Mock.Of<IReceiptStorage>(), provisioning.Object);
 
         var result = await service.CreateAsync(new("external-user", Guid.NewGuid(), 100_000m, "receipt-id", "idem-2", null,
             ChargeType.AdminAssistedCardToCard), CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
-        sender.Verify(x => x.Send(It.Is<SyncUserFromStrapiCommand>(c => c.ExternalUserId == "external-user"), It.IsAny<CancellationToken>()), Times.Once);
+        provisioning.Verify(
+            x => x.EnsureUserFromExternalAsync("external-user", It.IsAny<CancellationToken>()),
+            Times.Once);
         settlement.Verify(x => x.SettleAsync(It.Is<TopUpRequest>(t => t.UserId == beneficiary.Id), It.IsAny<CancellationToken>()), Times.Once);
     }
 
@@ -128,16 +133,12 @@ public class AdminAssistedTopUpTests
     public async Task Handle_DoesNotSettleWhenSynchronizedBeneficiaryIsInactive()
     {
         var beneficiary = User.CreateFromStrapi("external-user", confirmed: false);
-        var users = new Mock<IUserRepository>();
-        users.SetupSequence(x => x.GetByExternalUserIdAsync("external-user", It.IsAny<CancellationToken>()))
-            .ReturnsAsync((User?)null)
-            .ReturnsAsync(beneficiary);
-        var sender = new Mock<ISender>();
-        sender.Setup(x => x.Send(It.IsAny<SyncUserFromStrapiCommand>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(beneficiary.Id.Value);
+        var provisioning = ProvisionedBeneficiary(beneficiary, created: true);
         var topUps = new Mock<ITopUpRequestRepository>();
         var settlement = new Mock<ITopUpSettlementService>();
-        var service = new AdminAssistedTopUpService(users.Object, Mock.Of<ISystemSettingRepository>(), topUps.Object, settlement.Object, Mock.Of<IReceiptStorage>(), sender.Object);
+        var service = new AdminAssistedTopUpService(
+            Mock.Of<IUserRepository>(), Mock.Of<ISystemSettingRepository>(), topUps.Object, settlement.Object,
+            Mock.Of<IReceiptStorage>(), provisioning.Object);
 
         var result = await service.CreateAsync(new("external-user", Guid.NewGuid(), 100_000m, "receipt-id", "idem-3", null,
             ChargeType.AdminAssistedCardToCard), CancellationToken.None);
@@ -150,13 +151,14 @@ public class AdminAssistedTopUpTests
     [Fact]
     public async Task Handle_DoesNotSettleWhenBeneficiaryIsMissingInTarhElahi()
     {
-        var users = new Mock<IUserRepository>();
-        var sender = new Mock<ISender>();
-        sender.Setup(x => x.Send(It.IsAny<SyncUserFromStrapiCommand>(), It.IsAny<CancellationToken>()))
+        var provisioning = new Mock<IUserProvisioningService>();
+        provisioning.Setup(x => x.EnsureUserFromExternalAsync("unknown-user", It.IsAny<CancellationToken>()))
             .ThrowsAsync(new NotFoundException(string.Format(ApplicationErrors.User_NotFoundInTarhElahi, "unknown-user")));
         var topUps = new Mock<ITopUpRequestRepository>();
         var settlement = new Mock<ITopUpSettlementService>();
-        var service = new AdminAssistedTopUpService(users.Object, Mock.Of<ISystemSettingRepository>(), topUps.Object, settlement.Object, Mock.Of<IReceiptStorage>(), sender.Object);
+        var service = new AdminAssistedTopUpService(
+            Mock.Of<IUserRepository>(), Mock.Of<ISystemSettingRepository>(), topUps.Object, settlement.Object,
+            Mock.Of<IReceiptStorage>(), provisioning.Object);
 
         var result = await service.CreateAsync(new("unknown-user", Guid.NewGuid(), 100_000m, "receipt-id", "idem-4", null,
             ChargeType.AdminAssistedCardToCard), CancellationToken.None);
@@ -173,7 +175,9 @@ public class AdminAssistedTopUpTests
         var existing = TopUpRequest.CreateAdminCardToCard(UserId.New(), UserId.New(), 100_000m, 10_000m, "receipt-id", "same-key");
         topUps.Setup(x => x.GetByIdempotencyKeyAsync("same-key", It.IsAny<CancellationToken>())).ReturnsAsync(existing);
         var receipts = new Mock<IReceiptStorage>();
-        var service = new AdminAssistedTopUpService(Mock.Of<IUserRepository>(), Mock.Of<ISystemSettingRepository>(), topUps.Object, Mock.Of<ITopUpSettlementService>(), receipts.Object, Mock.Of<ISender>());
+        var service = new AdminAssistedTopUpService(
+            Mock.Of<IUserRepository>(), Mock.Of<ISystemSettingRepository>(), topUps.Object,
+            Mock.Of<ITopUpSettlementService>(), receipts.Object, Mock.Of<IUserProvisioningService>());
 
         await service.DeleteUnreferencedReceiptAsync("receipt-id", "same-key", CancellationToken.None);
 
@@ -186,7 +190,9 @@ public class AdminAssistedTopUpTests
         var topUps = new Mock<ITopUpRequestRepository>();
         topUps.Setup(x => x.GetByIdempotencyKeyAsync("same-key", It.IsAny<CancellationToken>())).ReturnsAsync((TopUpRequest?)null);
         var receipts = new Mock<IReceiptStorage>();
-        var service = new AdminAssistedTopUpService(Mock.Of<IUserRepository>(), Mock.Of<ISystemSettingRepository>(), topUps.Object, Mock.Of<ITopUpSettlementService>(), receipts.Object, Mock.Of<ISender>());
+        var service = new AdminAssistedTopUpService(
+            Mock.Of<IUserRepository>(), Mock.Of<ISystemSettingRepository>(), topUps.Object,
+            Mock.Of<ITopUpSettlementService>(), receipts.Object, Mock.Of<IUserProvisioningService>());
 
         await service.DeleteUnreferencedReceiptAsync("receipt-id", "same-key", CancellationToken.None);
 

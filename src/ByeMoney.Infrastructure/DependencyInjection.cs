@@ -33,6 +33,7 @@ public static class DependencyInjection
         services.AddScoped(typeof(IRepository<,>), typeof(BaseRepository<,>));
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IUserAuthorizationService, UserAuthorizationService>();
+        services.AddScoped<IUserProvisioningService, UserProvisioningService>();
         services.AddScoped<ICoursePurchaseRepository, CoursePurchaseRepository>();
         services.AddScoped<ByeMoney.Application.Modules.Purchases.History.Interfaces.IPurchaseHistoryReader, PurchaseHistoryReader>();
         services.AddScoped<ByeMoney.Application.Modules.Purchases.Orders.Interfaces.ICourseOrderReader, CourseOrderReader>();

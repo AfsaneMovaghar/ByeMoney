@@ -2,14 +2,12 @@ using ByeMoney.Application.Modules.Settings.Interfaces;
 using ByeMoney.Application.Modules.Identity.Users.Interfaces;
 using ByeMoney.Domain.Common.Generic;
 using ByeMoney.Application.Common.Interfaces;
-using ByeMoney.Application.Modules.Identity.Users.Commands.SyncUserFromStrapi;
 using ByeMoney.Application.Modules.Wallet.Commands.CreateAdminCardToCardTopUp;
 using ByeMoney.Application.Modules.Wallet.Interfaces;
 using ByeMoney.Application.Resources;
 using ByeMoney.Domain.Common.Exceptions;
 using ByeMoney.Domain.Modules.Identity.Users;
 using ByeMoney.Domain.Modules.Wallet.TopUps;
-using MediatR;
 
 namespace ByeMoney.Application.Modules.Wallet.Services;
 
@@ -19,7 +17,7 @@ public sealed class AdminAssistedTopUpService(
     ITopUpRequestRepository topUps,
     ITopUpSettlementService settlement,
     IReceiptStorage receipts,
-    ISender sender) : IAdminAssistedTopUpService
+    IUserProvisioningService provisioningService) : IAdminAssistedTopUpService
 {
     public async Task<Result<CreateTopUpRequestResponse>> CreateAsync(CreateAdminCardToCardTopUpCommand request, CancellationToken ct)
     {
@@ -27,10 +25,10 @@ public sealed class AdminAssistedTopUpService(
         if (existing is not null)
             return await ResolveRetryAsync(existing, request, ct);
 
-        User? beneficiary;
+        User beneficiary;
         try
         {
-            beneficiary = await GetOrSyncBeneficiaryAsync(request.BeneficiaryExternalUserId, ct);
+            beneficiary = (await provisioningService.EnsureUserFromExternalAsync(request.BeneficiaryExternalUserId, ct)).User;
         }
         catch (NotFoundException ex)
         {
@@ -62,15 +60,6 @@ public sealed class AdminAssistedTopUpService(
         return matches
             ? Result<CreateTopUpRequestResponse>.Success(ToResponse(existing))
             : Result<CreateTopUpRequestResponse>.Conflict(ApplicationErrors.TopUpRequest_IdempotencyConflict);
-    }
-
-    private async Task<User?> GetOrSyncBeneficiaryAsync(string externalUserId, CancellationToken ct)
-    {
-        var beneficiary = await users.GetByExternalUserIdAsync(externalUserId, ct);
-        if (beneficiary is not null) return beneficiary;
-
-        await sender.Send(new SyncUserFromStrapiCommand(externalUserId), ct);
-        return await users.GetByExternalUserIdAsync(externalUserId, ct);
     }
 
     private static TopUpRequest CreateTopUp(CreateAdminCardToCardTopUpCommand request, UserId beneficiaryId, decimal rate)

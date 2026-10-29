@@ -3,7 +3,6 @@ using ByeMoney.Application.Common.Interfaces;
 using ByeMoney.Application.Modules.Identity.Users.Commands.SyncUserFromStrapi;
 using ByeMoney.Application.Modules.TarhElahiIntegration.DTOs;
 using ByeMoney.Application.Modules.TarhElahiIntegration.Interfaces;
-using ByeMoney.Application.Modules.Wallet.Interfaces;
 using ByeMoney.Domain.Modules.Identity.Users;
 using FluentAssertions;
 using FluentValidation.TestHelper;
@@ -118,19 +117,19 @@ public class SyncUserFromStrapiTests
         var unitOfWorkMock = new Mock<IUnitOfWork>();
         var tarhElahiClientMock = new Mock<ITarhElahiIntegrationClient>();
         var loggerMock = new Mock<ILogger<SyncUserFromStrapiCommandHandler>>();
-        var welcomeGiftMock = new Mock<IWelcomeGiftService>();
+        var provisioningMock = new Mock<IUserProvisioningService>();
 
         var existingUser = User.CreateFromStrapi("user-42");
-        userRepositoryMock
-            .Setup(r => r.GetByExternalUserIdAsync("user-42", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(existingUser);
+        provisioningMock
+            .Setup(p => p.EnsureUserFromExternalAsync("user-42", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new UserProvisioningResult(existingUser, Created: false));
 
         var handler = new SyncUserFromStrapiCommandHandler(
+            provisioningMock.Object,
+            tarhElahiClientMock.Object,
             userRepositoryMock.Object,
             unitOfWorkMock.Object,
-            tarhElahiClientMock.Object,
-            loggerMock.Object,
-            welcomeGiftMock.Object);
+            loggerMock.Object);
 
         // Act
         var result = await handler.Handle(new SyncUserFromStrapiCommand("user-42"), CancellationToken.None);
@@ -150,12 +149,12 @@ public class SyncUserFromStrapiTests
         var unitOfWorkMock = new Mock<IUnitOfWork>();
         var tarhElahiClientMock = new Mock<ITarhElahiIntegrationClient>();
         var loggerMock = new Mock<ILogger<SyncUserFromStrapiCommandHandler>>();
-        var welcomeGiftMock = new Mock<IWelcomeGiftService>();
+        var provisioningMock = new Mock<IUserProvisioningService>();
 
         var existingUser = User.CreateFromStrapi("user-42"); // ProfileSyncedAt is fresh -> NeedsProfileSync = false
-        userRepositoryMock
-            .Setup(r => r.GetByExternalUserIdAsync("user-42", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(existingUser);
+        provisioningMock
+            .Setup(p => p.EnsureUserFromExternalAsync("user-42", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new UserProvisioningResult(existingUser, Created: false));
 
         var strapiDto = new TarhElahiUserDto
         {
@@ -172,11 +171,11 @@ public class SyncUserFromStrapiTests
             .ReturnsAsync(strapiDto);
 
         var handler = new SyncUserFromStrapiCommandHandler(
+            provisioningMock.Object,
+            tarhElahiClientMock.Object,
             userRepositoryMock.Object,
             unitOfWorkMock.Object,
-            tarhElahiClientMock.Object,
-            loggerMock.Object,
-            welcomeGiftMock.Object);
+            loggerMock.Object);
 
         // Act
         var result = await handler.Handle(new SyncUserFromStrapiCommand("user-42", ForceSync: true), CancellationToken.None);
@@ -197,12 +196,12 @@ public class SyncUserFromStrapiTests
         var unitOfWorkMock = new Mock<IUnitOfWork>();
         var tarhElahiClientMock = new Mock<ITarhElahiIntegrationClient>();
         var loggerMock = new Mock<ILogger<SyncUserFromStrapiCommandHandler>>();
-        var welcomeGiftMock = new Mock<IWelcomeGiftService>();
+        var provisioningMock = new Mock<IUserProvisioningService>();
 
         var existingUser = User.CreateInitial("user-42"); // ProfileSyncedAt = MinValue -> NeedsProfileSync = true
-        userRepositoryMock
-            .Setup(r => r.GetByExternalUserIdAsync("user-42", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(existingUser);
+        provisioningMock
+            .Setup(p => p.EnsureUserFromExternalAsync("user-42", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new UserProvisioningResult(existingUser, Created: false));
 
         var strapiDto = new TarhElahiUserDto
         {
@@ -219,11 +218,11 @@ public class SyncUserFromStrapiTests
             .ReturnsAsync(strapiDto);
 
         var handler = new SyncUserFromStrapiCommandHandler(
+            provisioningMock.Object,
+            tarhElahiClientMock.Object,
             userRepositoryMock.Object,
             unitOfWorkMock.Object,
-            tarhElahiClientMock.Object,
-            loggerMock.Object,
-            welcomeGiftMock.Object);
+            loggerMock.Object);
 
         // Act
         var result = await handler.Handle(new SyncUserFromStrapiCommand("user-42"), CancellationToken.None);
@@ -238,48 +237,45 @@ public class SyncUserFromStrapiTests
     }
 
     [Fact]
-    public async Task Handler_ShouldCreateNewUser_WhenUserDoesNotExistAndStrapiReturnsUser()
+    public async Task Handler_ShouldReturnProvisionedUser_WhenProvisioningCreatesNewUser()
     {
         // Arrange
         var userRepositoryMock = new Mock<IUserRepository>();
         var unitOfWorkMock = new Mock<IUnitOfWork>();
         var tarhElahiClientMock = new Mock<ITarhElahiIntegrationClient>();
         var loggerMock = new Mock<ILogger<SyncUserFromStrapiCommandHandler>>();
-        var welcomeGiftMock = new Mock<IWelcomeGiftService>();
+        var provisioningMock = new Mock<IUserProvisioningService>();
 
-        userRepositoryMock
-            .Setup(r => r.GetByExternalUserIdAsync("user-99", It.IsAny<CancellationToken>()))
-            .ReturnsAsync((User?)null);
+        var createdUser = User.CreateFromStrapi(
+            "user-99",
+            phone: "09987654321",
+            firstName: "Reza",
+            confirmed: true);
 
-        var strapiDto = new TarhElahiUserDto
-        {
-            ExternalUserId = "user-99",
-            FirstName = "Reza",
-            LastName = "Ahmadi",
-            PhoneNumber = "09987654321",
-            Confirmed = true,
-            Blocked = false
-        };
-
-        tarhElahiClientMock
-            .Setup(c => c.GetUserAsync("user-99", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(strapiDto);
+        provisioningMock
+            .Setup(p => p.EnsureUserFromExternalAsync("user-99", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new UserProvisioningResult(createdUser, Created: true));
 
         var handler = new SyncUserFromStrapiCommandHandler(
+            provisioningMock.Object,
+            tarhElahiClientMock.Object,
             userRepositoryMock.Object,
             unitOfWorkMock.Object,
-            tarhElahiClientMock.Object,
-            loggerMock.Object,
-            welcomeGiftMock.Object);
+            loggerMock.Object);
 
         // Act
         var result = await handler.Handle(new SyncUserFromStrapiCommand("user-99"), CancellationToken.None);
 
         // Assert
-        result.Should().NotBeEmpty();
-        userRepositoryMock.Verify(r => r.AddAsync(It.Is<User>(u => u.ExternalUserId == "user-99" && u.FirstName == "Reza" && u.Phone == "09987654321"), It.IsAny<CancellationToken>()), Times.Once);
-        welcomeGiftMock.Verify(w => w.GrantWelcomeGiftIfEligibleAsync(It.Is<User>(u => u.ExternalUserId == "user-99"), It.IsAny<CancellationToken>()), Times.Once);
-        unitOfWorkMock.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+        result.Should().Be(createdUser.Id.Value);
+        provisioningMock.Verify(
+            p => p.EnsureUserFromExternalAsync("user-99", It.IsAny<CancellationToken>()),
+            Times.Once);
+        tarhElahiClientMock.Verify(
+            c => c.GetUserAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+        userRepositoryMock.Verify(r => r.Update(It.IsAny<User>()), Times.Never);
+        unitOfWorkMock.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
     }
 }
 
