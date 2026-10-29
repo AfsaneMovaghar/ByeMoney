@@ -1,8 +1,9 @@
-﻿using System.Security.Cryptography;
+using System.Security.Cryptography;
 using System.Text;
 using ByeMoney.Application.Common.Interfaces;
 using ByeMoney.Application.Modules.Identity.Users.Commands.SyncUserFromStrapi;
 using ByeMoney.Application.Modules.Identity.Users.Interfaces;
+using ByeMoney.Application.Modules.Wallet.DTOs;
 using ByeMoney.Application.Modules.Wallet.Interfaces;
 using ByeMoney.Application.Resources;
 using ByeMoney.Domain.Common.Exceptions;
@@ -16,8 +17,7 @@ namespace ByeMoney.Application.Modules.Wallet.Commands.AdminGrantGiftNoor;
 public sealed class AdminGrantGiftNoorCommandHandler(
     IUserRepository userRepository,
     IGiftGrantRepository giftGrantRepository,
-    IUserWalletProvisioningService provisioningService,
-    IWalletPostingService postingService,
+    INoorCreditService noorCreditService,
     IUnitOfWork unitOfWork,
     ISender sender) : IRequestHandler<AdminGrantGiftNoorCommand, AdminGrantGiftNoorResult>
 {
@@ -96,7 +96,7 @@ public sealed class AdminGrantGiftNoorCommandHandler(
             return AdminGrantGiftNoorResult.WithInvalidUsers(invalidUsers, ApplicationErrors.Gift_HasInvalidUsers);
         }
 
-        // ۴. ثبت در یک تراکنش واحد و متوازن
+        // ۴. ثبت در یک تراکنش واحد و متوازن با استفاده از سرویس واحد افزایش نور
         var adminUserId = request.AdminUserId.HasValue ? (UserId?)new UserId(request.AdminUserId.Value) : null;
         var grantedAtUtc = DateTime.UtcNow;
 
@@ -109,32 +109,26 @@ public sealed class AdminGrantGiftNoorCommandHandler(
             adminUserId,
             grantedAtUtc);
 
-        var systemAccount = await provisioningService.GetOrCreateSystemAccountAsync(ct);
         var recipientResponses = new List<GiftRecipientResponseDto>(targetUsers.Count);
 
         foreach (var user in targetUsers)
         {
-            var userWallet = await provisioningService.GetOrCreateUserWalletAsync(user.Id, ct);
-            var transactionId = Guid.NewGuid();
-
-            await postingService.PostCreditAsync(
-                userWallet,
-                systemAccount,
-                request.AmountNoor,
-                LedgerBalanceType.Gift,
-                transactionId,
-                LedgerReferenceType.AdminGrant,
-                batch.Id.ToString(),
-                adminUserId,
-                ct);
+            var creditResult = await noorCreditService.CreditAsync(new NoorCreditRequest(
+                UserId: user.Id,
+                AmountNoor: request.AmountNoor,
+                BalanceType: LedgerBalanceType.Gift,
+                ReferenceType: LedgerReferenceType.AdminGrant,
+                ReferenceId: batch.Id.ToString(),
+                PerformedByUserId: adminUserId,
+                Reason: request.Reason), ct);
 
             var recipient = GiftGrantRecipient.Create(
                 batch.Id,
                 user.Id,
                 user.ExternalUserId,
-                request.AmountNoor,
-                transactionId,
-                userWallet.Wallet.GiftBalance,
+                creditResult.AmountCredited,
+                creditResult.TransactionId,
+                creditResult.NewGiftBalance,
                 grantedAtUtc,
                 GiftRecipientStatus.Granted);
 
@@ -144,7 +138,7 @@ public sealed class AdminGrantGiftNoorCommandHandler(
                 user.ExternalUserId,
                 user.Id.Value,
                 recipient.Status.ToString(),
-                userWallet.Wallet.GiftBalance));
+                creditResult.NewGiftBalance));
         }
 
         await giftGrantRepository.AddBatchAsync(batch, ct);

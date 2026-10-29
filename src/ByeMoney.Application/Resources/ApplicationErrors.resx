@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <root>
   <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
     <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
@@ -245,4 +245,5 @@
   <data name="Gift_UserNotFound" xml:space="preserve"><value>کاربر در سامانه مبدأ یافت نشد.</value></data>
   <data name="Gift_UserInactive" xml:space="preserve"><value>کاربر غیرفعال است.</value></data>
   <data name="Gift_HasInvalidUsers" xml:space="preserve"><value>به‌دلیل وجود کاربران نامعتبر یا مسدود، هیچ هدیه‌ای ثبت نشد.</value></data>
+  <data name="Gift_WelcomeBonusReason" xml:space="preserve"><value>هدیه خوش‌آمدگویی</value></data>
 </root>

@@ -11,6 +11,7 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
 
     public DbSet<GiftGrantBatch> GiftGrantBatches => Set<GiftGrantBatch>();
     public DbSet<GiftGrantRecipient> GiftGrantRecipients => Set<GiftGrantRecipient>();
+    public DbSet<GiftCampaignSetting> GiftCampaignSettings => Set<GiftCampaignSetting>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

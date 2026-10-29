@@ -1,7 +1,8 @@
-using ByeMoney.Application.Modules.Identity.Users.Interfaces;
 using ByeMoney.Application.Common.Interfaces;
+using ByeMoney.Application.Modules.Identity.Users.Interfaces;
 using ByeMoney.Application.Modules.TarhElahiIntegration.Exceptions;
 using ByeMoney.Application.Modules.TarhElahiIntegration.Interfaces;
+using ByeMoney.Application.Modules.Wallet.Interfaces;
 using ByeMoney.Application.Resources;
 using ByeMoney.Domain.Common.Exceptions;
 using ByeMoney.Domain.Modules.Identity.Users;
@@ -10,28 +11,16 @@ using Microsoft.Extensions.Logging;
 
 namespace ByeMoney.Application.Modules.Identity.Users.Commands.SyncUserFromStrapi;
 
-public class SyncUserFromStrapiCommandHandler : IRequestHandler<SyncUserFromStrapiCommand, Guid>
+public class SyncUserFromStrapiCommandHandler(
+    IUserRepository userRepository,
+    IUnitOfWork unitOfWork,
+    ITarhElahiIntegrationClient tarhElahiClient,
+    ILogger<SyncUserFromStrapiCommandHandler> logger,
+    IWelcomeGiftService welcomeGiftService) : IRequestHandler<SyncUserFromStrapiCommand, Guid>
 {
-    private readonly IUserRepository _userRepository;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly ITarhElahiIntegrationClient _tarhElahiClient;
-    private readonly ILogger<SyncUserFromStrapiCommandHandler> _logger;
-
-    public SyncUserFromStrapiCommandHandler(
-        IUserRepository userRepository,
-        IUnitOfWork unitOfWork,
-        ITarhElahiIntegrationClient tarhElahiClient,
-        ILogger<SyncUserFromStrapiCommandHandler> logger)
-    {
-        _userRepository = userRepository;
-        _unitOfWork = unitOfWork;
-        _tarhElahiClient = tarhElahiClient;
-        _logger = logger;
-    }
-
     public async Task<Guid> Handle(SyncUserFromStrapiCommand request, CancellationToken ct)
     {
-        var user = await _userRepository.GetByExternalUserIdAsync(request.ExternalUserId, ct);
+        var user = await userRepository.GetByExternalUserIdAsync(request.ExternalUserId, ct);
 
         if (user is null)
         {
@@ -43,7 +32,7 @@ public class SyncUserFromStrapiCommandHandler : IRequestHandler<SyncUserFromStra
 
     private async Task<Guid> CreateUserFromTarhElahiAsync(string externalUserId, CancellationToken ct)
     {
-        var strapiUser = await _tarhElahiClient.GetUserAsync(externalUserId, ct);
+        var strapiUser = await tarhElahiClient.GetUserAsync(externalUserId, ct);
 
         if (strapiUser is null)
         {
@@ -60,10 +49,11 @@ public class SyncUserFromStrapiCommandHandler : IRequestHandler<SyncUserFromStra
             blocked: strapiUser.Blocked
         );
 
-        await _userRepository.AddAsync(newUser, ct);
-        await _unitOfWork.SaveChangesAsync(ct);
+        await userRepository.AddAsync(newUser, ct);
+        await welcomeGiftService.GrantWelcomeGiftIfEligibleAsync(newUser, ct);
+        await unitOfWork.SaveChangesAsync(ct);
 
-        _logger.LogInformation("Created new internal user for TarhElahi user '{ExternalUserId}'.", externalUserId);
+        logger.LogInformation("Created new internal user for TarhElahi user '{ExternalUserId}'.", externalUserId);
         return newUser.Id.Value;
     }
 
@@ -76,7 +66,7 @@ public class SyncUserFromStrapiCommandHandler : IRequestHandler<SyncUserFromStra
 
         try
         {
-            var strapiUser = await _tarhElahiClient.GetUserAsync(externalUserId, ct);
+            var strapiUser = await tarhElahiClient.GetUserAsync(externalUserId, ct);
 
             if (strapiUser is not null)
             {
@@ -89,21 +79,22 @@ public class SyncUserFromStrapiCommandHandler : IRequestHandler<SyncUserFromStra
                     blocked: strapiUser.Blocked
                 );
 
-                _userRepository.Update(user);
-                await _unitOfWork.SaveChangesAsync(ct);
+                userRepository.Update(user);
+                await unitOfWork.SaveChangesAsync(ct);
 
-                _logger.LogInformation("Successfully refreshed profile for user '{ExternalUserId}'.", externalUserId);
+                logger.LogInformation("Successfully refreshed profile for user '{ExternalUserId}'.", externalUserId);
             }
             else
             {
-                _logger.LogWarning("TarhElahi user '{ExternalUserId}' not found during refresh; proceeding with stale profile data.", externalUserId);
+                logger.LogWarning("TarhElahi user '{ExternalUserId}' not found during refresh; proceeding with stale profile data.", externalUserId);
             }
         }
         catch (TarhElahiUnavailableException ex)
         {
-            _logger.LogWarning(ex, "TarhElahi unavailable while refreshing profile for user '{ExternalUserId}'; proceeding with stale profile data.", externalUserId);
+            logger.LogWarning(ex, "TarhElahi unavailable while refreshing profile for user '{ExternalUserId}'; proceeding with stale profile data.", externalUserId);
         }
 
         return user.Id.Value;
     }
 }
+

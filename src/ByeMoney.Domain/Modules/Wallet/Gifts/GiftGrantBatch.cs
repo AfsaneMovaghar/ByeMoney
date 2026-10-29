@@ -29,7 +29,7 @@ public class GiftGrantBatch : BaseEntity<Guid>
         UserId? adminUserId,
         DateTime? createdAtUtc = null)
     {
-        return new GiftGrantBatch
+        var batch = new GiftGrantBatch
         {
             Id = Guid.NewGuid(),
             IdempotencyKey = idempotencyKey,
@@ -39,6 +39,13 @@ public class GiftGrantBatch : BaseEntity<Guid>
             AmountNoorPerUser = amountNoorPerUser,
             AdminUserId = adminUserId
         };
+
+        if (createdAtUtc.HasValue)
+        {
+            batch.CreatedAtUtc = createdAtUtc.Value;
+        }
+
+        return batch;
     }
 
     public void AddRecipient(GiftGrantRecipient recipient)

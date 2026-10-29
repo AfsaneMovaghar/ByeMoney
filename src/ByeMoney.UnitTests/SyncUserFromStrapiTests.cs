@@ -3,6 +3,7 @@ using ByeMoney.Application.Common.Interfaces;
 using ByeMoney.Application.Modules.Identity.Users.Commands.SyncUserFromStrapi;
 using ByeMoney.Application.Modules.TarhElahiIntegration.DTOs;
 using ByeMoney.Application.Modules.TarhElahiIntegration.Interfaces;
+using ByeMoney.Application.Modules.Wallet.Interfaces;
 using ByeMoney.Domain.Modules.Identity.Users;
 using FluentAssertions;
 using FluentValidation.TestHelper;
@@ -117,6 +118,7 @@ public class SyncUserFromStrapiTests
         var unitOfWorkMock = new Mock<IUnitOfWork>();
         var tarhElahiClientMock = new Mock<ITarhElahiIntegrationClient>();
         var loggerMock = new Mock<ILogger<SyncUserFromStrapiCommandHandler>>();
+        var welcomeGiftMock = new Mock<IWelcomeGiftService>();
 
         var existingUser = User.CreateFromStrapi("user-42");
         userRepositoryMock
@@ -127,7 +129,8 @@ public class SyncUserFromStrapiTests
             userRepositoryMock.Object,
             unitOfWorkMock.Object,
             tarhElahiClientMock.Object,
-            loggerMock.Object);
+            loggerMock.Object,
+            welcomeGiftMock.Object);
 
         // Act
         var result = await handler.Handle(new SyncUserFromStrapiCommand("user-42"), CancellationToken.None);
@@ -147,6 +150,7 @@ public class SyncUserFromStrapiTests
         var unitOfWorkMock = new Mock<IUnitOfWork>();
         var tarhElahiClientMock = new Mock<ITarhElahiIntegrationClient>();
         var loggerMock = new Mock<ILogger<SyncUserFromStrapiCommandHandler>>();
+        var welcomeGiftMock = new Mock<IWelcomeGiftService>();
 
         var existingUser = User.CreateFromStrapi("user-42"); // ProfileSyncedAt is fresh -> NeedsProfileSync = false
         userRepositoryMock
@@ -171,7 +175,8 @@ public class SyncUserFromStrapiTests
             userRepositoryMock.Object,
             unitOfWorkMock.Object,
             tarhElahiClientMock.Object,
-            loggerMock.Object);
+            loggerMock.Object,
+            welcomeGiftMock.Object);
 
         // Act
         var result = await handler.Handle(new SyncUserFromStrapiCommand("user-42", ForceSync: true), CancellationToken.None);
@@ -192,6 +197,7 @@ public class SyncUserFromStrapiTests
         var unitOfWorkMock = new Mock<IUnitOfWork>();
         var tarhElahiClientMock = new Mock<ITarhElahiIntegrationClient>();
         var loggerMock = new Mock<ILogger<SyncUserFromStrapiCommandHandler>>();
+        var welcomeGiftMock = new Mock<IWelcomeGiftService>();
 
         var existingUser = User.CreateInitial("user-42"); // ProfileSyncedAt = MinValue -> NeedsProfileSync = true
         userRepositoryMock
@@ -216,7 +222,8 @@ public class SyncUserFromStrapiTests
             userRepositoryMock.Object,
             unitOfWorkMock.Object,
             tarhElahiClientMock.Object,
-            loggerMock.Object);
+            loggerMock.Object,
+            welcomeGiftMock.Object);
 
         // Act
         var result = await handler.Handle(new SyncUserFromStrapiCommand("user-42"), CancellationToken.None);
@@ -238,6 +245,7 @@ public class SyncUserFromStrapiTests
         var unitOfWorkMock = new Mock<IUnitOfWork>();
         var tarhElahiClientMock = new Mock<ITarhElahiIntegrationClient>();
         var loggerMock = new Mock<ILogger<SyncUserFromStrapiCommandHandler>>();
+        var welcomeGiftMock = new Mock<IWelcomeGiftService>();
 
         userRepositoryMock
             .Setup(r => r.GetByExternalUserIdAsync("user-99", It.IsAny<CancellationToken>()))
@@ -261,7 +269,8 @@ public class SyncUserFromStrapiTests
             userRepositoryMock.Object,
             unitOfWorkMock.Object,
             tarhElahiClientMock.Object,
-            loggerMock.Object);
+            loggerMock.Object,
+            welcomeGiftMock.Object);
 
         // Act
         var result = await handler.Handle(new SyncUserFromStrapiCommand("user-99"), CancellationToken.None);
@@ -269,6 +278,8 @@ public class SyncUserFromStrapiTests
         // Assert
         result.Should().NotBeEmpty();
         userRepositoryMock.Verify(r => r.AddAsync(It.Is<User>(u => u.ExternalUserId == "user-99" && u.FirstName == "Reza" && u.Phone == "09987654321"), It.IsAny<CancellationToken>()), Times.Once);
+        welcomeGiftMock.Verify(w => w.GrantWelcomeGiftIfEligibleAsync(It.Is<User>(u => u.ExternalUserId == "user-99"), It.IsAny<CancellationToken>()), Times.Once);
         unitOfWorkMock.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 }
+

@@ -5,7 +5,7 @@ public abstract class BaseEntity<TId>
 {
     public TId Id { get; protected set; } = default!;
 
-    public DateTime CreatedAtUtc { get; private set; }
+    public DateTime CreatedAtUtc { get; protected set; }
 
     public DateTime? UpdatedAt { get; protected set; }
 

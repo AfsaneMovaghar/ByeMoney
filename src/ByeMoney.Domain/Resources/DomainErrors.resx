@@ -142,4 +142,7 @@
   <data name="TopUpRequest_CannotRecordResultForStatus" xml:space="preserve"><value>امکان ثبت نتیجه درگاه «{0}» برای درخواست با وضعیت «{1}» وجود ندارد.</value></data>
   <data name="CoursePurchase_CannotMarkNonFreeAsFree" xml:space="preserve"><value>امکان ثبت رایگان تنها برای خریدهای رایگان وجود دارد.</value></data>
   <data name="PhysicalProductPurchase_CannotMarkNonFreeAsFree" xml:space="preserve"><value>امکان ثبت رایگان تنها برای کالاهای با مبلغ پرداختی صفر وجود دارد.</value></data>
+  <data name="GiftCampaign_AmountCannotBeNegative" xml:space="preserve"><value>مبلغ هدیه نمی‌تواند منفی باشد.</value></data>
+  <data name="GiftCampaign_StartDateCannotBeAfterEndDate" xml:space="preserve"><value>تاریخ شروع هدیه نمی‌تواند بعد از تاریخ پایان باشد.</value></data>
+  <data name="Wallet_CreditAmountMustBePositive" xml:space="preserve"><value>مبلغ افزایش موجودی باید بزرگتر از صفر باشد.</value></data>
 </root>

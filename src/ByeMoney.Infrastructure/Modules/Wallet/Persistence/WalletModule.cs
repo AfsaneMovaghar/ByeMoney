@@ -16,6 +16,7 @@ public static class WalletModule
         services.AddScoped<IWalletRepository, WalletRepository>();
         services.AddScoped<ITopUpRequestRepository, TopUpRequestRepository>();
         services.AddScoped<IGiftGrantRepository, GiftGrantRepository>();
+        services.AddScoped<IGiftCampaignSettingRepository, GiftCampaignSettingRepository>();
         services.AddScoped<IGatewayTopUpService, GatewayTopUpService>();
         services.AddScoped<ITopUpRejectionService, TopUpRejectionService>();
         return services;

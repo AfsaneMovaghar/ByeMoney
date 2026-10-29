@@ -24,6 +24,8 @@ public static class DependencyInjection
 
         services.AddScoped<IUserWalletProvisioningService, UserWalletProvisioningService>();
         services.AddScoped<IWalletPostingService, WalletPostingService>();
+        services.AddScoped<INoorCreditService, NoorCreditService>();
+        services.AddScoped<IWelcomeGiftService, WelcomeGiftService>();
         services.AddScoped<ITopUpSettlementService, TopUpSettlementService>();
         services.AddScoped<IAdminAssistedTopUpService, AdminAssistedTopUpService>();
         services.AddScoped<ByeMoney.Application.Modules.Purchases.Interfaces.ICoursePurchaseNotifier, ByeMoney.Application.Modules.Purchases.Services.CoursePurchaseNotifier>();
@@ -31,3 +33,4 @@ public static class DependencyInjection
         return services;
     }
 }
+
