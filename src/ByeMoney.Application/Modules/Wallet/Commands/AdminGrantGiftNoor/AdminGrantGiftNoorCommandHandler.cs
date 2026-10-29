@@ -1,4 +1,4 @@
-using System.Security.Cryptography;
+﻿using System.Security.Cryptography;
 using System.Text;
 using ByeMoney.Application.Common.Interfaces;
 using ByeMoney.Application.Modules.Identity.Users.Commands.SyncUserFromStrapi;
@@ -170,3 +170,4 @@ public sealed class AdminGrantGiftNoorCommandHandler(
         return Convert.ToHexString(bytes).ToLowerInvariant();
     }
 }
+
