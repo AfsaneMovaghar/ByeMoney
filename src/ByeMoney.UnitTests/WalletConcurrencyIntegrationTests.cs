@@ -122,7 +122,7 @@ public class WalletConcurrencyIntegrationTests
                 .Returns(async () => new ProvisionedUserWallet(account, await context.Set<Wallet>().SingleAsync()));
             provisioning.Setup(x => x.GetOrCreateSystemAccountAsync(It.IsAny<CancellationToken>()))
                 .ReturnsAsync(system);
-            var settlement = new TopUpSettlementService(provisioning.Object, new WalletPostingService(new BaseRepository<LedgerEntry, LedgerEntryId>(context), new WalletRepository(context)), context);
+            var settlement = new TopUpSettlementService(new NoorCreditService(provisioning.Object, new WalletPostingService(new BaseRepository<LedgerEntry, LedgerEntryId>(context), new WalletRepository(context))), context);
 
             var userProvisioning = new Mock<IUserProvisioningService>();
             userProvisioning
