@@ -36,7 +36,7 @@ public class DuplicatePurchasePreventionTests
         var cartId = Guid.NewGuid();
         var user = User.CreateFromStrapi("strapi-user-1", "09123456789", confirmed: true, blocked: false);
 
-        var storeMock = new Mock<ICourseCartStore>();
+        var storeMock = new Mock<ICartStore>();
         var pricingMock = new Mock<ICartPricingClient>();
         var userRepoMock = new Mock<IUserRepository>();
         var walletRepoMock = new Mock<IWalletRepository>();
@@ -55,7 +55,7 @@ public class DuplicatePurchasePreventionTests
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
 
-        var service = new CourseCartService(
+        var service = new CartService(
             storeMock.Object,
             pricingMock.Object,
             userRepoMock.Object,
@@ -84,7 +84,7 @@ public class DuplicatePurchasePreventionTests
         var cartId = Guid.NewGuid();
         var user = User.CreateFromStrapi("strapi-user-legacy", "09123456789", confirmed: true, blocked: false);
 
-        var storeMock = new Mock<ICourseCartStore>();
+        var storeMock = new Mock<ICartStore>();
         var pricingMock = new Mock<ICartPricingClient>();
         var userRepoMock = new Mock<IUserRepository>();
         var walletRepoMock = new Mock<IWalletRepository>();
@@ -111,7 +111,7 @@ public class DuplicatePurchasePreventionTests
         pricingMock.Setup(p => p.PrepareAsync(It.IsAny<CartQuoteRequest>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(Result<CartQuote>.Conflict(CartErrors.Conflict, CartErrorCodes.Conflict));
 
-        var service = new CourseCartService(
+        var service = new CartService(
             storeMock.Object,
             pricingMock.Object,
             userRepoMock.Object,
@@ -138,7 +138,7 @@ public class DuplicatePurchasePreventionTests
         var cartId = Guid.NewGuid();
         var user = User.CreateFromStrapi("strapi-user-1", "09123456789", confirmed: true, blocked: false);
 
-        var storeMock = new Mock<ICourseCartStore>();
+        var storeMock = new Mock<ICartStore>();
         var pricingMock = new Mock<ICartPricingClient>();
         var userRepoMock = new Mock<IUserRepository>();
         var walletRepoMock = new Mock<IWalletRepository>();
@@ -156,7 +156,7 @@ public class DuplicatePurchasePreventionTests
         pricingMock.Setup(p => p.TransitionAsync(It.IsAny<CartTransitionRequest>(), "check", It.IsAny<CancellationToken>()))
             .ReturnsAsync(Result.Conflict(CartErrors.Conflict, CartErrorCodes.Conflict));
 
-        var service = new CourseCartService(
+        var service = new CartService(
             storeMock.Object,
             pricingMock.Object,
             userRepoMock.Object,

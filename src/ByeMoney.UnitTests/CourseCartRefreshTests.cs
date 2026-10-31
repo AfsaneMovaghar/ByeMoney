@@ -18,10 +18,10 @@ namespace ByeMoney.UnitTests;
 
 public sealed class CourseCartRefreshTests
 {
-    private readonly Mock<ICourseCartStore> _store = new();
+    private readonly Mock<ICartStore> _store = new();
     private readonly Mock<ICartPricingClient> _pricing = new();
     private readonly User _buyer = User.CreateInitial("buyer");
-    private CourseCartService Service()
+    private CartService Service()
     {
         var users = new Mock<IUserRepository>();
         users.Setup(x => x.GetByIdAsync(_buyer.Id, It.IsAny<CancellationToken>())).ReturnsAsync(_buyer);
@@ -139,7 +139,7 @@ public sealed class CourseCartRefreshTests
         var settings = new Mock<ISystemSettingRepository>();
         settings.Setup(x => x.GetRialToNoorConversionRateAsync(It.IsAny<CancellationToken>())).ReturnsAsync(137);
 
-        var service = new CourseCartService(_store.Object, _pricing.Object, users.Object,
+        var service = new CartService(_store.Object, _pricing.Object, users.Object,
             Mock.Of<IWalletRepository>(), settings.Object, Mock.Of<ICoursePurchaseRepository>(), topUps.Object);
 
         var response = (await service.GetAsync(_buyer.Id.Value, cart.Id, default)).Value;
@@ -199,7 +199,7 @@ public sealed class CourseCartRefreshTests
         var settings = new Mock<ISystemSettingRepository>();
         settings.Setup(x => x.GetRialToNoorConversionRateAsync(It.IsAny<CancellationToken>())).ReturnsAsync(137);
 
-        var service = new CourseCartService(_store.Object, _pricing.Object, users.Object,
+        var service = new CartService(_store.Object, _pricing.Object, users.Object,
             Mock.Of<IWalletRepository>(), settings.Object, Mock.Of<ICoursePurchaseRepository>(), topUps.Object);
 
         var result = await service.PrepareAsync(_buyer.Id.Value, cart.Id, ["course"], null, default);
@@ -259,7 +259,7 @@ public sealed class CourseCartRefreshTests
         var settings = new Mock<ISystemSettingRepository>();
         settings.Setup(x => x.GetRialToNoorConversionRateAsync(It.IsAny<CancellationToken>())).ReturnsAsync(137);
 
-        var service = new CourseCartService(_store.Object, _pricing.Object, users.Object,
+        var service = new CartService(_store.Object, _pricing.Object, users.Object,
             Mock.Of<IWalletRepository>(), settings.Object, Mock.Of<ICoursePurchaseRepository>(), topUps.Object);
 
         var result = await service.PrepareAsync(_buyer.Id.Value, cart.Id, ["course"], null, default);

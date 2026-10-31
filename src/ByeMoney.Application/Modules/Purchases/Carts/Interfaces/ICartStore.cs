@@ -4,7 +4,7 @@ using ByeMoney.Application.Modules.Wallet.Commands.CreateTopUpRequest;
 
 namespace ByeMoney.Application.Modules.Purchases.Carts.Interfaces;
 
-public interface ICourseCartStore
+public interface ICartStore
 {
     Task<Cart?> FindAsync(Guid id, Guid buyerId, CancellationToken ct);
     Task<Cart?> FindByTopUpAsync(Guid topUpId, Guid buyerId, CancellationToken ct);

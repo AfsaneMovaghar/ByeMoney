@@ -16,7 +16,7 @@ using Npgsql;
 
 namespace ByeMoney.Infrastructure.Modules.Purchases.Persistence;
 
-public sealed class CourseCartStore(IServiceScopeFactory scopes) : ICourseCartStore
+public sealed class CourseCartStore(IServiceScopeFactory scopes) : ICartStore
 {
     private async Task<T> Run<T>(Func<IServiceProvider, ApplicationDbContext, Task<T>> action)
     {
@@ -224,7 +224,7 @@ public sealed class CourseCartStore(IServiceScopeFactory scopes) : ICourseCartSt
                 }
 
                 var system = cart.Total > 0 ? await provisioning.GetOrCreateSystemAccountAsync(ct) : null;
-                var payment = CourseCartPayment.Apply(cart, provisioned, system, referenceRate);
+                var payment = CartPayment.Apply(cart, provisioned, system, referenceRate);
                 db.AddRange(payment.Purchases);
                 db.AddRange(payment.PhysicalPurchases);
                 db.AddRange(payment.LedgerEntries);

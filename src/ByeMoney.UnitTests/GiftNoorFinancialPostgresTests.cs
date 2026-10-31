@@ -28,7 +28,7 @@ public sealed class GiftNoorFinancialPostgresTests : IAsyncLifetime
     private readonly User _buyer = User.CreateInitial("gift-test-" + Guid.NewGuid().ToString("N"));
     private readonly Mock<ICartPricingClient> _pricing = new();
 
-    private ICourseCartStore Store => _provider.GetRequiredService<ICourseCartStore>();
+    private ICartStore Store => _provider.GetRequiredService<ICartStore>();
 
     public async Task InitializeAsync()
     {

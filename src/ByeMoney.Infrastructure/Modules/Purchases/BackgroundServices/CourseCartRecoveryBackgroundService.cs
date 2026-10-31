@@ -17,13 +17,13 @@ public sealed class CourseCartRecoveryBackgroundService(IServiceScopeFactory sco
             try
             {
                 using var scope = scopes.CreateScope();
-                var store = scope.ServiceProvider.GetRequiredService<ICourseCartStore>();
+                var store = scope.ServiceProvider.GetRequiredService<ICartStore>();
                 foreach (var cart in await store.GetPendingAsync(ct))
                 {
                     try
                     {
                         using var itemScope = scopes.CreateScope();
-                        await itemScope.ServiceProvider.GetRequiredService<CourseCartService>().ProcessAsync(cart, ct);
+                        await itemScope.ServiceProvider.GetRequiredService<CartService>().ProcessAsync(cart, ct);
                     }
                     catch (OperationCanceledException) when (ct.IsCancellationRequested) { return; }
                     catch (Exception ex) { logger.LogError(ex, "Course cart recovery failed for {CartId}", cart.Id); }

@@ -32,7 +32,7 @@ public sealed class CourseCartPostgresTests : IAsyncLifetime
     private string _adminConnection = null!;
     private readonly User _buyer = User.CreateInitial("cart-test-" + Guid.NewGuid().ToString("N"));
     private readonly Mock<ICartPricingClient> _pricing = new();
-    private ICourseCartStore Store => _provider.GetRequiredService<ICourseCartStore>();
+    private ICartStore Store => _provider.GetRequiredService<ICartStore>();
     public async Task InitializeAsync()
     {
         if (Environment.GetEnvironmentVariable("BYEMONEY_CART_PG_TESTS") != "1") return;
@@ -172,7 +172,7 @@ public sealed class CourseCartPostgresTests : IAsyncLifetime
         _pricing.Setup(x => x.TransitionAsync(It.IsAny<CartTransitionRequest>(), "check", It.IsAny<CancellationToken>()))
             .ReturnsAsync(Result.Conflict(CartErrors.Conflict, CartErrorCodes.Conflict));
         using var scope = _provider.CreateScope();
-        var service = scope.ServiceProvider.GetRequiredService<CourseCartService>();
+        var service = scope.ServiceProvider.GetRequiredService<CartService>();
 
         (await service.PurchaseAsync(_buyer.Id.Value, cart.Id, default)).IsSuccess.Should().BeFalse();
         (await Financials()).Should().Be((1000m, 0, 0m, 0m));
@@ -184,7 +184,7 @@ public sealed class CourseCartPostgresTests : IAsyncLifetime
         var paid = await Ready();
         using var scope = _provider.CreateScope();
         var settings = scope.ServiceProvider.GetRequiredService<ISystemSettingRepository>();
-        var service = scope.ServiceProvider.GetRequiredService<CourseCartService>();
+        var service = scope.ServiceProvider.GetRequiredService<CartService>();
         await settings.SetValueAsync("ConversionRate:RialToNoor", "137");
         (await service.PurchaseAsync(_buyer.Id.Value, paid.Id, default)).IsSuccess.Should().BeTrue();
         await settings.SetValueAsync("ConversionRate:RialToNoor", "991");
@@ -207,7 +207,7 @@ public sealed class CourseCartPostgresTests : IAsyncLifetime
         using var scope = _provider.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
         await db.Set<Domain.Modules.Settings.SystemSetting>().ExecuteDeleteAsync();
-        var service = scope.ServiceProvider.GetRequiredService<CourseCartService>();
+        var service = scope.ServiceProvider.GetRequiredService<CartService>();
         var first = await Ready(["missing"]);
         (await service.PurchaseAsync(_buyer.Id.Value, first.Id, default)).IsSuccess.Should().BeTrue();
         db.Add(Domain.Modules.Settings.SystemSetting.Create("ConversionRate:RialToNoor", "invalid"));
@@ -354,7 +354,7 @@ public sealed class CourseCartPostgresTests : IAsyncLifetime
     {
         var cart = await Ready();
         using var scope = _provider.CreateScope();
-        var result = await scope.ServiceProvider.GetRequiredService<CourseCartService>().CancelAsync(_buyer.Id.Value, cart.Id, default);
+        var result = await scope.ServiceProvider.GetRequiredService<CartService>().CancelAsync(_buyer.Id.Value, cart.Id, default);
         result.Value.Status.Should().Be("Failed");
         (await Store.FindAsync(cart.Id, _buyer.Id.Value, default))!.Synchronized.Should().BeTrue();
         (await Store.PayAsync(cart.Id, _buyer.Id.Value, cart.ReservationId, default)).IsFailure.Should().BeTrue();
@@ -373,7 +373,7 @@ public sealed class CourseCartPostgresTests : IAsyncLifetime
     {
         var cart = await AwaitingTopUp();
         using var scope = _provider.CreateScope();
-        var service = scope.ServiceProvider.GetRequiredService<CourseCartService>();
+        var service = scope.ServiceProvider.GetRequiredService<CartService>();
         (await service.CancelAsync(_buyer.Id.Value, cart.Id, default)).Value.Status.Should().Be("AwaitingTopUp");
         await ConfirmTopUp(cart);
         (await Store.PayAsync(cart.Id, _buyer.Id.Value, cart.ReservationId, default)).IsSuccess.Should().BeTrue();
@@ -437,7 +437,7 @@ public sealed class CourseCartPostgresTests : IAsyncLifetime
             .ReturnsAsync(Result.Failure(CartErrors.Unavailable, CartErrorCodes.Unavailable));
         using (var scope = _provider.CreateScope())
         {
-            var service = scope.ServiceProvider.GetRequiredService<CourseCartService>();
+            var service = scope.ServiceProvider.GetRequiredService<CartService>();
             var response = await service.PurchaseAsync(_buyer.Id.Value, cart.Id, default);
             response.Value.Status.Should().Be("Paid");
             response.Value.Courses.Should().OnlyContain(x => x.PurchaseStatus == "DeliveryPending");
@@ -448,7 +448,7 @@ public sealed class CourseCartPostgresTests : IAsyncLifetime
         _pricing.Setup(x => x.TransitionAsync(It.IsAny<CartTransitionRequest>(), "commit", It.IsAny<CancellationToken>())).ReturnsAsync(Result.Success());
         using (var scope = _provider.CreateScope())
         {
-            var service = scope.ServiceProvider.GetRequiredService<CourseCartService>();
+            var service = scope.ServiceProvider.GetRequiredService<CartService>();
             await service.ProcessAsync((await Store.FindAsync(cart.Id, _buyer.Id.Value, default))!, default);
             (await service.GetAsync(_buyer.Id.Value, cart.Id, default)).Value.Courses.Should().OnlyContain(x => x.PurchaseStatus == "Completed");
         }
@@ -505,7 +505,7 @@ public sealed class CourseCartPostgresTests : IAsyncLifetime
         await ConfirmTopUp(cart);
         (await Store.GetPendingAsync(default)).Should().Contain(x => x.Id == cart.Id);
         using var scope = _provider.CreateScope();
-        var service = scope.ServiceProvider.GetRequiredService<CourseCartService>();
+        var service = scope.ServiceProvider.GetRequiredService<CartService>();
         await service.ProcessAsync(cart, default); await service.ProcessAsync(cart, default);
         var result = await service.GetAsync(_buyer.Id.Value, cart.Id, default);
         result.Value.Status.Should().Be("Paid"); result.Value.Courses.Should().OnlyContain(x => x.PurchaseStatus == "Completed");
@@ -527,7 +527,7 @@ public sealed class CourseCartPostgresTests : IAsyncLifetime
         _pricing.Setup(x => x.TransitionAsync(It.IsAny<CartTransitionRequest>(), "check", It.IsAny<CancellationToken>()))
             .ReturnsAsync(Result.Conflict(CartErrors.Conflict, CartErrorCodes.Conflict));
         using var scope = _provider.CreateScope();
-        var service = scope.ServiceProvider.GetRequiredService<CourseCartService>();
+        var service = scope.ServiceProvider.GetRequiredService<CartService>();
         await service.ProcessAsync(cart, default);
         (await service.GetAsync(_buyer.Id.Value, cart.Id, default)).Value.Status.Should().Be("Failed");
         (await Financials()).Should().Be((189.2m, 0, 0m, 0m));
@@ -552,11 +552,11 @@ public sealed class CourseCartPostgresTests : IAsyncLifetime
                 new(request.CartId, request.BuyerExternalUserId, request.CouponCode,
                     [new("a", "Ø§Ù„Ù", 200, 0, 20, 180), new("b", "Ø¨", 100, 0, 10, 90)])));
         using var serviceScope = _provider.CreateScope();
-        var service = serviceScope.ServiceProvider.GetRequiredService<CourseCartService>();
+        var service = serviceScope.ServiceProvider.GetRequiredService<CartService>();
         var previews = await Task.WhenAll(Enumerable.Range(0, 3).Select(async _ =>
         {
             using var requestScope = _provider.CreateScope();
-            return await requestScope.ServiceProvider.GetRequiredService<CourseCartService>()
+            return await requestScope.ServiceProvider.GetRequiredService<CartService>()
                 .PrepareAsync(_buyer.Id.Value, cart.Id, ["a", "b"], "OFF", default);
         }));
         previews.Should().OnlyContain(x => x.IsSuccess && x.Value.CartId == cart.Id && x.Value.PriceInNoor == 270);
@@ -603,7 +603,7 @@ public sealed class CourseCartPostgresTests : IAsyncLifetime
                     [new("a", "Ø§Ù„Ù", 200, 0, 20, 180), new("b", "Ø¨", 100, 0, 10, 90)])));
 
         using var serviceScope = _provider.CreateScope();
-        var service = serviceScope.ServiceProvider.GetRequiredService<CourseCartService>();
+        var service = serviceScope.ServiceProvider.GetRequiredService<CartService>();
         var preview = await service.PrepareAsync(_buyer.Id.Value, cart.Id, ["a", "b"], "OFF", default);
         preview.IsSuccess.Should().BeTrue();
         preview.Value.CartId.Should().Be(cart.Id);
@@ -663,7 +663,7 @@ public sealed class CourseCartPostgresTests : IAsyncLifetime
                     [new("a", "Ø§Ù„Ù", 200, 0, 20, 180), new("b", "Ø¨", 100, 0, 10, 90)])));
 
         using var serviceScope = _provider.CreateScope();
-        var service = serviceScope.ServiceProvider.GetRequiredService<CourseCartService>();
+        var service = serviceScope.ServiceProvider.GetRequiredService<CartService>();
         var preview = await service.PrepareAsync(_buyer.Id.Value, cart.Id, ["a", "b"], "OFF", default);
         preview.IsSuccess.Should().BeTrue();
         preview.Value.PriceInNoor.Should().Be(270);
@@ -716,7 +716,7 @@ public sealed class CourseCartPostgresTests : IAsyncLifetime
                     [new("a", "Ø§Ù„Ù", 200, 0, 20, 180), new("b", "Ø¨", 100, 0, 10, 90)])));
 
         using var serviceScope = _provider.CreateScope();
-        var service = serviceScope.ServiceProvider.GetRequiredService<CourseCartService>();
+        var service = serviceScope.ServiceProvider.GetRequiredService<CartService>();
         await service.PrepareAsync(_buyer.Id.Value, cart.Id, ["a", "b"], "OFF", default);
 
         var retryAttempt = await Store.CreateTopUpAsync(cart.Id, _buyer.Id.Value, default);
@@ -812,7 +812,7 @@ public sealed class CourseCartPostgresTests : IAsyncLifetime
                     [new("a", "Ø§Ù„Ù", 200, 0, 20, 180), new("b", "Ø¨", 100, 0, 10, 90)])));
 
         using var serviceScope = _provider.CreateScope();
-        var service = serviceScope.ServiceProvider.GetRequiredService<CourseCartService>();
+        var service = serviceScope.ServiceProvider.GetRequiredService<CartService>();
         await service.PrepareAsync(_buyer.Id.Value, cart.Id, ["a", "b"], "OFF", default);
 
         var tasks = Enumerable.Range(0, 5).Select(_ => Store.CreateTopUpAsync(cart.Id, _buyer.Id.Value, default)).ToArray();
@@ -903,7 +903,7 @@ public sealed class CourseCartPostgresTests : IAsyncLifetime
 
         // Ù…Ø³ÛŒØ± Û±: Ú©Ø§Ø±Ø¨Ø± Ø¯Ø± Ø­Ø§Ù„ÛŒ Ú©Ù‡ Ø³Ø¨Ø¯ Ù‡Ù†ÙˆØ² AwaitingTopUp Ø§Ø³Øª Ù…Ø³ØªÙ‚ÛŒÙ…Ø§Ù‹ PrepareAsync Ø±Ø§ ØµØ¯Ø§ Ù…ÛŒâ€ŒØ²Ù†Ø¯
         using var serviceScope = _provider.CreateScope();
-        var service = serviceScope.ServiceProvider.GetRequiredService<CourseCartService>();
+        var service = serviceScope.ServiceProvider.GetRequiredService<CartService>();
         var preview = await service.PrepareAsync(_buyer.Id.Value, cart.Id, ["a", "b"], "OFF", default);
         preview.IsSuccess.Should().BeTrue();
         preview.Value.CartId.Should().Be(cart.Id);
@@ -955,7 +955,7 @@ public sealed class CourseCartPostgresTests : IAsyncLifetime
 
         // Ù…Ø³ÛŒØ± Û²: Ø¨Ú©â€ŒÚ¯Ø±Ø§Ù†Ø¯ ProcessAsync Ø§Ø¨ØªØ¯Ø§ Ø§Ø¬Ø±Ø§ Ù…ÛŒâ€ŒØ´ÙˆØ¯ Ùˆ Ø³Ø¨Ø¯ Ø±Ø§ Ø¨Ù‡ Failed Ù…Ù†ØªÙ‚Ù„ Ù…ÛŒâ€ŒÚ©Ù†Ø¯
         using var recoveryScope = _provider.CreateScope();
-        await recoveryScope.ServiceProvider.GetRequiredService<CourseCartService>().ProcessAsync(cart, default);
+        await recoveryScope.ServiceProvider.GetRequiredService<CartService>().ProcessAsync(cart, default);
 
         var failedCart = (await Store.FindAsync(cart.Id, _buyer.Id.Value, default))!;
         failedCart.Status.Should().Be(CartStatus.Failed);
@@ -966,7 +966,7 @@ public sealed class CourseCartPostgresTests : IAsyncLifetime
                     [new("a", "Ø§Ù„Ù", 200, 0, 20, 180), new("b", "Ø¨", 100, 0, 10, 90)])));
 
         using var serviceScope = _provider.CreateScope();
-        var service = serviceScope.ServiceProvider.GetRequiredService<CourseCartService>();
+        var service = serviceScope.ServiceProvider.GetRequiredService<CartService>();
         var preview = await service.PrepareAsync(_buyer.Id.Value, cart.Id, ["a", "b"], "OFF", default);
         preview.IsSuccess.Should().BeTrue();
         preview.Value.PriceInNoor.Should().Be(270);

@@ -7,7 +7,7 @@ using MediatR;
 
 namespace ByeMoney.Application.Modules.Purchases.Commands.CreateCourseCartTopUp;
 
-public sealed class CreateCourseCartTopUpCommandHandler(CourseCartService service, ICurrentUserService currentUser) :
+public sealed class CreateCourseCartTopUpCommandHandler(CartService service, ICurrentUserService currentUser) :
     IRequestHandler<CreateCourseCartTopUpCommand, Result<CreateTopUpRequestResponse>>
 {
     private Guid Buyer => currentUser.UserId ?? throw new UnauthorizedAccessException(ApplicationErrors.Wallet_UserNotAuthenticated);

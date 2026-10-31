@@ -14,7 +14,7 @@ using MediatR;
 namespace ByeMoney.Application.Modules.Purchases.Queries.GetTopUpCheckout;
 
 public sealed class GetTopUpCheckoutQueryHandler(
-    ICurrentUserService currentUser, ITopUpRequestRepository topUps, ICoursePurchaseRepository purchases, ICourseCartStore? carts = null)
+    ICurrentUserService currentUser, ITopUpRequestRepository topUps, ICoursePurchaseRepository purchases, ICartStore? carts = null)
     : IRequestHandler<GetTopUpCheckoutQuery, TopUpCheckoutResponse>
 {
     public async Task<TopUpCheckoutResponse> Handle(GetTopUpCheckoutQuery request, CancellationToken ct)

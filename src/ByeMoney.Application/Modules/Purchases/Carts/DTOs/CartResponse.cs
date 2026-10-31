@@ -14,7 +14,7 @@ public sealed record CartResponse(
     DateTime ExpiresAtUtc,
     Guid? TopUpRequestId,
     string? TopUpStatus,
-    IReadOnlyList<CartCourseResponse> Courses,
+    IReadOnlyList<CartItemResponse> Courses,
     decimal ShippingAmountInNoor = 0m,
     string? ShippingRuleLabel = null,
     bool IsUnderReview = false,

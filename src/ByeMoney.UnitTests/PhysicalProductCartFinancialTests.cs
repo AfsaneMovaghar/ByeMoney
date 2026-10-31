@@ -48,7 +48,7 @@ public sealed class PhysicalProductCartFinancialTests
         cart.Items.Select(x => x.AllocatedAmountInNoor).Should().Equal(80m, 70m);
         (cart.Items.Sum(x => x.AllocatedAmountInNoor) + cart.ShippingAmountInNoor).Should().Be(cart.Total);
 
-        var payment = CourseCartPayment.Apply(cart, new ProvisionedUserWallet(userAccount, wallet), systemAccount);
+        var payment = CartPayment.Apply(cart, new ProvisionedUserWallet(userAccount, wallet), systemAccount);
 
         wallet.WithdrawableBalance.Should().Be(825m);
         cart.Status.Should().Be(CartStatus.Paid);
@@ -101,7 +101,7 @@ public sealed class PhysicalProductCartFinancialTests
 
         cart.Total.Should().Be(30m);
 
-        var payment = CourseCartPayment.Apply(cart, new ProvisionedUserWallet(userAccount, wallet), systemAccount);
+        var payment = CartPayment.Apply(cart, new ProvisionedUserWallet(userAccount, wallet), systemAccount);
 
         wallet.WithdrawableBalance.Should().Be(70m);
         payment.PhysicalPurchases.Should().HaveCount(1);
@@ -132,7 +132,7 @@ public sealed class PhysicalProductCartFinancialTests
 
         cart.Total.Should().Be(0m);
 
-        var payment = CourseCartPayment.Apply(cart, new ProvisionedUserWallet(userAccount, wallet), system: null);
+        var payment = CartPayment.Apply(cart, new ProvisionedUserWallet(userAccount, wallet), system: null);
 
         wallet.WithdrawableBalance.Should().Be(50m);
         payment.LedgerEntries.Should().BeEmpty();

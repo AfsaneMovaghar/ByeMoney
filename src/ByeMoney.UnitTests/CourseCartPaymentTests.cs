@@ -36,7 +36,7 @@ public sealed class CourseCartPaymentTests
         quote.IsSuccess.Should().BeTrue();
         cart.SetQuote(quote.Value.Items);
 
-        var payment = CourseCartPayment.Apply(cart, new ProvisionedUserWallet(account, wallet), Account.CreateSystemAccount());
+        var payment = CartPayment.Apply(cart, new ProvisionedUserWallet(account, wallet), Account.CreateSystemAccount());
 
         wallet.WithdrawableBalance.Should().Be(900);
         payment.LedgerEntries.Sum(entry => entry.Amount).Should().Be(0);
@@ -85,7 +85,7 @@ public sealed class CourseCartPaymentTests
             new("b", "Ø¨", 105, secondDiscount, secondCoupon, secondPayment)
         ]);
 
-        var payment = CourseCartPayment.Apply(cart, new ProvisionedUserWallet(account, wallet),
+        var payment = CartPayment.Apply(cart, new ProvisionedUserWallet(account, wallet),
             cart.Total > 0 ? Account.CreateSystemAccount() : null, referenceRate: 137m);
 
         cart.Items.Select(x => x.PriceInNoor).Should().Equal(105m, 105m);
@@ -98,7 +98,7 @@ public sealed class CourseCartPaymentTests
         payment.LedgerEntries.Should().NotContain(x => x.Amount == 0);
         cart.Status.Should().Be(CartStatus.Paid);
 
-        Action replay = () => CourseCartPayment.Apply(cart, new ProvisionedUserWallet(account, wallet), Account.CreateSystemAccount());
+        Action replay = () => CartPayment.Apply(cart, new ProvisionedUserWallet(account, wallet), Account.CreateSystemAccount());
         replay.Should().Throw<InvalidOperationException>();
         wallet.WithdrawableBalance.Should().Be(1000 - firstPayment - secondPayment);
     }
@@ -121,7 +121,7 @@ public sealed class CourseCartPaymentTests
         cart.Total.Should().Be(0m);
 
         // Act
-        var payment = CourseCartPayment.Apply(
+        var payment = CartPayment.Apply(
             cart,
             new ProvisionedUserWallet(account, wallet),
             system: null,

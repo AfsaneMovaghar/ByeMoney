@@ -15,8 +15,8 @@ using ByeMoney.Domain.Modules.Wallet.TopUps;
 
 namespace ByeMoney.Application.Modules.Purchases.Carts.Services;
 
-public sealed class CourseCartService(
-    ICourseCartStore store,
+public sealed class CartService(
+    ICartStore store,
     ICartPricingClient pricing,
     IUserRepository users,
     IWalletRepository wallets,
@@ -356,7 +356,7 @@ public sealed class CourseCartService(
             throw new InvalidOperationException(CartErrors.Invalid);
         }
 
-        var courses = new List<CartCourseResponse>();
+        var items = new List<CartItemResponse>();
         foreach (var item in cart.Items)
         {
             var purchase = await purchases.GetByIdAsync(CartPurchaseIds.For(cart.Id, item.ExternalCourseId), ct);
@@ -368,7 +368,7 @@ public sealed class CourseCartService(
                         ? "PurchaseIncomplete"
                         : "NotPurchased";
 
-            courses.Add(new(
+            items.Add(new(
                 item.ExternalCourseId,
                 item.Title,
                 item.PriceInNoor,
@@ -397,7 +397,7 @@ public sealed class CourseCartService(
             cart.ExpiresAtUtc,
             cart.TopUpRequestId,
             topUp?.Status.ToString(),
-            courses,
+            items,
             cart.ShippingAmountInNoor,
             cart.ShippingRuleLabel,
             topUp?.IsUnderReview ?? false,

@@ -26,7 +26,7 @@ public sealed class WalletArchitectureTests
     public static readonly HashSet<Type> AllowedPostingTypes =
     [
         typeof(WalletPostingService),
-        typeof(CourseCartPayment),
+        typeof(CartPayment),
         typeof(LedgerEntry)
     ];
 

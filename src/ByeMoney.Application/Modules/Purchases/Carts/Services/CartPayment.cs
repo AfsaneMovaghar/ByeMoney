@@ -8,9 +8,9 @@ using ByeMoney.Domain.Modules.Wallet.Wallets;
 
 namespace ByeMoney.Application.Modules.Purchases.Carts.Services;
 
-public static class CourseCartPayment
+public static class CartPayment
 {
-    public static CourseCartPaymentRecords Apply(
+    public static CartPaymentRecords Apply(
         Cart cart,
         ProvisionedUserWallet wallet,
         Account? system,
@@ -117,6 +117,6 @@ public static class CourseCartPayment
         }
 
         cart.MarkPaid();
-        return new CourseCartPaymentRecords(purchases, physicalPurchases, ledgerEntries);
+        return new CartPaymentRecords(purchases, physicalPurchases, ledgerEntries);
     }
 }
