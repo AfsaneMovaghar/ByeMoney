@@ -1,6 +1,6 @@
 using ByeMoney.Application.Modules.Purchases.Carts.DTOs;
 using ByeMoney.Application.Modules.Purchases.Carts.Services;
-using ByeMoney.Application.Modules.Purchases.Commands.PrepareCourseCart;
+using ByeMoney.Application.Modules.Purchases.Commands.PrepareCart;
 using ByeMoney.Application.Modules.Purchases.History.DTOs;
 using ByeMoney.Application.Modules.Purchases.History.Services;
 using ByeMoney.Application.Modules.Wallet.DTOs;
@@ -199,8 +199,8 @@ public sealed class PhysicalProductCartFinancialTests
     [Fact]
     public void DuplicateProductInCart_MustBeAggregatedIntoSingleRow()
     {
-        var validator = new PrepareCourseCartValidator();
-        var duplicateCommand = new PrepareCourseCartCommand(Guid.NewGuid(), Items: [
+        var validator = new PrepareCartValidator();
+        var duplicateCommand = new PrepareCartCommand(Guid.NewGuid(), Items: [
             new CartItemInput("product-1", ProductItemType.Product, 1),
             new CartItemInput("product-1", ProductItemType.Product, 2)
         ]);

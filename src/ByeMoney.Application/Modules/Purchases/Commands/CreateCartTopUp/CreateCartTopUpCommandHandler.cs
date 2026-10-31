@@ -5,13 +5,13 @@ using ByeMoney.Application.Modules.Wallet.Commands.CreateTopUpRequest;
 using ByeMoney.Application.Resources;
 using MediatR;
 
-namespace ByeMoney.Application.Modules.Purchases.Commands.CreateCourseCartTopUp;
+namespace ByeMoney.Application.Modules.Purchases.Commands.CreateCartTopUp;
 
-public sealed class CreateCourseCartTopUpCommandHandler(CartService service, ICurrentUserService currentUser) :
-    IRequestHandler<CreateCourseCartTopUpCommand, Result<CreateTopUpRequestResponse>>
+public sealed class CreateCartTopUpCommandHandler(CartService service, ICurrentUserService currentUser) :
+    IRequestHandler<CreateCartTopUpCommand, Result<CreateTopUpRequestResponse>>
 {
     private Guid Buyer => currentUser.UserId ?? throw new UnauthorizedAccessException(ApplicationErrors.Wallet_UserNotAuthenticated);
 
-    public Task<Result<CreateTopUpRequestResponse>> Handle(CreateCourseCartTopUpCommand request, CancellationToken ct) =>
+    public Task<Result<CreateTopUpRequestResponse>> Handle(CreateCartTopUpCommand request, CancellationToken ct) =>
         service.TopUpAsync(Buyer, request.CartId, ct);
 }

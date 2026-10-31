@@ -5,13 +5,13 @@ using ByeMoney.Application.Common.Interfaces;
 using ByeMoney.Application.Resources;
 using MediatR;
 
-namespace ByeMoney.Application.Modules.Purchases.Commands.CancelCourseCart;
+namespace ByeMoney.Application.Modules.Purchases.Commands.CancelCart;
 
-public sealed class CancelCourseCartCommandHandler(CartService service, ICurrentUserService currentUser) :
-    IRequestHandler<CancelCourseCartCommand, Result<CartResponse>>
+public sealed class CancelCartCommandHandler(CartService service, ICurrentUserService currentUser) :
+    IRequestHandler<CancelCartCommand, Result<CartResponse>>
 {
     private Guid Buyer => currentUser.UserId ?? throw new UnauthorizedAccessException(ApplicationErrors.Wallet_UserNotAuthenticated);
 
-    public Task<Result<CartResponse>> Handle(CancelCourseCartCommand request, CancellationToken ct) =>
+    public Task<Result<CartResponse>> Handle(CancelCartCommand request, CancellationToken ct) =>
         service.CancelAsync(Buyer, request.CartId, ct);
 }

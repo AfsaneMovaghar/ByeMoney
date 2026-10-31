@@ -1,11 +1,11 @@
 using ByeMoney.Application.Modules.Purchases.Carts.Constants;
 using FluentValidation;
 
-namespace ByeMoney.Application.Modules.Purchases.Commands.CreateCourseCartTopUp;
+namespace ByeMoney.Application.Modules.Purchases.Commands.CancelCart;
 
-public sealed class CreateCourseCartTopUpValidator : AbstractValidator<CreateCourseCartTopUpCommand>
+public sealed class CancelCartValidator : AbstractValidator<CancelCartCommand>
 {
-    public CreateCourseCartTopUpValidator()
+    public CancelCartValidator()
     {
         RuleLevelCascadeMode = CascadeMode.Stop;
 

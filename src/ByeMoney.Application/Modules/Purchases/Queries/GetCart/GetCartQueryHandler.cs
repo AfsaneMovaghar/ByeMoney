@@ -5,13 +5,13 @@ using ByeMoney.Application.Common.Interfaces;
 using ByeMoney.Application.Resources;
 using MediatR;
 
-namespace ByeMoney.Application.Modules.Purchases.Queries.GetCourseCart;
+namespace ByeMoney.Application.Modules.Purchases.Queries.GetCart;
 
-public sealed class GetCourseCartQueryHandler(CartService service, ICurrentUserService currentUser) :
-    IRequestHandler<GetCourseCartQuery, Result<CartResponse>>
+public sealed class GetCartQueryHandler(CartService service, ICurrentUserService currentUser) :
+    IRequestHandler<GetCartQuery, Result<CartResponse>>
 {
     private Guid Buyer => currentUser.UserId ?? throw new UnauthorizedAccessException(ApplicationErrors.Wallet_UserNotAuthenticated);
 
-    public Task<Result<CartResponse>> Handle(GetCourseCartQuery request, CancellationToken ct) =>
+    public Task<Result<CartResponse>> Handle(GetCartQuery request, CancellationToken ct) =>
         service.GetAsync(Buyer, request.CartId, ct);
 }

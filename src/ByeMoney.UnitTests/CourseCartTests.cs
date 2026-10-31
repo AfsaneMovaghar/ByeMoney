@@ -1,5 +1,5 @@
 using ByeMoney.Application.Modules.Purchases.Carts.Services;
-using ByeMoney.Application.Modules.Purchases.Commands.PrepareCourseCart;
+using ByeMoney.Application.Modules.Purchases.Commands.PrepareCart;
 using ByeMoney.Domain.Modules.Purchases;
 using FluentAssertions;
 
@@ -91,12 +91,12 @@ public sealed class CourseCartTests
     [Fact]
     public async Task ValidationRejectsInvalidListCouponAndIdWithoutInfrastructureCalls()
     {
-        var validator = new PrepareCourseCartValidator();
-        (await validator.ValidateAsync(new PrepareCourseCartCommand(Guid.NewGuid(), ["a", "a"], null))).IsValid.Should().BeFalse();
-        (await validator.ValidateAsync(new PrepareCourseCartCommand(Guid.NewGuid(), ["a"], " "))).IsValid.Should().BeFalse();
-        (await validator.ValidateAsync(new PrepareCourseCartCommand(Guid.Empty, ["a"], null))).IsValid.Should().BeFalse();
-        (await validator.ValidateAsync(new PrepareCourseCartCommand(Guid.NewGuid(), [" a"], null))).IsValid.Should().BeFalse();
-        (await validator.ValidateAsync(new PrepareCourseCartCommand(Guid.NewGuid(), ["a", "b"], "OFF"))).IsValid.Should().BeTrue();
+        var validator = new PrepareCartValidator();
+        (await validator.ValidateAsync(new PrepareCartCommand(Guid.NewGuid(), ["a", "a"], null))).IsValid.Should().BeFalse();
+        (await validator.ValidateAsync(new PrepareCartCommand(Guid.NewGuid(), ["a"], " "))).IsValid.Should().BeFalse();
+        (await validator.ValidateAsync(new PrepareCartCommand(Guid.Empty, ["a"], null))).IsValid.Should().BeFalse();
+        (await validator.ValidateAsync(new PrepareCartCommand(Guid.NewGuid(), [" a"], null))).IsValid.Should().BeFalse();
+        (await validator.ValidateAsync(new PrepareCartCommand(Guid.NewGuid(), ["a", "b"], "OFF"))).IsValid.Should().BeTrue();
     }
 }
 

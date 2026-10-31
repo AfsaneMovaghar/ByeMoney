@@ -1,11 +1,11 @@
 using ByeMoney.API.Contracts.CourseCarts;
 using ByeMoney.Application.Modules.Purchases.Carts.Constants;
 using ByeMoney.Application.Modules.Purchases.Carts.DTOs;
-using ByeMoney.Application.Modules.Purchases.Commands.CancelCourseCart;
-using ByeMoney.Application.Modules.Purchases.Commands.CreateCourseCartTopUp;
-using ByeMoney.Application.Modules.Purchases.Commands.PrepareCourseCart;
-using ByeMoney.Application.Modules.Purchases.Commands.PurchaseCourseCart;
-using ByeMoney.Application.Modules.Purchases.Queries.GetCourseCart;
+using ByeMoney.Application.Modules.Purchases.Commands.CancelCart;
+using ByeMoney.Application.Modules.Purchases.Commands.CreateCartTopUp;
+using ByeMoney.Application.Modules.Purchases.Commands.PrepareCart;
+using ByeMoney.Application.Modules.Purchases.Commands.PurchaseCart;
+using ByeMoney.Application.Modules.Purchases.Queries.GetCart;
 using ByeMoney.Domain.Common.Generic;
 using ByeMoney.Application.Modules.Wallet.Commands.CreateTopUpRequest;
 using ByeMoney.Domain.Common;
@@ -26,7 +26,7 @@ public sealed class CourseCartsController(ISender sender) : ControllerBase
         [FromBody] PrepareCourseCartRequest request,
         CancellationToken ct)
     {
-        var command = new PrepareCourseCartCommand(request.CartId, request.ExternalCourseIds, request.CouponCode, request.Items);
+        var command = new PrepareCartCommand(request.CartId, request.ExternalCourseIds, request.CouponCode, request.Items);
         var result = await sender.Send(command, ct);
         return Respond(result);
     }
@@ -37,7 +37,7 @@ public sealed class CourseCartsController(ISender sender) : ControllerBase
         [FromRoute] Guid cartId,
         CancellationToken ct)
     {
-        var query = new GetCourseCartQuery(cartId);
+        var query = new GetCartQuery(cartId);
         var result = await sender.Send(query, ct);
         return Respond(result);
     }
@@ -48,7 +48,7 @@ public sealed class CourseCartsController(ISender sender) : ControllerBase
         [FromRoute] Guid cartId,
         CancellationToken ct)
     {
-        var command = new PurchaseCourseCartCommand(cartId);
+        var command = new PurchaseCartCommand(cartId);
         var result = await sender.Send(command, ct);
         return Respond(result);
     }
@@ -59,7 +59,7 @@ public sealed class CourseCartsController(ISender sender) : ControllerBase
         [FromRoute] Guid cartId,
         CancellationToken ct)
     {
-        var command = new CancelCourseCartCommand(cartId);
+        var command = new CancelCartCommand(cartId);
         var result = await sender.Send(command, ct);
         return Respond(result);
     }
@@ -70,7 +70,7 @@ public sealed class CourseCartsController(ISender sender) : ControllerBase
         [FromRoute] Guid cartId,
         CancellationToken ct)
     {
-        var command = new CreateCourseCartTopUpCommand(cartId);
+        var command = new CreateCartTopUpCommand(cartId);
         var result = await sender.Send(command, ct);
         return Respond(result);
     }
