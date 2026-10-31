@@ -379,7 +379,7 @@ public sealed class PhysicalProductCartFinancialTests
     }
 
     [Fact]
-    public void PrepareCourseCartRequest_DeserializesFrontendPayloadSuccessfully()
+    public void PrepareCartRequest_DeserializesFrontendPayloadSuccessfully()
     {
         var json = """
         {

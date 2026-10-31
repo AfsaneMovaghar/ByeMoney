@@ -25,7 +25,7 @@ using Npgsql;
 
 namespace ByeMoney.UnitTests;
 
-public sealed class CourseCartPostgresTests : IAsyncLifetime
+public sealed class CartPostgresTests : IAsyncLifetime
 {
     private readonly string _schema = "cart_test_" + Guid.NewGuid().ToString("N");
     private ServiceProvider _provider = null!;
@@ -253,7 +253,7 @@ public sealed class CourseCartPostgresTests : IAsyncLifetime
         items!.Select(x => new CartItem(x.ExternalCourseId, x.Title, x.BasePriceInNoor, x.PriceInNoor)).Should().Equal(cart.Items);
         await migrator.MigrateAsync();
         (await Store.FindAsync(cart.Id, _buyer.Id.Value, default)).Should().BeNull();
-        (await db.Database.SqlQuery<int>($"SELECT count(*)::int AS \"Value\" FROM \"CourseCartItems\"").SingleAsync()).Should().Be(0);
+        (await db.Database.SqlQuery<int>($"SELECT count(*)::int AS \"Value\" FROM \"CartItems\"").SingleAsync()).Should().Be(0);
         (await Financials()).Should().Be((811m, 2, 189m, 0m));
     }
 
@@ -307,7 +307,7 @@ public sealed class CourseCartPostgresTests : IAsyncLifetime
         (await Store.GetPendingAsync(default)).Single(x => x.Id == cart.Id).Items.Should().Equal(cart.Items);
         using var scope = _provider.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        (await db.Database.SqlQuery<int>($"SELECT count(*)::int AS \"Value\" FROM \"CourseCartItems\" WHERE \"CartId\" = {cart.Id}").SingleAsync()).Should().Be(3);
+        (await db.Database.SqlQuery<int>($"SELECT count(*)::int AS \"Value\" FROM \"CartItems\" WHERE \"CartId\" = {cart.Id}").SingleAsync()).Should().Be(3);
     }
 
     [CartPostgresFact]
@@ -335,18 +335,18 @@ public sealed class CourseCartPostgresTests : IAsyncLifetime
         var cart = await Ready();
         using var scope = _provider.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        Func<Task> negative = () => db.Database.ExecuteSqlInterpolatedAsync($"UPDATE \"CourseCartItems\" SET \"PriceInNoor\" = -1 WHERE \"CartId\" = {cart.Id}");
-        Func<Task> inconsistent = () => db.Database.ExecuteSqlInterpolatedAsync($"UPDATE \"CourseCarts\" SET \"ItemDiscountInNoor\" = -1 WHERE \"Id\" = {cart.Id}");
-        Func<Task> fractional = () => db.Database.ExecuteSqlInterpolatedAsync($"UPDATE \"CourseCartItems\" SET \"PriceInNoor\" = 94.5 WHERE \"CartId\" = {cart.Id}");
-        Func<Task> duplicate = () => db.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO \"CourseCartItems\" SELECT * FROM \"CourseCartItems\" WHERE \"CartId\" = {cart.Id}");
-        Func<Task> orphan = () => db.Database.ExecuteSqlInterpolatedAsync($"UPDATE \"CourseCartItems\" SET \"CartId\" = {Guid.NewGuid()} WHERE \"CartId\" = {cart.Id}");
+        Func<Task> negative = () => db.Database.ExecuteSqlInterpolatedAsync($"UPDATE \"CartItems\" SET \"PriceInNoor\" = -1 WHERE \"CartId\" = {cart.Id}");
+        Func<Task> inconsistent = () => db.Database.ExecuteSqlInterpolatedAsync($"UPDATE \"Carts\" SET \"ItemDiscountInNoor\" = -1 WHERE \"Id\" = {cart.Id}");
+        Func<Task> fractional = () => db.Database.ExecuteSqlInterpolatedAsync($"UPDATE \"CartItems\" SET \"PriceInNoor\" = 94.5 WHERE \"CartId\" = {cart.Id}");
+        Func<Task> duplicate = () => db.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO \"CartItems\" SELECT * FROM \"CartItems\" WHERE \"CartId\" = {cart.Id}");
+        Func<Task> orphan = () => db.Database.ExecuteSqlInterpolatedAsync($"UPDATE \"CartItems\" SET \"CartId\" = {Guid.NewGuid()} WHERE \"CartId\" = {cart.Id}");
         foreach (var invalid in new[] { negative, inconsistent, fractional })
             (await invalid.Should().ThrowAsync<PostgresException>()).Which.SqlState.Should().Be(PostgresErrorCodes.CheckViolation);
         (await duplicate.Should().ThrowAsync<PostgresException>()).Which.SqlState.Should().Be(PostgresErrorCodes.UniqueViolation);
         (await orphan.Should().ThrowAsync<PostgresException>()).Which.SqlState.Should().Be(PostgresErrorCodes.ForeignKeyViolation);
         (await Store.FindAsync(cart.Id, _buyer.Id.Value, default))!.Items.Should().Equal(cart.Items);
-        await db.Database.ExecuteSqlInterpolatedAsync($"DELETE FROM \"CourseCarts\" WHERE \"Id\" = {cart.Id}");
-        (await db.Database.SqlQuery<int>($"SELECT count(*)::int AS \"Value\" FROM \"CourseCartItems\" WHERE \"CartId\" = {cart.Id}").SingleAsync()).Should().Be(0);
+        await db.Database.ExecuteSqlInterpolatedAsync($"DELETE FROM \"Carts\" WHERE \"Id\" = {cart.Id}");
+        (await db.Database.SqlQuery<int>($"SELECT count(*)::int AS \"Value\" FROM \"CartItems\" WHERE \"CartId\" = {cart.Id}").SingleAsync()).Should().Be(0);
         (await Financials()).Should().Be((1000m, 0, 0m, 0m));
     }
     [CartPostgresFact]

@@ -14,7 +14,7 @@ using System.Text.Json;
 
 namespace ByeMoney.UnitTests;
 
-public sealed class CourseCartPaymentTests
+public sealed class CartPaymentTests
 {
     [Fact]
     public async Task ChapterQuoteFromStrapiPreservesFinancialAndDeliveryIdentity()
@@ -104,7 +104,7 @@ public sealed class CourseCartPaymentTests
     }
 
     [Fact]
-    public void FreeCourseCart_TransitionsPurchasesToDebited_CreatesNoLedger_AndAllowsNotificationSent()
+    public void FreeCart_TransitionsPurchasesToDebited_CreatesNoLedger_AndAllowsNotificationSent()
     {
         // Arrange
         var buyer = new UserId(Guid.NewGuid());

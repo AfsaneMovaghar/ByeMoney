@@ -5,7 +5,7 @@ using FluentAssertions;
 
 namespace ByeMoney.UnitTests;
 
-public sealed class CourseCartTests
+public sealed class CartTests
 {
     private static Cart Cart() => Cart.Create(Guid.NewGuid(), Guid.NewGuid(), "user", ["a", "b"], "off");
     private static CartQuoteItem[] Items() => [new("a", "الف", 105, 0, 11, 94), new("b", "ب", 105, 0, 10, 95)];

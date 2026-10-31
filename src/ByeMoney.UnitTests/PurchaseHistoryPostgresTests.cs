@@ -255,7 +255,7 @@ public sealed class PurchaseHistoryPostgresTests : IAsyncLifetime
             DbCommand command, CommandExecutedEventData eventData, DbDataReader result,
             CancellationToken cancellationToken = default)
         {
-            if (!Committed && command.CommandText.Contains("CourseCarts", StringComparison.Ordinal))
+            if (!Committed && command.CommandText.Contains("Carts", StringComparison.Ordinal))
             {
                 Committed = true;
                 await commit();

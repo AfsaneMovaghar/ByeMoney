@@ -16,7 +16,7 @@ using Moq;
 
 namespace ByeMoney.UnitTests;
 
-public sealed class CourseCartRefreshTests
+public sealed class CartRefreshTests
 {
     private readonly Mock<ICartStore> _store = new();
     private readonly Mock<ICartPricingClient> _pricing = new();
