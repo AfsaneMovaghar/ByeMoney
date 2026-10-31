@@ -7,12 +7,12 @@ namespace ByeMoney.UnitTests;
 
 public sealed class CartTests
 {
-    private static Cart Cart() => Cart.Create(Guid.NewGuid(), Guid.NewGuid(), "user", ["a", "b"], "off");
+    private static Cart CreateCart() => Cart.Create(Guid.NewGuid(), Guid.NewGuid(), "user", ["a", "b"], "off");
     private static CartQuoteItem[] Items() => [new("a", "الف", 105, 0, 11, 94), new("b", "ب", 105, 0, 10, 95)];
     [Fact]
     public void FrozenCart_PreservesAggregateCouponAndCanonicalIdentity()
     {
-        var cart = Cart(); cart.SetQuote(Items());
+        var cart = CreateCart(); cart.SetQuote(Items());
         cart.Total.Should().Be(189);
         cart.Items.Select(x => x.PriceInNoor).Should().Equal(105m, 105m);
         cart.ItemDiscountInNoor.Should().Be(0);
@@ -31,14 +31,14 @@ public sealed class CartTests
     [InlineData(0, 10.5, 94.5)]
     public void InvalidFinancialSnapshotIsRejected(decimal itemDiscount, decimal couponDiscount, decimal final)
     {
-        var cart = Cart();
+        var cart = CreateCart();
         Action act = () => cart.SetQuote([new("a", "الف", 105, itemDiscount, couponDiscount, final), Items()[1]]);
         act.Should().Throw<ArgumentException>();
     }
     [Fact]
     public void SnapshotCannotChangeAfterPreparationOrPayment()
     {
-        var cart = Cart(); cart.SetQuote(Items()); cart.MarkPaid();
+        var cart = CreateCart(); cart.SetQuote(Items()); cart.MarkPaid();
         cart.SetQuote([new("a", "تغییر", 1, 0, 0, 1)]);
         cart.Fail(); cart.Fail(expired: true);
         cart.Status.Should().Be(CartStatus.Paid);
@@ -47,13 +47,13 @@ public sealed class CartTests
     [Fact]
     public void FreeRowsAndEntirelyFreeCartAreValid()
     {
-        var cart = Cart(); cart.SetQuote([new("a", "الف", 105, 0, 105, 0), new("b", "ب", 105, 105, 0, 0)]);
+        var cart = CreateCart(); cart.SetQuote([new("a", "الف", 105, 0, 105, 0), new("b", "ب", 105, 105, 0, 0)]);
         cart.Total.Should().Be(0); cart.MarkPaid(); cart.Status.Should().Be(CartStatus.Paid);
     }
     [Fact]
     public void ExpirationCannotCancelTopUpOrFreshCart()
     {
-        var cart = Cart(); cart.SetQuote(Items()); cart.Fail(expired: true);
+        var cart = CreateCart(); cart.SetQuote(Items()); cart.Fail(expired: true);
         cart.Status.Should().Be(CartStatus.Ready);
         cart.AwaitTopUp(Guid.NewGuid()); cart.Fail(expired: true);
         cart.Status.Should().Be(CartStatus.AwaitingTopUp);
@@ -69,7 +69,7 @@ public sealed class CartTests
     [Fact]
     public void RetryPreservesCartAndPurchaseIdentityAndKeepsTopUpHistory()
     {
-        var cart = Cart(); cart.SetQuote(Items());
+        var cart = CreateCart(); cart.SetQuote(Items());
         var cartId = cart.Id;
         var reservation = cart.ReservationId;
         var topUp = Guid.NewGuid(); cart.AwaitTopUp(topUp);

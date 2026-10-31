@@ -27,7 +27,7 @@ public sealed class CourseOrderTests
     [Fact]
     public void PreparingCartHasUnknownAmountsAndNoInventedPurchases()
     {
-        var cart = Cart("a", "b");
+        var cart = CreateCart("a", "b");
         var order = Map([cart]).Single().Details;
         order.FinancialStatus.Should().Be("Preparing");
         order.FinalAmountInNoor.Should().BeNull();
@@ -262,12 +262,12 @@ public sealed class CourseOrderTests
             .IsValid.Should().BeFalse();
     }
 
-    private Cart Cart(params string[] ids) =>
+    private Cart CreateCart(params string[] ids) =>
         Cart.Create(Guid.NewGuid(), _buyer.Id.Value, _buyer.ExternalUserId, ids, null);
 
     private Cart QuotedCart()
     {
-        var cart = Cart("a", "b");
+        var cart = CreateCart("a", "b");
         Quote(cart);
         return cart;
     }
