@@ -52,7 +52,7 @@ public sealed class CourseCartStore(IServiceScopeFactory scopes) : ICourseCartSt
         var existing = await db.Set<CourseCart>().FindAsync([cart.Id], ct);
         if (existing is not null)
         {
-            return existing.BuyerId == cart.BuyerId && existing.Matches(cart.ExternalCourseIds, cart.CouponCode)
+            return existing.BuyerId == cart.BuyerId && existing.Matches(cart.RequestedItemSignatures, cart.CouponCode)
                 ? Result<CourseCart>.Success(existing)
                 : Result<CourseCart>.Conflict(CartErrors.Conflict, CartErrorCodes.Conflict);
         }

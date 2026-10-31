@@ -17,7 +17,7 @@ public sealed class CourseCartTests
         cart.Items.Select(x => x.PriceInNoor).Should().Equal(105m, 105m);
         cart.ItemDiscountInNoor.Should().Be(0);
         cart.CouponDiscountInNoor.Should().Be(21);
-        cart.PurchaseAllocations.Select(x => x.AmountInNoor).Should().Equal(94m, 95m);
+        cart.Items.Select(x => x.AllocatedAmountInNoor).Should().Equal(94m, 95m);
         cart.CouponCode.Should().Be("OFF");
         cart.Matches(["b", "a"], " off ").Should().BeTrue();
         cart.Matches(["a", "b"], "other").Should().BeFalse();

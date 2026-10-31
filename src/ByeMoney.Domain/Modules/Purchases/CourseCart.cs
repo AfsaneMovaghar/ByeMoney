@@ -5,13 +5,24 @@ public sealed class CourseCart
     public Guid Id { get; private set; }
     public Guid BuyerId { get; private set; }
     public string BuyerExternalUserId { get; private set; } = null!;
-    public string[] ExternalCourseIds { get; private set; } = [];
+
+    /// <summary>
+    /// اثر انگشت اقلام درخواستی. پیش از دریافت قیمت ردیفی وجود ندارد و همین آرایه تنها سند درخواست
+    /// خریدار است؛ پس از قیمت‌گذاری، ردیف‌ها مرجع شناسه و مبلغ‌اند.
+    /// </summary>
+    public string[] RequestedItemSignatures { get; private set; } = [];
+
     public string? CouponCode { get; private set; }
     private readonly List<CourseCartItem> _items = [];
-    public IReadOnlyList<CourseCartItem> Items => _items.OrderBy(x => x.ExternalCourseId, StringComparer.Ordinal).ToArray();
-    private readonly List<CourseCartPurchaseAllocation> _purchaseAllocations = [];
-    public IReadOnlyList<CourseCartPurchaseAllocation> PurchaseAllocations =>
-        _purchaseAllocations.OrderBy(x => x.ExternalCourseId, StringComparer.Ordinal).ToArray();
+
+    /// <summary>
+    /// ترتیب قطعی (شناسه و سپس نوع) تا تخصیص مبلغ به اقلام قابل بازتولید بماند.
+    /// </summary>
+    public IReadOnlyList<CourseCartItem> Items => _items
+        .OrderBy(x => x.ExternalCourseId, StringComparer.Ordinal)
+        .ThenBy(x => x.ItemType)
+        .ToArray();
+
     public decimal ItemDiscountInNoor { get; private set; }
     public decimal CouponDiscountInNoor { get; private set; }
     public decimal ShippingAmountInNoor { get; private set; }
@@ -36,31 +47,16 @@ public sealed class CourseCart
     {
     }
 
-    public static string FormatSignature(CartItemInput item)
-    {
-        if (item.Type is ProductItemType.Course or ProductItemType.CourseChapter && item.Quantity == 1)
-        {
-            return item.ExternalId;
-        }
-        return $"{item.Type}:{item.ExternalId}:{item.Quantity}";
-    }
-
-    public static string FormatSignature(CourseCartQuoteItem item)
-    {
-        if (item.Type is ProductItemType.Course or ProductItemType.CourseChapter && item.Quantity == 1)
-        {
-            return item.ExternalCourseId;
-        }
-        return $"{item.Type}:{item.ExternalCourseId}:{item.Quantity}";
-    }
-
     public static CourseCart Create(Guid id, Guid buyerId, string externalUserId, CartItemInput[] items, string? couponCode) => new()
     {
         Id = id,
         ReservationId = id,
         BuyerId = buyerId,
         BuyerExternalUserId = externalUserId,
-        ExternalCourseIds = items.Select(FormatSignature).Order(StringComparer.Ordinal).ToArray(),
+        RequestedItemSignatures = items
+            .Select(x => CartItemSignature.Format(x.ExternalId, x.Type, x.Quantity))
+            .Order(StringComparer.Ordinal)
+            .ToArray(),
         CouponCode = couponCode?.Trim().ToUpperInvariant(),
         Status = CourseCartStatus.Preparing,
         CreatedAtUtc = DateTime.UtcNow,
@@ -72,11 +68,13 @@ public sealed class CourseCart
         Create(id, buyerId, externalUserId, ids.Select(x => new CartItemInput(x, ProductItemType.Course, 1)).ToArray(), couponCode);
 
     public bool Matches(CartItemInput[] items, string? couponCode) =>
-        ExternalCourseIds.SequenceEqual(items.Select(FormatSignature).Order(StringComparer.Ordinal)) &&
+        RequestedItemSignatures.SequenceEqual(items
+            .Select(x => CartItemSignature.Format(x.ExternalId, x.Type, x.Quantity))
+            .Order(StringComparer.Ordinal)) &&
         CouponCode == couponCode?.Trim().ToUpperInvariant();
 
     public bool Matches(string[] ids, string? couponCode) =>
-        ExternalCourseIds.SequenceEqual(ids.Order(StringComparer.Ordinal)) &&
+        RequestedItemSignatures.SequenceEqual(ids.Order(StringComparer.Ordinal)) &&
         CouponCode == couponCode?.Trim().ToUpperInvariant();
 
     public void SetQuote(
@@ -89,7 +87,7 @@ public sealed class CourseCart
             return;
         }
 
-        if (items.Count != ExternalCourseIds.Length ||
+        if (items.Count != RequestedItemSignatures.Length ||
             items.Sum(x => x.LineTotalInNoor) > MaximumOriginalTotalInNoor ||
             !IsWholeNonNegativeNoor(shippingAmountInNoor) ||
             items.Any(HasInvalidPrice) ||
@@ -105,23 +103,24 @@ public sealed class CourseCart
             throw new ArgumentException(nameof(items));
         }
 
-        var signatures = items.Select(FormatSignature).Order(StringComparer.Ordinal).ToArray();
-        if (!signatures.SequenceEqual(ExternalCourseIds))
+        var signatures = items
+            .Select(x => CartItemSignature.Format(x.ExternalCourseId, x.Type, x.Quantity))
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+        if (!signatures.SequenceEqual(RequestedItemSignatures))
         {
             throw new ArgumentException(nameof(items));
         }
 
         _items.Clear();
         _items.AddRange(items.Select(x => new CourseCartItem(
-            x.ExternalCourseId, x.Title, x.BasePriceInNoor, x.Type, x.ParentExternalId, x.Quantity)));
-        _purchaseAllocations.Clear();
-        _purchaseAllocations.AddRange(items.Select(x => new CourseCartPurchaseAllocation(x.ExternalCourseId, x.PriceInNoor, x.Type)));
+            x.ExternalCourseId, x.Title, x.BasePriceInNoor, x.PriceInNoor, x.Type, x.ParentExternalId, x.Quantity)));
         ItemDiscountInNoor = items.Sum(x => x.ItemDiscountInNoor);
         CouponDiscountInNoor = items.Sum(x => x.CouponDiscountInNoor);
         ShippingAmountInNoor = shippingAmountInNoor;
         ShippingRuleLabel = string.IsNullOrWhiteSpace(shippingRuleLabel) ? null : shippingRuleLabel.Trim();
 
-        if (_purchaseAllocations.Sum(x => x.AmountInNoor) + ShippingAmountInNoor != Total)
+        if (_items.Sum(x => x.AllocatedAmountInNoor) + ShippingAmountInNoor != Total)
         {
             throw new ArgumentException("Allocations plus shipping must match cart total.");
         }
@@ -168,7 +167,6 @@ public sealed class CourseCart
         TopUpRequestId = null;
         ReservationId = Guid.NewGuid();
         _items.Clear();
-        _purchaseAllocations.Clear();
         ItemDiscountInNoor = 0;
         CouponDiscountInNoor = 0;
         ShippingAmountInNoor = 0;
@@ -216,4 +214,3 @@ public sealed class CourseCart
         LastSyncErrorCode = succeeded ? null : errorCode;
     }
 }
-

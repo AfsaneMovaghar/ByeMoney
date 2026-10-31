@@ -1,4 +1,4 @@
-﻿using ByeMoney.Application.Modules.Purchases.Cart.DTOs;
+using ByeMoney.Application.Modules.Purchases.Cart.DTOs;
 using ByeMoney.Application.Modules.Purchases.Cart.Services;
 using ByeMoney.Application.Modules.Purchases.Commands.PrepareCourseCart;
 using ByeMoney.Application.Modules.Purchases.History.DTOs;
@@ -45,6 +45,8 @@ public sealed class PhysicalProductCartFinancialTests
         cart.OriginalTotal.Should().Be(200m);
         cart.Total.Should().Be(175m);
         cart.ShippingAmountInNoor.Should().Be(25m);
+        cart.Items.Select(x => x.AllocatedAmountInNoor).Should().Equal(80m, 70m);
+        (cart.Items.Sum(x => x.AllocatedAmountInNoor) + cart.ShippingAmountInNoor).Should().Be(cart.Total);
 
         var payment = CourseCartPayment.Apply(cart, new ProvisionedUserWallet(userAccount, wallet), systemAccount);
 
@@ -75,6 +77,8 @@ public sealed class PhysicalProductCartFinancialTests
         payment.LedgerEntries.Single(e => e.Amount < 0).Amount.Should().Be(-175m);
         payment.LedgerEntries.Single(e => e.Amount > 0).Amount.Should().Be(175m);
         payment.LedgerEntries.Should().OnlyContain(e => e.TransactionId == cartId);
+        (cart.Items.Sum(x => x.AllocatedAmountInNoor) + cart.ShippingAmountInNoor)
+            .Should().Be(-payment.LedgerEntries.Single(e => e.Amount < 0).Amount);
     }
 
     [Fact]

@@ -69,15 +69,16 @@ public static class CourseOrderMapping
     private static CourseOrderDetails MapCart(
         CourseCart cart, CoursePurchase[] purchases, TopUpRequest[] topUps, bool invalidLink)
     {
-        var expectedIds = cart.ExternalCourseIds.Distinct(StringComparer.Ordinal).ToArray();
+        var requested = RequestedItems(cart);
+        var expectedIds = requested.Select(item => item.ExternalId).Distinct(StringComparer.Ordinal).ToArray();
         var complete = CompletePurchases(expectedIds, purchases);
         var hasPurchases = purchases.Any(IsPaid);
         var consistent = !invalidLink &&
             purchases.All(purchase => expectedIds.Contains(purchase.Snapshot.ExternalProductId, StringComparer.Ordinal)) &&
             purchases.GroupBy(purchase => purchase.Snapshot.ExternalProductId).All(group => group.Count() == 1) &&
-            purchases.Where(IsPaid).All(purchase => cart.PurchaseAllocations.Any(allocation =>
-                allocation.ExternalCourseId == purchase.Snapshot.ExternalProductId &&
-                allocation.AmountInNoor == purchase.Snapshot.PriceInNoorAtPurchaseTime)) &&
+            purchases.Where(IsPaid).All(purchase => cart.Items.Any(item =>
+                item.ExternalCourseId == purchase.Snapshot.ExternalProductId &&
+                item.AllocatedAmountInNoor == purchase.Snapshot.PriceInNoorAtPurchaseTime)) &&
             (cart.Status != CourseCartStatus.AwaitingTopUp || cart.TopUpRequestId.HasValue);
         var current = topUps.SingleOrDefault(topUp => topUp.Id.Value == cart.TopUpRequestId);
         var status = CartFinancialStatus(cart, complete, hasPurchases, consistent, current);
@@ -86,9 +87,8 @@ public static class CourseOrderMapping
         var items = ids.Select(id =>
         {
             var quote = cart.Items.SingleOrDefault(item => item.ExternalCourseId == id);
-            var allocation = cart.PurchaseAllocations.SingleOrDefault(item => item.ExternalCourseId == id);
             var purchase = purchases.FirstOrDefault(item => item.Snapshot.ExternalProductId == id);
-            return MapItem(id, quote?.Title, quote?.PriceInNoor, purchase, status, allocation?.AmountInNoor,
+            return MapItem(id, quote?.Title, quote?.PriceInNoor, purchase, status, quote?.AllocatedAmountInNoor,
                 quote?.ItemType, quote?.ParentExternalId);
         }).ToArray();
         var hasQuote = cart.Items.Count > 0 && expectedIds.All(
@@ -102,6 +102,11 @@ public static class CourseOrderMapping
             status.ToString(), Delivery(items).ToString(), summary?.FinalAmountInNoor, expectedIds.Length,
             cart.Status.ToString(), cart.ExpiresAtUtc, cart.TopUpRequestId, summary, items, MapTopUps(topUps));
     }
+
+    private static CartItemInput[] RequestedItems(CourseCart cart) =>
+        cart.Items.Count > 0
+            ? cart.Items.Select(item => new CartItemInput(item.ExternalCourseId, item.ItemType, item.Quantity)).ToArray()
+            : cart.RequestedItemSignatures.Select(CartItemSignature.Parse).ToArray();
 
     private static CourseOrderFinancialStatus CartFinancialStatus(
         CourseCart cart, bool complete, bool hasPurchases, bool consistent, TopUpRequest? current)
@@ -157,7 +162,7 @@ public static class CourseOrderMapping
 
     private static CourseOrderItem MapItem(
         string externalId, string? title, decimal? basePrice, CoursePurchase? purchase,
-        CourseOrderFinancialStatus orderStatus, decimal? allocation = null,
+        CourseOrderFinancialStatus orderStatus, decimal? allocatedAmount = null,
         ProductItemType? itemType = null, string? parentExternalId = null)
     {
         var paid = purchase is not null && IsPaid(purchase);
@@ -167,7 +172,7 @@ public static class CourseOrderMapping
             : purchase!.Status == CoursePurchaseStatus.NotificationSent
                 ? CourseOrderDeliveryStatus.Delivered : CourseOrderDeliveryStatus.Pending;
         return new CourseOrderItem(externalId, purchase?.Snapshot.ProductTitle ?? title, basePrice,
-            purchase?.Snapshot.PriceInNoorAtPurchaseTime ?? allocation,
+            purchase?.Snapshot.PriceInNoorAtPurchaseTime ?? allocatedAmount,
             purchase?.Id.Value, purchase?.LedgerTransactionId, purchase?.Snapshot.PurchasedAt,
             status.ToString(), delivery.ToString(),
             (purchase?.Snapshot.ItemType ?? itemType ?? ProductItemType.Course).ToString(),

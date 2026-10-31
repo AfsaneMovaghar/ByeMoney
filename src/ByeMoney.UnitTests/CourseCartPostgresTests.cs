@@ -1,4 +1,4 @@
-﻿using ByeMoney.Application.Modules.Purchases.Cart.Constants;
+using ByeMoney.Application.Modules.Purchases.Cart.Constants;
 using ByeMoney.Application.Modules.Purchases.Cart.DTOs;
 using ByeMoney.Application.Modules.Purchases.Cart.Interfaces;
 using ByeMoney.Application.Modules.Purchases.Cart.Services;
@@ -77,7 +77,7 @@ public sealed class CourseCartPostgresTests : IAsyncLifetime
     {
         var cart = CourseCart.Create(Guid.NewGuid(), _buyer.Id.Value, _buyer.ExternalUserId, ids ?? ["a", "b"], "OFF");
         (await Store.CreateAsync(cart, default)).IsSuccess.Should().BeTrue();
-        return await Store.SetQuoteAsync(cart.Id, _buyer.Id.Value, cart.ExternalCourseIds.Select((id, index) =>
+        return await Store.SetQuoteAsync(cart.Id, _buyer.Id.Value, cart.RequestedItemSignatures.Select((id, index) =>
             new CourseCartQuoteItem(id, "Ø¯ÙˆØ±Ù‡", 105, 0, free ? 105 : index == 0 ? 11 : 10, free ? 0 : index == 0 ? 94 : 95)).ToArray(), cart.ReservationId, default);
     }
     private async Task<(decimal Balance, int Purchases, decimal Debit, decimal Net)> Financials()
@@ -230,6 +230,8 @@ public sealed class CourseCartPostgresTests : IAsyncLifetime
         await migrator.MigrateAsync("20261018095758_MoveCourseCartDiscountsToCart");
         await scope.ServiceProvider.GetRequiredService<ISystemSettingRepository>()
             .SetValueAsync("ConversionRate:RialToNoor", "991");
+        // رویهٔ مصوب ۲۰۲۶-۱۰-۳۱: دادهٔ سبد پیش از عبور از مهاجرت ادغام پاک می‌شود؛ خرید، شارژ و Ledger حفظ‌اند.
+        await db.Database.ExecuteSqlRawAsync("DELETE FROM \"CourseCarts\"");
         await migrator.MigrateAsync();
 
         var purchases = await db.Set<CoursePurchase>().AsNoTracking().ToListAsync();
@@ -248,7 +250,7 @@ public sealed class CourseCartPostgresTests : IAsyncLifetime
         await migrator.MigrateAsync("20261018061504_AddCourseCartPaymentRetries");
         var json = await db.Database.SqlQuery<string>($"SELECT \"Items\"::text AS \"Value\" FROM \"CourseCarts\" WHERE \"Id\" = {cart.Id}").SingleAsync();
         var items = System.Text.Json.JsonSerializer.Deserialize<CourseCartQuoteItem[]>(json);
-        items!.Select(x => new CourseCartItem(x.ExternalCourseId, x.Title, x.BasePriceInNoor)).Should().Equal(cart.Items);
+        items!.Select(x => new CourseCartItem(x.ExternalCourseId, x.Title, x.BasePriceInNoor, x.PriceInNoor)).Should().Equal(cart.Items);
         await migrator.MigrateAsync();
         (await Store.FindAsync(cart.Id, _buyer.Id.Value, default)).Should().BeNull();
         (await db.Database.SqlQuery<int>($"SELECT count(*)::int AS \"Value\" FROM \"CourseCartItems\"").SingleAsync()).Should().Be(0);
@@ -256,29 +258,42 @@ public sealed class CourseCartPostgresTests : IAsyncLifetime
     }
 
     [CartPostgresFact]
-    public async Task DiscountMigrationPreservesExistingCartAndFinancialAllocation()
+    public async Task MigrationChainWithWipedCartsPreservesFinancialsAndMergedAllocation()
     {
         var cart = CourseCart.Create(Guid.NewGuid(), _buyer.Id.Value, _buyer.ExternalUserId, ["a", "b"], "OFF");
         await Store.CreateAsync(cart, default);
         cart = await Store.SetQuoteAsync(cart.Id, _buyer.Id.Value,
-            [new("a", "Ø§Ù„Ù", 200, 10, 20, 170), new("b", "Ø¨", 100, 100, 0, 0)], cart.ReservationId, default);
+            [new("a", "الف", 200, 10, 20, 170), new("b", "ب", 100, 100, 0, 0)], cart.ReservationId, default);
         using var scope = _provider.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
         var migrator = db.GetService<IMigrator>();
-        await migrator.MigrateAsync("20261018074939_NormalizeCourseCartItems");
-        await migrator.MigrateAsync();
 
-        var loaded = (await Store.FindAsync(cart.Id, _buyer.Id.Value, default))!;
-        loaded.Items.Should().Equal(cart.Items);
-        loaded.PurchaseAllocations.Should().Equal(cart.PurchaseAllocations);
-        loaded.ItemDiscountInNoor.Should().Be(110);
-        loaded.CouponDiscountInNoor.Should().Be(20);
-        loaded.Total.Should().Be(170);
-        loaded.Status.Should().Be(CourseCartStatus.Ready);
-        (await Store.PayAsync(cart.Id, _buyer.Id.Value, cart.ReservationId, default)).IsSuccess.Should().BeTrue();
+        // بازگشت تا پیش از مهاجرت ادغام: مسیر Down باید مبلغ تخصیصی را به جدول تخصیص برگرداند.
+        await migrator.MigrateAsync("20261018095758_MoveCourseCartDiscountsToCart");
+        var restoredAllocations = await db.Database.SqlQuery<int>(
+            $"SELECT count(*)::int AS \"Value\" FROM \"CourseCartPurchaseAllocations\"").SingleAsync();
+        var restoredAllocationSum = await db.Database.SqlQuery<decimal>(
+            $"SELECT COALESCE(SUM(\"AmountInNoor\"), 0) AS \"Value\" FROM \"CourseCartPurchaseAllocations\"").SingleAsync();
+        restoredAllocations.Should().Be(2);
+        restoredAllocationSum.Should().Be(170m);
+
+        // رویهٔ مصوب ۲۰۲۶-۱۰-۳۱: دادهٔ سبد پیش از عبور از مهاجرت ادغام پاک می‌شود؛ خرید و Ledger حفظ‌اند.
+        await migrator.MigrateAsync("20261018074939_NormalizeCourseCartItems");
+        await db.Database.ExecuteSqlRawAsync("DELETE FROM \"CourseCarts\"");
+        await migrator.MigrateAsync();
+        (await Financials()).Should().Be((1000m, 0, 0m, 0m));
+
+        var fresh = CourseCart.Create(Guid.NewGuid(), _buyer.Id.Value, _buyer.ExternalUserId, ["a", "b"], "OFF");
+        (await Store.CreateAsync(fresh, default)).IsSuccess.Should().BeTrue();
+        fresh = await Store.SetQuoteAsync(fresh.Id, _buyer.Id.Value,
+            [new("a", "الف", 200, 10, 20, 170), new("b", "ب", 100, 100, 0, 0)], fresh.ReservationId, default);
+        fresh.Items.Select(x => x.AllocatedAmountInNoor).Should().Equal(170m, 0m);
+        fresh.ItemDiscountInNoor.Should().Be(110);
+        fresh.CouponDiscountInNoor.Should().Be(20);
+        fresh.Total.Should().Be(170);
+        (await Store.PayAsync(fresh.Id, _buyer.Id.Value, fresh.ReservationId, default)).IsSuccess.Should().BeTrue();
         (await Financials()).Should().Be((830m, 2, 170m, 0m));
     }
-
     [CartPostgresFact]
     public async Task RelationalItemsPreserveSnapshotOrderAcrossReplayAndRecovery()
     {
@@ -287,7 +302,7 @@ public sealed class CourseCartPostgresTests : IAsyncLifetime
         loaded.Items.Should().Equal(cart.Items);
         loaded.Items.Select(x => x.ExternalCourseId).Should().Equal("A", "a", "z");
         (await Store.CreateAsync(CourseCart.Create(cart.Id, _buyer.Id.Value, _buyer.ExternalUserId,
-            cart.ExternalCourseIds, "OFF"), default)).Value.Items.Should().Equal(cart.Items);
+            cart.RequestedItemSignatures, "OFF"), default)).Value.Items.Should().Equal(cart.Items);
         await Store.FailAsync(cart.Id, _buyer.Id.Value, false, cart.ReservationId, default);
         (await Store.GetPendingAsync(default)).Single(x => x.Id == cart.Id).Items.Should().Equal(cart.Items);
         using var scope = _provider.CreateScope();
@@ -306,10 +321,10 @@ public sealed class CourseCartPostgresTests : IAsyncLifetime
         CourseCartQuoteItem[] quote = [new("a", "Ù‚ÛŒÙ…Øª ØªØ§Ø²Ù‡", 200, 10, 20, 170), new("b", "Ø±Ø§ÛŒÚ¯Ø§Ù†", 100, 100, 0, 0)];
         await Store.SetQuoteAsync(cart.Id, _buyer.Id.Value, quote, reopened.ReservationId, default);
         var loaded = (await Store.FindAsync(cart.Id, _buyer.Id.Value, default))!;
-        loaded.Items.Should().Equal(quote.Select(x => new CourseCartItem(x.ExternalCourseId, x.Title, x.BasePriceInNoor)));
+        loaded.Items.Should().Equal(quote.Select(x => new CourseCartItem(x.ExternalCourseId, x.Title, x.BasePriceInNoor, x.PriceInNoor)));
         loaded.ItemDiscountInNoor.Should().Be(110);
         loaded.CouponDiscountInNoor.Should().Be(20);
-        loaded.PurchaseAllocations.Sum(x => x.AmountInNoor).Should().Be(170);
+        loaded.Items.Sum(x => x.AllocatedAmountInNoor).Should().Be(170);
         (await Store.PayAsync(cart.Id, _buyer.Id.Value, reopened.ReservationId, default)).IsSuccess.Should().BeTrue();
         (await Financials()).Should().Be((830m, 2, 170m, 0m));
     }

@@ -21,11 +21,11 @@ public static class CourseCartPayment
             throw new InvalidOperationException();
         }
 
-        var allocations = cart.PurchaseAllocations.ToDictionary(x => (x.ExternalCourseId, x.ItemType));
-        if (cart.Total < 0 || allocations.Count != cart.Items.Count ||
-            allocations.Values.Any(x => x.AmountInNoor < 0 || decimal.Truncate(x.AmountInNoor) != x.AmountInNoor) ||
-            cart.Items.Any(x => !allocations.ContainsKey((x.ExternalCourseId, x.ItemType)) || allocations[(x.ExternalCourseId, x.ItemType)].AmountInNoor > x.LineTotalInNoor) ||
-            allocations.Values.Sum(x => x.AmountInNoor) + cart.ShippingAmountInNoor != cart.Total)
+        if (cart.Total < 0 ||
+            cart.Items.Any(x => x.AllocatedAmountInNoor < 0 ||
+                decimal.Truncate(x.AllocatedAmountInNoor) != x.AllocatedAmountInNoor ||
+                x.AllocatedAmountInNoor > x.LineTotalInNoor) ||
+            cart.Items.Sum(x => x.AllocatedAmountInNoor) + cart.ShippingAmountInNoor != cart.Total)
         {
             throw new ArgumentException(nameof(cart));
         }
@@ -59,7 +59,7 @@ public static class CourseCartPayment
 
         foreach (var item in cart.Items)
         {
-            var amount = allocations[(item.ExternalCourseId, item.ItemType)].AmountInNoor;
+            var amount = item.AllocatedAmountInNoor;
             var purchaseIdGuid = CartPurchaseIds.For(cart.Id, item.ExternalCourseId).Value;
 
             if (item.ItemType == ProductItemType.Product)
@@ -120,4 +120,3 @@ public static class CourseCartPayment
         return new CourseCartPaymentRecords(purchases, physicalPurchases, ledgerEntries);
     }
 }
-

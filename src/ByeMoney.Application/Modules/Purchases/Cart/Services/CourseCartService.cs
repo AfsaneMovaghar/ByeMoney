@@ -115,7 +115,7 @@ public sealed class CourseCartService(
             }
             else
             {
-                quoteRequest = new CartQuoteRequest(cart.ReservationId, user.ExternalUserId, cart.ExternalCourseIds, cart.CouponCode);
+                quoteRequest = new CartQuoteRequest(cart.ReservationId, user.ExternalUserId, cart.RequestedItemSignatures, cart.CouponCode);
             }
 
             var quote = await pricing.PrepareAsync(quoteRequest, ct);
