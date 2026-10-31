@@ -401,7 +401,7 @@ public sealed class PhysicalProductCartFinancialTests
         }
         """;
         var options = new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-        var request = System.Text.Json.JsonSerializer.Deserialize<ByeMoney.API.Contracts.CourseCarts.PrepareCourseCartRequest>(json, options);
+        var request = System.Text.Json.JsonSerializer.Deserialize<ByeMoney.API.Contracts.Carts.PrepareCartRequest>(json, options);
 
         request.Should().NotBeNull();
         request!.CartId.Should().Be(Guid.Parse("11111111-2222-3333-4444-555555555555"));

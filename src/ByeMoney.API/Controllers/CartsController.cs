@@ -1,4 +1,4 @@
-using ByeMoney.API.Contracts.CourseCarts;
+using ByeMoney.API.Contracts.Carts;
 using ByeMoney.Application.Modules.Purchases.Carts.Constants;
 using ByeMoney.Application.Modules.Purchases.Carts.DTOs;
 using ByeMoney.Application.Modules.Purchases.Commands.CancelCart;
@@ -17,13 +17,14 @@ namespace ByeMoney.API.Controllers;
 
 [ApiController]
 [Authorize]
+// مسیر عمومی سبد قرارداد بیرونی فرانت است؛ تغییر آن نیازمند هماهنگی است.
 [Route("api/course-carts")]
-public sealed class CourseCartsController(ISender sender) : ControllerBase
+public sealed class CartsController(ISender sender) : ControllerBase
 {
     [HttpPost("checkout")]
     [ProducesResponseType(typeof(CartResponse), StatusCodes.Status200OK)]
     public async Task<IActionResult> Prepare(
-        [FromBody] PrepareCourseCartRequest request,
+        [FromBody] PrepareCartRequest request,
         CancellationToken ct)
     {
         var command = new PrepareCartCommand(request.CartId, request.ExternalCourseIds, request.CouponCode, request.Items);
@@ -91,7 +92,7 @@ public sealed class CourseCartsController(ISender sender) : ControllerBase
                 _ => StatusCodes.Status400BadRequest
             };
 
-        return StatusCode(statusCode, new CourseCartErrorResponse(
+        return StatusCode(statusCode, new CartErrorResponse(
             result.ErrorCode ?? CartErrorCodes.Invalid,
             result.ErrorMessage!));
     }
