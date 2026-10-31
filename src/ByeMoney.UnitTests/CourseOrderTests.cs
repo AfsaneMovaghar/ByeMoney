@@ -180,7 +180,7 @@ public sealed class CourseOrderTests
     public void ElapsedTimeDoesNotExpireCartDuringReadAndUpdatesAreStable()
     {
         var cart = QuotedCart();
-        Set(cart, nameof(CourseCart.ExpiresAtUtc), DateTime.UtcNow.AddDays(-1));
+        Set(cart, nameof(Cart.ExpiresAtUtc), DateTime.UtcNow.AddDays(-1));
         var first = Map([cart]).Single().Details;
         var second = Map([cart]).Single().Details;
         first.FinancialStatus.Should().Be("AwaitingPayment");
@@ -262,24 +262,24 @@ public sealed class CourseOrderTests
             .IsValid.Should().BeFalse();
     }
 
-    private CourseCart Cart(params string[] ids) =>
-        CourseCart.Create(Guid.NewGuid(), _buyer.Id.Value, _buyer.ExternalUserId, ids, null);
+    private Cart Cart(params string[] ids) =>
+        Cart.Create(Guid.NewGuid(), _buyer.Id.Value, _buyer.ExternalUserId, ids, null);
 
-    private CourseCart QuotedCart()
+    private Cart QuotedCart()
     {
         var cart = Cart("a", "b");
         Quote(cart);
         return cart;
     }
 
-    private static void Quote(CourseCart cart) => cart.SetQuote([
-        new CourseCartQuoteItem("a", "دوره الف", 100, 0, 100, 0),
-        new CourseCartQuoteItem("b", "دوره ب", 40, 10, 0, 30)]);
+    private static void Quote(Cart cart) => cart.SetQuote([
+        new CartQuoteItem("a", "دوره الف", 100, 0, 100, 0),
+        new CartQuoteItem("b", "دوره ب", 40, 10, 0, 30)]);
 
     private TopUpRequest TopUp(IReadOnlyList<PendingItemSnapshot>? items = null) =>
         TopUpRequest.CreateGateway(_buyer.Id, 20, 1000, items);
 
-    private CoursePurchase Purchase(string course, decimal amount, CourseCart? cart = null, CoursePurchaseId? purchaseId = null)
+    private CoursePurchase Purchase(string course, decimal amount, Cart? cart = null, CoursePurchaseId? purchaseId = null)
     {
         var purchase = CoursePurchase.Create(_buyer.Id,
             ProductSnapshot.Create(course, $"عنوان خرید {course}", amount, isFree: amount == 0),
@@ -293,10 +293,10 @@ public sealed class CourseOrderTests
     }
 
     private IReadOnlyList<CourseOrderReadRow> Map(
-        CourseCart[]? carts = null, TopUpRequest[]? topUps = null, CoursePurchase[]? purchases = null) =>
+        Cart[]? carts = null, TopUpRequest[]? topUps = null, CoursePurchase[]? purchases = null) =>
         CourseOrderMapping.Build(Snapshot(carts ?? [], topUps ?? [], purchases ?? []));
 
-    private CourseOrderSnapshot Snapshot(CourseCart[] carts, TopUpRequest[] topUps, CoursePurchase[] purchases) =>
+    private CourseOrderSnapshot Snapshot(Cart[] carts, TopUpRequest[] topUps, CoursePurchase[] purchases) =>
         new(carts, topUps, purchases, [new CourseOrderBuyer(_buyer.Id.Value, _buyer.ExternalUserId, null)]);
 
     private static CoursePurchaseId LegacyId(TopUpRequest topUp, string course) => new(new Guid(

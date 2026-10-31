@@ -1,6 +1,6 @@
 using ByeMoney.Application.Common.Interfaces;
 using ByeMoney.Application.Modules.Identity.Users.Interfaces;
-using ByeMoney.Application.Modules.Purchases.Cart.Constants;
+using ByeMoney.Application.Modules.Purchases.Carts.Constants;
 using ByeMoney.Application.Modules.Purchases.Constants;
 using ByeMoney.Application.Modules.Purchases.Interfaces;
 using ByeMoney.Application.Modules.Purchases.Services;

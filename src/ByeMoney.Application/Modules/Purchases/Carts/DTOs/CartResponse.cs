@@ -1,4 +1,4 @@
-namespace ByeMoney.Application.Modules.Purchases.Cart.DTOs;
+namespace ByeMoney.Application.Modules.Purchases.Carts.DTOs;
 
 public sealed record CartResponse(
     Guid CartId,

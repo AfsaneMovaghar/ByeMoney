@@ -1,6 +1,6 @@
-using ByeMoney.Application.Modules.Purchases.Cart.Constants;
-using ByeMoney.Application.Modules.Purchases.Cart.DTOs;
-using ByeMoney.Application.Modules.Purchases.Cart.Interfaces;
+using ByeMoney.Application.Modules.Purchases.Carts.Constants;
+using ByeMoney.Application.Modules.Purchases.Carts.DTOs;
+using ByeMoney.Application.Modules.Purchases.Carts.Interfaces;
 using ByeMoney.Domain.Common.Generic;
 using System.Net;
 using System.Net.Http.Json;

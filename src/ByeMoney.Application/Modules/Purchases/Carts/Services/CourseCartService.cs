@@ -1,6 +1,6 @@
-using ByeMoney.Application.Modules.Purchases.Cart.Constants;
-using ByeMoney.Application.Modules.Purchases.Cart.DTOs;
-using ByeMoney.Application.Modules.Purchases.Cart.Interfaces;
+using ByeMoney.Application.Modules.Purchases.Carts.Constants;
+using ByeMoney.Application.Modules.Purchases.Carts.DTOs;
+using ByeMoney.Application.Modules.Purchases.Carts.Interfaces;
 using ByeMoney.Application.Modules.Settings.Interfaces;
 using ByeMoney.Application.Modules.Identity.Users.Interfaces;
 using ByeMoney.Domain.Common.Generic;
@@ -13,7 +13,7 @@ using ByeMoney.Domain.Modules.Identity.Users;
 using ByeMoney.Domain.Modules.Purchases;
 using ByeMoney.Domain.Modules.Wallet.TopUps;
 
-namespace ByeMoney.Application.Modules.Purchases.Cart.Services;
+namespace ByeMoney.Application.Modules.Purchases.Carts.Services;
 
 public sealed class CourseCartService(
     ICourseCartStore store,
@@ -56,14 +56,14 @@ public sealed class CourseCartService(
             return Result<CartResponse>.Conflict(CartErrors.Conflict, CartErrorCodes.Conflict);
         }
 
-        var created = await store.CreateAsync(CourseCart.Create(id, buyerId, user.ExternalUserId, items, code), ct);
+        var created = await store.CreateAsync(Cart.Create(id, buyerId, user.ExternalUserId, items, code), ct);
         if (created.IsFailure)
         {
-            return Copy<CartResponse, CourseCart>(created);
+            return Copy<CartResponse, Cart>(created);
         }
 
         var cart = created.Value;
-        if (cart.Status == CourseCartStatus.AwaitingTopUp && cart.TopUpRequestId is Guid previousTopUpId)
+        if (cart.Status == CartStatus.AwaitingTopUp && cart.TopUpRequestId is Guid previousTopUpId)
         {
             var previousTopUp = await topUps.GetByIdAsync(new TopUpRequestId(previousTopUpId), ct);
             if (previousTopUp?.Status is TopUpStatus.Pending or TopUpStatus.UnderReview or TopUpStatus.Rejected or TopUpStatus.Unresolved or TopUpStatus.ManuallyRefunded)
@@ -73,13 +73,13 @@ public sealed class CourseCartService(
             }
         }
 
-        if (cart.Status is CourseCartStatus.Preparing or CourseCartStatus.Ready && cart.ExpiresAtUtc <= DateTime.UtcNow)
+        if (cart.Status is CartStatus.Preparing or CartStatus.Ready && cart.ExpiresAtUtc <= DateTime.UtcNow)
         {
             await store.FailAsync(id, buyerId, true, cart.ReservationId, ct);
             cart = (await store.FindAsync(id, buyerId, ct))!;
         }
 
-        if (cart.Status is CourseCartStatus.Failed or CourseCartStatus.Expired)
+        if (cart.Status is CartStatus.Failed or CartStatus.Expired)
         {
             await SynchronizeAsync(id, buyerId, ct);
             var synchronized = await store.FindAsync(id, buyerId, ct);
@@ -91,13 +91,13 @@ public sealed class CourseCartService(
             var reopened = await store.ReopenAsync(id, buyerId, cart.ReservationId, ct);
             if (reopened.IsFailure)
             {
-                return Copy<CartResponse, CourseCart>(reopened);
+                return Copy<CartResponse, Cart>(reopened);
             }
 
             cart = reopened.Value;
         }
 
-        if (cart.Status == CourseCartStatus.Preparing && cart.ExpiresAtUtc > DateTime.UtcNow)
+        if (cart.Status == CartStatus.Preparing && cart.ExpiresAtUtc > DateTime.UtcNow)
         {
             CartQuoteRequest quoteRequest;
             if (items.Any(x => x.Type == ProductItemType.Product || x.Quantity > 1))
@@ -166,7 +166,7 @@ public sealed class CourseCartService(
             }
         }
 
-        if (cart.Status == CourseCartStatus.Ready)
+        if (cart.Status == CartStatus.Ready)
         {
             if (cart.ExpiresAtUtc <= DateTime.UtcNow)
             {
@@ -188,14 +188,14 @@ public sealed class CourseCartService(
         var result = await store.CancelAsync(id, buyerId, ct);
         if (result.IsFailure)
         {
-            return Copy<CartResponse, CourseCart>(result);
+            return Copy<CartResponse, Cart>(result);
         }
 
         await SynchronizeAsync(id, buyerId, ct);
 
         // پیش از آماده‌سازی سبد جایگزین، آزادشدن رزرو کوپن باید تأیید شده باشد.
         var cart = await store.FindAsync(id, buyerId, ct);
-        if (cart is { Status: CourseCartStatus.Failed or CourseCartStatus.Expired, Synchronized: false })
+        if (cart is { Status: CartStatus.Failed or CartStatus.Expired, Synchronized: false })
         {
             return Result<CartResponse>.Failure(CartErrors.Unavailable, CartErrorCodes.Unavailable);
         }
@@ -227,18 +227,18 @@ public sealed class CourseCartService(
             return Result<CartResponse>.Conflict(CartErrors.Conflict, CartErrorCodes.Conflict);
         }
 
-        if (cart.Status == CourseCartStatus.Paid)
+        if (cart.Status == CartStatus.Paid)
         {
             await SynchronizeAsync(id, buyerId, ct);
             return await GetAsync(buyerId, id, ct);
         }
 
-        if (cart.Status is not (CourseCartStatus.Ready or CourseCartStatus.AwaitingTopUp))
+        if (cart.Status is not (CartStatus.Ready or CartStatus.AwaitingTopUp))
         {
             return Result<CartResponse>.Conflict(CartErrors.Conflict, CartErrorCodes.Conflict);
         }
 
-        if (cart.Status == CourseCartStatus.Ready && cart.ExpiresAtUtc <= DateTime.UtcNow)
+        if (cart.Status == CartStatus.Ready && cart.ExpiresAtUtc <= DateTime.UtcNow)
         {
             await store.FailAsync(id, buyerId, true, cart.ReservationId, ct);
             await SynchronizeAsync(id, buyerId, ct);
@@ -258,7 +258,7 @@ public sealed class CourseCartService(
         if (check.IsFailure)
         {
             var latest = await store.FindAsync(id, buyerId, ct);
-            if (latest?.Status == CourseCartStatus.Paid)
+            if (latest?.Status == CartStatus.Paid)
             {
                 return await GetAsync(buyerId, id, ct);
             }
@@ -276,13 +276,13 @@ public sealed class CourseCartService(
         var result = await store.PayAsync(id, buyerId, cart.ReservationId, ct, referenceRate);
         if (result.IsFailure)
         {
-            if (result.ErrorCode == CartErrorCodes.Conflict || cart.Status == CourseCartStatus.AwaitingTopUp)
+            if (result.ErrorCode == CartErrorCodes.Conflict || cart.Status == CartStatus.AwaitingTopUp)
             {
                 await store.FailAsync(id, buyerId, false, cart.ReservationId, ct);
                 await SynchronizeAsync(id, buyerId, ct);
             }
 
-            return Copy<CartResponse, CourseCart>(result);
+            return Copy<CartResponse, Cart>(result);
         }
 
         await SynchronizeAsync(id, buyerId, ct);
@@ -303,12 +303,12 @@ public sealed class CourseCartService(
     public async Task SynchronizeAsync(Guid id, Guid buyerId, CancellationToken ct)
     {
         var cart = await store.FindAsync(id, buyerId, ct);
-        if (cart is null || cart.Synchronized || cart.Status is not (CourseCartStatus.Paid or CourseCartStatus.Failed or CourseCartStatus.Expired))
+        if (cart is null || cart.Synchronized || cart.Status is not (CartStatus.Paid or CartStatus.Failed or CartStatus.Expired))
         {
             return;
         }
 
-        var paid = cart.Status == CourseCartStatus.Paid;
+        var paid = cart.Status == CartStatus.Paid;
         var purchaseIds = paid
             ? cart.Items.Select(x => CartPurchaseIds.For(id, x.ExternalCourseId).Value).ToArray()
             : null;
@@ -321,14 +321,14 @@ public sealed class CourseCartService(
         await store.RecordSynchronizationAsync(id, buyerId, result.IsSuccess, result.ErrorCode, cart.ReservationId, ct);
     }
 
-    public async Task ProcessAsync(CourseCart cart, CancellationToken ct)
+    public async Task ProcessAsync(Cart cart, CancellationToken ct)
     {
-        if (cart.Status is CourseCartStatus.Preparing or CourseCartStatus.Ready && cart.ExpiresAtUtc <= DateTime.UtcNow)
+        if (cart.Status is CartStatus.Preparing or CartStatus.Ready && cart.ExpiresAtUtc <= DateTime.UtcNow)
         {
             await store.FailAsync(cart.Id, cart.BuyerId, true, cart.ReservationId, ct);
         }
 
-        if (cart.Status == CourseCartStatus.AwaitingTopUp && cart.TopUpRequestId is Guid topUpId)
+        if (cart.Status == CartStatus.AwaitingTopUp && cart.TopUpRequestId is Guid topUpId)
         {
             var topUp = await topUps.GetByIdAsync(new TopUpRequestId(topUpId), ct);
             if (topUp?.Status == TopUpStatus.Confirmed)
@@ -344,11 +344,11 @@ public sealed class CourseCartService(
         await SynchronizeAsync(cart.Id, cart.BuyerId, ct);
     }
 
-    private async Task<CartResponse> ResponseAsync(CourseCart cart, CancellationToken ct)
+    private async Task<CartResponse> ResponseAsync(Cart cart, CancellationToken ct)
     {
         var wallet = await wallets.GetByUserIdAsync(new UserId(cart.BuyerId), ct);
         var balance = wallet?.TotalBalance ?? 0m;
-        var shortfall = cart.Status == CourseCartStatus.Ready ? decimal.Ceiling(Math.Max(0, cart.Total - balance)) : 0m;
+        var shortfall = cart.Status == CartStatus.Ready ? decimal.Ceiling(Math.Max(0, cart.Total - balance)) : 0m;
         var rate = shortfall > 0 ? await settings.GetRialToNoorConversionRateAsync(ct) : 0m;
 
         if (shortfall > 0 && (rate <= 0 || decimal.Truncate(rate) != rate))
@@ -362,9 +362,9 @@ public sealed class CourseCartService(
             var purchase = await purchases.GetByIdAsync(CartPurchaseIds.For(cart.Id, item.ExternalCourseId), ct);
             var status = purchase?.Status == CoursePurchaseStatus.NotificationSent
                 ? "Completed"
-                : cart.Status == CourseCartStatus.Paid
+                : cart.Status == CartStatus.Paid
                     ? (item.ItemType == ProductItemType.Product ? "Completed" : "DeliveryPending")
-                    : cart.Status is CourseCartStatus.Failed or CourseCartStatus.Expired
+                    : cart.Status is CartStatus.Failed or CartStatus.Expired
                         ? "PurchaseIncomplete"
                         : "NotPurchased";
 

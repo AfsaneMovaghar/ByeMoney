@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace ByeMoney.Application.Modules.Purchases.Cart.DTOs;
+namespace ByeMoney.Application.Modules.Purchases.Carts.DTOs;
 
 public sealed record CartQuoteRequest(
     Guid CartId,

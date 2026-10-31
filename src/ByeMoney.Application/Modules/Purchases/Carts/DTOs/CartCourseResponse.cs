@@ -1,6 +1,6 @@
 using ByeMoney.Domain.Modules.Purchases;
 
-namespace ByeMoney.Application.Modules.Purchases.Cart.DTOs;
+namespace ByeMoney.Application.Modules.Purchases.Carts.DTOs;
 
 public sealed record CartCourseResponse(
     string ExternalCourseId,

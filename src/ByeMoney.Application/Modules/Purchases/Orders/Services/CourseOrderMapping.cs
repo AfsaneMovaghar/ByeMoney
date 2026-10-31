@@ -67,7 +67,7 @@ public static class CourseOrderMapping
     }
 
     private static CourseOrderDetails MapCart(
-        CourseCart cart, CoursePurchase[] purchases, TopUpRequest[] topUps, bool invalidLink)
+        Cart cart, CoursePurchase[] purchases, TopUpRequest[] topUps, bool invalidLink)
     {
         var requested = RequestedItems(cart);
         var expectedIds = requested.Select(item => item.ExternalId).Distinct(StringComparer.Ordinal).ToArray();
@@ -79,7 +79,7 @@ public static class CourseOrderMapping
             purchases.Where(IsPaid).All(purchase => cart.Items.Any(item =>
                 item.ExternalCourseId == purchase.Snapshot.ExternalProductId &&
                 item.AllocatedAmountInNoor == purchase.Snapshot.PriceInNoorAtPurchaseTime)) &&
-            (cart.Status != CourseCartStatus.AwaitingTopUp || cart.TopUpRequestId.HasValue);
+            (cart.Status != CartStatus.AwaitingTopUp || cart.TopUpRequestId.HasValue);
         var current = topUps.SingleOrDefault(topUp => topUp.Id.Value == cart.TopUpRequestId);
         var status = CartFinancialStatus(cart, complete, hasPurchases, consistent, current);
         var ids = expectedIds.Concat(purchases.Select(purchase => purchase.Snapshot.ExternalProductId))
@@ -103,30 +103,30 @@ public static class CourseOrderMapping
             cart.Status.ToString(), cart.ExpiresAtUtc, cart.TopUpRequestId, summary, items, MapTopUps(topUps));
     }
 
-    private static CartItemInput[] RequestedItems(CourseCart cart) =>
+    private static CartItemInput[] RequestedItems(Cart cart) =>
         cart.Items.Count > 0
             ? cart.Items.Select(item => new CartItemInput(item.ExternalCourseId, item.ItemType, item.Quantity)).ToArray()
             : cart.RequestedItemSignatures.Select(CartItemSignature.Parse).ToArray();
 
     private static CourseOrderFinancialStatus CartFinancialStatus(
-        CourseCart cart, bool complete, bool hasPurchases, bool consistent, TopUpRequest? current)
+        Cart cart, bool complete, bool hasPurchases, bool consistent, TopUpRequest? current)
     {
-        if (consistent && complete && cart.Status == CourseCartStatus.Paid)
+        if (consistent && complete && cart.Status == CartStatus.Paid)
         {
             return CourseOrderFinancialStatus.Paid;
         }
-        if (!consistent || hasPurchases || cart.Status == CourseCartStatus.Paid || NeedsReview(current))
+        if (!consistent || hasPurchases || cart.Status == CartStatus.Paid || NeedsReview(current))
         {
             return CourseOrderFinancialStatus.RequiresReview;
         }
 
         return cart.Status switch
         {
-            CourseCartStatus.Failed => CourseOrderFinancialStatus.Failed,
-            CourseCartStatus.Expired => CourseOrderFinancialStatus.Expired,
-            CourseCartStatus.Preparing => CourseOrderFinancialStatus.Preparing,
-            CourseCartStatus.AwaitingTopUp when current?.Status == TopUpStatus.Confirmed => CourseOrderFinancialStatus.Processing,
-            CourseCartStatus.AwaitingTopUp when current?.Status is TopUpStatus.Rejected or TopUpStatus.ManuallyRefunded => CourseOrderFinancialStatus.Failed,
+            CartStatus.Failed => CourseOrderFinancialStatus.Failed,
+            CartStatus.Expired => CourseOrderFinancialStatus.Expired,
+            CartStatus.Preparing => CourseOrderFinancialStatus.Preparing,
+            CartStatus.AwaitingTopUp when current?.Status == TopUpStatus.Confirmed => CourseOrderFinancialStatus.Processing,
+            CartStatus.AwaitingTopUp when current?.Status is TopUpStatus.Rejected or TopUpStatus.ManuallyRefunded => CourseOrderFinancialStatus.Failed,
             _ => CourseOrderFinancialStatus.AwaitingPayment
         };
     }
@@ -207,7 +207,7 @@ public static class CourseOrderMapping
             ? CourseOrderDeliveryStatus.Pending : CourseOrderDeliveryStatus.NotStarted;
     }
 
-    private static IEnumerable<Guid> TopUpIds(CourseCart cart) => cart.TopUpRequestIds
+    private static IEnumerable<Guid> TopUpIds(Cart cart) => cart.TopUpRequestIds
         .Concat(cart.TopUpRequestId.HasValue ? [cart.TopUpRequestId.Value] : Array.Empty<Guid>()).Distinct();
 
     private static DateTime PurchaseUpdatedAt(CoursePurchase purchase) => new[]

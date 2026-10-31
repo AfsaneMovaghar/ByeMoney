@@ -73,8 +73,8 @@ public sealed class PurchaseHistoryPostgresTests : IAsyncLifetime
         var buyer = User.CreateInitial("history-buyer");
         var otherBuyer = User.CreateInitial("history-other");
         var time = new DateTime(2026, 10, 19, 10, 0, 0, DateTimeKind.Utc);
-        var cart = CourseCart.Create(Guid.NewGuid(), buyer.Id.Value, buyer.ExternalUserId, ["free"], "FREE");
-        cart.SetQuote([new CourseCartQuoteItem("free", "دوره رایگان", 100, 0, 100, 0)]);
+        var cart = Cart.Create(Guid.NewGuid(), buyer.Id.Value, buyer.ExternalUserId, ["free"], "FREE");
+        cart.SetQuote([new CartQuoteItem("free", "دوره رایگان", 100, 0, 100, 0)]);
         cart.MarkPaid();
         var free = CreatePurchase(buyer, "free", 0, time, null);
         free.AttachToCart(cart.Id);
@@ -163,8 +163,8 @@ public sealed class PurchaseHistoryPostgresTests : IAsyncLifetime
     public async Task OrderReaderKeepsConsistentSnapshotAcrossConcurrentCommit()
     {
         var buyer = User.CreateInitial("tracking-concurrent");
-        var cart = CourseCart.Create(Guid.NewGuid(), buyer.Id.Value, buyer.ExternalUserId, ["concurrent"], null);
-        cart.SetQuote([new CourseCartQuoteItem("concurrent", "دوره آزمون", 20, 0, 0, 20)]);
+        var cart = Cart.Create(Guid.NewGuid(), buyer.Id.Value, buyer.ExternalUserId, ["concurrent"], null);
+        cart.SetQuote([new CartQuoteItem("concurrent", "دوره آزمون", 20, 0, 0, 20)]);
         await using (var seed = new ApplicationDbContext(_options))
         {
             seed.AddRange(buyer, cart);
@@ -174,7 +174,7 @@ public sealed class PurchaseHistoryPostgresTests : IAsyncLifetime
         var interceptor = new CommitAfterCartRead(async () =>
         {
             await using var writer = new ApplicationDbContext(_options);
-            var storedCart = await writer.Set<CourseCart>().SingleAsync(item => item.Id == cart.Id);
+            var storedCart = await writer.Set<Cart>().SingleAsync(item => item.Id == cart.Id);
             storedCart.MarkPaid();
             var purchase = CreatePurchase(buyer, "concurrent", 20, DateTime.UtcNow, null);
             purchase.AttachToCart(cart.Id);
@@ -201,8 +201,8 @@ public sealed class PurchaseHistoryPostgresTests : IAsyncLifetime
     public async Task OrderReaderPreservesHistoricalTopUpsAndLegacyLinkWithoutDuplicatesOrWrites()
     {
         var buyer = User.CreateInitial("tracking-history");
-        var cart = CourseCart.Create(Guid.NewGuid(), buyer.Id.Value, buyer.ExternalUserId, ["cart-course"], null);
-        cart.SetQuote([new CourseCartQuoteItem("cart-course", "دوره سبد", 40, 0, 0, 40)]);
+        var cart = Cart.Create(Guid.NewGuid(), buyer.Id.Value, buyer.ExternalUserId, ["cart-course"], null);
+        cart.SetQuote([new CartQuoteItem("cart-course", "دوره سبد", 40, 0, 0, 40)]);
         var first = TopUpRequest.CreateGateway(buyer.Id, 40, 1000);
         var second = TopUpRequest.CreateGateway(buyer.Id, 40, 1000);
         cart.AwaitTopUp(first.Id.Value);
@@ -210,7 +210,7 @@ public sealed class PurchaseHistoryPostgresTests : IAsyncLifetime
         cart.Fail();
         cart.RecordSynchronization(true, null);
         cart.Reopen();
-        cart.SetQuote([new CourseCartQuoteItem("cart-course", "دوره سبد", 40, 0, 0, 40)]);
+        cart.SetQuote([new CartQuoteItem("cart-course", "دوره سبد", 40, 0, 0, 40)]);
         cart.AwaitTopUp(second.Id.Value);
         second.Confirm("confirmed-cart");
         cart.Fail();

@@ -48,8 +48,8 @@ public sealed class PurchaseHistoryTests
     public void FreePurchaseHasPaidReceiptWithoutLedgerDebit()
     {
         var buyer = UserId.New();
-        var cart = CourseCart.Create(Guid.NewGuid(), buyer.Value, "buyer", ["course"], "FREE");
-        cart.SetQuote([new CourseCartQuoteItem("course", "دوره رایگان", 100, 0, 100, 0)]);
+        var cart = Cart.Create(Guid.NewGuid(), buyer.Value, "buyer", ["course"], "FREE");
+        cart.SetQuote([new CartQuoteItem("course", "دوره رایگان", 100, 0, 100, 0)]);
         var purchase = CoursePurchase.Create(buyer,
             ProductSnapshot.Create("course", "دوره رایگان", 0, isFree: true), isFree: true);
         purchase.AttachToCart(cart.Id);

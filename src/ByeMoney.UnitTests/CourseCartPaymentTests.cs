@@ -1,11 +1,11 @@
-﻿using ByeMoney.Application.Modules.Purchases.Cart.Services;
+using ByeMoney.Application.Modules.Purchases.Carts.Services;
 using ByeMoney.Application.Modules.Wallet.DTOs;
 using ByeMoney.Domain.Modules.Identity.Users;
 using ByeMoney.Domain.Modules.Purchases;
 using ByeMoney.Domain.Modules.Wallet.Accounts;
 using ByeMoney.Domain.Modules.Wallet.Wallets;
 using FluentAssertions;
-using ByeMoney.Application.Modules.Purchases.Cart.DTOs;
+using ByeMoney.Application.Modules.Purchases.Carts.DTOs;
 using ByeMoney.Application.Modules.Purchases.Services;
 using ByeMoney.Infrastructure.Modules.TarhElahiIntegration.Clients;
 using System.Net;
@@ -23,7 +23,7 @@ public sealed class CourseCartPaymentTests
         var account = Account.CreateUserAccount(buyer);
         var wallet = Wallet.Create(account.Id, buyer);
         wallet.ApplyCredit(1000);
-        var cart = CourseCart.Create(Guid.NewGuid(), buyer.Value, "buyer", ["chapter-uuid"], null);
+        var cart = Cart.Create(Guid.NewGuid(), buyer.Value, "buyer", ["chapter-uuid"], null);
         var json = $$"""
             {"cartId":"{{cart.Id}}","buyerExternalUserId":"buyer","couponCode":null,
              "items":[{"externalCourseId":"chapter-uuid","type":"course_chapter",
@@ -77,7 +77,7 @@ public sealed class CourseCartPaymentTests
         var account = Account.CreateUserAccount(buyer);
         var wallet = Wallet.Create(account.Id, buyer);
         wallet.ApplyCredit(1000);
-        var cart = CourseCart.Create(Guid.NewGuid(), buyer.Value, "buyer", ["a", "b"], "OFF");
+        var cart = Cart.Create(Guid.NewGuid(), buyer.Value, "buyer", ["a", "b"], "OFF");
         var firstPayment = 105 - firstDiscount - firstCoupon;
         var secondPayment = 105 - secondDiscount - secondCoupon;
         cart.SetQuote([
@@ -96,7 +96,7 @@ public sealed class CourseCartPaymentTests
         payment.LedgerEntries.Sum(x => x.Amount).Should().Be(0);
         payment.LedgerEntries.Where(x => x.Amount < 0).Sum(x => -x.Amount).Should().Be(cart.Total);
         payment.LedgerEntries.Should().NotContain(x => x.Amount == 0);
-        cart.Status.Should().Be(CourseCartStatus.Paid);
+        cart.Status.Should().Be(CartStatus.Paid);
 
         Action replay = () => CourseCartPayment.Apply(cart, new ProvisionedUserWallet(account, wallet), Account.CreateSystemAccount());
         replay.Should().Throw<InvalidOperationException>();
@@ -111,7 +111,7 @@ public sealed class CourseCartPaymentTests
         var account = Account.CreateUserAccount(buyer);
         var wallet = Wallet.Create(account.Id, buyer);
         wallet.ApplyCredit(500m);
-        var cart = CourseCart.Create(Guid.NewGuid(), buyer.Value, "buyer-free", ["course-free-1", "course-free-2"], "100OFF");
+        var cart = Cart.Create(Guid.NewGuid(), buyer.Value, "buyer-free", ["course-free-1", "course-free-2"], "100OFF");
 
         cart.SetQuote([
             new("course-free-1", "Ø¯ÙˆØ±Ù‡ Ø§ÙˆÙ„", 200m, 0m, 200m, 0m),
@@ -128,7 +128,7 @@ public sealed class CourseCartPaymentTests
             referenceRate: 150m);
 
         // Assert
-        cart.Status.Should().Be(CourseCartStatus.Paid);
+        cart.Status.Should().Be(CartStatus.Paid);
         wallet.WithdrawableBalance.Should().Be(500m);
         payment.LedgerEntries.Should().BeEmpty();
         payment.Purchases.Should().HaveCount(2);

@@ -1,5 +1,5 @@
-using ByeMoney.Application.Modules.Purchases.Cart.DTOs;
-using ByeMoney.Application.Modules.Purchases.Cart.Services;
+using ByeMoney.Application.Modules.Purchases.Carts.DTOs;
+using ByeMoney.Application.Modules.Purchases.Carts.Services;
 using ByeMoney.Domain.Common.Generic;
 using ByeMoney.Application.Common.Interfaces;
 using ByeMoney.Application.Resources;

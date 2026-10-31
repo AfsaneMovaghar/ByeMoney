@@ -39,7 +39,7 @@ public static class DependencyInjection
         services.AddScoped<ByeMoney.Application.Modules.Purchases.Orders.Interfaces.ICourseOrderReader, CourseOrderReader>();
         services.AddScoped<ISystemSettingRepository, SystemSettingRepository>();
         services.AddHostedService<CoursePurchaseNotificationRetryBackgroundService>();
-        services.AddScoped<ByeMoney.Application.Modules.Purchases.Cart.Interfaces.ICourseCartStore, CourseCartStore>();
+        services.AddScoped<ByeMoney.Application.Modules.Purchases.Carts.Interfaces.ICourseCartStore, CourseCartStore>();
         services.AddHostedService<CourseCartRecoveryBackgroundService>();
         services.AddScoped<ByeMoney.Application.Common.Interfaces.IReceiptStorage>(_ => new PrivateReceiptStorage(configuration["ReceiptStorage:Path"] ?? Path.Combine(AppContext.BaseDirectory, "private-receipts")));
         services.AddWalletModule();

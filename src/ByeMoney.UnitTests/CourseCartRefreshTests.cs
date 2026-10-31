@@ -1,7 +1,7 @@
-using ByeMoney.Application.Modules.Purchases.Cart.Constants;
-using ByeMoney.Application.Modules.Purchases.Cart.DTOs;
-using ByeMoney.Application.Modules.Purchases.Cart.Interfaces;
-using ByeMoney.Application.Modules.Purchases.Cart.Services;
+using ByeMoney.Application.Modules.Purchases.Carts.Constants;
+using ByeMoney.Application.Modules.Purchases.Carts.DTOs;
+using ByeMoney.Application.Modules.Purchases.Carts.Interfaces;
+using ByeMoney.Application.Modules.Purchases.Carts.Services;
 using ByeMoney.Application.Modules.Settings.Interfaces;
 using ByeMoney.Application.Modules.Identity.Users.Interfaces;
 using ByeMoney.Domain.Common.Generic;
@@ -30,12 +30,12 @@ public sealed class CourseCartRefreshTests
         return new(_store.Object, _pricing.Object, users.Object, Mock.Of<IWalletRepository>(), settings.Object,
             Mock.Of<ICoursePurchaseRepository>(), Mock.Of<ITopUpRequestRepository>());
     }
-    private CourseCart Ready()
+    private Cart Ready()
     {
-        var cart = CourseCart.Create(Guid.NewGuid(), _buyer.Id.Value, "buyer", ["course"], null);
+        var cart = Cart.Create(Guid.NewGuid(), _buyer.Id.Value, "buyer", ["course"], null);
         cart.SetQuote([new("course", "دوره", 105, 0, 0, 105)]);
-        _store.Setup(x => x.CreateAsync(It.IsAny<CourseCart>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(Result<CourseCart>.Success(cart));
+        _store.Setup(x => x.CreateAsync(It.IsAny<Cart>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Result<Cart>.Success(cart));
         _store.Setup(x => x.FindAsync(cart.Id, _buyer.Id.Value, It.IsAny<CancellationToken>())).ReturnsAsync(cart);
         return cart;
     }
@@ -69,7 +69,7 @@ public sealed class CourseCartRefreshTests
             .ReturnsAsync(Result.Failure(CartErrors.Unavailable, CartErrorCodes.Unavailable));
         var result = await Service().PrepareAsync(_buyer.Id.Value, cart.Id, ["course"], null, default);
         result.ErrorCode.Should().Be(CartErrorCodes.Unavailable);
-        cart.Status.Should().Be(CourseCartStatus.Ready);
+        cart.Status.Should().Be(CartStatus.Ready);
         _store.Verify(x => x.FailAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<bool>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
     }
     [Fact]
@@ -84,7 +84,7 @@ public sealed class CourseCartRefreshTests
     [Fact]
     public async Task CartResponseKeepsCoursePricesFixedAndDiscountsOnlyOnCart()
     {
-        var cart = CourseCart.Create(Guid.NewGuid(), _buyer.Id.Value, "buyer", ["a", "b"], "OFF");
+        var cart = Cart.Create(Guid.NewGuid(), _buyer.Id.Value, "buyer", ["a", "b"], "OFF");
         cart.SetQuote([new("a", "الف", 105, 5, 11, 89), new("b", "ب", 105, 0, 10, 95)]);
         _store.Setup(x => x.FindAsync(cart.Id, _buyer.Id.Value, It.IsAny<CancellationToken>())).ReturnsAsync(cart);
 
@@ -112,7 +112,7 @@ public sealed class CourseCartRefreshTests
     {
         var cart = Ready(); cart.Fail();
         _store.Setup(x => x.CancelAsync(cart.Id, _buyer.Id.Value, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(Result<CourseCart>.Success(cart));
+            .ReturnsAsync(Result<Cart>.Success(cart));
         _pricing.Setup(x => x.TransitionAsync(It.IsAny<CartTransitionRequest>(), "release", It.IsAny<CancellationToken>()))
             .ReturnsAsync(Result.Failure(CartErrors.Unavailable, CartErrorCodes.Unavailable));
         (await Service().CancelAsync(_buyer.Id.Value, cart.Id, default)).ErrorCode.Should().Be(CartErrorCodes.Unavailable);
@@ -128,7 +128,7 @@ public sealed class CourseCartRefreshTests
         var topUps = new Mock<ITopUpRequestRepository>();
         topUps.Setup(x => x.GetByIdAsync(topUp.Id, It.IsAny<CancellationToken>())).ReturnsAsync(topUp);
 
-        var cart = CourseCart.Create(Guid.NewGuid(), _buyer.Id.Value, "buyer", ["course"], null);
+        var cart = Cart.Create(Guid.NewGuid(), _buyer.Id.Value, "buyer", ["course"], null);
         cart.SetQuote([new("course", "دوره", 105, 0, 0, 105)]);
         cart.AwaitTopUp(topUp.Id.Value);
 
@@ -183,10 +183,10 @@ public sealed class CourseCartRefreshTests
 
         _store.Setup(x => x.ReopenAsync(cart.Id, _buyer.Id.Value, cart.ReservationId, It.IsAny<CancellationToken>()))
             .Callback(() => cart.Reopen())
-            .ReturnsAsync(Result<CourseCart>.Success(cart));
+            .ReturnsAsync(Result<Cart>.Success(cart));
 
-        _store.Setup(x => x.SetQuoteAsync(cart.Id, _buyer.Id.Value, It.IsAny<IReadOnlyList<CourseCartQuoteItem>>(), It.IsAny<decimal>(), It.IsAny<string?>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
-            .Callback((Guid _, Guid _, IReadOnlyList<CourseCartQuoteItem> items, decimal sAmt, string? sRule, Guid res, CancellationToken _) => cart.SetQuote(items, sAmt, sRule))
+        _store.Setup(x => x.SetQuoteAsync(cart.Id, _buyer.Id.Value, It.IsAny<IReadOnlyList<CartQuoteItem>>(), It.IsAny<decimal>(), It.IsAny<string?>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .Callback((Guid _, Guid _, IReadOnlyList<CartQuoteItem> items, decimal sAmt, string? sRule, Guid res, CancellationToken _) => cart.SetQuote(items, sAmt, sRule))
             .ReturnsAsync(cart);
 
         _pricing.Setup(x => x.PrepareAsync(It.IsAny<CartQuoteRequest>(), It.IsAny<CancellationToken>()))
@@ -243,10 +243,10 @@ public sealed class CourseCartRefreshTests
 
         _store.Setup(x => x.ReopenAsync(cart.Id, _buyer.Id.Value, cart.ReservationId, It.IsAny<CancellationToken>()))
             .Callback(() => cart.Reopen())
-            .ReturnsAsync(Result<CourseCart>.Success(cart));
+            .ReturnsAsync(Result<Cart>.Success(cart));
 
-        _store.Setup(x => x.SetQuoteAsync(cart.Id, _buyer.Id.Value, It.IsAny<IReadOnlyList<CourseCartQuoteItem>>(), It.IsAny<decimal>(), It.IsAny<string?>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
-            .Callback((Guid _, Guid _, IReadOnlyList<CourseCartQuoteItem> items, decimal sAmt, string? sRule, Guid res, CancellationToken _) => cart.SetQuote(items, sAmt, sRule))
+        _store.Setup(x => x.SetQuoteAsync(cart.Id, _buyer.Id.Value, It.IsAny<IReadOnlyList<CartQuoteItem>>(), It.IsAny<decimal>(), It.IsAny<string?>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .Callback((Guid _, Guid _, IReadOnlyList<CartQuoteItem> items, decimal sAmt, string? sRule, Guid res, CancellationToken _) => cart.SetQuote(items, sAmt, sRule))
             .ReturnsAsync(cart);
 
         _pricing.Setup(x => x.PrepareAsync(It.IsAny<CartQuoteRequest>(), It.IsAny<CancellationToken>()))

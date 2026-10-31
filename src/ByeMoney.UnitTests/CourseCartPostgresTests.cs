@@ -1,7 +1,7 @@
-using ByeMoney.Application.Modules.Purchases.Cart.Constants;
-using ByeMoney.Application.Modules.Purchases.Cart.DTOs;
-using ByeMoney.Application.Modules.Purchases.Cart.Interfaces;
-using ByeMoney.Application.Modules.Purchases.Cart.Services;
+using ByeMoney.Application.Modules.Purchases.Carts.Constants;
+using ByeMoney.Application.Modules.Purchases.Carts.DTOs;
+using ByeMoney.Application.Modules.Purchases.Carts.Interfaces;
+using ByeMoney.Application.Modules.Purchases.Carts.Services;
 using ByeMoney.Application.Modules.Settings.Interfaces;
 using ByeMoney.Domain.Common.Generic;
 using ByeMoney.Application;
@@ -73,12 +73,12 @@ public sealed class CourseCartPostgresTests : IAsyncLifetime
         await using var command = new NpgsqlCommand($"DROP SCHEMA \"{_schema}\" CASCADE", connection);
         await command.ExecuteNonQueryAsync();
     }
-    private async Task<CourseCart> Ready(string[]? ids = null, bool free = false)
+    private async Task<Cart> Ready(string[]? ids = null, bool free = false)
     {
-        var cart = CourseCart.Create(Guid.NewGuid(), _buyer.Id.Value, _buyer.ExternalUserId, ids ?? ["a", "b"], "OFF");
+        var cart = Cart.Create(Guid.NewGuid(), _buyer.Id.Value, _buyer.ExternalUserId, ids ?? ["a", "b"], "OFF");
         (await Store.CreateAsync(cart, default)).IsSuccess.Should().BeTrue();
         return await Store.SetQuoteAsync(cart.Id, _buyer.Id.Value, cart.RequestedItemSignatures.Select((id, index) =>
-            new CourseCartQuoteItem(id, "Ø¯ÙˆØ±Ù‡", 105, 0, free ? 105 : index == 0 ? 11 : 10, free ? 0 : index == 0 ? 94 : 95)).ToArray(), cart.ReservationId, default);
+            new CartQuoteItem(id, "Ø¯ÙˆØ±Ù‡", 105, 0, free ? 105 : index == 0 ? 11 : 10, free ? 0 : index == 0 ? 94 : 95)).ToArray(), cart.ReservationId, default);
     }
     private async Task<(decimal Balance, int Purchases, decimal Debit, decimal Net)> Financials()
     {
@@ -93,7 +93,7 @@ public sealed class CourseCartPostgresTests : IAsyncLifetime
     public async Task ChapterPaymentPersistsIdentityAndDebitsQuotedAllocationOnce()
     {
         var chapterId = Guid.NewGuid().ToString();
-        var cart = CourseCart.Create(Guid.NewGuid(), _buyer.Id.Value, _buyer.ExternalUserId, [chapterId], null);
+        var cart = Cart.Create(Guid.NewGuid(), _buyer.Id.Value, _buyer.ExternalUserId, [chapterId], null);
         await Store.CreateAsync(cart, default);
         cart = await Store.SetQuoteAsync(cart.Id, _buyer.Id.Value,
             [new(chapterId, "ÙØµÙ„", 120, 0, 20, 100, ProductItemType.CourseChapter, "parent")],
@@ -118,9 +118,9 @@ public sealed class CourseCartPostgresTests : IAsyncLifetime
     public async Task ConcurrentCartsForSameChapterHaveOnlyOneFinancialEffect()
     {
         var chapterId = Guid.NewGuid().ToString();
-        async Task<CourseCart> ChapterCart()
+        async Task<Cart> ChapterCart()
         {
-            var cart = CourseCart.Create(Guid.NewGuid(), _buyer.Id.Value, _buyer.ExternalUserId, [chapterId], null);
+            var cart = Cart.Create(Guid.NewGuid(), _buyer.Id.Value, _buyer.ExternalUserId, [chapterId], null);
             await Store.CreateAsync(cart, default);
             return await Store.SetQuoteAsync(cart.Id, _buyer.Id.Value,
                 [new(chapterId, "ÙØµÙ„", 100, 0, 0, 100, ProductItemType.CourseChapter, "parent")],
@@ -155,7 +155,7 @@ public sealed class CourseCartPostgresTests : IAsyncLifetime
         (await Store.PayAsync(parent.Id, _buyer.Id.Value, parent.ReservationId, default)).IsSuccess.Should().BeTrue();
         var before = await Financials();
         var chapterId = Guid.NewGuid().ToString();
-        var chapter = CourseCart.Create(Guid.NewGuid(), _buyer.Id.Value, _buyer.ExternalUserId, [chapterId], null);
+        var chapter = Cart.Create(Guid.NewGuid(), _buyer.Id.Value, _buyer.ExternalUserId, [chapterId], null);
         await Store.CreateAsync(chapter, default);
         chapter = await Store.SetQuoteAsync(chapter.Id, _buyer.Id.Value,
             [new(chapterId, "ÙØµÙ„", 100, 0, 0, 100, ProductItemType.CourseChapter, "parent")],
@@ -249,8 +249,8 @@ public sealed class CourseCartPostgresTests : IAsyncLifetime
         var migrator = db.GetService<IMigrator>();
         await migrator.MigrateAsync("20261018061504_AddCourseCartPaymentRetries");
         var json = await db.Database.SqlQuery<string>($"SELECT \"Items\"::text AS \"Value\" FROM \"CourseCarts\" WHERE \"Id\" = {cart.Id}").SingleAsync();
-        var items = System.Text.Json.JsonSerializer.Deserialize<CourseCartQuoteItem[]>(json);
-        items!.Select(x => new CourseCartItem(x.ExternalCourseId, x.Title, x.BasePriceInNoor, x.PriceInNoor)).Should().Equal(cart.Items);
+        var items = System.Text.Json.JsonSerializer.Deserialize<CartQuoteItem[]>(json);
+        items!.Select(x => new CartItem(x.ExternalCourseId, x.Title, x.BasePriceInNoor, x.PriceInNoor)).Should().Equal(cart.Items);
         await migrator.MigrateAsync();
         (await Store.FindAsync(cart.Id, _buyer.Id.Value, default)).Should().BeNull();
         (await db.Database.SqlQuery<int>($"SELECT count(*)::int AS \"Value\" FROM \"CourseCartItems\"").SingleAsync()).Should().Be(0);
@@ -260,7 +260,7 @@ public sealed class CourseCartPostgresTests : IAsyncLifetime
     [CartPostgresFact]
     public async Task MigrationChainWithWipedCartsPreservesFinancialsAndMergedAllocation()
     {
-        var cart = CourseCart.Create(Guid.NewGuid(), _buyer.Id.Value, _buyer.ExternalUserId, ["a", "b"], "OFF");
+        var cart = Cart.Create(Guid.NewGuid(), _buyer.Id.Value, _buyer.ExternalUserId, ["a", "b"], "OFF");
         await Store.CreateAsync(cart, default);
         cart = await Store.SetQuoteAsync(cart.Id, _buyer.Id.Value,
             [new("a", "الف", 200, 10, 20, 170), new("b", "ب", 100, 100, 0, 0)], cart.ReservationId, default);
@@ -283,7 +283,7 @@ public sealed class CourseCartPostgresTests : IAsyncLifetime
         await migrator.MigrateAsync();
         (await Financials()).Should().Be((1000m, 0, 0m, 0m));
 
-        var fresh = CourseCart.Create(Guid.NewGuid(), _buyer.Id.Value, _buyer.ExternalUserId, ["a", "b"], "OFF");
+        var fresh = Cart.Create(Guid.NewGuid(), _buyer.Id.Value, _buyer.ExternalUserId, ["a", "b"], "OFF");
         (await Store.CreateAsync(fresh, default)).IsSuccess.Should().BeTrue();
         fresh = await Store.SetQuoteAsync(fresh.Id, _buyer.Id.Value,
             [new("a", "الف", 200, 10, 20, 170), new("b", "ب", 100, 100, 0, 0)], fresh.ReservationId, default);
@@ -301,7 +301,7 @@ public sealed class CourseCartPostgresTests : IAsyncLifetime
         var loaded = (await Store.FindAsync(cart.Id, _buyer.Id.Value, default))!;
         loaded.Items.Should().Equal(cart.Items);
         loaded.Items.Select(x => x.ExternalCourseId).Should().Equal("A", "a", "z");
-        (await Store.CreateAsync(CourseCart.Create(cart.Id, _buyer.Id.Value, _buyer.ExternalUserId,
+        (await Store.CreateAsync(Cart.Create(cart.Id, _buyer.Id.Value, _buyer.ExternalUserId,
             cart.RequestedItemSignatures, "OFF"), default)).Value.Items.Should().Equal(cart.Items);
         await Store.FailAsync(cart.Id, _buyer.Id.Value, false, cart.ReservationId, default);
         (await Store.GetPendingAsync(default)).Single(x => x.Id == cart.Id).Items.Should().Equal(cart.Items);
@@ -318,10 +318,10 @@ public sealed class CourseCartPostgresTests : IAsyncLifetime
         await Store.RecordSynchronizationAsync(cart.Id, _buyer.Id.Value, true, null, cart.ReservationId, default);
         var reopened = (await Store.ReopenAsync(cart.Id, _buyer.Id.Value, cart.ReservationId, default)).Value;
         (await Store.FindAsync(cart.Id, _buyer.Id.Value, default))!.Items.Should().BeEmpty();
-        CourseCartQuoteItem[] quote = [new("a", "Ù‚ÛŒÙ…Øª ØªØ§Ø²Ù‡", 200, 10, 20, 170), new("b", "Ø±Ø§ÛŒÚ¯Ø§Ù†", 100, 100, 0, 0)];
+        CartQuoteItem[] quote = [new("a", "Ù‚ÛŒÙ…Øª ØªØ§Ø²Ù‡", 200, 10, 20, 170), new("b", "Ø±Ø§ÛŒÚ¯Ø§Ù†", 100, 100, 0, 0)];
         await Store.SetQuoteAsync(cart.Id, _buyer.Id.Value, quote, reopened.ReservationId, default);
         var loaded = (await Store.FindAsync(cart.Id, _buyer.Id.Value, default))!;
-        loaded.Items.Should().Equal(quote.Select(x => new CourseCartItem(x.ExternalCourseId, x.Title, x.BasePriceInNoor, x.PriceInNoor)));
+        loaded.Items.Should().Equal(quote.Select(x => new CartItem(x.ExternalCourseId, x.Title, x.BasePriceInNoor, x.PriceInNoor)));
         loaded.ItemDiscountInNoor.Should().Be(110);
         loaded.CouponDiscountInNoor.Should().Be(20);
         loaded.Items.Sum(x => x.AllocatedAmountInNoor).Should().Be(170);
@@ -366,7 +366,7 @@ public sealed class CourseCartPostgresTests : IAsyncLifetime
     {
         var cart = await Ready();
         (await Store.CancelAsync(cart.Id, Guid.NewGuid(), default)).ErrorCode.Should().Be(CartErrorCodes.NotFound);
-        (await Store.FindAsync(cart.Id, _buyer.Id.Value, default))!.Status.Should().Be(CourseCartStatus.Ready);
+        (await Store.FindAsync(cart.Id, _buyer.Id.Value, default))!.Status.Should().Be(CartStatus.Ready);
     }
     [CartPostgresFact]
     public async Task CancelCannotReleaseAwaitingBankResultOrPaidCart()
@@ -387,11 +387,11 @@ public sealed class CourseCartPostgresTests : IAsyncLifetime
         var cart = await Ready();
         await Task.WhenAll(Store.CancelAsync(cart.Id, _buyer.Id.Value, default), Store.PayAsync(cart.Id, _buyer.Id.Value, cart.ReservationId, default));
         var current = (await Store.FindAsync(cart.Id, _buyer.Id.Value, default))!;
-        if (current.Status == CourseCartStatus.Paid)
+        if (current.Status == CartStatus.Paid)
             (await Financials()).Should().Be((811m, 2, 189m, 0m));
         else
         {
-            current.Status.Should().Be(CourseCartStatus.Failed);
+            current.Status.Should().Be(CartStatus.Failed);
             (await Financials()).Should().Be((1000m, 0, 0m, 0m));
         }
     }
@@ -427,7 +427,7 @@ public sealed class CourseCartPostgresTests : IAsyncLifetime
     {
         var cart = await Ready();
         (await Store.FindAsync(cart.Id, Guid.NewGuid(), default)).Should().BeNull();
-        (await Store.CreateAsync(CourseCart.Create(cart.Id, Guid.NewGuid(), "other", ["a", "b"], "OFF"), default)).IsFailure.Should().BeTrue();
+        (await Store.CreateAsync(Cart.Create(cart.Id, Guid.NewGuid(), "other", ["a", "b"], "OFF"), default)).IsFailure.Should().BeTrue();
     }
     [CartPostgresFact]
     public async Task StrapiOutageAfterDebitIsRecoveredWithoutSecondDebit()
@@ -467,7 +467,7 @@ public sealed class CourseCartPostgresTests : IAsyncLifetime
         (await Store.PayAsync(cart.Id, _buyer.Id.Value, cart.ReservationId, default)).ErrorCode.Should().Be(CartErrorCodes.InsufficientBalance);
         (await Financials()).Should().Be((100m, 0, 0m, 0m));
     }
-    private async Task<CourseCart> AwaitingTopUp()
+    private async Task<Cart> AwaitingTopUp()
     {
         var cart = await Ready();
         using (var scope = _provider.CreateScope())
@@ -483,7 +483,7 @@ public sealed class CourseCartPostgresTests : IAsyncLifetime
         results[0].Value.AmountRial.Should().Be(169 * 137);
         return (await Store.FindAsync(cart.Id, _buyer.Id.Value, default))!;
     }
-    private async Task ConfirmTopUp(CourseCart cart)
+    private async Task ConfirmTopUp(Cart cart)
     {
         using var scope = _provider.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
@@ -568,7 +568,7 @@ public sealed class CourseCartPostgresTests : IAsyncLifetime
         await Store.RecordSynchronizationAsync(cart.Id, _buyer.Id.Value, true, null, cart.ReservationId, default);
         (await Store.PayAsync(cart.Id, _buyer.Id.Value, cart.ReservationId, default)).IsFailure.Should().BeTrue();
         current = (await Store.FindAsync(cart.Id, _buyer.Id.Value, default))!;
-        current.Status.Should().Be(CourseCartStatus.Ready); current.Synchronized.Should().BeFalse();
+        current.Status.Should().Be(CartStatus.Ready); current.Synchronized.Should().BeFalse();
         var attempts = await Task.WhenAll(Enumerable.Range(0, 3).Select(_ => Store.CreateTopUpAsync(cart.Id, _buyer.Id.Value, default)));
         attempts.Should().OnlyContain(x => x.IsSuccess);
         attempts.Select(x => x.Value.TopUpRequestId).Distinct().Should().ContainSingle();
@@ -576,7 +576,7 @@ public sealed class CourseCartPostgresTests : IAsyncLifetime
         attempts[0].Value.AmountRial.Should().Be(250 * 137);
         using var verifyScope = _provider.CreateScope();
         var verifyDb = verifyScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        (await verifyDb.Set<CourseCart>().CountAsync()).Should().Be(1);
+        (await verifyDb.Set<Cart>().CountAsync()).Should().Be(1);
         (await verifyDb.Set<TopUpRequest>().CountAsync()).Should().Be(2);
         (await Financials()).Should().Be((20.2m, 0, 0m, 0m));
         var retryTopUp = await verifyDb.Set<TopUpRequest>().FindAsync(new TopUpRequestId(attempts[0].Value.TopUpRequestId));
@@ -958,7 +958,7 @@ public sealed class CourseCartPostgresTests : IAsyncLifetime
         await recoveryScope.ServiceProvider.GetRequiredService<CourseCartService>().ProcessAsync(cart, default);
 
         var failedCart = (await Store.FindAsync(cart.Id, _buyer.Id.Value, default))!;
-        failedCart.Status.Should().Be(CourseCartStatus.Failed);
+        failedCart.Status.Should().Be(CartStatus.Failed);
 
         _pricing.Setup(x => x.PrepareAsync(It.IsAny<CartQuoteRequest>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((CartQuoteRequest request, CancellationToken _) => Result<CartQuote>.Success(

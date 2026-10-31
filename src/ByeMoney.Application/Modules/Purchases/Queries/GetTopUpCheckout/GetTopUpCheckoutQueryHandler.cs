@@ -1,4 +1,4 @@
-using ByeMoney.Application.Modules.Purchases.Cart.Interfaces;
+using ByeMoney.Application.Modules.Purchases.Carts.Interfaces;
 using ByeMoney.Application.Modules.Purchases.Constants;
 using ByeMoney.Application.Modules.Purchases.Queries.GetCourseCheckout;
 using ByeMoney.Application.Common.Interfaces;

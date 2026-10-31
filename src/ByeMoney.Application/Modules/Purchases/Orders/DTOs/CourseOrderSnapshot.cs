@@ -4,5 +4,5 @@ using ByeMoney.Domain.Modules.Wallet.TopUps;
 namespace ByeMoney.Application.Modules.Purchases.Orders.DTOs;
 
 public sealed record CourseOrderSnapshot(
-    IReadOnlyList<CourseCart> Carts, IReadOnlyList<TopUpRequest> TopUps,
+    IReadOnlyList<Cart> Carts, IReadOnlyList<TopUpRequest> TopUps,
     IReadOnlyList<CoursePurchase> Purchases, IReadOnlyList<CourseOrderBuyer> Buyers);

@@ -2,7 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using ByeMoney.Domain.Modules.Purchases;
 
-namespace ByeMoney.Application.Modules.Purchases.Cart.Services;
+namespace ByeMoney.Application.Modules.Purchases.Carts.Services;
 
 public static class CartPurchaseIds
 {

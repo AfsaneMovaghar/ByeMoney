@@ -1,4 +1,4 @@
-using ByeMoney.Application.Modules.Purchases.Cart.DTOs;
+using ByeMoney.Application.Modules.Purchases.Carts.DTOs;
 using ByeMoney.Application.Modules.Wallet.DTOs;
 using ByeMoney.Domain.Modules.Identity.Users;
 using ByeMoney.Domain.Modules.Purchases;
@@ -6,17 +6,17 @@ using ByeMoney.Domain.Modules.Wallet.Accounts;
 using ByeMoney.Domain.Modules.Wallet.Ledgers;
 using ByeMoney.Domain.Modules.Wallet.Wallets;
 
-namespace ByeMoney.Application.Modules.Purchases.Cart.Services;
+namespace ByeMoney.Application.Modules.Purchases.Carts.Services;
 
 public static class CourseCartPayment
 {
     public static CourseCartPaymentRecords Apply(
-        CourseCart cart,
+        Cart cart,
         ProvisionedUserWallet wallet,
         Account? system,
         decimal? referenceRate = null)
     {
-        if (cart.Status is not (CourseCartStatus.Ready or CourseCartStatus.AwaitingTopUp))
+        if (cart.Status is not (CartStatus.Ready or CartStatus.AwaitingTopUp))
         {
             throw new InvalidOperationException();
         }

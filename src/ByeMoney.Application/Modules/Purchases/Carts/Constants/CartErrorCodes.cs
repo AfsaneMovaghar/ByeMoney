@@ -1,4 +1,4 @@
-namespace ByeMoney.Application.Modules.Purchases.Cart.Constants;
+namespace ByeMoney.Application.Modules.Purchases.Carts.Constants;
 
 public static class CartErrorCodes
 {

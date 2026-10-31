@@ -1,6 +1,6 @@
 namespace ByeMoney.Domain.Modules.Purchases;
 
-public sealed record CourseCartItem(
+public sealed record CartItem(
     string ExternalCourseId,
     string Title,
     decimal PriceInNoor,

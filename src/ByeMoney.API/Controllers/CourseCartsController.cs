@@ -1,6 +1,6 @@
 using ByeMoney.API.Contracts.CourseCarts;
-using ByeMoney.Application.Modules.Purchases.Cart.Constants;
-using ByeMoney.Application.Modules.Purchases.Cart.DTOs;
+using ByeMoney.Application.Modules.Purchases.Carts.Constants;
+using ByeMoney.Application.Modules.Purchases.Carts.DTOs;
 using ByeMoney.Application.Modules.Purchases.Commands.CancelCourseCart;
 using ByeMoney.Application.Modules.Purchases.Commands.CreateCourseCartTopUp;
 using ByeMoney.Application.Modules.Purchases.Commands.PrepareCourseCart;

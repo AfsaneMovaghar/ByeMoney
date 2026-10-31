@@ -4,5 +4,5 @@ namespace ByeMoney.Application.Modules.Purchases.History.DTOs;
 
 public sealed record PurchaseReceiptData(
     CoursePurchase? Purchase,
-    CourseCart? Cart,
+    Cart? Cart,
     PhysicalProductPurchase? PhysicalPurchase = null);

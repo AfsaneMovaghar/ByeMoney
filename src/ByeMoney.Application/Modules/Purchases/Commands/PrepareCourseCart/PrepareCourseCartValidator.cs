@@ -1,4 +1,4 @@
-using ByeMoney.Application.Modules.Purchases.Cart.Constants;
+using ByeMoney.Application.Modules.Purchases.Carts.Constants;
 using ByeMoney.Domain.Modules.Purchases;
 using FluentValidation;
 

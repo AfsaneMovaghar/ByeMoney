@@ -4,9 +4,9 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace ByeMoney.Infrastructure.Modules.Purchases.Persistence;
 
-public sealed class CourseCartConfiguration : IEntityTypeConfiguration<CourseCart>
+public sealed class CourseCartConfiguration : IEntityTypeConfiguration<Cart>
 {
-    public void Configure(EntityTypeBuilder<CourseCart> b)
+    public void Configure(EntityTypeBuilder<Cart> b)
     {
         b.ToTable("CourseCarts", table =>
         {
@@ -37,7 +37,7 @@ public sealed class CourseCartConfiguration : IEntityTypeConfiguration<CourseCar
                     "(\"RegularAmountInNoor\" IS NULL AND \"GiftAmountInNoor\" IS NULL) OR (\"RegularAmountInNoor\" >= 0 AND \"GiftAmountInNoor\" >= 0 AND trunc(\"RegularAmountInNoor\") = \"RegularAmountInNoor\" AND trunc(\"GiftAmountInNoor\") = \"GiftAmountInNoor\" AND \"RegularAmountInNoor\" + \"GiftAmountInNoor\" = \"AllocatedAmountInNoor\")");
             });
             items.WithOwner().HasForeignKey("CartId");
-            items.HasKey("CartId", nameof(CourseCartItem.ExternalCourseId), nameof(CourseCartItem.ItemType));
+            items.HasKey("CartId", nameof(CartItem.ExternalCourseId), nameof(CartItem.ItemType));
             items.Property(x => x.ExternalCourseId).HasMaxLength(100);
             items.Property(x => x.ItemType).HasConversion<string>().HasMaxLength(30).HasDefaultValue(ProductItemType.Course);
             items.Property(x => x.ParentExternalId).HasMaxLength(100);

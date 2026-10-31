@@ -1,5 +1,5 @@
 using System.Reflection;
-using ByeMoney.Application.Modules.Purchases.Cart.Services;
+using ByeMoney.Application.Modules.Purchases.Carts.Services;
 using ByeMoney.Application.Modules.Wallet.Interfaces;
 using ByeMoney.Application.Modules.Wallet.Services;
 using ByeMoney.Domain.Modules.Wallet.Ledgers;

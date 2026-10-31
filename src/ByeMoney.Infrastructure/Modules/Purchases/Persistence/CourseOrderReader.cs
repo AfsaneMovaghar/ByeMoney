@@ -31,7 +31,7 @@ public sealed class CourseOrderReader(ApplicationDbContext db) : ICourseOrderRea
             user.Id.Value, user.ExternalUserId, (user.FirstName + " " + user.LastName).Trim())).ToListAsync(ct);
         var userIds = users.Select(user => user.Id);
         var cartOwners = buyers.Select(buyer => buyer.Id).ToArray();
-        var carts = await db.Set<CourseCart>().AsNoTracking()
+        var carts = await db.Set<Cart>().AsNoTracking()
             .Where(cart => cartOwners.Contains(cart.BuyerId)).AsSplitQuery().ToListAsync(ct);
         var topUps = await db.Set<TopUpRequest>().AsNoTracking()
             .Where(topUp => userIds.Contains(topUp.UserId)).ToListAsync(ct);

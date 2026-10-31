@@ -1,4 +1,4 @@
-using ByeMoney.Application.Modules.Purchases.Cart.DTOs;
+using ByeMoney.Application.Modules.Purchases.Carts.DTOs;
 using ByeMoney.Domain.Common.Generic;
 using ByeMoney.Domain.Modules.Purchases;
 using MediatR;

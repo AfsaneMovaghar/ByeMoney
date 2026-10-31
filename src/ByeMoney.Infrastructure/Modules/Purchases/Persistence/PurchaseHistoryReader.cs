@@ -148,7 +148,7 @@ public sealed class PurchaseHistoryReader(ApplicationDbContext db) : IPurchaseHi
         if (purchase is not null)
         {
             var cart = purchase.CartId.HasValue
-                ? await db.Set<CourseCart>().AsNoTracking().SingleOrDefaultAsync(
+                ? await db.Set<Cart>().AsNoTracking().SingleOrDefaultAsync(
                     item => item.Id == purchase.CartId && item.BuyerId == purchase.BuyerId.Value, ct)
                 : null;
             return new PurchaseReceiptData(purchase, cart);
@@ -165,7 +165,7 @@ public sealed class PurchaseHistoryReader(ApplicationDbContext db) : IPurchaseHi
         var physical = await physicalQuery.SingleOrDefaultAsync(ct);
         if (physical is not null)
         {
-            var cart = await db.Set<CourseCart>().AsNoTracking().SingleOrDefaultAsync(
+            var cart = await db.Set<Cart>().AsNoTracking().SingleOrDefaultAsync(
                 item => item.Id == physical.CartId && item.BuyerId == physical.BuyerId.Value, ct);
             return new PurchaseReceiptData(null, cart, physical);
         }

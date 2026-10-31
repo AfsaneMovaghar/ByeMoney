@@ -1,9 +1,9 @@
-﻿using ByeMoney.Application.Common.Interfaces;
+using ByeMoney.Application.Common.Interfaces;
 using ByeMoney.Application.Modules.Identity.Users.Interfaces;
-using ByeMoney.Application.Modules.Purchases.Cart.Constants;
-using ByeMoney.Application.Modules.Purchases.Cart.DTOs;
-using ByeMoney.Application.Modules.Purchases.Cart.Interfaces;
-using ByeMoney.Application.Modules.Purchases.Cart.Services;
+using ByeMoney.Application.Modules.Purchases.Carts.Constants;
+using ByeMoney.Application.Modules.Purchases.Carts.DTOs;
+using ByeMoney.Application.Modules.Purchases.Carts.Interfaces;
+using ByeMoney.Application.Modules.Purchases.Carts.Services;
 using ByeMoney.Application.Modules.Purchases.Commands.PurchaseCourses;
 using ByeMoney.Application.Modules.Purchases.Constants;
 using ByeMoney.Application.Modules.Purchases.Interfaces;
@@ -71,7 +71,7 @@ public class DuplicatePurchasePreventionTests
         result.IsSuccess.Should().BeFalse();
         result.ErrorCode.Should().Be(CartErrorCodes.Conflict);
         // Cart should not be created in store
-        storeMock.Verify(s => s.CreateAsync(It.IsAny<CourseCart>(), It.IsAny<CancellationToken>()), Times.Never);
+        storeMock.Verify(s => s.CreateAsync(It.IsAny<Cart>(), It.IsAny<CancellationToken>()), Times.Never);
         // Strapi pricing should not even be requested
         pricingMock.Verify(p => p.PrepareAsync(It.IsAny<CartQuoteRequest>(), It.IsAny<CancellationToken>()), Times.Never);
     }
@@ -103,9 +103,9 @@ public class DuplicatePurchasePreventionTests
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(false);
 
-        var cart = CourseCart.Create(cartId, buyerId, user.ExternalUserId, new[] { "legacy-course" }, null);
-        storeMock.Setup(s => s.CreateAsync(It.IsAny<CourseCart>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(Result<CourseCart>.Success(cart));
+        var cart = Cart.Create(cartId, buyerId, user.ExternalUserId, new[] { "legacy-course" }, null);
+        storeMock.Setup(s => s.CreateAsync(It.IsAny<Cart>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Result<Cart>.Success(cart));
 
         // Strapi returns Conflict (409 ALREADY_OWNED)
         pricingMock.Setup(p => p.PrepareAsync(It.IsAny<CartQuoteRequest>(), It.IsAny<CancellationToken>()))
@@ -146,8 +146,8 @@ public class DuplicatePurchasePreventionTests
         var purchasesMock = new Mock<ICoursePurchaseRepository>();
         var topUpsMock = new Mock<ITopUpRequestRepository>();
 
-        var cart = CourseCart.Create(cartId, buyerId, user.ExternalUserId, new[] { "c1" }, null);
-        cart.SetQuote(new[] { new CourseCartQuoteItem("c1", "Title", 100m, 0m, 0m, 100m) }, 0m, null);
+        var cart = Cart.Create(cartId, buyerId, user.ExternalUserId, new[] { "c1" }, null);
+        cart.SetQuote(new[] { new CartQuoteItem("c1", "Title", 100m, 0m, 0m, 100m) }, 0m, null);
 
         storeMock.Setup(s => s.FindAsync(cartId, buyerId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(cart);

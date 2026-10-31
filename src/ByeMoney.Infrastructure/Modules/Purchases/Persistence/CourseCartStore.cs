@@ -1,6 +1,6 @@
-using ByeMoney.Application.Modules.Purchases.Cart.Constants;
-using ByeMoney.Application.Modules.Purchases.Cart.Interfaces;
-using ByeMoney.Application.Modules.Purchases.Cart.Services;
+using ByeMoney.Application.Modules.Purchases.Carts.Constants;
+using ByeMoney.Application.Modules.Purchases.Carts.Interfaces;
+using ByeMoney.Application.Modules.Purchases.Carts.Services;
 using ByeMoney.Application.Modules.Settings.Interfaces;
 using ByeMoney.Domain.Common.Generic;
 using ByeMoney.Application.Modules.Wallet.Commands.CreateTopUpRequest;
@@ -34,70 +34,70 @@ public sealed class CourseCartStore(IServiceScopeFactory scopes) : ICourseCartSt
             ? db.Database.ExecuteSqlInterpolatedAsync($"SELECT pg_advisory_xact_lock(1869767798, hashtext({id.ToString()}))", ct)
             : Task.CompletedTask;
 
-    public Task<CourseCart?> FindAsync(Guid id, Guid buyerId, CancellationToken ct) =>
-        Run((_, db) => db.Set<CourseCart>()
+    public Task<Cart?> FindAsync(Guid id, Guid buyerId, CancellationToken ct) =>
+        Run((_, db) => db.Set<Cart>()
             .AsNoTracking()
             .SingleOrDefaultAsync(x => x.Id == id && x.BuyerId == buyerId, ct));
 
-    public Task<CourseCart?> FindByTopUpAsync(Guid topUpId, Guid buyerId, CancellationToken ct) =>
-        Run((_, db) => db.Set<CourseCart>()
+    public Task<Cart?> FindByTopUpAsync(Guid topUpId, Guid buyerId, CancellationToken ct) =>
+        Run((_, db) => db.Set<Cart>()
             .AsNoTracking()
             .SingleOrDefaultAsync(x => (x.TopUpRequestId == topUpId || x.TopUpRequestIds.Contains(topUpId)) && x.BuyerId == buyerId, ct));
 
-    public Task<Result<CourseCart>> CreateAsync(CourseCart cart, CancellationToken ct) => Run(async (_, db) =>
+    public Task<Result<Cart>> CreateAsync(Cart cart, CancellationToken ct) => Run(async (_, db) =>
     {
         await using var tx = await db.Database.BeginTransactionAsync(ct);
         await Lock(db, cart.Id, ct);
 
-        var existing = await db.Set<CourseCart>().FindAsync([cart.Id], ct);
+        var existing = await db.Set<Cart>().FindAsync([cart.Id], ct);
         if (existing is not null)
         {
             return existing.BuyerId == cart.BuyerId && existing.Matches(cart.RequestedItemSignatures, cart.CouponCode)
-                ? Result<CourseCart>.Success(existing)
-                : Result<CourseCart>.Conflict(CartErrors.Conflict, CartErrorCodes.Conflict);
+                ? Result<Cart>.Success(existing)
+                : Result<Cart>.Conflict(CartErrors.Conflict, CartErrorCodes.Conflict);
         }
 
         db.Add(cart);
         await db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
 
-        return Result<CourseCart>.Success(cart);
+        return Result<Cart>.Success(cart);
     });
 
-    public Task<Result<CourseCart>> CancelAsync(Guid id, Guid buyerId, CancellationToken ct) => Run(async (_, db) =>
+    public Task<Result<Cart>> CancelAsync(Guid id, Guid buyerId, CancellationToken ct) => Run(async (_, db) =>
     {
         await using var tx = await db.Database.BeginTransactionAsync(ct);
         await Lock(db, id, ct);
 
-        var cart = await db.Set<CourseCart>().SingleOrDefaultAsync(x => x.Id == id && x.BuyerId == buyerId, ct);
+        var cart = await db.Set<Cart>().SingleOrDefaultAsync(x => x.Id == id && x.BuyerId == buyerId, ct);
         if (cart is null)
         {
-            return Result<CourseCart>.NotFound(CartErrors.NotFound, CartErrorCodes.NotFound);
+            return Result<Cart>.NotFound(CartErrors.NotFound, CartErrorCodes.NotFound);
         }
 
-        if (cart.Status is CourseCartStatus.Preparing or CourseCartStatus.Ready)
+        if (cart.Status is CartStatus.Preparing or CartStatus.Ready)
         {
             cart.Fail();
             await db.SaveChangesAsync(ct);
         }
 
         await tx.CommitAsync(ct);
-        return Result<CourseCart>.Success(cart);
+        return Result<Cart>.Success(cart);
     });
 
-    public Task<Result<CourseCart>> ReopenAsync(Guid id, Guid buyerId, Guid reservationId, CancellationToken ct) => Run(async (_, db) =>
+    public Task<Result<Cart>> ReopenAsync(Guid id, Guid buyerId, Guid reservationId, CancellationToken ct) => Run(async (_, db) =>
     {
         await using var tx = await db.Database.BeginTransactionAsync(ct);
         await LockBuyer(db, buyerId, ct);
         await Lock(db, id, ct);
 
-        var cart = await db.Set<CourseCart>().SingleAsync(x => x.Id == id && x.BuyerId == buyerId, ct);
+        var cart = await db.Set<Cart>().SingleAsync(x => x.Id == id && x.BuyerId == buyerId, ct);
         if (cart.ReservationId != reservationId)
         {
-            return Result<CourseCart>.Success(cart);
+            return Result<Cart>.Success(cart);
         }
 
-        if (cart.Status is not (CourseCartStatus.Failed or CourseCartStatus.Expired) || !cart.Synchronized)
+        if (cart.Status is not (CartStatus.Failed or CartStatus.Expired) || !cart.Synchronized)
         {
             return Conflict();
         }
@@ -115,18 +115,18 @@ public sealed class CourseCartStore(IServiceScopeFactory scopes) : ICourseCartSt
         await db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
 
-        return Result<CourseCart>.Success(cart);
+        return Result<Cart>.Success(cart);
     });
 
-    public Task<CourseCart> SetQuoteAsync(Guid id, Guid buyerId, IReadOnlyList<CourseCartQuoteItem> items, Guid reservationId, CancellationToken ct) =>
+    public Task<Cart> SetQuoteAsync(Guid id, Guid buyerId, IReadOnlyList<CartQuoteItem> items, Guid reservationId, CancellationToken ct) =>
         SetQuoteAsync(id, buyerId, items, 0m, null, reservationId, ct);
 
-    public Task<CourseCart> SetQuoteAsync(Guid id, Guid buyerId, IReadOnlyList<CourseCartQuoteItem> items, decimal shippingAmountInNoor, string? shippingRuleLabel, Guid reservationId, CancellationToken ct) => Run(async (_, db) =>
+    public Task<Cart> SetQuoteAsync(Guid id, Guid buyerId, IReadOnlyList<CartQuoteItem> items, decimal shippingAmountInNoor, string? shippingRuleLabel, Guid reservationId, CancellationToken ct) => Run(async (_, db) =>
     {
         await using var tx = await db.Database.BeginTransactionAsync(ct);
         await Lock(db, id, ct);
 
-        var cart = await db.Set<CourseCart>().SingleAsync(x => x.Id == id && x.BuyerId == buyerId, ct);
+        var cart = await db.Set<Cart>().SingleAsync(x => x.Id == id && x.BuyerId == buyerId, ct);
         if (cart.ReservationId == reservationId)
         {
             cart.SetQuote(items, shippingAmountInNoor, shippingRuleLabel);
@@ -138,7 +138,7 @@ public sealed class CourseCartStore(IServiceScopeFactory scopes) : ICourseCartSt
         return cart;
     });
 
-    public async Task<Result<CourseCart>> PayAsync(
+    public async Task<Result<Cart>> PayAsync(
         Guid id,
         Guid buyerId,
         Guid reservationId,
@@ -153,10 +153,10 @@ public sealed class CourseCartStore(IServiceScopeFactory scopes) : ICourseCartSt
                 await LockBuyer(db, buyerId, ct);
                 await Lock(db, id, ct);
 
-                var cart = await db.Set<CourseCart>().SingleAsync(x => x.Id == id && x.BuyerId == buyerId, ct);
-                if (cart.Status == CourseCartStatus.Paid)
+                var cart = await db.Set<Cart>().SingleAsync(x => x.Id == id && x.BuyerId == buyerId, ct);
+                if (cart.Status == CartStatus.Paid)
                 {
-                    return Result<CourseCart>.Success(cart);
+                    return Result<Cart>.Success(cart);
                 }
 
                 if (cart.ReservationId != reservationId)
@@ -164,12 +164,12 @@ public sealed class CourseCartStore(IServiceScopeFactory scopes) : ICourseCartSt
                     return Conflict();
                 }
 
-                if (cart.Status is not (CourseCartStatus.Ready or CourseCartStatus.AwaitingTopUp))
+                if (cart.Status is not (CartStatus.Ready or CartStatus.AwaitingTopUp))
                 {
                     return Conflict();
                 }
 
-                if (cart.Status == CourseCartStatus.Ready && cart.ExpiresAtUtc <= DateTime.UtcNow)
+                if (cart.Status == CartStatus.Ready && cart.ExpiresAtUtc <= DateTime.UtcNow)
                 {
                     return Conflict();
                 }
@@ -220,7 +220,7 @@ public sealed class CourseCartStore(IServiceScopeFactory scopes) : ICourseCartSt
 
                 if (provisioned.Wallet.TotalBalance < cart.Total)
                 {
-                    return Result<CourseCart>.Failure(CartErrors.InsufficientBalance, CartErrorCodes.InsufficientBalance);
+                    return Result<Cart>.Failure(CartErrors.InsufficientBalance, CartErrorCodes.InsufficientBalance);
                 }
 
                 var system = cart.Total > 0 ? await provisioning.GetOrCreateSystemAccountAsync(ct) : null;
@@ -231,7 +231,7 @@ public sealed class CourseCartStore(IServiceScopeFactory scopes) : ICourseCartSt
                 await db.SaveChangesAsync(ct);
                 await tx.CommitAsync(ct);
 
-                return Result<CourseCart>.Success(cart);
+                return Result<Cart>.Success(cart);
             });
         }
         catch (DbUpdateConcurrencyException)
@@ -248,8 +248,8 @@ public sealed class CourseCartStore(IServiceScopeFactory scopes) : ICourseCartSt
         }
     }
 
-    private static Result<CourseCart> Conflict() =>
-        Result<CourseCart>.Conflict(CartErrors.Conflict, CartErrorCodes.Conflict);
+    private static Result<Cart> Conflict() =>
+        Result<Cart>.Conflict(CartErrors.Conflict, CartErrorCodes.Conflict);
 
     public Task<Result<CreateTopUpRequestResponse>> CreateTopUpAsync(Guid id, Guid buyerId, CancellationToken ct) => Run(async (sp, db) =>
     {
@@ -257,7 +257,7 @@ public sealed class CourseCartStore(IServiceScopeFactory scopes) : ICourseCartSt
         await LockBuyer(db, buyerId, ct);
         await Lock(db, id, ct);
 
-        var cart = await db.Set<CourseCart>().SingleAsync(x => x.Id == id && x.BuyerId == buyerId, ct);
+        var cart = await db.Set<Cart>().SingleAsync(x => x.Id == id && x.BuyerId == buyerId, ct);
         TopUpRequest? topUp;
 
         if (cart.TopUpRequestId is Guid topUpId)
@@ -293,7 +293,7 @@ public sealed class CourseCartStore(IServiceScopeFactory scopes) : ICourseCartSt
         }
         else
         {
-            if (cart.Status != CourseCartStatus.Ready || cart.ExpiresAtUtc <= DateTime.UtcNow)
+            if (cart.Status != CartStatus.Ready || cart.ExpiresAtUtc <= DateTime.UtcNow)
             {
                 return Result<CreateTopUpRequestResponse>.Conflict(CartErrors.Conflict, CartErrorCodes.Conflict);
             }
@@ -342,7 +342,7 @@ public sealed class CourseCartStore(IServiceScopeFactory scopes) : ICourseCartSt
             }
 
             cart.RecordSynchronization(succeeded, errorCode);
-            if (!succeeded || cart.Status != CourseCartStatus.Paid)
+            if (!succeeded || cart.Status != CartStatus.Paid)
             {
                 return;
             }
@@ -356,12 +356,12 @@ public sealed class CourseCartStore(IServiceScopeFactory scopes) : ICourseCartSt
             }
         }, ct);
 
-    private Task Mutate(Guid id, Guid buyerId, Action<CourseCart, ApplicationDbContext> mutate, CancellationToken ct) => Run(async (_, db) =>
+    private Task Mutate(Guid id, Guid buyerId, Action<Cart, ApplicationDbContext> mutate, CancellationToken ct) => Run(async (_, db) =>
     {
         await using var tx = await db.Database.BeginTransactionAsync(ct);
         await Lock(db, id, ct);
 
-        var cart = await db.Set<CourseCart>().SingleAsync(x => x.Id == id && x.BuyerId == buyerId, ct);
+        var cart = await db.Set<Cart>().SingleAsync(x => x.Id == id && x.BuyerId == buyerId, ct);
         mutate(cart, db);
 
         await db.SaveChangesAsync(ct);
@@ -369,21 +369,21 @@ public sealed class CourseCartStore(IServiceScopeFactory scopes) : ICourseCartSt
         return true;
     });
 
-    public Task<IReadOnlyList<CourseCart>> GetPendingAsync(CancellationToken ct) => Run<IReadOnlyList<CourseCart>>(async (_, db) =>
+    public Task<IReadOnlyList<Cart>> GetPendingAsync(CancellationToken ct) => Run<IReadOnlyList<Cart>>(async (_, db) =>
     {
         var now = DateTime.UtcNow;
         var query =
-            from c in db.Set<CourseCart>()
+            from c in db.Set<Cart>()
             join t in db.Set<TopUpRequest>()
-                on EF.Property<Guid?>(c, nameof(CourseCart.TopUpRequestId))
+                on EF.Property<Guid?>(c, nameof(Cart.TopUpRequestId))
                 equals (Guid?)EF.Property<Guid>(t, nameof(TopUpRequest.Id)) into topUpGroup
             from t in topUpGroup.DefaultIfEmpty()
             where !c.Synchronized && (
-                c.Status == CourseCartStatus.Paid ||
-                c.Status == CourseCartStatus.Failed ||
-                c.Status == CourseCartStatus.Expired ||
-                ((c.Status == CourseCartStatus.Preparing || c.Status == CourseCartStatus.Ready) && c.ExpiresAtUtc <= now) ||
-                (c.Status == CourseCartStatus.AwaitingTopUp && t != null && t.Status != TopUpStatus.Pending))
+                c.Status == CartStatus.Paid ||
+                c.Status == CartStatus.Failed ||
+                c.Status == CartStatus.Expired ||
+                ((c.Status == CartStatus.Preparing || c.Status == CartStatus.Ready) && c.ExpiresAtUtc <= now) ||
+                (c.Status == CartStatus.AwaitingTopUp && t != null && t.Status != TopUpStatus.Pending))
             orderby c.UpdatedAtUtc
             select c;
 

@@ -1,4 +1,4 @@
-using ByeMoney.Application.Modules.Purchases.Cart.Constants;
+using ByeMoney.Application.Modules.Purchases.Carts.Constants;
 using FluentValidation;
 
 namespace ByeMoney.Application.Modules.Purchases.Queries.GetCourseCart;

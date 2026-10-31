@@ -1,4 +1,4 @@
-using ByeMoney.Application.Modules.Purchases.Cart.Services;
+using ByeMoney.Application.Modules.Purchases.Carts.Services;
 using ByeMoney.Application.Modules.Purchases.Commands.PrepareCourseCart;
 using ByeMoney.Domain.Modules.Purchases;
 using FluentAssertions;
@@ -7,8 +7,8 @@ namespace ByeMoney.UnitTests;
 
 public sealed class CourseCartTests
 {
-    private static CourseCart Cart() => CourseCart.Create(Guid.NewGuid(), Guid.NewGuid(), "user", ["a", "b"], "off");
-    private static CourseCartQuoteItem[] Items() => [new("a", "الف", 105, 0, 11, 94), new("b", "ب", 105, 0, 10, 95)];
+    private static Cart Cart() => Cart.Create(Guid.NewGuid(), Guid.NewGuid(), "user", ["a", "b"], "off");
+    private static CartQuoteItem[] Items() => [new("a", "الف", 105, 0, 11, 94), new("b", "ب", 105, 0, 10, 95)];
     [Fact]
     public void FrozenCart_PreservesAggregateCouponAndCanonicalIdentity()
     {
@@ -41,22 +41,22 @@ public sealed class CourseCartTests
         var cart = Cart(); cart.SetQuote(Items()); cart.MarkPaid();
         cart.SetQuote([new("a", "تغییر", 1, 0, 0, 1)]);
         cart.Fail(); cart.Fail(expired: true);
-        cart.Status.Should().Be(CourseCartStatus.Paid);
+        cart.Status.Should().Be(CartStatus.Paid);
         cart.Total.Should().Be(189);
     }
     [Fact]
     public void FreeRowsAndEntirelyFreeCartAreValid()
     {
         var cart = Cart(); cart.SetQuote([new("a", "الف", 105, 0, 105, 0), new("b", "ب", 105, 105, 0, 0)]);
-        cart.Total.Should().Be(0); cart.MarkPaid(); cart.Status.Should().Be(CourseCartStatus.Paid);
+        cart.Total.Should().Be(0); cart.MarkPaid(); cart.Status.Should().Be(CartStatus.Paid);
     }
     [Fact]
     public void ExpirationCannotCancelTopUpOrFreshCart()
     {
         var cart = Cart(); cart.SetQuote(Items()); cart.Fail(expired: true);
-        cart.Status.Should().Be(CourseCartStatus.Ready);
+        cart.Status.Should().Be(CartStatus.Ready);
         cart.AwaitTopUp(Guid.NewGuid()); cart.Fail(expired: true);
-        cart.Status.Should().Be(CourseCartStatus.AwaitingTopUp);
+        cart.Status.Should().Be(CartStatus.AwaitingTopUp);
     }
     [Fact]
     public void PurchaseIdsAreStableAndDistinctAcrossCartAndCourse()
@@ -82,7 +82,7 @@ public sealed class CourseCartTests
         cart.ReservationId.Should().NotBe(reservation);
         cart.TopUpRequestIds.Should().Equal(topUp);
         cart.TopUpRequestId.Should().BeNull();
-        cart.Status.Should().Be(CourseCartStatus.Preparing);
+        cart.Status.Should().Be(CartStatus.Preparing);
         cart.SetQuote([new("a", "الف", 200, 0, 20, 180), new("b", "ب", 100, 0, 10, 90)]);
         cart.Total.Should().Be(270);
         cart.AwaitTopUp(Guid.NewGuid());

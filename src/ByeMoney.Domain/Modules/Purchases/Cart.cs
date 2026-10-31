@@ -1,6 +1,6 @@
 namespace ByeMoney.Domain.Modules.Purchases;
 
-public sealed class CourseCart
+public sealed class Cart
 {
     public Guid Id { get; private set; }
     public Guid BuyerId { get; private set; }
@@ -13,12 +13,12 @@ public sealed class CourseCart
     public string[] RequestedItemSignatures { get; private set; } = [];
 
     public string? CouponCode { get; private set; }
-    private readonly List<CourseCartItem> _items = [];
+    private readonly List<CartItem> _items = [];
 
     /// <summary>
     /// ترتیب قطعی (شناسه و سپس نوع) تا تخصیص مبلغ به اقلام قابل بازتولید بماند.
     /// </summary>
-    public IReadOnlyList<CourseCartItem> Items => _items
+    public IReadOnlyList<CartItem> Items => _items
         .OrderBy(x => x.ExternalCourseId, StringComparer.Ordinal)
         .ThenBy(x => x.ItemType)
         .ToArray();
@@ -27,7 +27,7 @@ public sealed class CourseCart
     public decimal CouponDiscountInNoor { get; private set; }
     public decimal ShippingAmountInNoor { get; private set; }
     public string? ShippingRuleLabel { get; private set; }
-    public CourseCartStatus Status { get; private set; }
+    public CartStatus Status { get; private set; }
     public Guid? TopUpRequestId { get; private set; }
     public Guid[] TopUpRequestIds { get; private set; } = [];
     public Guid ReservationId { get; private set; }
@@ -43,11 +43,11 @@ public sealed class CourseCart
 
     private const decimal MaximumOriginalTotalInNoor = 99999999999999m;
 
-    private CourseCart()
+    private Cart()
     {
     }
 
-    public static CourseCart Create(Guid id, Guid buyerId, string externalUserId, CartItemInput[] items, string? couponCode) => new()
+    public static Cart Create(Guid id, Guid buyerId, string externalUserId, CartItemInput[] items, string? couponCode) => new()
     {
         Id = id,
         ReservationId = id,
@@ -58,13 +58,13 @@ public sealed class CourseCart
             .Order(StringComparer.Ordinal)
             .ToArray(),
         CouponCode = couponCode?.Trim().ToUpperInvariant(),
-        Status = CourseCartStatus.Preparing,
+        Status = CartStatus.Preparing,
         CreatedAtUtc = DateTime.UtcNow,
         UpdatedAtUtc = DateTime.UtcNow,
         ExpiresAtUtc = DateTime.UtcNow.AddMinutes(30)
     };
 
-    public static CourseCart Create(Guid id, Guid buyerId, string externalUserId, string[] ids, string? couponCode) =>
+    public static Cart Create(Guid id, Guid buyerId, string externalUserId, string[] ids, string? couponCode) =>
         Create(id, buyerId, externalUserId, ids.Select(x => new CartItemInput(x, ProductItemType.Course, 1)).ToArray(), couponCode);
 
     public bool Matches(CartItemInput[] items, string? couponCode) =>
@@ -78,11 +78,11 @@ public sealed class CourseCart
         CouponCode == couponCode?.Trim().ToUpperInvariant();
 
     public void SetQuote(
-        IReadOnlyList<CourseCartQuoteItem> items,
+        IReadOnlyList<CartQuoteItem> items,
         decimal shippingAmountInNoor = 0m,
         string? shippingRuleLabel = null)
     {
-        if (Status != CourseCartStatus.Preparing)
+        if (Status != CartStatus.Preparing)
         {
             return;
         }
@@ -113,7 +113,7 @@ public sealed class CourseCart
         }
 
         _items.Clear();
-        _items.AddRange(items.Select(x => new CourseCartItem(
+        _items.AddRange(items.Select(x => new CartItem(
             x.ExternalCourseId, x.Title, x.BasePriceInNoor, x.PriceInNoor, x.Type, x.ParentExternalId, x.Quantity)));
         ItemDiscountInNoor = items.Sum(x => x.ItemDiscountInNoor);
         CouponDiscountInNoor = items.Sum(x => x.CouponDiscountInNoor);
@@ -125,11 +125,11 @@ public sealed class CourseCart
             throw new ArgumentException("Allocations plus shipping must match cart total.");
         }
 
-        Status = CourseCartStatus.Ready;
+        Status = CartStatus.Ready;
         UpdatedAtUtc = DateTime.UtcNow;
     }
 
-    private static bool HasInvalidPrice(CourseCartQuoteItem item) =>
+    private static bool HasInvalidPrice(CartQuoteItem item) =>
         string.IsNullOrWhiteSpace(item.Title) ||
         item.Title.Length > 255 ||
         item.Quantity < 1 ||
@@ -144,19 +144,19 @@ public sealed class CourseCart
 
     public void AwaitTopUp(Guid id)
     {
-        if (Status is not (CourseCartStatus.Ready or CourseCartStatus.AwaitingTopUp))
+        if (Status is not (CartStatus.Ready or CartStatus.AwaitingTopUp))
         {
             throw new InvalidOperationException();
         }
         TopUpRequestId = id;
         TopUpRequestIds = TopUpRequestIds.Append(id).Distinct().ToArray();
-        Status = CourseCartStatus.AwaitingTopUp;
+        Status = CartStatus.AwaitingTopUp;
         UpdatedAtUtc = DateTime.UtcNow;
     }
 
     public void Reopen()
     {
-        if (Status is not (CourseCartStatus.Failed or CourseCartStatus.Expired) || !Synchronized)
+        if (Status is not (CartStatus.Failed or CartStatus.Expired) || !Synchronized)
         {
             throw new InvalidOperationException();
         }
@@ -170,7 +170,7 @@ public sealed class CourseCart
         ItemDiscountInNoor = 0;
         CouponDiscountInNoor = 0;
         ShippingAmountInNoor = 0;
-        Status = CourseCartStatus.Preparing;
+        Status = CartStatus.Preparing;
         Synchronized = false;
         LastSyncErrorCode = null;
         UpdatedAtUtc = DateTime.UtcNow;
@@ -179,25 +179,25 @@ public sealed class CourseCart
 
     public void MarkPaid()
     {
-        if (Status is not (CourseCartStatus.Ready or CourseCartStatus.AwaitingTopUp))
+        if (Status is not (CartStatus.Ready or CartStatus.AwaitingTopUp))
         {
             throw new InvalidOperationException();
         }
-        Status = CourseCartStatus.Paid;
+        Status = CartStatus.Paid;
         UpdatedAtUtc = DateTime.UtcNow;
     }
 
     public void Fail(bool expired = false)
     {
-        if (Status == CourseCartStatus.Paid)
+        if (Status == CartStatus.Paid)
         {
             return;
         }
-        if (expired && (Status is not (CourseCartStatus.Preparing or CourseCartStatus.Ready) || ExpiresAtUtc > DateTime.UtcNow))
+        if (expired && (Status is not (CartStatus.Preparing or CartStatus.Ready) || ExpiresAtUtc > DateTime.UtcNow))
         {
             return;
         }
-        Status = expired ? CourseCartStatus.Expired : CourseCartStatus.Failed;
+        Status = expired ? CartStatus.Expired : CartStatus.Failed;
         UpdatedAtUtc = DateTime.UtcNow;
     }
 

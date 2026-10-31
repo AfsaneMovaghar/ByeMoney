@@ -1,5 +1,5 @@
-using ByeMoney.Application.Modules.Purchases.Cart.DTOs;
-using ByeMoney.Application.Modules.Purchases.Cart.Services;
+using ByeMoney.Application.Modules.Purchases.Carts.DTOs;
+using ByeMoney.Application.Modules.Purchases.Carts.Services;
 using ByeMoney.Application.Modules.Purchases.Commands.PrepareCourseCart;
 using ByeMoney.Application.Modules.Purchases.History.DTOs;
 using ByeMoney.Application.Modules.Purchases.History.Services;
@@ -25,7 +25,7 @@ public sealed class PhysicalProductCartFinancialTests
         var systemAccount = Account.CreateSystemAccount();
 
         var cartId = Guid.NewGuid();
-        var cart = CourseCart.Create(cartId, buyer.Value, "buyer-ext-1", [
+        var cart = Cart.Create(cartId, buyer.Value, "buyer-ext-1", [
             new CartItemInput("course-1", ProductItemType.Course, 1),
             new CartItemInput("product-1", ProductItemType.Product, 2)
         ], "DISCOUNT");
@@ -38,8 +38,8 @@ public sealed class PhysicalProductCartFinancialTests
         // Cart.Total: 200 - 30 - 20 + 25 = 175
         // Allocations: 80 + 70 = 150. Allocations (150) + Shipping (25) == 175
         cart.SetQuote([
-            new CourseCartQuoteItem("course-1", "Ø¯ÙˆØ±Ù‡ Ø¢Ù…ÙˆØ²Ø´ÛŒ", 100m, 10m, 10m, 80m, ProductItemType.Course, null, 1),
-            new CourseCartQuoteItem("product-1", "Ú©ØªØ§Ø¨ ÙÛŒØ²ÛŒÚ©ÛŒ", 50m, 20m, 10m, 70m, ProductItemType.Product, null, 2)
+            new CartQuoteItem("course-1", "Ø¯ÙˆØ±Ù‡ Ø¢Ù…ÙˆØ²Ø´ÛŒ", 100m, 10m, 10m, 80m, ProductItemType.Course, null, 1),
+            new CartQuoteItem("product-1", "Ú©ØªØ§Ø¨ ÙÛŒØ²ÛŒÚ©ÛŒ", 50m, 20m, 10m, 70m, ProductItemType.Product, null, 2)
         ], shippingAmountInNoor: 25m);
 
         cart.OriginalTotal.Should().Be(200m);
@@ -51,7 +51,7 @@ public sealed class PhysicalProductCartFinancialTests
         var payment = CourseCartPayment.Apply(cart, new ProvisionedUserWallet(userAccount, wallet), systemAccount);
 
         wallet.WithdrawableBalance.Should().Be(825m);
-        cart.Status.Should().Be(CourseCartStatus.Paid);
+        cart.Status.Should().Be(CartStatus.Paid);
 
         // Verify CoursePurchase
         payment.Purchases.Should().HaveCount(1);
@@ -90,13 +90,13 @@ public sealed class PhysicalProductCartFinancialTests
         wallet.ApplyCredit(100m);
         var systemAccount = Account.CreateSystemAccount();
 
-        var cart = CourseCart.Create(Guid.NewGuid(), buyer.Value, "buyer-ext-2", [
+        var cart = Cart.Create(Guid.NewGuid(), buyer.Value, "buyer-ext-2", [
             new CartItemInput("product-gift", ProductItemType.Product, 1)
         ], "100OFF");
 
         // 100% discount on item, but shipping fee is 30
         cart.SetQuote([
-            new CourseCartQuoteItem("product-gift", "Ù‡Ø¯ÛŒÙ‡", 50m, 50m, 0m, 0m, ProductItemType.Product, null, 1)
+            new CartQuoteItem("product-gift", "Ù‡Ø¯ÛŒÙ‡", 50m, 50m, 0m, 0m, ProductItemType.Product, null, 1)
         ], shippingAmountInNoor: 30m);
 
         cart.Total.Should().Be(30m);
@@ -122,12 +122,12 @@ public sealed class PhysicalProductCartFinancialTests
         var wallet = Wallet.Create(userAccount.Id, buyer);
         wallet.ApplyCredit(50m);
 
-        var cart = CourseCart.Create(Guid.NewGuid(), buyer.Value, "buyer-ext-3", [
+        var cart = Cart.Create(Guid.NewGuid(), buyer.Value, "buyer-ext-3", [
             new CartItemInput("product-free", ProductItemType.Product, 1)
         ], null);
 
         cart.SetQuote([
-            new CourseCartQuoteItem("product-free", "Ø±Ø§ÛŒÚ¯Ø§Ù†", 0m, 0m, 0m, 0m, ProductItemType.Product, null, 1)
+            new CartQuoteItem("product-free", "Ø±Ø§ÛŒÚ¯Ø§Ù†", 0m, 0m, 0m, 0m, ProductItemType.Product, null, 1)
         ], shippingAmountInNoor: 0m);
 
         cart.Total.Should().Be(0m);
@@ -182,7 +182,7 @@ public sealed class PhysicalProductCartFinancialTests
         var buyer = Guid.NewGuid();
         var cartId = Guid.NewGuid();
 
-        var cart = CourseCart.Create(cartId, buyer, "buyer-ext-4", [
+        var cart = Cart.Create(cartId, buyer, "buyer-ext-4", [
             new CartItemInput("product-x", ProductItemType.Product, 2)
         ], null);
 
@@ -208,15 +208,15 @@ public sealed class PhysicalProductCartFinancialTests
         var result = validator.Validate(duplicateCommand);
         result.IsValid.Should().BeFalse();
 
-        var cart = CourseCart.Create(Guid.NewGuid(), Guid.NewGuid(), "buyer-1", [
+        var cart = Cart.Create(Guid.NewGuid(), Guid.NewGuid(), "buyer-1", [
             new CartItemInput("product-1", ProductItemType.Product, 1),
             new CartItemInput("product-2", ProductItemType.Product, 1)
         ], null);
 
         // Quote with duplicate items throws ArgumentException
         Action setDuplicateQuote = () => cart.SetQuote([
-            new CourseCartQuoteItem("product-1", "Ú©Ø§Ù„Ø§ Û±", 10m, 0m, 0m, 10m, ProductItemType.Product, null, 1),
-            new CourseCartQuoteItem("product-1", "Ú©Ø§Ù„Ø§ Û± ØªÚ©Ø±Ø§Ø±ÛŒ", 10m, 0m, 0m, 10m, ProductItemType.Product, null, 1)
+            new CartQuoteItem("product-1", "Ú©Ø§Ù„Ø§ Û±", 10m, 0m, 0m, 10m, ProductItemType.Product, null, 1),
+            new CartQuoteItem("product-1", "Ú©Ø§Ù„Ø§ Û± ØªÚ©Ø±Ø§Ø±ÛŒ", 10m, 0m, 0m, 10m, ProductItemType.Product, null, 1)
         ]);
 
         setDuplicateQuote.Should().Throw<ArgumentException>();
@@ -261,13 +261,13 @@ public sealed class PhysicalProductCartFinancialTests
         wallet.ApplyCredit(1000m);
         var systemAccount = Account.CreateSystemAccount();
 
-        var cart = CourseCart.Create(Guid.NewGuid(), buyer.Value, "buyer-ext-err", [
+        var cart = Cart.Create(Guid.NewGuid(), buyer.Value, "buyer-ext-err", [
             new CartItemInput("product-err", ProductItemType.Product, 1)
         ], null);
 
         // PriceInNoor arithmetic broken: LineTotal (100) - ItemDiscount(0) - CouponDiscount(0) != PriceInNoor(80)
         Action invalidPrice = () => cart.SetQuote([
-            new CourseCartQuoteItem("product-err", "Ú©Ø§Ù„Ø§", 100m, 0m, 0m, 80m, ProductItemType.Product, null, 1)
+            new CartQuoteItem("product-err", "Ú©Ø§Ù„Ø§", 100m, 0m, 0m, 80m, ProductItemType.Product, null, 1)
         ], shippingAmountInNoor: 10m);
 
         invalidPrice.Should().Throw<ArgumentException>();
@@ -278,12 +278,12 @@ public sealed class PhysicalProductCartFinancialTests
     public void ShippingRuleLabelIsRecordedAndExposedOnCart()
     {
         var buyer = new UserId(Guid.NewGuid());
-        var cart = CourseCart.Create(Guid.NewGuid(), buyer.Value, "buyer-ext-label", [
+        var cart = Cart.Create(Guid.NewGuid(), buyer.Value, "buyer-ext-label", [
             new CartItemInput("product-label", ProductItemType.Product, 1)
         ], null);
 
         cart.SetQuote([
-            new CourseCartQuoteItem("product-label", "Ú©ØªØ§Ø¨", 100m, 0m, 0m, 100m, ProductItemType.Product, null, 1)
+            new CartQuoteItem("product-label", "Ú©ØªØ§Ø¨", 100m, 0m, 0m, 100m, ProductItemType.Product, null, 1)
         ], shippingAmountInNoor: 20m, shippingRuleLabel: "Ø§Ø±Ø³Ø§Ù„ Ø«Ø§Ø¨Øª Ø³Ø±Ø§Ø³Ø±ÛŒ");
 
         cart.ShippingAmountInNoor.Should().Be(20m);
@@ -294,13 +294,13 @@ public sealed class PhysicalProductCartFinancialTests
     public void PhysicalProductPurchaseReceipt_ComputesCorrectBaseAmountAndDiscounts()
     {
         var buyer = new UserId(Guid.NewGuid());
-        var cart = CourseCart.Create(Guid.NewGuid(), buyer.Value, "buyer-ext-receipt", [
+        var cart = Cart.Create(Guid.NewGuid(), buyer.Value, "buyer-ext-receipt", [
             new CartItemInput("product-book", ProductItemType.Product, 3)
         ], "OFFER");
 
         // 3 items * 50 = 150 base. Discounts: 30 item discount, 20 coupon discount => 100 paid
         cart.SetQuote([
-            new CourseCartQuoteItem("product-book", "Ú©ØªØ§Ø¨ ÙÛŒØ²ÛŒÚ©ÛŒ", 50m, 30m, 20m, 100m, ProductItemType.Product, null, 3)
+            new CartQuoteItem("product-book", "Ú©ØªØ§Ø¨ ÙÛŒØ²ÛŒÚ©ÛŒ", 50m, 30m, 20m, 100m, ProductItemType.Product, null, 3)
         ], shippingAmountInNoor: 15m, shippingRuleLabel: "Ø§Ø±Ø³Ø§Ù„ ÙˆÛŒÚ˜Ù‡");
 
         var physicalId = PhysicalProductPurchaseId.New();

@@ -1,8 +1,8 @@
-using ByeMoney.Application.Modules.Purchases.Cart.DTOs;
+using ByeMoney.Application.Modules.Purchases.Carts.DTOs;
 using ByeMoney.Domain.Common.Generic;
 using ByeMoney.Domain.Common;
 
-namespace ByeMoney.Application.Modules.Purchases.Cart.Interfaces;
+namespace ByeMoney.Application.Modules.Purchases.Carts.Interfaces;
 
 public interface ICartPricingClient
 {

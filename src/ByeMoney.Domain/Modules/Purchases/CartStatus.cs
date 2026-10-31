@@ -2,7 +2,7 @@
 
 namespace ByeMoney.Domain.Modules.Purchases;
 
-public enum CourseCartStatus
+public enum CartStatus
 {
     Preparing,
     Ready,
