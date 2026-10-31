@@ -271,4 +271,29 @@ public sealed class CartRefreshTests
         _store.Verify(x => x.FailAsync(cart.Id, _buyer.Id.Value, false, It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Once);
         _store.Verify(x => x.ReopenAsync(cart.Id, _buyer.Id.Value, It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Once);
     }
+
+    [Fact]
+    public async Task ProcessAsync_WhenTopUpIsExceptionalConfirmation_FailsCartAndDoesNotPurchase()
+    {
+        var topUp = TopUpRequest.CreateGateway(new UserId(_buyer.Id.Value), 105m, 137m);
+        typeof(TopUpRequest).GetProperty(nameof(TopUpRequest.IsExceptionalConfirmation))!
+            .SetValue(topUp, true);
+        typeof(TopUpRequest).GetProperty(nameof(TopUpRequest.Status))!
+            .SetValue(topUp, TopUpStatus.Confirmed);
+
+        var topUps = new Mock<ITopUpRequestRepository>();
+        topUps.Setup(x => x.GetByIdAsync(topUp.Id, It.IsAny<CancellationToken>())).ReturnsAsync(topUp);
+
+        var cart = Ready();
+        cart.AwaitTopUp(topUp.Id.Value);
+
+        var purchases = new Mock<ICoursePurchaseRepository>();
+        var service = new CartService(_store.Object, _pricing.Object, Mock.Of<IUserRepository>(),
+            Mock.Of<IWalletRepository>(), Mock.Of<ISystemSettingRepository>(), purchases.Object, topUps.Object);
+
+        await service.ProcessAsync(cart, default);
+
+        _store.Verify(x => x.FailAsync(cart.Id, _buyer.Id.Value, false, cart.ReservationId, It.IsAny<CancellationToken>()), Times.Once);
+        purchases.Verify(x => x.AddAsync(It.IsAny<CoursePurchase>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
 }

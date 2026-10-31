@@ -4,6 +4,7 @@ using ByeMoney.Application.Modules.Wallet.Commands.ConfirmGatewayTopUp;
 using ByeMoney.Application.Modules.Wallet.Commands.RecordGatewayResult;
 using ByeMoney.Application.Modules.Wallet.Commands.ResolveGatewayReview;
 using ByeMoney.Application.Modules.Wallet.Constants;
+using ByeMoney.Application.Modules.Wallet.DTOs;
 using ByeMoney.Application.Modules.Wallet.Interfaces;
 using ByeMoney.Application.Modules.Wallet.Services;
 using ByeMoney.Domain.Modules.Identity.Constants;
@@ -201,5 +202,135 @@ public class ManualGatewayReviewTests
             .Cast<AuthorizeAttribute>().Should().Contain(x => x.Policy == PolicyNames.RequireTopUpReview);
         typeof(AdminGatewayReviewController).GetCustomAttributes(typeof(AllowAnonymousAttribute), true).Should().BeEmpty();
         typeof(GatewayTopUpController).GetMethod("ResolveReview").Should().BeNull();
+    }
+
+    [Fact]
+    public async Task ConfirmedExceptional_Succeeds_AndCreditsViaNoorCreditService()
+    {
+        var topUp = TopUpRequest.CreateGateway(UserId.New(), 10m, 1000m);
+        topUp.Reject("User cancelled");
+        topUp.RecordGatewayResult("evt-v", "SEP", GatewayResultKinds.Verified, "ext-tx-1", "bank-ref-1", "0", 10000m, 10000m, DateTime.UtcNow);
+
+        var repository = new Mock<ITopUpRequestRepository>();
+        repository.Setup(x => x.GetByClientReferenceCodeAsync(topUp.ClientReferenceCode, It.IsAny<CancellationToken>())).ReturnsAsync(topUp);
+
+        var noorCredit = new Mock<INoorCreditService>();
+        noorCredit.Setup(x => x.CreditAsync(It.IsAny<NoorCreditRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new NoorCreditResult(Guid.NewGuid(), 10m, 10m, 0m, null!));
+
+        var uow = new Mock<IUnitOfWork>();
+        var publisher = new Mock<IPublisher>();
+        var service = new GatewayTopUpService(repository.Object, Mock.Of<ITopUpSettlementService>(),
+            noorCredit.Object, uow.Object, publisher.Object, Mock.Of<IServiceScopeFactory>());
+
+        var evidence = new FinancialReviewEvidence(Guid.NewGuid(), ExpectedRevision: 1, CheckedReportDate: new DateOnly(2026, 10, 31),
+            MatchingDepositFound: true, Note: "تأیید استثنایی", DepositReference: "ext-tx-1", DepositDate: new DateOnly(2026, 10, 31),
+            DepositAmountRial: 10000m, ManualRefundReference: null);
+
+        var result = await service.ResolveManualReviewAsync(topUp.ClientReferenceCode, topUp.ReviewCaseId!,
+            FinancialReviewOutcomeCodes.ConfirmedExceptional, "ext-tx-1", evidence, Guid.NewGuid(), "Admin");
+
+        result.IsSuccess.Should().BeTrue();
+        topUp.Status.Should().Be(TopUpStatus.Confirmed);
+        topUp.IsExceptionalConfirmation.Should().BeTrue();
+        topUp.ReviewOutcomeCode.Should().Be(FinancialReviewOutcomeCodes.ConfirmedExceptional);
+
+        noorCredit.Verify(x => x.CreditAsync(It.Is<NoorCreditRequest>(r =>
+            r.AmountNoor == 10m &&
+            r.UserId == topUp.UserId &&
+            r.ReferenceType == ByeMoney.Domain.Modules.Wallet.Ledgers.LedgerReferenceType.TopUp), It.IsAny<CancellationToken>()), Times.Once);
+
+        uow.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+        publisher.Verify(x => x.Publish(It.IsAny<object>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task ConfirmedExceptional_Fails_WhenManualRefundRecorded()
+    {
+        var topUp = TopUpRequest.CreateGateway(UserId.New(), 10m, 1000m);
+        topUp.Reject("User cancelled");
+        topUp.RecordGatewayResult("evt-v", "SEP", GatewayResultKinds.Verified, "ext-tx-2", "bank-ref-2", "0", 10000m, 10000m, DateTime.UtcNow);
+
+        // Record manual refund
+        var refundEvidence = Evidence() with { ManualRefundReference = "refund-123" };
+        topUp.ResolveManualReview(topUp.ReviewCaseId!, FinancialReviewOutcomeCodes.ManualRefund, null, refundEvidence, Guid.NewGuid(), "Admin");
+
+        var repository = new Mock<ITopUpRequestRepository>();
+        repository.Setup(x => x.GetByClientReferenceCodeAsync(topUp.ClientReferenceCode, It.IsAny<CancellationToken>())).ReturnsAsync(topUp);
+
+        var service = new GatewayTopUpService(repository.Object, Mock.Of<ITopUpSettlementService>(),
+            Mock.Of<INoorCreditService>(), Mock.Of<IUnitOfWork>(), Mock.Of<IPublisher>(), Mock.Of<IServiceScopeFactory>());
+
+        var evidence = new FinancialReviewEvidence(Guid.NewGuid(), ExpectedRevision: 2, CheckedReportDate: new DateOnly(2026, 10, 31),
+            MatchingDepositFound: true, Note: "تأیید استثنایی", DepositReference: "ext-tx-2", DepositDate: new DateOnly(2026, 10, 31),
+            DepositAmountRial: 10000m, ManualRefundReference: null);
+
+        var result = await service.ResolveManualReviewAsync(topUp.ClientReferenceCode, topUp.ReviewCaseId!,
+            FinancialReviewOutcomeCodes.ConfirmedExceptional, "ext-tx-2", evidence, Guid.NewGuid(), "Admin");
+
+        result.IsFailure.Should().BeTrue();
+        topUp.Status.Should().Be(TopUpStatus.ManuallyRefunded);
+    }
+
+    [Fact]
+    public async Task ConfirmedExceptional_Fails_WhenReverseSucceededRecorded()
+    {
+        var topUp = TopUpRequest.CreateGateway(UserId.New(), 10m, 1000m);
+        topUp.Reject("Gateway reversed");
+        topUp.RecordGatewayResult("evt-rev", "SEP", GatewayResultKinds.ReverseSucceeded, "ext-tx-3", "bank-ref-3", "0", 10000m, 10000m, DateTime.UtcNow);
+        topUp.RecordGatewayResult("evt-ver", "SEP", GatewayResultKinds.Verified, "ext-tx-3", "bank-ref-3", "0", 10000m, 10000m, DateTime.UtcNow);
+
+        var repository = new Mock<ITopUpRequestRepository>();
+        repository.Setup(x => x.GetByClientReferenceCodeAsync(topUp.ClientReferenceCode, It.IsAny<CancellationToken>())).ReturnsAsync(topUp);
+
+        var service = new GatewayTopUpService(repository.Object, Mock.Of<ITopUpSettlementService>(),
+            Mock.Of<INoorCreditService>(), Mock.Of<IUnitOfWork>(), Mock.Of<IPublisher>(), Mock.Of<IServiceScopeFactory>());
+
+        var evidence = new FinancialReviewEvidence(Guid.NewGuid(), ExpectedRevision: topUp.ReviewRevision, CheckedReportDate: new DateOnly(2026, 10, 31),
+            MatchingDepositFound: true, Note: "تأیید استثنایی", DepositReference: "ext-tx-3", DepositDate: new DateOnly(2026, 10, 31),
+            DepositAmountRial: 10000m, ManualRefundReference: null);
+
+        var result = await service.ResolveManualReviewAsync(topUp.ClientReferenceCode, topUp.ReviewCaseId!,
+            FinancialReviewOutcomeCodes.ConfirmedExceptional, "ext-tx-3", evidence, Guid.NewGuid(), "Admin");
+
+        result.IsFailure.Should().BeTrue();
+        topUp.Status.Should().Be(TopUpStatus.Rejected);
+    }
+
+    [Fact]
+    public async Task ConfirmedExceptional_Fails_WhenAmountMismatches()
+    {
+        var topUp = TopUpRequest.CreateGateway(UserId.New(), 10m, 1000m);
+        topUp.Reject("User cancelled");
+        topUp.RecordGatewayResult("evt-v", "SEP", GatewayResultKinds.Verified, "ext-tx-4", "bank-ref-4", "0", 10000m, 10000m, DateTime.UtcNow);
+
+        var repository = new Mock<ITopUpRequestRepository>();
+        repository.Setup(x => x.GetByClientReferenceCodeAsync(topUp.ClientReferenceCode, It.IsAny<CancellationToken>())).ReturnsAsync(topUp);
+
+        var service = new GatewayTopUpService(repository.Object, Mock.Of<ITopUpSettlementService>(),
+            Mock.Of<INoorCreditService>(), Mock.Of<IUnitOfWork>(), Mock.Of<IPublisher>(), Mock.Of<IServiceScopeFactory>());
+
+        var evidence = new FinancialReviewEvidence(Guid.NewGuid(), ExpectedRevision: 1, CheckedReportDate: new DateOnly(2026, 10, 31),
+            MatchingDepositFound: true, Note: "مبلغ مغایر", DepositReference: "ext-tx-4", DepositDate: new DateOnly(2026, 10, 31),
+            DepositAmountRial: 9000m, ManualRefundReference: null);
+
+        var result = await service.ResolveManualReviewAsync(topUp.ClientReferenceCode, topUp.ReviewCaseId!,
+            FinancialReviewOutcomeCodes.ConfirmedExceptional, "ext-tx-4", evidence, Guid.NewGuid(), "Admin");
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be(GatewayTopUpErrorCodes.TopUpAmountMismatch);
+        topUp.Status.Should().Be(TopUpStatus.Rejected);
+    }
+
+    [Fact]
+    public void SimpleAdminConfirm_StillRejects_RejectedTopUp()
+    {
+        var topUp = TopUpRequest.CreateGateway(UserId.New(), 10m, 1000m);
+        topUp.Reject("Cancelled");
+
+        var result = topUp.ConfirmGateway("ext-tx-5", "bank-ref-5", "SEP");
+
+        result.IsFailure.Should().BeTrue();
+        topUp.Status.Should().Be(TopUpStatus.Rejected);
     }
 }

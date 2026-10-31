@@ -237,7 +237,7 @@ Pending → Confirmed یا Rejected در مدل پایه موجود است. اس
 {
   "clientReferenceCode": "TR-XXXXXXXX",
   "caseId": "UUID",
-  "outcomeCode": "PAID_AND_CONFIRMED | NO_MATCHING_DEPOSIT | REVERSED_REJECTED | MANUAL_REFUND",
+  "outcomeCode": "PAID_AND_CONFIRMED | NO_MATCHING_DEPOSIT | REVERSED_REJECTED | MANUAL_REFUND | CONFIRMED_EXCEPTIONAL",
   "resolutionFinancialReferenceId": "شناسه مرجع مالی یا null",
   "evidence": {
     "operationId": "UUID",
@@ -253,13 +253,16 @@ Pending → Confirmed یا Rejected در مدل پایه موجود است. اس
 }
 ```
 
-#### ۳. رفتار و اثر مالی چهار نتیجه
+#### ۳. رفتار و اثر مالی نتایج
 | نتیجه در پنل | شرایط بستن از فرمان resolve | اثر مالی |
 |---|---|---|
 | پرداخت شده و نور شارژ شده (`PAID_AND_CONFIRMED`) | TopUp واقعاً `Confirmed` و نتیجه پرداخت معتبر (`Verified`) ثبت شده باشد | بستن پرونده هیچ اثر مالی تازه‌ای ندارد |
+| تأیید استثنایی و شارژ نور (`CONFIRMED_EXCEPTIONAL`) | TopUp در وضعیت `Rejected` باشد؛ نتیجهٔ `Verified` معتبر بانکی ثبت شده باشد؛ سابقهٔ `MANUAL_REFUND` یا `ReverseSucceeded` نباشد؛ مبلغ بانکی با Snapshot شارژ برابر باشد | وضعیت به `Confirmed` تغییر می‌کند؛ نور معادل از مسیر `NoorCreditService` شارژ شده و لجر و ممیزی اتمیک ثبت می‌شوند؛ نشانگر `IsExceptionalConfirmation` ثبت شده و هیچ خرید خودکاری انجام نمی‌شود |
 | واریز منطبق پیدا نشد (`NO_MATCHING_DEPOSIT`) | تاریخ گزارش تقویمی و `matchingDepositFound=false` ثبت شده باشد؛ TopUp تأییدشده نباشد | وضعیت درخواست به `Unresolved` تغییر می‌کند؛ بدون اثر Ledger. نتیجه بانکی تازه تا بازگشایی نیازمند رسیدگی مالی است |
 | برگشت‌خورده (`REVERSED_REJECTED`) | `ReverseSucceeded` معتبر از مسیر نتیجه درگاه ثبت شده و TopUp با آن سازگار باشد | بستن پرونده هیچ اثر مالی تازه‌ای ندارد |
 | وجه خارج از سامانه به کاربر برگشت داده شد (`MANUAL_REFUND`) | TopUp تأییدنشده باشد (`Pending` یا `Rejected`) و `manualRefundReference` ثبت شود؛ روی `Confirmed` با خطای ۴۲۲ `REVIEW_MANUAL_REFUND_NOT_SUPPORTED` رد می‌شود | وضعیت به `ManuallyRefunded` تغییر می‌کند؛ بدون شارژ کیف پول یا جبران Ledger |
+
+**ثبت نتیجهٔ Verified روی شارژ Rejected:** رسیدن نتیجهٔ `Verified` روی شارژ در وضعیت `Rejected`، شواهد بانکی را ذخیره کرده و پرونده را با کد `BANK_CONFLICT` باز می‌کند، اما به هیچ وجه شارژ را به‌صورت خودکار تأیید نمی‌کند تا بررسی دستی توسط کارمند با مجوز `RequireTopUpReview` انجام گیرد.
 
 **حفاظت دائمی پس از بازپرداخت دستی:** پس از ثبت `MANUAL_REFUND`، حتی در صورت رسیدن Verify دیرهنگام بانکی، سامانه خودکار نور ایجاد نمی‌کند و وجه را مجدداً برگشت نمی‌زند؛ درخواست به وضعیت `financial_review` هدایت می‌شود. این محدودیت با بازگشایی پرونده نیز پاک نمی‌شود.
 

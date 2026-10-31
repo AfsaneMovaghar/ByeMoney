@@ -28,6 +28,31 @@ public class TopUpConfirmedPurchaseHandler : INotificationHandler<TopUpConfirmed
     private readonly IUnitOfWork _unitOfWork;
     private readonly ICoursePurchaseNotifier _notifier;
     private readonly ILogger<TopUpConfirmedPurchaseHandler> _logger;
+    private readonly ITopUpRequestRepository _topUpRequestRepository;
+
+    public TopUpConfirmedPurchaseHandler(
+        IUserRepository userRepository,
+        ITarhElahiIntegrationClient tarhElahiClient,
+        ICoursePurchaseRepository coursePurchaseRepository,
+        IUserWalletProvisioningService walletProvisioningService,
+        IWalletPostingService walletPostingService,
+        IUnitOfWork unitOfWork,
+        ICoursePurchaseNotifier notifier,
+        ILogger<TopUpConfirmedPurchaseHandler> logger,
+        ISystemSettingRepository settings,
+        ITopUpRequestRepository topUpRequestRepository)
+    {
+        _settings = settings;
+        _userRepository = userRepository;
+        _tarhElahiClient = tarhElahiClient;
+        _coursePurchaseRepository = coursePurchaseRepository;
+        _walletProvisioningService = walletProvisioningService;
+        _walletPostingService = walletPostingService;
+        _unitOfWork = unitOfWork;
+        _notifier = notifier;
+        _logger = logger;
+        _topUpRequestRepository = topUpRequestRepository;
+    }
 
     public TopUpConfirmedPurchaseHandler(
         IUserRepository userRepository,
@@ -39,20 +64,25 @@ public class TopUpConfirmedPurchaseHandler : INotificationHandler<TopUpConfirmed
         ICoursePurchaseNotifier notifier,
         ILogger<TopUpConfirmedPurchaseHandler> logger,
         ISystemSettingRepository settings)
+        : this(userRepository, tarhElahiClient, coursePurchaseRepository, walletProvisioningService,
+            walletPostingService, unitOfWork, notifier, logger, settings, null!)
     {
-        _settings = settings;
-        _userRepository = userRepository;
-        _tarhElahiClient = tarhElahiClient;
-        _coursePurchaseRepository = coursePurchaseRepository;
-        _walletProvisioningService = walletProvisioningService;
-        _walletPostingService = walletPostingService;
-        _unitOfWork = unitOfWork;
-        _notifier = notifier;
-        _logger = logger;
     }
 
     public async Task Handle(TopUpConfirmed notification, CancellationToken cancellationToken)
     {
+        if (_topUpRequestRepository is not null)
+        {
+            var topUp = await _topUpRequestRepository.GetByIdAsync(notification.TopUpRequestId, cancellationToken);
+            if (topUp is { IsExceptionalConfirmation: true })
+            {
+                _logger.LogInformation(
+                    "Auto-purchase on TopUpConfirmed skipped: TopUp {TopUpRequestId} was confirmed exceptionally (D19.4).",
+                    notification.TopUpRequestId);
+                return;
+            }
+        }
+
         if (notification.PendingItems == null || notification.PendingItems.Count == 0)
         {
             return;

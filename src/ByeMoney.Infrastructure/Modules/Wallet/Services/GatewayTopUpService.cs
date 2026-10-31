@@ -9,6 +9,8 @@ using ByeMoney.Application.Modules.Wallet.Events;
 using ByeMoney.Application.Modules.Wallet.Interfaces;
 using ByeMoney.Application.Resources;
 using ByeMoney.Domain.Common;
+using ByeMoney.Domain.Modules.Identity.Users;
+using ByeMoney.Domain.Modules.Wallet.Ledgers;
 using ByeMoney.Domain.Modules.Wallet.TopUps;
 using ByeMoney.Domain.Resources;
 using MediatR;
@@ -21,10 +23,21 @@ namespace ByeMoney.Infrastructure.Modules.Wallet.Services;
 public sealed class GatewayTopUpService(
     ITopUpRequestRepository topUpRequestRepository,
     ITopUpSettlementService settlementService,
+    INoorCreditService noorCreditService,
     IUnitOfWork unitOfWork,
     IPublisher publisher,
     IServiceScopeFactory scopeFactory) : IGatewayTopUpService
 {
+    public GatewayTopUpService(
+        ITopUpRequestRepository topUpRequestRepository,
+        ITopUpSettlementService settlementService,
+        IUnitOfWork unitOfWork,
+        IPublisher publisher,
+        IServiceScopeFactory scopeFactory)
+        : this(topUpRequestRepository, settlementService, null!, unitOfWork, publisher, scopeFactory)
+    {
+    }
+
     private static GatewayReviewState ReviewState(TopUpRequest topUp) => new(
         topUp.ClientReferenceCode, topUp.ReviewCaseId!, topUp.Status.ToString(),
         topUp.ReviewReasonCode!, topUp.ReviewOpenedAtUtc!.Value, topUp.ReviewResolvedAtUtc,
@@ -44,8 +57,62 @@ public sealed class GatewayTopUpService(
         if (evidence.MatchingDepositFound == true && evidence.DepositAmountRial != topUp.AmountRial)
             return Result<GatewayReviewState>.Failure(ApplicationErrors.TopUpRequest_ReviewEvidenceInvalid,
                 GatewayTopUpErrorCodes.TopUpAmountMismatch);
+
+        if (outcomeCode == FinancialReviewOutcomeCodes.ConfirmedExceptional)
+        {
+            if (topUp.AmountRial is null ||
+                evidence.DepositAmountRial != topUp.AmountRial ||
+                (topUp.GatewayAffectiveAmountRial.HasValue && topUp.GatewayAffectiveAmountRial.Value != topUp.AmountRial))
+            {
+                return Result<GatewayReviewState>.Failure(
+                    string.Format(ApplicationErrors.TopUpRequest_AmountMismatch, evidence.DepositAmountRial, topUp.AmountRial),
+                    GatewayTopUpErrorCodes.TopUpAmountMismatch);
+            }
+            if (topUp.ManualRefundReference is not null || topUp.Status == TopUpStatus.ManuallyRefunded)
+            {
+                return Result<GatewayReviewState>.Conflict(DomainErrors.TopUpRequest_ReviewStateMismatch,
+                    GatewayTopUpErrorCodes.ReviewConflict);
+            }
+            if (topUp.HasReverseSucceededHistory)
+            {
+                return Result<GatewayReviewState>.Conflict(DomainErrors.TopUpRequest_ReviewStateMismatch,
+                    GatewayTopUpErrorCodes.ReviewConflict);
+            }
+            if (string.IsNullOrWhiteSpace(topUp.ExternalTransactionId) ||
+                string.IsNullOrWhiteSpace(topUp.BankReferenceNumber) ||
+                !topUp.HasVerifiedHistory)
+            {
+                return Result<GatewayReviewState>.Conflict(DomainErrors.TopUpRequest_ReviewStateMismatch,
+                    GatewayTopUpErrorCodes.ReviewConflict);
+            }
+        }
+
+        var prior = topUp.ReviewAudit.FirstOrDefault(x => x.EventId == evidence.OperationId.ToString());
+        if (prior is not null)
+        {
+            if (topUp.ReviewCaseId == caseId && prior.ActorUserId == actorUserId &&
+                prior.OutcomeCode == outcomeCode && prior.FinancialReferenceId == (financialReferenceId ?? topUp.ExternalTransactionId) &&
+                prior.Evidence == evidence)
+                return Result<GatewayReviewState>.Success(ReviewState(topUp));
+            return Result<GatewayReviewState>.Conflict(DomainErrors.TopUpRequest_ReviewConflict, GatewayTopUpErrorCodes.ReviewConflict);
+        }
+
         var result = topUp.ResolveManualReview(caseId, outcomeCode, financialReferenceId, evidence, actorUserId, actorName);
         if (result.IsFailure) return Result<GatewayReviewState>.Conflict(result.ErrorMessage!, GatewayTopUpErrorCodes.ReviewConflict);
+
+        if (outcomeCode == FinancialReviewOutcomeCodes.ConfirmedExceptional)
+        {
+            await noorCreditService.CreditAsync(
+                new NoorCreditRequest(
+                    UserId: topUp.UserId,
+                    AmountNoor: topUp.AmountNoor,
+                    BalanceType: LedgerBalanceType.Regular,
+                    ReferenceType: LedgerReferenceType.TopUp,
+                    ReferenceId: topUp.Id.ToString(),
+                    PerformedByUserId: new UserId(actorUserId)),
+                ct);
+        }
+
         topUpRequestRepository.Update(topUp);
         try { await unitOfWork.SaveChangesAsync(ct); }
         catch (DbUpdateConcurrencyException)
@@ -53,9 +120,9 @@ public sealed class GatewayTopUpService(
             using var scope = scopeFactory.CreateScope();
             var fresh = await scope.ServiceProvider.GetRequiredService<ITopUpRequestRepository>()
                 .GetByClientReferenceCodeAsync(clientReferenceCode, ct);
-            var prior = fresh?.ReviewAudit.FirstOrDefault(x => x.EventId == evidence.OperationId.ToString());
-            if (fresh is not null && prior?.Evidence == evidence && prior.ActorUserId == actorUserId &&
-                prior.OutcomeCode == outcomeCode && prior.FinancialReferenceId == financialReferenceId)
+            var freshPrior = fresh?.ReviewAudit.FirstOrDefault(x => x.EventId == evidence.OperationId.ToString());
+            if (fresh is not null && freshPrior?.Evidence == evidence && freshPrior.ActorUserId == actorUserId &&
+                freshPrior.OutcomeCode == outcomeCode && freshPrior.FinancialReferenceId == (financialReferenceId ?? fresh.ExternalTransactionId))
                 return Result<GatewayReviewState>.Success(ReviewState(fresh));
             return Result<GatewayReviewState>.Conflict(DomainErrors.TopUpRequest_ReviewConflict, GatewayTopUpErrorCodes.ReviewConflict);
         }
@@ -250,6 +317,17 @@ public sealed class GatewayTopUpService(
 
         if (command.Kind == GatewayResultKinds.Verified)
         {
+            if (topUp.Status == TopUpStatus.Rejected)
+            {
+                if (!repeated)
+                {
+                    var saveResult = await SaveTopUpAsync(topUp, ct);
+                    if (saveResult.IsFailure)
+                        return saveResult;
+                }
+                return Result.Success();
+            }
+
             var outcome = await ConfirmAsync(new ConfirmGatewayTopUpCommand(command.ClientReferenceCode,
                 command.Gateway, command.BankTransactionId!, command.BankReferenceNumber!,
                 command.OriginalAmountRial!.Value, command.AffectiveAmountRial!.Value), ct);

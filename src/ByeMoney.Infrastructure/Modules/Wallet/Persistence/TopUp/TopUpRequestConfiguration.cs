@@ -48,6 +48,10 @@ public class TopUpRequestConfiguration : IEntityTypeConfiguration<TopUpRequest>
             .IsConcurrencyToken()
             .IsRequired();
 
+        builder.Property(t => t.IsExceptionalConfirmation)
+            .HasDefaultValue(false)
+            .IsRequired();
+
         builder.Property(t => t.ClientReferenceCode)
             .HasMaxLength(32)
             .IsRequired();

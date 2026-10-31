@@ -87,6 +87,18 @@ public class TopUpRequest : BaseEntity<TopUpRequestId>
     /// <summary>اقلام خرید موقت متصل به شارژ و snapshot نوع، شناسه و قیمت هر قلم؛ برای ادامه خرید پس از تأیید پرداخت ذخیره می‌شود.</summary>
     public IReadOnlyList<PendingItemSnapshot> PendingItems { get; private set; } = [];
 
+    /// <summary>نشانگر صریح اینکه آیا شارژ از مسیر تأیید استثنایی پرونده‌های مالی تایید شده است؛ شارژ دارای این نشانگر هرگز نباید به خرید خودکار برسد.</summary>
+    public bool IsExceptionalConfirmation { get; private set; }
+
+    public bool HasReverseSucceededHistory =>
+        GatewayResultKind == GatewayResultKinds.ReverseSucceeded ||
+        ReviewAudit.Any(x => x.EventType == GatewayResultKinds.ReverseSucceeded || (x.Note != null && x.Note.Contains("ReverseSucceeded", StringComparison.OrdinalIgnoreCase))) ||
+        (RejectionReason != null && RejectionReason.Contains("Reversed", StringComparison.OrdinalIgnoreCase));
+
+    public bool HasVerifiedHistory =>
+        GatewayResultKind == GatewayResultKinds.Verified ||
+        ReviewAudit.Any(x => x.EventType == GatewayResultKinds.Verified || (x.Note != null && x.Note.Contains("Verified", StringComparison.OrdinalIgnoreCase)));
+
     private TopUpRequest() { }
 
     public Result OpenFinancialReview(string caseId, string reasonCode)
@@ -152,7 +164,37 @@ public class TopUpRequest : BaseEntity<TopUpRequestId>
                 previous.Evidence == evidence ? Result.Success() : Result.Conflict(DomainErrors.TopUpRequest_ReviewConflict);
         if (ReviewCaseId != caseId || ReviewRevision != evidence.ExpectedRevision || ReviewResolvedAtUtc is not null)
             return Result.Conflict(DomainErrors.TopUpRequest_ReviewConflict);
-        if (outcomeCode is FinancialReviewOutcomeCodes.NoMatchingDeposit or FinancialReviewOutcomeCodes.ManualRefund)
+        if (outcomeCode == FinancialReviewOutcomeCodes.ConfirmedExceptional)
+        {
+            if (Status != TopUpStatus.Rejected ||
+                !HasVerifiedHistory ||
+                string.IsNullOrWhiteSpace(ExternalTransactionId) ||
+                string.IsNullOrWhiteSpace(BankReferenceNumber) ||
+                !GatewayAffectiveAmountRial.HasValue ||
+                ManualRefundReference is not null ||
+                Status == TopUpStatus.ManuallyRefunded ||
+                ReviewAudit.Any(x => x.OutcomeCode == FinancialReviewOutcomeCodes.ManualRefund) ||
+                HasReverseSucceededHistory ||
+                evidence.MatchingDepositFound != true)
+            {
+                return Result.Conflict(DomainErrors.TopUpRequest_ReviewStateMismatch);
+            }
+
+            if (AmountRial is null ||
+                GatewayAffectiveAmountRial.Value != AmountRial.Value ||
+                evidence.DepositAmountRial != AmountRial.Value)
+            {
+                return Result.Conflict(DomainErrors.TopUpRequest_ReviewStateMismatch);
+            }
+
+            IsExceptionalConfirmation = true;
+            Status = TopUpStatus.Confirmed;
+            ConfirmedAtUtc = DateTime.UtcNow;
+            ReviewOutcomeCode = outcomeCode;
+            ReviewResolutionFinancialReferenceId = financialReferenceId ?? ExternalTransactionId;
+            ReviewResolvedAtUtc = DateTime.UtcNow;
+        }
+        else if (outcomeCode is FinancialReviewOutcomeCodes.NoMatchingDeposit or FinancialReviewOutcomeCodes.ManualRefund)
         {
             if (Status == TopUpStatus.Confirmed ||
                 outcomeCode == FinancialReviewOutcomeCodes.NoMatchingDeposit && ManualRefundReference is not null ||
@@ -177,7 +219,7 @@ public class TopUpRequest : BaseEntity<TopUpRequestId>
         }
         ReviewAudit = [.. ReviewAudit, new FinancialReviewAudit(evidence.OperationId.ToString(), "resolved",
             ReviewRevision, ReviewResolvedAtUtc!.Value, actorUserId, actorName, outcomeCode,
-            financialReferenceId, evidence, evidence.Note)];
+            financialReferenceId ?? ExternalTransactionId, evidence, evidence.Note)];
         UpdatedAt = DateTime.UtcNow;
         return Result.Success();
     }
@@ -315,7 +357,77 @@ public class TopUpRequest : BaseEntity<TopUpRequestId>
         if (Status == TopUpStatus.Confirmed && kind != GatewayResultKinds.Verified)
             return Result.Conflict(string.Format(DomainErrors.TopUpRequest_CannotRecordResultForStatus, kind, Status));
         if (Status == TopUpStatus.Rejected && kind == GatewayResultKinds.Verified)
-            return Result.Conflict(DomainErrors.TopUpRequest_CannotConfirmRejected);
+        {
+            if (ManualRefundReference is not null)
+                return Result.Conflict(DomainErrors.TopUpRequest_ReviewStateMismatch);
+
+            var prevKind = GatewayResultKind;
+            GatewayEventId = eventId;
+            GatewayName = gateway;
+            GatewayResultKind = kind;
+            GatewayResultCode = resultCode;
+            GatewayResultAtUtc = occurredAtUtc;
+            GatewayOriginalAmountRial = originalAmountRial;
+            GatewayAffectiveAmountRial = affectiveAmountRial;
+            if (bankTransactionId is not null)
+                ExternalTransactionId = bankTransactionId;
+            if (bankReferenceNumber is not null)
+                BankReferenceNumber = bankReferenceNumber;
+
+            if (ReviewCaseId is null)
+            {
+                ReviewCaseId = $"case-{ClientReferenceCode}";
+                ReviewReasonCode = FinancialReviewReasonCodes.BankConflict;
+                ReviewOpenedAtUtc = occurredAtUtc;
+                ReviewRevision = 1;
+                var audits = new List<FinancialReviewAudit>();
+                if (prevKind == GatewayResultKinds.ReverseSucceeded)
+                {
+                    audits.Add(new FinancialReviewAudit($"rev:{eventId}", GatewayResultKinds.ReverseSucceeded, 1, occurredAtUtc, null, null, null, ExternalTransactionId, null, "Prior ReverseSucceeded"));
+                }
+                audits.Add(new FinancialReviewAudit(eventId, "evidence", 1, occurredAtUtc, null, null, null, bankTransactionId, null, "Gateway Verified recorded on Rejected TopUp"));
+                ReviewAudit = audits;
+            }
+            else
+            {
+                ReviewRevision++;
+                var audits = new List<FinancialReviewAudit>(ReviewAudit);
+                if (prevKind == GatewayResultKinds.ReverseSucceeded && !audits.Any(x => x.EventType == GatewayResultKinds.ReverseSucceeded))
+                {
+                    audits.Add(new FinancialReviewAudit($"rev:{eventId}", GatewayResultKinds.ReverseSucceeded, ReviewRevision, occurredAtUtc, null, null, null, ExternalTransactionId, null, "Prior ReverseSucceeded"));
+                }
+                audits.Add(new FinancialReviewAudit(eventId, "evidence", ReviewRevision, occurredAtUtc, null, null, null, bankTransactionId, null, "Gateway Verified recorded on Rejected TopUp"));
+                ReviewAudit = audits;
+            }
+
+            UpdatedAt = DateTime.UtcNow;
+            return Result.Success();
+        }
+        if (Status == TopUpStatus.Rejected && kind == GatewayResultKinds.ReverseSucceeded)
+        {
+            var prevKind = GatewayResultKind;
+            GatewayEventId = eventId;
+            GatewayName = gateway;
+            GatewayResultKind = kind;
+            GatewayResultCode = resultCode;
+            GatewayResultAtUtc = occurredAtUtc;
+            GatewayOriginalAmountRial = originalAmountRial;
+            GatewayAffectiveAmountRial = affectiveAmountRial;
+            if (bankTransactionId is not null)
+                ExternalTransactionId = bankTransactionId;
+            if (bankReferenceNumber is not null)
+                BankReferenceNumber = bankReferenceNumber;
+
+            var audits = new List<FinancialReviewAudit>(ReviewAudit);
+            if (prevKind == GatewayResultKinds.Verified && !audits.Any(x => x.EventType == GatewayResultKinds.Verified))
+            {
+                audits.Add(new FinancialReviewAudit($"ver:{eventId}", GatewayResultKinds.Verified, ReviewRevision > 0 ? ReviewRevision : 1, occurredAtUtc, null, null, null, ExternalTransactionId, null, "Prior Verified"));
+            }
+            audits.Add(new FinancialReviewAudit(eventId, GatewayResultKinds.ReverseSucceeded, ReviewRevision > 0 ? ReviewRevision : 1, occurredAtUtc, null, null, null, bankTransactionId, null, "Gateway ReverseSucceeded recorded"));
+            ReviewAudit = audits;
+            UpdatedAt = DateTime.UtcNow;
+            return Result.Success();
+        }
         if (Status == TopUpStatus.Confirmed && (ExternalTransactionId != bankTransactionId ||
             BankReferenceNumber != bankReferenceNumber || GatewayName != gateway ||
             GatewayResultKind is not null &&

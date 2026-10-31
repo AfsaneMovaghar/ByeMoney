@@ -1,6 +1,7 @@
 using ByeMoney.Application;
 using ByeMoney.Application.Common.Interfaces;
 using ByeMoney.Application.Modules.Wallet.Commands.ConfirmGatewayTopUp;
+using ByeMoney.Application.Modules.Wallet.Commands.RecordGatewayResult;
 using ByeMoney.Application.Modules.Wallet.DTOs;
 using ByeMoney.Application.Modules.Wallet.Interfaces;
 using ByeMoney.Domain.Modules.Identity.Users;
@@ -225,6 +226,214 @@ public sealed class TopUpNoorCreditPostgresTests : IAsyncLifetime
         var userEntries = await UserEntriesAsync();
         userEntries.Where(x => x.BalanceType == LedgerBalanceType.Regular).Sum(x => x.Amount).Should().Be(regular);
         userEntries.Where(x => x.BalanceType == LedgerBalanceType.Gift).Sum(x => x.Amount).Should().Be(gift);
+    }
+
+    [PostgresFact]
+    public async Task ConfirmedExceptional_OnPostgres_SettlesOnce_AndSetsIsExceptionalConfirmation_WithoutAutoPurchase()
+    {
+        using (var scope = _provider!.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var topUp = TopUpRequest.Create(_customer.Id, 50m, PaymentMethod.Gateway,
+                pendingItems: [new(PendingItemType.Course, "course-exc-1", 50m)],
+                rialPerNoor: RialPerNoor);
+            db.Add(topUp);
+            await db.SaveChangesAsync();
+        }
+
+        TopUpRequest currentTopUp;
+        using (var scope = _provider!.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            currentTopUp = await db.Set<TopUpRequest>().SingleAsync(x => x.UserId == _customer.Id);
+        }
+
+        using (var scope = _provider!.CreateScope())
+        {
+            var gateway = scope.ServiceProvider.GetRequiredService<IGatewayTopUpService>();
+            var res = await gateway.RecordResultAsync(new RecordGatewayResultCommand(
+                currentTopUp.ClientReferenceCode, GatewayName, "evt-unpaid", GatewayResultKinds.Unpaid,
+                null, null, "100", null, null, DateTime.UtcNow));
+            res.IsSuccess.Should().BeTrue();
+        }
+
+        var amountRial = currentTopUp.AmountRial!.Value;
+        using (var scope = _provider!.CreateScope())
+        {
+            var gateway = scope.ServiceProvider.GetRequiredService<IGatewayTopUpService>();
+            var res = await gateway.RecordResultAsync(new RecordGatewayResultCommand(
+                currentTopUp.ClientReferenceCode, GatewayName, "evt-verified", GatewayResultKinds.Verified,
+                "ext-tx-exc-1", "bank-ref-exc-1", "0", amountRial, amountRial, DateTime.UtcNow));
+            res.IsSuccess.Should().BeTrue();
+        }
+
+        currentTopUp = await ReloadTopUpAsync(currentTopUp);
+        currentTopUp.Status.Should().Be(TopUpStatus.Rejected);
+        currentTopUp.ReviewCaseId.Should().NotBeNull();
+        currentTopUp.ReviewReasonCode.Should().Be(FinancialReviewReasonCodes.BankConflict);
+
+        var evidence = new FinancialReviewEvidence(
+            Guid.NewGuid(),
+            ExpectedRevision: currentTopUp.ReviewRevision,
+            CheckedReportDate: DateOnly.FromDateTime(DateTime.UtcNow),
+            MatchingDepositFound: true,
+            Note: "تأیید استثنایی بعد از احراز واریز",
+            DepositReference: "ext-tx-exc-1",
+            DepositDate: DateOnly.FromDateTime(DateTime.UtcNow),
+            DepositAmountRial: amountRial,
+            ManualRefundReference: null);
+
+        using (var scope = _provider!.CreateScope())
+        {
+            var gateway = scope.ServiceProvider.GetRequiredService<IGatewayTopUpService>();
+            var resolveRes = await gateway.ResolveManualReviewAsync(
+                currentTopUp.ClientReferenceCode,
+                currentTopUp.ReviewCaseId!,
+                FinancialReviewOutcomeCodes.ConfirmedExceptional,
+                "ext-tx-exc-1",
+                evidence,
+                Guid.NewGuid(),
+                "finance-admin");
+            resolveRes.IsSuccess.Should().BeTrue();
+        }
+
+        var reloaded = await ReloadTopUpAsync(currentTopUp);
+        reloaded.Status.Should().Be(TopUpStatus.Confirmed);
+        reloaded.IsExceptionalConfirmation.Should().BeTrue();
+        reloaded.ReviewOutcomeCode.Should().Be(FinancialReviewOutcomeCodes.ConfirmedExceptional);
+
+        var (regular, gift) = await BalancesAsync();
+        regular.Should().Be(50m);
+        gift.Should().Be(0m);
+
+        var topUpEntries = await TopUpEntriesAsync(reloaded);
+        topUpEntries.Should().HaveCount(2);
+        topUpEntries.Sum(x => x.Amount).Should().Be(0m);
+        topUpEntries.Single(x => x.Amount > 0).Amount.Should().Be(50m);
+        topUpEntries.Single(x => x.Amount < 0).Amount.Should().Be(-50m);
+
+        (await PurchaseCountAsync()).Should().Be(0);
+    }
+
+    [PostgresFact]
+    public async Task ConfirmedExceptional_Replay_OnPostgres_IsIdempotent_AndCreditsOnce()
+    {
+        var topUp = await CreateGatewayTopUpAsync(amountNoor: 25m);
+        var amountRial = topUp.AmountRial!.Value;
+
+        using (var scope = _provider!.CreateScope())
+        {
+            var gateway = scope.ServiceProvider.GetRequiredService<IGatewayTopUpService>();
+            await gateway.RecordResultAsync(new RecordGatewayResultCommand(
+                topUp.ClientReferenceCode, GatewayName, "evt-unpaid-rep", GatewayResultKinds.Unpaid,
+                null, null, "100", null, null, DateTime.UtcNow));
+            await gateway.RecordResultAsync(new RecordGatewayResultCommand(
+                topUp.ClientReferenceCode, GatewayName, "evt-ver-rep", GatewayResultKinds.Verified,
+                "ext-tx-rep-1", "bank-ref-rep-1", "0", amountRial, amountRial, DateTime.UtcNow));
+        }
+
+        var reloaded = await ReloadTopUpAsync(topUp);
+        var opId = Guid.NewGuid();
+        var evidence = new FinancialReviewEvidence(
+            opId,
+            ExpectedRevision: reloaded.ReviewRevision,
+            CheckedReportDate: DateOnly.FromDateTime(DateTime.UtcNow),
+            MatchingDepositFound: true,
+            Note: "تأیید اول",
+            DepositReference: "ext-tx-rep-1",
+            DepositDate: DateOnly.FromDateTime(DateTime.UtcNow),
+            DepositAmountRial: amountRial,
+            ManualRefundReference: null);
+
+        var actorId = Guid.NewGuid();
+
+        using (var scope = _provider!.CreateScope())
+        {
+            var gateway = scope.ServiceProvider.GetRequiredService<IGatewayTopUpService>();
+            var res = await gateway.ResolveManualReviewAsync(
+                reloaded.ClientReferenceCode, reloaded.ReviewCaseId!,
+                FinancialReviewOutcomeCodes.ConfirmedExceptional, "ext-tx-rep-1",
+                evidence, actorId, "admin-1");
+            res.IsSuccess.Should().BeTrue();
+        }
+
+        using (var scope = _provider!.CreateScope())
+        {
+            var gateway = scope.ServiceProvider.GetRequiredService<IGatewayTopUpService>();
+            var res = await gateway.ResolveManualReviewAsync(
+                reloaded.ClientReferenceCode, reloaded.ReviewCaseId!,
+                FinancialReviewOutcomeCodes.ConfirmedExceptional, "ext-tx-rep-1",
+                evidence, actorId, "admin-1");
+            res.IsSuccess.Should().BeTrue();
+        }
+
+        var (regular, _) = await BalancesAsync();
+        regular.Should().Be(25m);
+
+        var entries = await TopUpEntriesAsync(reloaded);
+        entries.Should().HaveCount(2);
+    }
+
+    [PostgresFact]
+    public async Task ConfirmedExceptional_ConcurrentRequests_OnPostgres_SettleExactlyOnce()
+    {
+        var topUp = await CreateGatewayTopUpAsync(amountNoor: 75m);
+        var amountRial = topUp.AmountRial!.Value;
+
+        using (var scope = _provider!.CreateScope())
+        {
+            var gateway = scope.ServiceProvider.GetRequiredService<IGatewayTopUpService>();
+            await gateway.RecordResultAsync(new RecordGatewayResultCommand(
+                topUp.ClientReferenceCode, GatewayName, "evt-unpaid-con", GatewayResultKinds.Unpaid,
+                null, null, "100", null, null, DateTime.UtcNow));
+            await gateway.RecordResultAsync(new RecordGatewayResultCommand(
+                topUp.ClientReferenceCode, GatewayName, "evt-ver-con", GatewayResultKinds.Verified,
+                "ext-tx-con-1", "bank-ref-con-1", "0", amountRial, amountRial, DateTime.UtcNow));
+        }
+
+        var reloaded = await ReloadTopUpAsync(topUp);
+        var opId = Guid.NewGuid();
+        var evidence = new FinancialReviewEvidence(
+            opId,
+            ExpectedRevision: reloaded.ReviewRevision,
+            CheckedReportDate: DateOnly.FromDateTime(DateTime.UtcNow),
+            MatchingDepositFound: true,
+            Note: "همزمانی",
+            DepositReference: "ext-tx-con-1",
+            DepositDate: DateOnly.FromDateTime(DateTime.UtcNow),
+            DepositAmountRial: amountRial,
+            ManualRefundReference: null);
+
+        var actorId = Guid.NewGuid();
+
+        var task1 = Task.Run(async () =>
+        {
+            using var scope = _provider!.CreateScope();
+            var gateway = scope.ServiceProvider.GetRequiredService<IGatewayTopUpService>();
+            return await gateway.ResolveManualReviewAsync(
+                reloaded.ClientReferenceCode, reloaded.ReviewCaseId!,
+                FinancialReviewOutcomeCodes.ConfirmedExceptional, "ext-tx-con-1",
+                evidence, actorId, "admin-concurrent");
+        });
+
+        var task2 = Task.Run(async () =>
+        {
+            using var scope = _provider!.CreateScope();
+            var gateway = scope.ServiceProvider.GetRequiredService<IGatewayTopUpService>();
+            return await gateway.ResolveManualReviewAsync(
+                reloaded.ClientReferenceCode, reloaded.ReviewCaseId!,
+                FinancialReviewOutcomeCodes.ConfirmedExceptional, "ext-tx-con-1",
+                evidence, actorId, "admin-concurrent");
+        });
+
+        var results = await Task.WhenAll(task1, task2);
+        results.Should().OnlyContain(r => r.IsSuccess);
+
+        var (regular, _) = await BalancesAsync();
+        regular.Should().Be(75m);
+
+        var entries = await TopUpEntriesAsync(reloaded);
+        entries.Should().HaveCount(2);
     }
 
     private async Task<TopUpRequest> CreateGatewayTopUpAsync(decimal amountNoor)

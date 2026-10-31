@@ -117,8 +117,9 @@ public sealed class GatewayResultRecordingTests
 
         var result = await service.RecordResultAsync(Command(topUp, GatewayResultKinds.Verified, "verify-2"));
 
-        result.IsFailure.Should().BeTrue();
+        result.IsSuccess.Should().BeTrue();
         topUp.Status.Should().Be(TopUpStatus.Rejected);
+        topUp.ReviewReasonCode.Should().Be(FinancialReviewReasonCodes.BankConflict);
         settlement.Verify(x => x.SettleAsync(It.IsAny<TopUpRequest>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 

@@ -331,11 +331,11 @@ public sealed class CartService(
         if (cart.Status == CartStatus.AwaitingTopUp && cart.TopUpRequestId is Guid topUpId)
         {
             var topUp = await topUps.GetByIdAsync(new TopUpRequestId(topUpId), ct);
-            if (topUp?.Status == TopUpStatus.Confirmed)
+            if (topUp?.Status == TopUpStatus.Confirmed && !topUp.IsExceptionalConfirmation)
             {
                 await PurchaseAsync(cart.BuyerId, cart.Id, ct, cart.ReservationId);
             }
-            else if (topUp?.Status is TopUpStatus.Rejected or TopUpStatus.ManuallyRefunded or TopUpStatus.Unresolved or TopUpStatus.UnderReview)
+            else if (topUp?.IsExceptionalConfirmation == true || topUp?.Status is TopUpStatus.Rejected or TopUpStatus.ManuallyRefunded or TopUpStatus.Unresolved or TopUpStatus.UnderReview)
             {
                 await store.FailAsync(cart.Id, cart.BuyerId, false, cart.ReservationId, ct);
             }

@@ -17,14 +17,15 @@ public sealed class ResolveGatewayReviewCommandValidator : AbstractValidator<Res
             .WithMessage(ApplicationErrors.TopUpRequest_GatewayEventIdMaxLength);
         RuleFor(x => x.OutcomeCode).Cascade(CascadeMode.Stop).Must(x => x is
             FinancialReviewOutcomeCodes.PaidAndConfirmed or FinancialReviewOutcomeCodes.UnpaidRejected or
-            FinancialReviewOutcomeCodes.ReversedRejected or FinancialReviewOutcomeCodes.ManualRefund or FinancialReviewOutcomeCodes.NoMatchingDeposit)
+            FinancialReviewOutcomeCodes.ReversedRejected or FinancialReviewOutcomeCodes.ManualRefund or
+            FinancialReviewOutcomeCodes.NoMatchingDeposit or FinancialReviewOutcomeCodes.ConfirmedExceptional)
             .WithMessage(ApplicationErrors.TopUpRequest_ReviewOutcomeInvalid)
             .WithState(_ => new GatewayReviewValidationError(GatewayTopUpErrorCodes.ReviewOutcomeInvalid,
                 ApplicationErrors.TopUpRequest_ReviewOutcomeInvalid));
         RuleFor(x => x.ResolutionFinancialReferenceId).Cascade(CascadeMode.Stop).MaximumLength(100)
             .WithMessage(ApplicationErrors.TopUpRequest_ReviewFinancialReferenceInvalid);
         When(x => x.OutcomeCode is FinancialReviewOutcomeCodes.PaidAndConfirmed or
-            FinancialReviewOutcomeCodes.ReversedRejected, () =>
+            FinancialReviewOutcomeCodes.ReversedRejected or FinancialReviewOutcomeCodes.ConfirmedExceptional, () =>
             RuleFor(x => x.ResolutionFinancialReferenceId).Cascade(CascadeMode.Stop).NotEmpty()
                 .WithMessage(ApplicationErrors.TopUpRequest_ReviewFinancialReferenceInvalid));
         When(x => x.OutcomeCode == FinancialReviewOutcomeCodes.UnpaidRejected, () =>
@@ -40,7 +41,13 @@ public sealed class ResolveGatewayReviewCommandValidator : AbstractValidator<Res
                 x.Evidence!.MatchingDepositFound == false && x.ResolutionFinancialReferenceId is null)
                 .WithMessage(ApplicationErrors.TopUpRequest_ReviewEvidenceInvalid);
             RuleFor(x => x).Cascade(CascadeMode.Stop).Must(x =>
-                x.OutcomeCode != FinancialReviewOutcomeCodes.PaidAndConfirmed || x.Evidence!.MatchingDepositFound == true)
+                (x.OutcomeCode != FinancialReviewOutcomeCodes.PaidAndConfirmed &&
+                 x.OutcomeCode != FinancialReviewOutcomeCodes.ConfirmedExceptional) ||
+                x.Evidence!.MatchingDepositFound == true)
+                .WithMessage(ApplicationErrors.TopUpRequest_ReviewEvidenceInvalid);
+            RuleFor(x => x).Cascade(CascadeMode.Stop).Must(x =>
+                x.OutcomeCode != FinancialReviewOutcomeCodes.ConfirmedExceptional ||
+                x.Evidence!.DepositAmountRial > 0)
                 .WithMessage(ApplicationErrors.TopUpRequest_ReviewEvidenceInvalid);
             RuleFor(x => x).Cascade(CascadeMode.Stop).Must(x => x.OutcomeCode != FinancialReviewOutcomeCodes.ManualRefund ||
                 !string.IsNullOrWhiteSpace(x.Evidence!.ManualRefundReference) && x.ResolutionFinancialReferenceId is null)

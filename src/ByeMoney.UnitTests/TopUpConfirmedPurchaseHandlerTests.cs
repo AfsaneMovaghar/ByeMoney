@@ -1,4 +1,4 @@
-﻿using ByeMoney.Application.Modules.Wallet.DTOs;
+using ByeMoney.Application.Modules.Wallet.DTOs;
 using ByeMoney.Application.Modules.Settings.Interfaces;
 using ByeMoney.Application.Modules.Identity.Users.Interfaces;
 using ByeMoney.Application.Common.Interfaces;
@@ -410,6 +410,40 @@ public class TopUpConfirmedPurchaseHandlerTests
         _ledgerRepoMock.Verify(l => l.AddAsync(It.IsAny<LedgerEntry>(), It.IsAny<CancellationToken>()), Times.Never);
         _walletRepoMock.Verify(w => w.Update(It.IsAny<WalletEntity>()), Times.Never);
         _notifierMock.Verify(n => n.NotifyAsync(It.IsAny<CoursePurchase>(), It.IsAny<string>(), It.IsAny<ProductSnapshot>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task Handle_ShouldSkipAutoPurchase_WhenTopUpIsExceptionallyConfirmed()
+    {
+        var topUpRepoMock = new Mock<ITopUpRequestRepository>();
+        var topUp = TopUpRequest.CreateGateway(UserId.New(), 10m, 1000m);
+        typeof(TopUpRequest).GetProperty(nameof(TopUpRequest.IsExceptionalConfirmation))!
+            .SetValue(topUp, true);
+        topUpRepoMock.Setup(r => r.GetByIdAsync(topUp.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(topUp);
+
+        var handler = new TopUpConfirmedPurchaseHandler(
+            _userRepoMock.Object,
+            _tarhElahiClientMock.Object,
+            _coursePurchaseRepoMock.Object,
+            _walletProvisioningMock.Object,
+            new ByeMoney.Application.Modules.Wallet.Services.WalletPostingService(_ledgerRepoMock.Object, _walletRepoMock.Object),
+            _unitOfWorkMock.Object,
+            _notifierMock.Object,
+            _loggerMock.Object,
+            _settingsMock.Object,
+            topUpRepoMock.Object);
+
+        var notification = new TopUpConfirmed(
+            topUp.Id,
+            topUp.UserId,
+            10m,
+            new List<PendingItemSnapshot> { new(PendingItemType.Course, "course-exceptional", 10m) });
+
+        await handler.Handle(notification, CancellationToken.None);
+
+        _coursePurchaseRepoMock.Verify(r => r.AddAsync(It.IsAny<CoursePurchase>(), It.IsAny<CancellationToken>()), Times.Never);
+        _ledgerRepoMock.Verify(l => l.AddAsync(It.IsAny<LedgerEntry>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 }
 
