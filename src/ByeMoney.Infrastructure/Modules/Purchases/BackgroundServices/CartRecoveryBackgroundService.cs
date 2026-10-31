@@ -26,11 +26,11 @@ public sealed class CartRecoveryBackgroundService(IServiceScopeFactory scopes,
                         await itemScope.ServiceProvider.GetRequiredService<CartService>().ProcessAsync(cart, ct);
                     }
                     catch (OperationCanceledException) when (ct.IsCancellationRequested) { return; }
-                    catch (Exception ex) { logger.LogError(ex, "Course cart recovery failed for {CartId}", cart.Id); }
+                    catch (Exception ex) { logger.LogError(ex, "Cart recovery failed for {CartId}", cart.Id); }
                 }
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested) { return; }
-            catch (Exception ex) { logger.LogError(ex, "Course cart recovery cycle failed"); }
+            catch (Exception ex) { logger.LogError(ex, "Cart recovery cycle failed"); }
             try { if (!await timer.WaitForNextTickAsync(ct)) return; }
             catch (OperationCanceledException) when (ct.IsCancellationRequested) { return; }
         }
