@@ -33,11 +33,20 @@ public class TopUpConfirmedPurchaseHandlerTests
     private readonly Mock<IUnitOfWork> _unitOfWorkMock = new();
     private readonly Mock<ICoursePurchaseNotifier> _notifierMock = new();
     private readonly Mock<ILogger<TopUpConfirmedPurchaseHandler>> _loggerMock = new();
+    private readonly Mock<ITopUpRequestRepository> _topUpRepoMock = new();
 
     private readonly TopUpConfirmedPurchaseHandler _handler;
 
     public TopUpConfirmedPurchaseHandlerTests()
     {
+        _topUpRepoMock.Setup(r => r.GetByIdAsync(It.IsAny<TopUpRequestId>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((TopUpRequestId id, CancellationToken _) =>
+            {
+                var topUp = TopUpRequest.CreateGateway(UserId.New(), 10m, 1000m);
+                topUp.Confirm("ext-tx-mock");
+                return topUp;
+            });
+
         _handler = new TopUpConfirmedPurchaseHandler(
             _userRepoMock.Object,
             _tarhElahiClientMock.Object,
@@ -47,7 +56,8 @@ public class TopUpConfirmedPurchaseHandlerTests
             _unitOfWorkMock.Object,
             _notifierMock.Object,
             _loggerMock.Object,
-            _settingsMock.Object);
+            _settingsMock.Object,
+            _topUpRepoMock.Object);
     }
 
     [Theory]
@@ -417,8 +427,21 @@ public class TopUpConfirmedPurchaseHandlerTests
     {
         var topUpRepoMock = new Mock<ITopUpRequestRepository>();
         var topUp = TopUpRequest.CreateGateway(UserId.New(), 10m, 1000m);
-        typeof(TopUpRequest).GetProperty(nameof(TopUpRequest.IsExceptionalConfirmation))!
-            .SetValue(topUp, true);
+        topUp.Reject("cancelled");
+        topUp.RecordGatewayResult("evt-exc", "SEP", GatewayResultKinds.Verified, "tx-exc", "rrn-exc", "0", 10000m, 10000m, DateTime.UtcNow);
+        topUp.OpenFinancialReview("case-exc", FinancialReviewReasonCodes.BankConflict);
+        var evidence = new FinancialReviewEvidence(
+            OperationId: Guid.NewGuid(),
+            ExpectedRevision: 1,
+            CheckedReportDate: DateOnly.FromDateTime(DateTime.UtcNow),
+            MatchingDepositFound: true,
+            DepositReference: "dep-exc",
+            DepositDate: DateOnly.FromDateTime(DateTime.UtcNow),
+            DepositAmountRial: 10000m,
+            Note: "Exceptional deposit",
+            ManualRefundReference: null);
+        topUp.ResolveManualReview("case-exc", FinancialReviewOutcomeCodes.ConfirmedExceptional, "dep-exc", evidence, Guid.NewGuid(), "Admin");
+
         topUpRepoMock.Setup(r => r.GetByIdAsync(topUp.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(topUp);
 

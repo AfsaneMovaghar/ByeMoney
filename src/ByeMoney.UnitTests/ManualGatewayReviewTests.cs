@@ -118,7 +118,7 @@ public class ManualGatewayReviewTests
         var repository = new Mock<ITopUpRequestRepository>();
         repository.Setup(x => x.GetByClientReferenceCodeAsync(topUp.ClientReferenceCode, It.IsAny<CancellationToken>())).ReturnsAsync(topUp);
         var settlement = new Mock<ITopUpSettlementService>();
-        var service = new GatewayTopUpService(repository.Object, settlement.Object, Mock.Of<IUnitOfWork>(),
+        var service = new GatewayTopUpService(repository.Object, settlement.Object, Mock.Of<INoorCreditService>(), Mock.Of<IUnitOfWork>(),
             Mock.Of<IPublisher>(), Mock.Of<IServiceScopeFactory>());
         var result = await service.RecordResultAsync(new RecordGatewayResultCommand(topUp.ClientReferenceCode, "SEP", "late", "Verified",
             "ref", "rrn", "0", 10000, 10000, DateTime.UtcNow));
@@ -135,7 +135,7 @@ public class ManualGatewayReviewTests
         var topUp = TopUp(); topUp.ConfirmGateway("ref", "rrn", "SEP");
         var repository = new Mock<ITopUpRequestRepository>();
         repository.Setup(x => x.GetByClientReferenceCodeAsync(topUp.ClientReferenceCode, It.IsAny<CancellationToken>())).ReturnsAsync(topUp);
-        var service = new GatewayTopUpService(repository.Object, Mock.Of<ITopUpSettlementService>(), Mock.Of<IUnitOfWork>(),
+        var service = new GatewayTopUpService(repository.Object, Mock.Of<ITopUpSettlementService>(), Mock.Of<INoorCreditService>(), Mock.Of<IUnitOfWork>(),
             Mock.Of<IPublisher>(), Mock.Of<IServiceScopeFactory>());
         var result = await service.ResolveManualReviewAsync(topUp.ClientReferenceCode, "case-1", FinancialReviewOutcomeCodes.ManualRefund,
             null, Evidence() with { ManualRefundReference = "refund-42" }, Guid.NewGuid(), null);
@@ -152,7 +152,7 @@ public class ManualGatewayReviewTests
         var repository = new Mock<ITopUpRequestRepository>();
         repository.Setup(x => x.GetByClientReferenceCodeAsync(topUp.ClientReferenceCode, It.IsAny<CancellationToken>())).ReturnsAsync(topUp);
         var settlement = new Mock<ITopUpSettlementService>();
-        var service = new GatewayTopUpService(repository.Object, settlement.Object, Mock.Of<IUnitOfWork>(),
+        var service = new GatewayTopUpService(repository.Object, settlement.Object, Mock.Of<INoorCreditService>(), Mock.Of<IUnitOfWork>(),
             Mock.Of<IPublisher>(), Mock.Of<IServiceScopeFactory>());
         var command = new RecordGatewayResultCommand(topUp.ClientReferenceCode, "SEP", "late", "Verified",
             "ref", "rrn", "0", 10000, 10000, DateTime.UtcNow);

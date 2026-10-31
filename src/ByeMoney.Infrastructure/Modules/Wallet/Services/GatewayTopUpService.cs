@@ -28,16 +28,6 @@ public sealed class GatewayTopUpService(
     IPublisher publisher,
     IServiceScopeFactory scopeFactory) : IGatewayTopUpService
 {
-    public GatewayTopUpService(
-        ITopUpRequestRepository topUpRequestRepository,
-        ITopUpSettlementService settlementService,
-        IUnitOfWork unitOfWork,
-        IPublisher publisher,
-        IServiceScopeFactory scopeFactory)
-        : this(topUpRequestRepository, settlementService, null!, unitOfWork, publisher, scopeFactory)
-    {
-    }
-
     private static GatewayReviewState ReviewState(TopUpRequest topUp) => new(
         topUp.ClientReferenceCode, topUp.ReviewCaseId!, topUp.Status.ToString(),
         topUp.ReviewReasonCode!, topUp.ReviewOpenedAtUtc!.Value, topUp.ReviewResolvedAtUtc,
@@ -51,54 +41,22 @@ public sealed class GatewayTopUpService(
         var topUp = await topUpRequestRepository.GetByClientReferenceCodeAsync(clientReferenceCode, ct);
         if (topUp is null) return Result<GatewayReviewState>.NotFound(ApplicationErrors.TopUpRequest_NotFound,
             GatewayTopUpErrorCodes.TopUpNotFound);
+
         if (outcomeCode == FinancialReviewOutcomeCodes.ManualRefund && topUp.Status == TopUpStatus.Confirmed)
             return Result<GatewayReviewState>.Failure(ApplicationErrors.TopUpRequest_ReviewRefundUnsupported,
                 GatewayTopUpErrorCodes.ReviewRefundUnsupported);
+
         if (evidence.MatchingDepositFound == true && evidence.DepositAmountRial != topUp.AmountRial)
-            return Result<GatewayReviewState>.Failure(ApplicationErrors.TopUpRequest_ReviewEvidenceInvalid,
+            return Result<GatewayReviewState>.Failure(
+                string.Format(ApplicationErrors.TopUpRequest_AmountMismatch, evidence.DepositAmountRial, topUp.AmountRial),
                 GatewayTopUpErrorCodes.TopUpAmountMismatch);
 
-        if (outcomeCode == FinancialReviewOutcomeCodes.ConfirmedExceptional)
-        {
-            if (topUp.AmountRial is null ||
-                evidence.DepositAmountRial != topUp.AmountRial ||
-                (topUp.GatewayAffectiveAmountRial.HasValue && topUp.GatewayAffectiveAmountRial.Value != topUp.AmountRial))
-            {
-                return Result<GatewayReviewState>.Failure(
-                    string.Format(ApplicationErrors.TopUpRequest_AmountMismatch, evidence.DepositAmountRial, topUp.AmountRial),
-                    GatewayTopUpErrorCodes.TopUpAmountMismatch);
-            }
-            if (topUp.ManualRefundReference is not null || topUp.Status == TopUpStatus.ManuallyRefunded)
-            {
-                return Result<GatewayReviewState>.Conflict(DomainErrors.TopUpRequest_ReviewStateMismatch,
-                    GatewayTopUpErrorCodes.ReviewConflict);
-            }
-            if (topUp.HasReverseSucceededHistory)
-            {
-                return Result<GatewayReviewState>.Conflict(DomainErrors.TopUpRequest_ReviewStateMismatch,
-                    GatewayTopUpErrorCodes.ReviewConflict);
-            }
-            if (string.IsNullOrWhiteSpace(topUp.ExternalTransactionId) ||
-                string.IsNullOrWhiteSpace(topUp.BankReferenceNumber) ||
-                !topUp.HasVerifiedHistory)
-            {
-                return Result<GatewayReviewState>.Conflict(DomainErrors.TopUpRequest_ReviewStateMismatch,
-                    GatewayTopUpErrorCodes.ReviewConflict);
-            }
-        }
-
-        var prior = topUp.ReviewAudit.FirstOrDefault(x => x.EventId == evidence.OperationId.ToString());
-        if (prior is not null)
-        {
-            if (topUp.ReviewCaseId == caseId && prior.ActorUserId == actorUserId &&
-                prior.OutcomeCode == outcomeCode && prior.FinancialReferenceId == (financialReferenceId ?? topUp.ExternalTransactionId) &&
-                prior.Evidence == evidence)
-                return Result<GatewayReviewState>.Success(ReviewState(topUp));
-            return Result<GatewayReviewState>.Conflict(DomainErrors.TopUpRequest_ReviewConflict, GatewayTopUpErrorCodes.ReviewConflict);
-        }
-
+        var isReplay = topUp.ReviewAudit.Any(x => x.EventId == evidence.OperationId.ToString());
         var result = topUp.ResolveManualReview(caseId, outcomeCode, financialReferenceId, evidence, actorUserId, actorName);
         if (result.IsFailure) return Result<GatewayReviewState>.Conflict(result.ErrorMessage!, GatewayTopUpErrorCodes.ReviewConflict);
+
+        if (isReplay)
+            return Result<GatewayReviewState>.Success(ReviewState(topUp));
 
         if (outcomeCode == FinancialReviewOutcomeCodes.ConfirmedExceptional)
         {
@@ -120,9 +78,12 @@ public sealed class GatewayTopUpService(
             using var scope = scopeFactory.CreateScope();
             var fresh = await scope.ServiceProvider.GetRequiredService<ITopUpRequestRepository>()
                 .GetByClientReferenceCodeAsync(clientReferenceCode, ct);
+            var expectedFinancialRef = outcomeCode == FinancialReviewOutcomeCodes.ConfirmedExceptional
+                ? (financialReferenceId ?? fresh?.ExternalTransactionId)
+                : financialReferenceId;
             var freshPrior = fresh?.ReviewAudit.FirstOrDefault(x => x.EventId == evidence.OperationId.ToString());
             if (fresh is not null && freshPrior?.Evidence == evidence && freshPrior.ActorUserId == actorUserId &&
-                freshPrior.OutcomeCode == outcomeCode && freshPrior.FinancialReferenceId == (financialReferenceId ?? fresh.ExternalTransactionId))
+                freshPrior.OutcomeCode == outcomeCode && freshPrior.FinancialReferenceId == expectedFinancialRef)
                 return Result<GatewayReviewState>.Success(ReviewState(fresh));
             return Result<GatewayReviewState>.Conflict(DomainErrors.TopUpRequest_ReviewConflict, GatewayTopUpErrorCodes.ReviewConflict);
         }

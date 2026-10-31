@@ -31,7 +31,7 @@ public class GatewayTopUpCancellationTests
         var settlement = new Mock<ITopUpSettlementService>();
         var publisher = new Mock<IPublisher>();
         var scopes = new Mock<IServiceScopeFactory>();
-        return (new GatewayTopUpService(repository.Object, settlement.Object, unitOfWork.Object, publisher.Object, scopes.Object),
+        return (new GatewayTopUpService(repository.Object, settlement.Object, Mock.Of<INoorCreditService>(), unitOfWork.Object, publisher.Object, scopes.Object),
             topUp, repository, unitOfWork);
     }
 

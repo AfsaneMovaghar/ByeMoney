@@ -28,7 +28,7 @@ public sealed class GatewayResultRecordingTests
             .Returns(Task.CompletedTask);
         var unitOfWork = new Mock<IUnitOfWork>();
         unitOfWork.Setup(x => x.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
-        return (new GatewayTopUpService(repo.Object, settlement.Object, unitOfWork.Object,
+        return (new GatewayTopUpService(repo.Object, settlement.Object, Mock.Of<INoorCreditService>(), unitOfWork.Object,
             Mock.Of<IPublisher>(), Mock.Of<IServiceScopeFactory>()), topUp, settlement, unitOfWork);
     }
 

@@ -93,8 +93,7 @@ public sealed class GatewayFinancialReviewTests
         scope.SetupGet(x => x.ServiceProvider).Returns(provider.Object);
         var scopes = new Mock<IServiceScopeFactory>();
         scopes.Setup(x => x.CreateScope()).Returns(scope.Object);
-        var service = new GatewayTopUpService(repository.Object, Mock.Of<ITopUpSettlementService>(),
-            work.Object, Mock.Of<IPublisher>(), scopes.Object);
+        var service = new GatewayTopUpService(repository.Object, Mock.Of<ITopUpSettlementService>(), Mock.Of<INoorCreditService>(), work.Object, Mock.Of<IPublisher>(), scopes.Object);
 
         var result = await service.OpenReviewAsync(stale.ClientReferenceCode, "case-1",
             FinancialReviewReasonCodes.VerifyUnknown);
@@ -156,7 +155,7 @@ public sealed class GatewayFinancialReviewTests
         topUp.ConfirmGateway("bank-ref", "bank-rrn", "SEP");
         topUp.OpenFinancialReview("case-1", FinancialReviewReasonCodes.BankConflict);
         var service = new GatewayTopUpService(Mock.Of<ITopUpRequestRepository>(),
-            Mock.Of<ITopUpSettlementService>(), Mock.Of<IUnitOfWork>(), Mock.Of<IPublisher>(),
+            Mock.Of<ITopUpSettlementService>(), Mock.Of<INoorCreditService>(), Mock.Of<IUnitOfWork>(), Mock.Of<IPublisher>(),
             Mock.Of<IServiceScopeFactory>());
 
         var result = await service.ResolveReviewAsync(topUp.ClientReferenceCode, "case-1",

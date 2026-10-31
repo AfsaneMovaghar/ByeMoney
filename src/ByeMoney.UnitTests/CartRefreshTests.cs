@@ -276,10 +276,20 @@ public sealed class CartRefreshTests
     public async Task ProcessAsync_WhenTopUpIsExceptionalConfirmation_FailsCartAndDoesNotPurchase()
     {
         var topUp = TopUpRequest.CreateGateway(new UserId(_buyer.Id.Value), 105m, 137m);
-        typeof(TopUpRequest).GetProperty(nameof(TopUpRequest.IsExceptionalConfirmation))!
-            .SetValue(topUp, true);
-        typeof(TopUpRequest).GetProperty(nameof(TopUpRequest.Status))!
-            .SetValue(topUp, TopUpStatus.Confirmed);
+        topUp.Reject("cancelled");
+        topUp.RecordGatewayResult("evt-cart-exc", "SEP", GatewayResultKinds.Verified, "tx-cart-exc", "rrn-cart-exc", "0", 14385m, 14385m, DateTime.UtcNow);
+        topUp.OpenFinancialReview("case-cart-exc", FinancialReviewReasonCodes.BankConflict);
+        var evidence = new FinancialReviewEvidence(
+            OperationId: Guid.NewGuid(),
+            ExpectedRevision: 1,
+            CheckedReportDate: DateOnly.FromDateTime(DateTime.UtcNow),
+            MatchingDepositFound: true,
+            DepositReference: "dep-cart-exc",
+            DepositDate: DateOnly.FromDateTime(DateTime.UtcNow),
+            DepositAmountRial: 14385m,
+            Note: "Exceptional deposit",
+            ManualRefundReference: null);
+        topUp.ResolveManualReview("case-cart-exc", FinancialReviewOutcomeCodes.ConfirmedExceptional, "dep-cart-exc", evidence, Guid.NewGuid(), "Admin");
 
         var topUps = new Mock<ITopUpRequestRepository>();
         topUps.Setup(x => x.GetByIdAsync(topUp.Id, It.IsAny<CancellationToken>())).ReturnsAsync(topUp);

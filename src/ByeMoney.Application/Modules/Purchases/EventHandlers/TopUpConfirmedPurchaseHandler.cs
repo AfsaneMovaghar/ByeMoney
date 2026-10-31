@@ -54,33 +54,18 @@ public class TopUpConfirmedPurchaseHandler : INotificationHandler<TopUpConfirmed
         _topUpRequestRepository = topUpRequestRepository;
     }
 
-    public TopUpConfirmedPurchaseHandler(
-        IUserRepository userRepository,
-        ITarhElahiIntegrationClient tarhElahiClient,
-        ICoursePurchaseRepository coursePurchaseRepository,
-        IUserWalletProvisioningService walletProvisioningService,
-        IWalletPostingService walletPostingService,
-        IUnitOfWork unitOfWork,
-        ICoursePurchaseNotifier notifier,
-        ILogger<TopUpConfirmedPurchaseHandler> logger,
-        ISystemSettingRepository settings)
-        : this(userRepository, tarhElahiClient, coursePurchaseRepository, walletProvisioningService,
-            walletPostingService, unitOfWork, notifier, logger, settings, null!)
-    {
-    }
-
     public async Task Handle(TopUpConfirmed notification, CancellationToken cancellationToken)
     {
-        if (_topUpRequestRepository is not null)
+        var topUp = await _topUpRequestRepository.GetByIdAsync(notification.TopUpRequestId, cancellationToken);
+        if (topUp is null || topUp.IsExceptionalConfirmation)
         {
-            var topUp = await _topUpRequestRepository.GetByIdAsync(notification.TopUpRequestId, cancellationToken);
             if (topUp is { IsExceptionalConfirmation: true })
             {
                 _logger.LogInformation(
                     "Auto-purchase on TopUpConfirmed skipped: TopUp {TopUpRequestId} was confirmed exceptionally (D19.4).",
                     notification.TopUpRequestId);
-                return;
             }
+            return;
         }
 
         if (notification.PendingItems == null || notification.PendingItems.Count == 0)

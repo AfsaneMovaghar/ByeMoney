@@ -46,7 +46,7 @@ public class GatewayTopUpConcurrencyTests
         var unitOfWork = new Mock<IUnitOfWork>();
         var publisher = new Mock<IPublisher>();
 
-        var service = new GatewayTopUpService(repository.Object, settlement.Object, unitOfWork.Object, publisher.Object, ScopeFactory(topUp));
+        var service = new GatewayTopUpService(repository.Object, settlement.Object, Mock.Of<INoorCreditService>(), unitOfWork.Object, publisher.Object, ScopeFactory(topUp));
 
         var result = await service.ConfirmAsync(new ConfirmGatewayTopUpCommand(
             topUp.ClientReferenceCode, "SEP", "tx-1", "rrn-1", 100_000m, 100_000m), CancellationToken.None);
@@ -70,7 +70,7 @@ public class GatewayTopUpConcurrencyTests
         var unitOfWork = new Mock<IUnitOfWork>();
         var publisher = new Mock<IPublisher>();
 
-        var service = new GatewayTopUpService(repository.Object, settlement.Object, unitOfWork.Object, publisher.Object, ScopeFactory(topUp));
+        var service = new GatewayTopUpService(repository.Object, settlement.Object, Mock.Of<INoorCreditService>(), unitOfWork.Object, publisher.Object, ScopeFactory(topUp));
 
         var result = await service.ConfirmAsync(new ConfirmGatewayTopUpCommand(
             topUp.ClientReferenceCode, "SEP", "tx-1", "rrn-1", 100_000m, 100_000m), CancellationToken.None);
@@ -94,7 +94,7 @@ public class GatewayTopUpConcurrencyTests
             .ThrowsAsync(new DbUpdateConcurrencyException());
         var publisher = new Mock<IPublisher>();
 
-        var service = new GatewayTopUpService(repository.Object, settlement.Object, unitOfWork.Object, publisher.Object, ScopeFactory(topUp));
+        var service = new GatewayTopUpService(repository.Object, settlement.Object, Mock.Of<INoorCreditService>(), unitOfWork.Object, publisher.Object, ScopeFactory(topUp));
 
         var result = await service.CancelAsync(new CancelGatewayTopUpCommand(topUp.ClientReferenceCode, "SEP"),
             CancellationToken.None);
