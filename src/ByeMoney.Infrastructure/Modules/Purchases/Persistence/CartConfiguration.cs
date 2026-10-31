@@ -8,9 +8,9 @@ public sealed class CartConfiguration : IEntityTypeConfiguration<Cart>
 {
     public void Configure(EntityTypeBuilder<Cart> b)
     {
-        b.ToTable("CourseCarts", table =>
+        b.ToTable("Carts", table =>
         {
-            table.HasCheckConstraint("CK_CourseCarts_Discounts",
+            table.HasCheckConstraint("CK_Carts_Discounts",
                 "\"ItemDiscountInNoor\" >= 0 AND \"CouponDiscountInNoor\" >= 0 AND \"ShippingAmountInNoor\" >= 0 AND trunc(\"ItemDiscountInNoor\") = \"ItemDiscountInNoor\" AND trunc(\"CouponDiscountInNoor\") = \"CouponDiscountInNoor\" AND trunc(\"ShippingAmountInNoor\") = \"ShippingAmountInNoor\"");
         });
         b.HasKey(x => x.Id);
@@ -23,17 +23,17 @@ public sealed class CartConfiguration : IEntityTypeConfiguration<Cart>
         b.Property(x => x.ShippingRuleLabel).HasMaxLength(200);
         b.OwnsMany(x => x.Items, items =>
         {
-            items.ToTable("CourseCartItems", table =>
+            items.ToTable("CartItems", table =>
             {
-                table.HasCheckConstraint("CK_CourseCartItems_NonNegativeAmounts",
+                table.HasCheckConstraint("CK_CartItems_NonNegativeAmounts",
                     "\"PriceInNoor\" >= 0");
-                table.HasCheckConstraint("CK_CourseCartItems_WholeNoorAmounts",
+                table.HasCheckConstraint("CK_CartItems_WholeNoorAmounts",
                     "trunc(\"PriceInNoor\") = \"PriceInNoor\"");
-                table.HasCheckConstraint("CK_CourseCartItems_Quantity",
+                table.HasCheckConstraint("CK_CartItems_Quantity",
                     "\"Quantity\" >= 1");
-                table.HasCheckConstraint("CK_CourseCartItems_Allocation",
+                table.HasCheckConstraint("CK_CartItems_Allocation",
                     "\"AllocatedAmountInNoor\" >= 0 AND trunc(\"AllocatedAmountInNoor\") = \"AllocatedAmountInNoor\" AND \"AllocatedAmountInNoor\" <= \"Quantity\" * \"PriceInNoor\"");
-                table.HasCheckConstraint("CK_CourseCartItems_Shares",
+                table.HasCheckConstraint("CK_CartItems_Shares",
                     "(\"RegularAmountInNoor\" IS NULL AND \"GiftAmountInNoor\" IS NULL) OR (\"RegularAmountInNoor\" >= 0 AND \"GiftAmountInNoor\" >= 0 AND trunc(\"RegularAmountInNoor\") = \"RegularAmountInNoor\" AND trunc(\"GiftAmountInNoor\") = \"GiftAmountInNoor\" AND \"RegularAmountInNoor\" + \"GiftAmountInNoor\" = \"AllocatedAmountInNoor\")");
             });
             items.WithOwner().HasForeignKey("CartId");

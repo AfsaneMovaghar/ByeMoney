@@ -257,7 +257,7 @@ namespace ByeMoney.Infrastructure.Migrations
                     b.ToTable("UserRoles", (string)null);
                 });
 
-            modelBuilder.Entity("ByeMoney.Domain.Modules.Purchases.CourseCart", b =>
+            modelBuilder.Entity("ByeMoney.Domain.Modules.Purchases.Cart", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -343,9 +343,9 @@ namespace ByeMoney.Infrastructure.Migrations
 
                     b.HasIndex("Synchronized", "UpdatedAtUtc");
 
-                    b.ToTable("CourseCarts", null, t =>
+                    b.ToTable("Carts", null, t =>
                         {
-                            t.HasCheckConstraint("CK_CourseCarts_Discounts", "\"ItemDiscountInNoor\" >= 0 AND \"CouponDiscountInNoor\" >= 0 AND \"ShippingAmountInNoor\" >= 0 AND trunc(\"ItemDiscountInNoor\") = \"ItemDiscountInNoor\" AND trunc(\"CouponDiscountInNoor\") = \"CouponDiscountInNoor\" AND trunc(\"ShippingAmountInNoor\") = \"ShippingAmountInNoor\"");
+                            t.HasCheckConstraint("CK_Carts_Discounts", "\"ItemDiscountInNoor\" >= 0 AND \"CouponDiscountInNoor\" >= 0 AND \"ShippingAmountInNoor\" >= 0 AND trunc(\"ItemDiscountInNoor\") = \"ItemDiscountInNoor\" AND trunc(\"CouponDiscountInNoor\") = \"CouponDiscountInNoor\" AND trunc(\"ShippingAmountInNoor\") = \"ShippingAmountInNoor\"");
                         });
                 });
 
@@ -986,9 +986,9 @@ namespace ByeMoney.Infrastructure.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("ByeMoney.Domain.Modules.Purchases.CourseCart", b =>
+            modelBuilder.Entity("ByeMoney.Domain.Modules.Purchases.Cart", b =>
                 {
-                    b.OwnsMany("ByeMoney.Domain.Modules.Purchases.CourseCartItem", "Items", b1 =>
+                    b.OwnsMany("ByeMoney.Domain.Modules.Purchases.CartItem", "Items", b1 =>
                         {
                             b1.Property<decimal>("AllocatedAmountInNoor")
                                 .HasPrecision(18, 4)
@@ -1035,17 +1035,17 @@ namespace ByeMoney.Infrastructure.Migrations
 
                             b1.HasKey("CartId", "ExternalCourseId", "ItemType");
 
-                            b1.ToTable("CourseCartItems", null, t =>
+                            b1.ToTable("CartItems", null, t =>
                                 {
-                                    t.HasCheckConstraint("CK_CourseCartItems_Allocation", "\"AllocatedAmountInNoor\" >= 0 AND trunc(\"AllocatedAmountInNoor\") = \"AllocatedAmountInNoor\" AND \"AllocatedAmountInNoor\" <= \"Quantity\" * \"PriceInNoor\"");
+                                    t.HasCheckConstraint("CK_CartItems_Allocation", "\"AllocatedAmountInNoor\" >= 0 AND trunc(\"AllocatedAmountInNoor\") = \"AllocatedAmountInNoor\" AND \"AllocatedAmountInNoor\" <= \"Quantity\" * \"PriceInNoor\"");
 
-                                    t.HasCheckConstraint("CK_CourseCartItems_NonNegativeAmounts", "\"PriceInNoor\" >= 0");
+                                    t.HasCheckConstraint("CK_CartItems_NonNegativeAmounts", "\"PriceInNoor\" >= 0");
 
-                                    t.HasCheckConstraint("CK_CourseCartItems_Quantity", "\"Quantity\" >= 1");
+                                    t.HasCheckConstraint("CK_CartItems_Quantity", "\"Quantity\" >= 1");
 
-                                    t.HasCheckConstraint("CK_CourseCartItems_Shares", "(\"RegularAmountInNoor\" IS NULL AND \"GiftAmountInNoor\" IS NULL) OR (\"RegularAmountInNoor\" >= 0 AND \"GiftAmountInNoor\" >= 0 AND trunc(\"RegularAmountInNoor\") = \"RegularAmountInNoor\" AND trunc(\"GiftAmountInNoor\") = \"GiftAmountInNoor\" AND \"RegularAmountInNoor\" + \"GiftAmountInNoor\" = \"AllocatedAmountInNoor\")");
+                                    t.HasCheckConstraint("CK_CartItems_Shares", "(\"RegularAmountInNoor\" IS NULL AND \"GiftAmountInNoor\" IS NULL) OR (\"RegularAmountInNoor\" >= 0 AND \"GiftAmountInNoor\" >= 0 AND trunc(\"RegularAmountInNoor\") = \"RegularAmountInNoor\" AND trunc(\"GiftAmountInNoor\") = \"GiftAmountInNoor\" AND \"RegularAmountInNoor\" + \"GiftAmountInNoor\" = \"AllocatedAmountInNoor\")");
 
-                                    t.HasCheckConstraint("CK_CourseCartItems_WholeNoorAmounts", "trunc(\"PriceInNoor\") = \"PriceInNoor\"");
+                                    t.HasCheckConstraint("CK_CartItems_WholeNoorAmounts", "trunc(\"PriceInNoor\") = \"PriceInNoor\"");
                                 });
 
                             b1.WithOwner()
