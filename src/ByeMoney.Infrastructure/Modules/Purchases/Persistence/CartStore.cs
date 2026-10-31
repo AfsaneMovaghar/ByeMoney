@@ -16,7 +16,7 @@ using Npgsql;
 
 namespace ByeMoney.Infrastructure.Modules.Purchases.Persistence;
 
-public sealed class CourseCartStore(IServiceScopeFactory scopes) : ICartStore
+public sealed class CartStore(IServiceScopeFactory scopes) : ICartStore
 {
     private async Task<T> Run<T>(Func<IServiceProvider, ApplicationDbContext, Task<T>> action)
     {

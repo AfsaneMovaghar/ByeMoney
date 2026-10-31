@@ -6,8 +6,8 @@ using Microsoft.Extensions.Logging;
 
 namespace ByeMoney.Infrastructure.Modules.Purchases.BackgroundServices;
 
-public sealed class CourseCartRecoveryBackgroundService(IServiceScopeFactory scopes,
-    ILogger<CourseCartRecoveryBackgroundService> logger) : BackgroundService
+public sealed class CartRecoveryBackgroundService(IServiceScopeFactory scopes,
+    ILogger<CartRecoveryBackgroundService> logger) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken ct)
     {

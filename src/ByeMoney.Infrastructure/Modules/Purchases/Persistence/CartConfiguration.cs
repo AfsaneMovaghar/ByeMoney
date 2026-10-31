@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace ByeMoney.Infrastructure.Modules.Purchases.Persistence;
 
-public sealed class CourseCartConfiguration : IEntityTypeConfiguration<Cart>
+public sealed class CartConfiguration : IEntityTypeConfiguration<Cart>
 {
     public void Configure(EntityTypeBuilder<Cart> b)
     {
