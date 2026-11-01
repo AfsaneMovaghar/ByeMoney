@@ -26,7 +26,7 @@ public sealed class GetAdminCourseOrdersQueryHandler(ICourseOrderReader reader, 
             var buyer = buyers[row.BuyerId];
             return new AdminCourseOrderListItem(order.OrderId, order.SourceType, order.CartId,
                 order.CreatedAtUtc, order.UpdatedAtUtc, order.FinancialStatus, order.DeliveryStatus,
-                order.FinalAmountInNoor, order.ItemCount, buyer.ExternalUserId,
+                order.FinalAmountInNoor, order.ItemCount, order.TopUps.Count, buyer.ExternalUserId,
                 string.IsNullOrWhiteSpace(buyer.DisplayName) ? null : buyer.DisplayName);
         }).ToArray();
         return new PurchasePage<AdminCourseOrderListItem>(items, page.Page, page.PageSize, page.TotalCount);

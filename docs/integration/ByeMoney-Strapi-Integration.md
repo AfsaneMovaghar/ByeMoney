@@ -531,7 +531,8 @@ Legacy فقط گزارش: `GET /api/integrations/byemoney/v1/legacy-sales` در 
 |---|---|
 | `GET /api/me/course-orders` | فهرست مالک جاری از JWT؛ پارامترهای `page=1,pageSize=20,fromUtc,toUtc,financialStatus,deliveryStatus,sourceType` |
 | `GET /api/me/course-orders/{orderId}` | جزئیات همان واحد پیگیری؛ شناسهٔ معتبر ناموجود یا متعلق به دیگری پاسخ یکسان ۴۰۴ دارد |
-| `GET /api/admin/course-orders` | همان فهرست با پالیسی `RequirePurchasesView`؛ فیلتر اضافی `buyerExternalUserId` مطابق I02 |
+| `GET /api/admin/course-orders` | همان فهرست با پالیسی `RequirePurchasesView`؛ فیلتر اضافی `buyerExternalUserId` مطابق I02. ردیف ادمین فیلد افزودنی `topUpAttemptCount` (تعداد تلاش‌های درگاه/شارژ همان سفارش) دارد |
+| `GET /api/admin/course-orders/{orderId}` | افزوده‌شده در ۲۰۲۶-۱۱-۰۱؛ پالیسی `RequirePurchasesView`. پاسخ `{buyerExternalUserId,buyerDisplayName,order}` است و `order` دقیقاً همان DTO جزئیات `/api/me/course-orders/{orderId}` (اقلام، `topUps[]` با `status` و `gatewayResultKind`) را دارد؛ برخلاف رسید، برای سفارش پرداخت‌نشده هم کار می‌کند. شناسهٔ نامعتبر ۴۰۰ و ناموجود ۴۰۴ است |
 
 پاسخ فهرست `{items,page,pageSize,totalCount}` است؛ هر ردیف شامل `orderId,sourceType,cartId,createdAtUtc,updatedAtUtc,financialStatus,deliveryStatus,finalAmountInNoor,itemCount` است. ردیف ادمین علاوه بر این‌ها `buyerExternalUserId,buyerDisplayName` مطابق I11-P دارد. ترتیب `createdAtUtc DESC,orderId DESC`، شمارش و صفحه‌بندی پس از گروه‌بندی و حذف تکرار انجام می‌شوند. حدود صفحه و بازهٔ تاریخ شامل ابتدا/غیرشامل انتها مانند I11-P است، ولی فیلتر تاریخ روی زمان ایجاد واحد پیگیری اعمال می‌شود، نه فقط زمان خرید موفق. وضعیت و نوع منبع نامعتبر ۴۰۰ هستند؛ enumها صریحاً رشته می‌شوند.
 

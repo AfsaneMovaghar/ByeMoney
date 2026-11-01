@@ -1,5 +1,6 @@
 using ByeMoney.Application.Modules.Purchases.History.DTOs;
 using ByeMoney.Application.Modules.Purchases.Orders.DTOs;
+using ByeMoney.Application.Modules.Purchases.Queries.GetAdminCourseOrder;
 using ByeMoney.Application.Modules.Purchases.Queries.GetAdminCourseOrderReceipt;
 using ByeMoney.Application.Modules.Purchases.Queries.GetAdminCourseOrders;
 using ByeMoney.Domain.Modules.Identity.Constants;
@@ -20,6 +21,14 @@ public sealed class AdminCourseOrdersController(ISender sender) : ControllerBase
         [FromQuery] AdminCourseOrderFilter filter, CancellationToken ct)
     {
         return Ok(await sender.Send(new GetAdminCourseOrdersQuery(filter), ct));
+    }
+
+    [HttpGet("{orderId}")]
+    [ProducesResponseType(typeof(AdminCourseOrderDetails), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<AdminCourseOrderDetails>> Details(string orderId, CancellationToken ct)
+    {
+        return Ok(await sender.Send(new GetAdminCourseOrderQuery(orderId), ct));
     }
 
     [HttpGet("{orderId}/receipt")]

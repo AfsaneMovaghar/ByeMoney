@@ -1,6 +1,8 @@
 using ByeMoney.Application.Modules.Purchases.Orders.DTOs;
 using ByeMoney.Application.Modules.Purchases.Orders.Interfaces;
 using ByeMoney.Application.Modules.Purchases.Orders.Services;
+using ByeMoney.Application.Modules.Purchases.Orders.Constants;
+using ByeMoney.Application.Modules.Purchases.Queries.GetAdminCourseOrder;
 using ByeMoney.Application.Modules.Purchases.Queries.GetAdminCourseOrders;
 using ByeMoney.Application.Modules.Purchases.Queries.GetMyCourseOrder;
 using ByeMoney.Application.Modules.Purchases.Queries.GetMyCourseOrders;
@@ -244,6 +246,54 @@ public sealed class CourseOrderTests
         typeof(AdminCourseOrdersController).GetCustomAttribute<AuthorizeAttribute>()!.Policy
             .Should().Be(PolicyNames.RequirePurchasesView);
         typeof(MyCourseOrdersController).GetCustomAttribute<AuthorizeAttribute>().Should().NotBeNull();
+    }
+
+    [Fact]
+    public async Task AdminDetailsShowCancelledAttemptWithBuyerAndAdminListCountsAttempts()
+    {
+        var cart = QuotedCart();
+        var topUp = TopUp();
+        cart.AwaitTopUp(topUp.Id.Value);
+        topUp.Reject("پرداخت بانکی انجام نشده است.");
+        var snapshot = Snapshot([cart], [topUp], []);
+        var reader = new Mock<ICourseOrderReader>();
+        reader.Setup(item => item.ReadAsync(null, null, It.IsAny<CancellationToken>())).ReturnsAsync(snapshot);
+        var user = new Mock<ICurrentUserService>();
+        user.SetupGet(item => item.UserId).Returns(Guid.NewGuid());
+        var orderId = CourseOrderId.For(CourseOrderSourceType.Cart, cart.Id);
+
+        var details = await new GetAdminCourseOrderQueryHandler(reader.Object, user.Object)
+            .Handle(new GetAdminCourseOrderQuery(orderId), default);
+
+        details.BuyerExternalUserId.Should().Be(_buyer.ExternalUserId);
+        details.Order.FinancialStatus.Should().Be("Failed");
+        details.Order.TopUps.Should().ContainSingle().Which.Status.Should().Be("Rejected");
+        details.Order.Items.Should().HaveCount(2);
+
+        var page = await new GetAdminCourseOrdersQueryHandler(reader.Object, user.Object)
+            .Handle(new GetAdminCourseOrdersQuery(new AdminCourseOrderFilter(FinancialStatus: "Failed")), default);
+        page.Items.Should().ContainSingle().Which.TopUpAttemptCount.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task AdminDetailsRejectsMissingIdentityUnknownOrderAndMalformedId()
+    {
+        var reader = new Mock<ICourseOrderReader>();
+        reader.Setup(item => item.ReadAsync(null, null, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Snapshot([], [], []));
+        var anonymous = new GetAdminCourseOrderQueryHandler(reader.Object, Mock.Of<ICurrentUserService>());
+        var missingIdentity = () => anonymous.Handle(
+            new GetAdminCourseOrderQuery(CourseOrderId.For(CourseOrderSourceType.Cart, Guid.NewGuid())), default);
+        await missingIdentity.Should().ThrowAsync<UnauthorizedAccessException>();
+
+        var user = new Mock<ICurrentUserService>();
+        user.SetupGet(item => item.UserId).Returns(Guid.NewGuid());
+        var unknown = () => new GetAdminCourseOrderQueryHandler(reader.Object, user.Object).Handle(
+            new GetAdminCourseOrderQuery(CourseOrderId.For(CourseOrderSourceType.Cart, Guid.NewGuid())), default);
+        await unknown.Should().ThrowAsync<NotFoundException>();
+
+        (await new GetAdminCourseOrderQueryValidator().ValidateAsync(new GetAdminCourseOrderQuery("garbage")))
+            .IsValid.Should().BeFalse();
     }
 
     [Fact]
