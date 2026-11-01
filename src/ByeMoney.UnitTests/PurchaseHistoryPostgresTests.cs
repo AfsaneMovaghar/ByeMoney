@@ -46,7 +46,7 @@ public sealed class PurchaseHistoryPostgresTests : IAsyncLifetime
         // نام schema فقط از GUID تولیدشده در همین آزمون است؛ DDL شناسه پارامترپذیر ندارد.
         await using var command = new NpgsqlCommand($"CREATE SCHEMA \"{_schema}\"", connection);
         await command.ExecuteNonQueryAsync();
-        var builder = new NpgsqlConnectionStringBuilder(_connectionString) { SearchPath = _schema };
+        var builder = new NpgsqlConnectionStringBuilder(_connectionString) { SearchPath = _schema, Pooling = false };
         _options = new DbContextOptionsBuilder<ApplicationDbContext>()
             .UseNpgsql(builder.ConnectionString,
                 options => options.MigrationsHistoryTable("__EFMigrationsHistory", _schema)).Options;

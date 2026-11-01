@@ -59,7 +59,7 @@ public sealed class WelcomeGiftFinancialTests : IAsyncLifetime
             await command.ExecuteNonQueryAsync();
         }
 
-        var builder = new NpgsqlConnectionStringBuilder(_adminConnection) { SearchPath = _schema };
+        var builder = new NpgsqlConnectionStringBuilder(_adminConnection) { SearchPath = _schema, Pooling = false };
         var services = new ServiceCollection()
             .AddLogging()
             .AddApplicationServices()

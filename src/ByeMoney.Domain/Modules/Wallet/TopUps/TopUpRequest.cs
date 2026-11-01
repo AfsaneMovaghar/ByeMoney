@@ -387,7 +387,15 @@ public class TopUpRequest : BaseEntity<TopUpRequestId>
                     ReviewResolutionFinancialReferenceId, null, null)];
             }
 
-            ReviewRevision++;
+            if (ReviewCaseId is null)
+            {
+                ReviewCaseId = $"case-{ClientReferenceCode}";
+                ReviewRevision = Math.Max(1, ReviewRevision);
+            }
+            else
+            {
+                ReviewRevision++;
+            }
             ReviewResolvedAtUtc = null;
             ReviewOutcomeCode = null;
             ReviewResolutionFinancialReferenceId = null;

@@ -58,7 +58,7 @@ public sealed class GiftNoorFinancialPostgresTests : IAsyncLifetime
             await command.ExecuteNonQueryAsync();
         }
 
-        var builder = new NpgsqlConnectionStringBuilder(_adminConnection) { SearchPath = _schema };
+        var builder = new NpgsqlConnectionStringBuilder(_adminConnection) { SearchPath = _schema, Pooling = false };
         var services = new ServiceCollection().AddLogging().AddApplicationServices().AddInfrastructureServices(configuration);
         services.AddDbContext<ApplicationDbContext>(options =>
             options.UseNpgsql(builder.ConnectionString,

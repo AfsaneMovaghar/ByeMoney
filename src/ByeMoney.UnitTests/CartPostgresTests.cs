@@ -47,7 +47,7 @@ public sealed class CartPostgresTests : IAsyncLifetime
             await using var command = new NpgsqlCommand($"CREATE SCHEMA \"{_schema}\"", connection);
             await command.ExecuteNonQueryAsync();
         }
-        var builder = new NpgsqlConnectionStringBuilder(_adminConnection) { SearchPath = _schema };
+        var builder = new NpgsqlConnectionStringBuilder(_adminConnection) { SearchPath = _schema, Pooling = false };
         var services = new ServiceCollection().AddLogging().AddApplicationServices().AddInfrastructureServices(configuration);
         services.AddDbContext<ApplicationDbContext>(options => options.UseNpgsql(builder.ConnectionString,
             postgres => postgres.MigrationsHistoryTable("__EFMigrationsHistory", _schema)));

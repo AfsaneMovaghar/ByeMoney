@@ -266,7 +266,7 @@ public class WalletConcurrencyIntegrationTests
 
         private TestDatabase(string connectionString)
         {
-            var builder = new NpgsqlConnectionStringBuilder(connectionString) { SearchPath = _schema };
+            var builder = new NpgsqlConnectionStringBuilder(connectionString) { SearchPath = _schema, Pooling = false };
             _connectionString = builder.ConnectionString;
             _connection = new NpgsqlConnection(_connectionString);
         }
