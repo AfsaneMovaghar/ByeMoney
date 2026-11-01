@@ -15,6 +15,9 @@ public class PhysicalProductPurchase : BaseEntity<PhysicalProductPurchaseId>
     public decimal UnitPriceInNoor { get; private set; }
     public decimal PaidAmountInNoor { get; private set; }
     public Guid? LedgerTransactionId { get; private set; }
+    public PhysicalDeliveryStatus DeliveryStatus { get; private set; } = PhysicalDeliveryStatus.Preparing;
+    public DateTime? ShippedAtUtc { get; private set; }
+    public DateTime? DeliveredAtUtc { get; private set; }
 
     private PhysicalProductPurchase() { }
 
@@ -77,4 +80,43 @@ public class PhysicalProductPurchase : BaseEntity<PhysicalProductPurchaseId>
         LedgerTransactionId = ledgerTransactionId;
         UpdatedAt = DateTime.UtcNow;
     }
+
+    public void MarkShipped()
+    {
+        if (DeliveryStatus == PhysicalDeliveryStatus.Shipped)
+        {
+            return;
+        }
+
+        if (DeliveryStatus != PhysicalDeliveryStatus.Preparing)
+        {
+            throw InvalidDeliveryTransition(PhysicalDeliveryStatus.Shipped);
+        }
+
+        var now = DateTime.UtcNow;
+        DeliveryStatus = PhysicalDeliveryStatus.Shipped;
+        ShippedAtUtc = now;
+        UpdatedAt = now;
+    }
+
+    public void MarkDelivered()
+    {
+        if (DeliveryStatus == PhysicalDeliveryStatus.Delivered)
+        {
+            return;
+        }
+
+        if (DeliveryStatus != PhysicalDeliveryStatus.Shipped)
+        {
+            throw InvalidDeliveryTransition(PhysicalDeliveryStatus.Delivered);
+        }
+
+        var now = DateTime.UtcNow;
+        DeliveryStatus = PhysicalDeliveryStatus.Delivered;
+        DeliveredAtUtc = now;
+        UpdatedAt = now;
+    }
+
+    private DomainException InvalidDeliveryTransition(PhysicalDeliveryStatus target) =>
+        new(string.Format(DomainErrors.PhysicalProductPurchase_InvalidDeliveryTransition, DeliveryStatus, target));
 }

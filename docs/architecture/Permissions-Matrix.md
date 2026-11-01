@@ -21,12 +21,14 @@
 | :--- | :--- | :--- | :--- | :--- |
 | AdminAssistedTopUp | `POST` | `/api/admin/topups/assisted` | نیازمند پالیسی `RequireTopUpReview` | `TopUp.Review` |
 | AdminCourseOrders | `GET` | `/api/admin/course-orders` | نیازمند پالیسی `RequirePurchasesView` | `Purchases.View` |
+| AdminCourseOrders | `GET` | `/api/admin/course-orders/{orderId}/receipt` | نیازمند پالیسی `RequirePurchasesView` | `Purchases.View` |
 | AdminCoursePurchases | `GET` | `/api/admin/course-purchases` | نیازمند پالیسی `RequirePurchasesView` | `Purchases.View` |
 | AdminCoursePurchases | `GET` | `/api/admin/course-purchases/{purchaseId:guid}` | نیازمند پالیسی `RequirePurchasesView` | `Purchases.View` |
 | AdminCourses | `POST` | `/api/admin/courses/purchase` | نیازمند پالیسی `RequireCoursesManage` | `Courses.Manage` |
 | AdminGatewayReview | `GET` | `/api/admin/topups/gateway-reviews/{clientReferenceCode}` | نیازمند پالیسی `RequireTopUpReview` | `TopUp.Review` |
 | AdminGatewayReview | `POST` | `/api/admin/topups/gateway-reviews/resolve` | نیازمند پالیسی `RequireTopUpReview` | `TopUp.Review` |
 | AdminGift | `POST` | `/api/admin/noor-gifts` | نیازمند پالیسی `RequireNoorGift` | `Noor.Gift` |
+| AdminPhysicalPurchases | `PUT` | `/api/admin/physical-purchases/{purchaseId:guid}/delivery-status` | نیازمند پالیسی `RequireCoursesManage` | `Courses.Manage` |
 | AdminTopUp | `POST` | `/api/admin/topups/{id:guid}/confirm` | نیازمند پالیسی `RequireTopUpReview` | `TopUp.Review` |
 | AdminTopUp | `GET` | `/api/admin/topups/by-reference/{clientReferenceCode}` | نیازمند پالیسی `RequireTopUpReview` | `TopUp.Review` |
 | AdminTopUp | `GET` | `/api/admin/topups/permissions` | احراز هویت شده (JWT) | — |
@@ -49,6 +51,7 @@
 | GatewayTopUp | `POST` | `/api/integrations/topups/v1/gateway-reviews/reopen` | عمومی (Anonymous) | — |
 | MyCourseOrders | `GET` | `/api/me/course-orders/{orderId}` | احراز هویت شده (JWT) | — |
 | MyCourseOrders | `GET` | `/api/me/course-orders` | احراز هویت شده (JWT) | — |
+| MyCourseOrders | `GET` | `/api/me/course-orders/{orderId}/receipt` | احراز هویت شده (JWT) | — |
 | MyCoursePurchases | `GET` | `/api/me/course-purchases` | احراز هویت شده (JWT) | — |
 | MyCoursePurchases | `GET` | `/api/me/course-purchases/{purchaseId:guid}` | احراز هویت شده (JWT) | — |
 | Settings | `GET` | `/api/settings/conversion-rate` | عمومی (Public / بدون Authorize) | — |

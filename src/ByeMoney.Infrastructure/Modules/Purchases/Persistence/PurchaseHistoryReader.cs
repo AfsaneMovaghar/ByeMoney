@@ -56,19 +56,21 @@ public sealed class PurchaseHistoryReader(ApplicationDbContext db) : IPurchaseHi
             physicalQuery = physicalQuery.Where(row => row.Purchase.CreatedAtUtc < end);
         }
 
-        var includePhysical = true;
         if (filter.DeliveryStatus == PurchaseDeliveryStatus.Delivered.ToString())
         {
             courseQuery = courseQuery.Where(row => row.Purchase.Status == CoursePurchaseStatus.NotificationSent);
-            includePhysical = false;
+            physicalQuery = physicalQuery.Where(
+                row => row.Purchase.DeliveryStatus == PhysicalDeliveryStatus.Delivered);
         }
         else if (filter.DeliveryStatus == PurchaseDeliveryStatus.Pending.ToString())
         {
             courseQuery = courseQuery.Where(row => row.Purchase.Status != CoursePurchaseStatus.NotificationSent);
+            physicalQuery = physicalQuery.Where(
+                row => row.Purchase.DeliveryStatus != PhysicalDeliveryStatus.Delivered);
         }
 
         var courseCount = await courseQuery.CountAsync(ct);
-        var physicalCount = includePhysical ? await physicalQuery.CountAsync(ct) : 0;
+        var physicalCount = await physicalQuery.CountAsync(ct);
         var totalCount = courseCount + physicalCount;
 
         var takeLimit = filter.Page * filter.PageSize;
@@ -88,11 +90,12 @@ public sealed class PurchaseHistoryReader(ApplicationDbContext db) : IPurchaseHi
                 row.Buyer.FirstName,
                 row.Buyer.LastName,
                 row.Purchase.Snapshot.ItemType,
-                row.Purchase.Snapshot.ExternalParentId))
+                row.Purchase.Snapshot.ExternalParentId,
+                null))
             .ToListAsync(ct);
 
         List<PurchaseReadRow> physicalItems = [];
-        if (includePhysical && physicalCount > 0)
+        if (physicalCount > 0)
         {
             physicalItems = await physicalQuery
                 .OrderByDescending(row => row.Purchase.CreatedAtUtc)
@@ -109,7 +112,8 @@ public sealed class PurchaseHistoryReader(ApplicationDbContext db) : IPurchaseHi
                     row.Buyer.FirstName,
                     row.Buyer.LastName,
                     ProductItemType.Product,
-                    null))
+                    null,
+                    row.Purchase.DeliveryStatus))
                 .ToListAsync(ct);
         }
 

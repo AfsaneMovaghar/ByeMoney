@@ -14,6 +14,8 @@ public class PhysicalProductPurchaseConfiguration : IEntityTypeConfiguration<Phy
             table.HasCheckConstraint("CK_PhysicalProductPurchases_NonNegativeAmounts",
                 "\"UnitPriceInNoor\" >= 0 AND \"PaidAmountInNoor\" >= 0 AND trunc(\"UnitPriceInNoor\") = \"UnitPriceInNoor\" AND trunc(\"PaidAmountInNoor\") = \"PaidAmountInNoor\"");
             table.HasCheckConstraint("CK_PhysicalProductPurchases_Quantity", "\"Quantity\" >= 1");
+            table.HasCheckConstraint("CK_PhysicalProductPurchases_DeliveryStatus",
+                "\"DeliveryStatus\" IN ('Preparing', 'Shipped', 'Delivered')");
         });
 
         builder.HasKey(x => x.Id);
@@ -36,6 +38,13 @@ public class PhysicalProductPurchaseConfiguration : IEntityTypeConfiguration<Phy
         builder.Property(x => x.UnitPriceInNoor).HasPrecision(18, 4).IsRequired();
         builder.Property(x => x.PaidAmountInNoor).HasPrecision(18, 4).IsRequired();
         builder.Property(x => x.LedgerTransactionId);
+        builder.Property(x => x.DeliveryStatus)
+            .HasConversion<string>()
+            .HasMaxLength(20)
+            .HasDefaultValue(PhysicalDeliveryStatus.Preparing)
+            .IsRequired();
+        builder.Property(x => x.ShippedAtUtc);
+        builder.Property(x => x.DeliveredAtUtc);
         builder.Property(x => x.CreatedAtUtc).IsRequired();
         builder.Property(x => x.UpdatedAt);
     }

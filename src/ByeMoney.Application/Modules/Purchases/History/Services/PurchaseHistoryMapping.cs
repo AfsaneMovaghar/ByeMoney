@@ -11,9 +11,18 @@ public static class PurchaseHistoryMapping
             ? PurchaseDeliveryStatus.Delivered
             : PurchaseDeliveryStatus.Pending).ToString();
 
+    public static string DeliveryStatus(PhysicalDeliveryStatus status) =>
+        (status == PhysicalDeliveryStatus.Delivered
+            ? PurchaseDeliveryStatus.Delivered
+            : PurchaseDeliveryStatus.Pending).ToString();
+
+    private static string DeliveryStatus(PurchaseReadRow row) => row.PhysicalDelivery.HasValue
+        ? DeliveryStatus(row.PhysicalDelivery.Value)
+        : DeliveryStatus(row.Status);
+
     public static PurchaseListItem ToListItem(PurchaseReadRow row) => new(
         row.PurchaseId, row.CartId, row.CourseTitle, row.FinalAmountInNoor,
-        row.PurchasedAtUtc, PurchaseFinancialStatus.Paid.ToString(), DeliveryStatus(row.Status),
+        row.PurchasedAtUtc, PurchaseFinancialStatus.Paid.ToString(), DeliveryStatus(row),
         row.ItemType.ToString(), row.ParentExternalId);
 
     public static AdminPurchaseListItem ToAdminListItem(PurchaseReadRow row)
@@ -21,7 +30,7 @@ public static class PurchaseHistoryMapping
         var name = $"{row.BuyerFirstName} {row.BuyerLastName}".Trim();
         return new AdminPurchaseListItem(
             row.PurchaseId, row.CartId, row.CourseTitle, row.FinalAmountInNoor,
-            row.PurchasedAtUtc, PurchaseFinancialStatus.Paid.ToString(), DeliveryStatus(row.Status),
+            row.PurchasedAtUtc, PurchaseFinancialStatus.Paid.ToString(), DeliveryStatus(row),
             row.BuyerExternalUserId, string.IsNullOrWhiteSpace(name) ? null : name,
             row.ItemType.ToString(), row.ParentExternalId);
     }
@@ -33,7 +42,8 @@ public static class PurchaseHistoryMapping
             cart.Items.Sum(item => item.LineTotalInNoor),
             cart.ItemDiscountInNoor,
             cart.CouponDiscountInNoor,
-            cart.Total);
+            cart.Total,
+            cart.ShippingAmountInNoor);
 
         if (data.PhysicalPurchase is { } physical)
         {
@@ -53,8 +63,8 @@ public static class PurchaseHistoryMapping
                 null,
                 physical.CreatedAtUtc,
                 PurchaseFinancialStatus.Paid.ToString(),
-                PurchaseDeliveryStatus.Pending.ToString(),
-                null,
+                DeliveryStatus(physical.DeliveryStatus),
+                physical.DeliveredAtUtc,
                 summary,
                 ProductItemType.Product.ToString(),
                 null);

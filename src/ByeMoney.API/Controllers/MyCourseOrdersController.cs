@@ -1,6 +1,7 @@
 using ByeMoney.Application.Modules.Purchases.History.DTOs;
 using ByeMoney.Application.Modules.Purchases.Orders.DTOs;
 using ByeMoney.Application.Modules.Purchases.Queries.GetMyCourseOrder;
+using ByeMoney.Application.Modules.Purchases.Queries.GetMyCourseOrderReceipt;
 using ByeMoney.Application.Modules.Purchases.Queries.GetMyCourseOrders;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -27,5 +28,13 @@ public sealed class MyCourseOrdersController(ISender sender) : ControllerBase
     public async Task<ActionResult<CourseOrderDetails>> Details(string orderId, CancellationToken ct)
     {
         return Ok(await sender.Send(new GetMyCourseOrderQuery(orderId), ct));
+    }
+
+    [HttpGet("{orderId}/receipt")]
+    [ProducesResponseType(typeof(CourseOrderReceipt), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<CourseOrderReceipt>> Receipt(string orderId, CancellationToken ct)
+    {
+        return Ok(await sender.Send(new GetMyCourseOrderReceiptQuery(orderId), ct));
     }
 }

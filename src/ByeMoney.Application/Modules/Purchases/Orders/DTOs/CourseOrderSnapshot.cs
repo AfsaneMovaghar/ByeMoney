@@ -5,4 +5,5 @@ namespace ByeMoney.Application.Modules.Purchases.Orders.DTOs;
 
 public sealed record CourseOrderSnapshot(
     IReadOnlyList<Cart> Carts, IReadOnlyList<TopUpRequest> TopUps,
-    IReadOnlyList<CoursePurchase> Purchases, IReadOnlyList<CourseOrderBuyer> Buyers);
+    IReadOnlyList<CoursePurchase> Purchases, IReadOnlyList<CourseOrderBuyer> Buyers,
+    IReadOnlyList<PhysicalProductPurchase> PhysicalPurchases);

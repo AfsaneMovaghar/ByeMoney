@@ -5,4 +5,7 @@
   <data name="NotFound" xml:space="preserve"><value>سفارش مورد نظر یافت نشد.</value></data>
   <data name="InvalidOrderId" xml:space="preserve"><value>شناسهٔ پیگیری سفارش معتبر نیست.</value></data>
   <data name="InvalidSourceType" xml:space="preserve"><value>نوع منبع سفارش معتبر نیست.</value></data>
+  <data name="PhysicalPurchaseNotFound" xml:space="preserve"><value>خرید کالای فیزیکی یافت نشد.</value></data>
+  <data name="InvalidPurchaseId" xml:space="preserve"><value>شناسهٔ خرید معتبر نیست.</value></data>
+  <data name="InvalidDeliveryStatus" xml:space="preserve"><value>وضعیت تحویل باید «ارسال‌شده» (Shipped) یا «تحویل‌شده» (Delivered) باشد.</value></data>
 </root>

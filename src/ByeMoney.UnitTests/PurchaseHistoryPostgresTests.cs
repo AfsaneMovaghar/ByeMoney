@@ -148,6 +148,66 @@ public sealed class PurchaseHistoryPostgresTests : IAsyncLifetime
 
     }
 
+    [CartPostgresFact]
+    public async Task PhysicalDeliveryPersistsFiltersListAndAppearsInOrders()
+    {
+        var buyer = User.CreateInitial("physical-buyer");
+        var cart = Cart.Create(Guid.NewGuid(), buyer.Id.Value, buyer.ExternalUserId, [
+            new CartItemInput("book", ProductItemType.Product, 2),
+            new CartItemInput("pen", ProductItemType.Product, 1)
+        ], null);
+        cart.SetQuote([
+            new CartQuoteItem("book", "Book", 50, 0, 0, 100, ProductItemType.Product, null, 2),
+            new CartQuoteItem("pen", "Pen", 20, 0, 0, 20, ProductItemType.Product, null, 1)
+        ], shippingAmountInNoor: 10);
+        cart.MarkPaid();
+        var book = PhysicalProductPurchase.Create(
+            PhysicalProductPurchaseId.New(), cart.Id, buyer.Id, "book", "Book", 2, 50, 100);
+        book.MarkDebited(cart.Id);
+        book.MarkShipped();
+        book.MarkDelivered();
+        var pen = PhysicalProductPurchase.Create(
+            PhysicalProductPurchaseId.New(), cart.Id, buyer.Id, "pen", "Pen", 1, 20, 20);
+        pen.MarkDebited(cart.Id);
+
+        await using (var seed = new ApplicationDbContext(_options))
+        {
+            seed.AddRange(buyer, cart, book, pen);
+            await seed.SaveChangesAsync();
+        }
+
+        await using var db = new ApplicationDbContext(_options);
+        var stored = await db.Set<PhysicalProductPurchase>().AsNoTracking().ToListAsync();
+        stored.Single(x => x.Id == book.Id).DeliveryStatus.Should().Be(PhysicalDeliveryStatus.Delivered);
+        stored.Single(x => x.Id == book.Id).DeliveredAtUtc.Should().NotBeNull();
+        stored.Single(x => x.Id == pen.Id).DeliveryStatus.Should().Be(PhysicalDeliveryStatus.Preparing);
+
+        var reader = new PurchaseHistoryReader(db);
+        var delivered = await reader.ListAsync(null, new PurchaseHistoryFilter(
+            BuyerExternalUserId: buyer.ExternalUserId, DeliveryStatus: "Delivered"), default);
+        delivered.Items.Single().PurchaseId.Should().Be(book.Id.Value);
+        PurchaseHistoryMapping.ToListItem(delivered.Items.Single()).DeliveryStatus.Should().Be("Delivered");
+        var waiting = await reader.ListAsync(null, new PurchaseHistoryFilter(
+            BuyerExternalUserId: buyer.ExternalUserId, DeliveryStatus: "Pending"), default);
+        waiting.Items.Single().PurchaseId.Should().Be(pen.Id.Value);
+        PurchaseHistoryMapping.ToListItem(waiting.Items.Single()).DeliveryStatus.Should().Be("Pending");
+
+        var snapshot = await new CourseOrderReader(db).ReadAsync(buyer.Id.Value, null, default);
+        var order = CourseOrderMapping.Build(snapshot).Single().Details;
+        order.FinancialStatus.Should().Be("Paid");
+        order.DeliveryStatus.Should().Be("PartiallyDelivered");
+        order.FinalAmountInNoor.Should().Be(130);
+        order.Items.Single(x => x.ExternalCourseId == "book").PhysicalDeliveryStatus.Should().Be("Delivered");
+        order.Items.Single(x => x.ExternalCourseId == "pen").PhysicalDeliveryStatus.Should().Be("Preparing");
+        var receipt = CourseOrderReceiptMapping.Build(order, snapshot)!;
+        (receipt.Items.Sum(x => x.FinalAmountInNoor) + receipt.CartSummary!.ShippingAmountInNoor)
+            .Should().Be(receipt.FinalAmountInNoor);
+
+        var invalidStatus = () => db.Database.ExecuteSqlRawAsync(
+            "UPDATE \"PhysicalProductPurchases\" SET \"DeliveryStatus\" = 'Bogus'");
+        await invalidStatus.Should().ThrowAsync<PostgresException>();
+    }
+
     private static CoursePurchase CreatePurchase(
         User buyer, string courseId, decimal amount, DateTime time, decimal? rate)
     {

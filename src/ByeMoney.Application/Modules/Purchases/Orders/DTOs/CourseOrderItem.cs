@@ -6,4 +6,5 @@ public sealed record CourseOrderItem(
     string ExternalCourseId, string? Title, decimal? PriceInNoor, decimal? FinalAmountInNoor,
     Guid? PurchaseId, Guid? TransactionId, DateTime? PurchasedAtUtc,
     string FinancialStatus, string DeliveryStatus,
-    string ItemType = nameof(ProductItemType.Course), string? ParentExternalId = null);
+    string ItemType = nameof(ProductItemType.Course), string? ParentExternalId = null,
+    int Quantity = 1, string? PhysicalDeliveryStatus = null);

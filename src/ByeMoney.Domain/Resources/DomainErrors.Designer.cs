@@ -287,6 +287,7 @@ namespace ByeMoney.Domain.Resources {
         public static string TopUpRequest_CannotRecordResultForStatus => ResourceManager.GetString("TopUpRequest_CannotRecordResultForStatus", resourceCulture)!;
         public static string CoursePurchase_CannotMarkNonFreeAsFree => ResourceManager.GetString("CoursePurchase_CannotMarkNonFreeAsFree", resourceCulture)!;
         public static string PhysicalProductPurchase_CannotMarkNonFreeAsFree => ResourceManager.GetString("PhysicalProductPurchase_CannotMarkNonFreeAsFree", resourceCulture)!;
+        public static string PhysicalProductPurchase_InvalidDeliveryTransition => ResourceManager.GetString("PhysicalProductPurchase_InvalidDeliveryTransition", resourceCulture)!;
         public static string GiftCampaign_AmountCannotBeNegative => ResourceManager.GetString("GiftCampaign_AmountCannotBeNegative", resourceCulture)!;
         public static string GiftCampaign_StartDateCannotBeAfterEndDate => ResourceManager.GetString("GiftCampaign_StartDateCannotBeAfterEndDate", resourceCulture)!;
         public static string Wallet_CreditAmountMustBePositive => ResourceManager.GetString("Wallet_CreditAmountMustBePositive", resourceCulture)!;

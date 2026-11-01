@@ -16,21 +16,28 @@ public static class CourseOrderMapping
             .ToLookup(purchase => purchase.CartId!.Value);
         var topUpsById = snapshot.TopUps.ToDictionary(topUp => topUp.Id.Value);
         var attachedTopUps = snapshot.Carts.SelectMany(TopUpIds).ToHashSet();
+        var physicalByCart = snapshot.PhysicalPurchases.ToLookup(purchase => purchase.CartId);
         var groupedPurchases = new HashSet<Guid>();
+        var groupedPhysicalPurchases = new HashSet<Guid>();
 
         foreach (var cart in snapshot.Carts)
         {
             var purchases = purchasesByCart[cart.Id].ToArray();
+            var physicalPurchases = physicalByCart[cart.Id].ToArray();
             var ids = TopUpIds(cart).ToArray();
             var topUps = ids.Where(topUpsById.ContainsKey).Select(id => topUpsById[id]).ToArray();
             var invalidLink = topUps.Length != ids.Length ||
                 topUps.Any(topUp => topUp.UserId.Value != cart.BuyerId) ||
-                purchases.Any(purchase => purchase.BuyerId.Value != cart.BuyerId);
+                purchases.Any(purchase => purchase.BuyerId.Value != cart.BuyerId) ||
+                physicalPurchases.Any(purchase => purchase.BuyerId.Value != cart.BuyerId);
             var ownedTopUps = topUps.Where(topUp => topUp.UserId.Value == cart.BuyerId).ToArray();
             var ownedPurchases = purchases.Where(purchase => purchase.BuyerId.Value == cart.BuyerId).ToArray();
+            var ownedPhysicalPurchases = physicalPurchases
+                .Where(purchase => purchase.BuyerId.Value == cart.BuyerId).ToArray();
             groupedPurchases.UnionWith(ownedPurchases.Select(purchase => purchase.Id.Value));
+            groupedPhysicalPurchases.UnionWith(ownedPhysicalPurchases.Select(purchase => purchase.Id.Value));
             rows.Add(new CourseOrderReadRow(cart.BuyerId,
-                MapCart(cart, ownedPurchases, ownedTopUps, invalidLink)));
+                MapCart(cart, ownedPurchases, ownedPhysicalPurchases, ownedTopUps, invalidLink)));
         }
 
         var purchasesById = snapshot.Purchases.ToDictionary(purchase => purchase.Id);
@@ -63,42 +70,67 @@ public static class CourseOrderMapping
                 purchase.Snapshot.PriceInNoorAtPurchaseTime, 1, null, null, null, null, [item], [])));
         }
 
+        foreach (var physical in snapshot.PhysicalPurchases
+            .Where(purchase => !groupedPhysicalPurchases.Contains(purchase.Id.Value)))
+        {
+            var item = MapPhysicalItem(physical, null);
+            rows.Add(new CourseOrderReadRow(physical.BuyerId.Value, new CourseOrderDetails(
+                CourseOrderId.For(CourseOrderSourceType.Purchase, physical.Id.Value),
+                CourseOrderSourceType.Purchase.ToString(), physical.CartId, physical.CreatedAtUtc,
+                PhysicalPurchaseUpdatedAt(physical), CourseOrderFinancialStatus.RequiresReview.ToString(),
+                Delivery([item]).ToString(), physical.PaidAmountInNoor, 1, null, null, null, null, [item], [])));
+        }
+
         return rows;
     }
 
     private static CourseOrderDetails MapCart(
-        Cart cart, CoursePurchase[] purchases, TopUpRequest[] topUps, bool invalidLink)
+        Cart cart, CoursePurchase[] purchases, PhysicalProductPurchase[] physicalPurchases,
+        TopUpRequest[] topUps, bool invalidLink)
     {
         var requested = RequestedItems(cart);
         var expectedIds = requested.Select(item => item.ExternalId).Distinct(StringComparer.Ordinal).ToArray();
-        var complete = CompletePurchases(expectedIds, purchases);
-        var hasPurchases = purchases.Any(IsPaid);
+        var purchasedIds = purchases.Select(purchase => purchase.Snapshot.ExternalProductId)
+            .Concat(physicalPurchases.Select(purchase => purchase.ExternalProductId)).ToArray();
+        var complete = CompletePurchases(expectedIds, purchases, physicalPurchases);
+        var hasPurchases = purchases.Any(IsPaid) || physicalPurchases.Any(IsPaid);
         var consistent = !invalidLink &&
-            purchases.All(purchase => expectedIds.Contains(purchase.Snapshot.ExternalProductId, StringComparer.Ordinal)) &&
-            purchases.GroupBy(purchase => purchase.Snapshot.ExternalProductId).All(group => group.Count() == 1) &&
+            purchasedIds.All(id => expectedIds.Contains(id, StringComparer.Ordinal)) &&
+            purchasedIds.GroupBy(id => id).All(group => group.Count() == 1) &&
             purchases.Where(IsPaid).All(purchase => cart.Items.Any(item =>
                 item.ExternalCourseId == purchase.Snapshot.ExternalProductId &&
                 item.AllocatedAmountInNoor == purchase.Snapshot.PriceInNoorAtPurchaseTime)) &&
+            physicalPurchases.Where(IsPaid).All(purchase => cart.Items.Any(item =>
+                item.ExternalCourseId == purchase.ExternalProductId &&
+                item.AllocatedAmountInNoor == purchase.PaidAmountInNoor)) &&
             (cart.Status != CartStatus.AwaitingTopUp || cart.TopUpRequestId.HasValue);
         var current = topUps.SingleOrDefault(topUp => topUp.Id.Value == cart.TopUpRequestId);
         var status = CartFinancialStatus(cart, complete, hasPurchases, consistent, current);
-        var ids = expectedIds.Concat(purchases.Select(purchase => purchase.Snapshot.ExternalProductId))
+        var ids = expectedIds.Concat(purchasedIds)
             .Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray();
         var items = ids.Select(id =>
         {
             var quote = cart.Items.SingleOrDefault(item => item.ExternalCourseId == id);
+            var physical = physicalPurchases.FirstOrDefault(item => item.ExternalProductId == id);
+            if (physical is not null)
+            {
+                return MapPhysicalItem(physical, quote);
+            }
+
             var purchase = purchases.FirstOrDefault(item => item.Snapshot.ExternalProductId == id);
+            var requestedItem = requested.FirstOrDefault(item => item.ExternalId == id);
             return MapItem(id, quote?.Title, quote?.PriceInNoor, purchase, status, quote?.AllocatedAmountInNoor,
-                quote?.ItemType, quote?.ParentExternalId);
+                quote?.ItemType ?? requestedItem?.Type, quote?.ParentExternalId,
+                quote?.Quantity ?? requestedItem?.Quantity ?? 1);
         }).ToArray();
         var hasQuote = cart.Items.Count > 0 && expectedIds.All(
             id => cart.Items.Any(item => item.ExternalCourseId == id));
         var summary = hasQuote ? new PurchaseCartSummary(
-            cart.Items.Sum(item => item.PriceInNoor), cart.ItemDiscountInNoor,
-            cart.CouponDiscountInNoor, cart.Total) : null;
+            cart.OriginalTotal, cart.ItemDiscountInNoor, cart.CouponDiscountInNoor,
+            cart.Total, cart.ShippingAmountInNoor) : null;
         return new CourseOrderDetails(
             CourseOrderId.For(CourseOrderSourceType.Cart, cart.Id), CourseOrderSourceType.Cart.ToString(),
-            cart.Id, cart.CreatedAtUtc, UpdatedAt(cart.UpdatedAtUtc, purchases, topUps),
+            cart.Id, cart.CreatedAtUtc, UpdatedAt(cart.UpdatedAtUtc, purchases, physicalPurchases, topUps),
             status.ToString(), Delivery(items).ToString(), summary?.FinalAmountInNoor, expectedIds.Length,
             cart.Status.ToString(), cart.ExpiresAtUtc, cart.TopUpRequestId, summary, items, MapTopUps(topUps));
     }
@@ -138,7 +170,7 @@ public static class CourseOrderMapping
         var consistent = purchases.All(purchase => pending.Any(item =>
             item.ExternalId == purchase.Snapshot.ExternalProductId &&
             item.PriceNoorSnapshot == purchase.Snapshot.PriceInNoorAtPurchaseTime));
-        var complete = consistent && CompletePurchases(expectedIds, purchases);
+        var complete = consistent && CompletePurchases(expectedIds, purchases, []);
         var status = complete && topUp.Status == TopUpStatus.Confirmed
             ? CourseOrderFinancialStatus.Paid
             : !consistent || NeedsReview(topUp) || purchases.Any(IsPaid)
@@ -155,7 +187,7 @@ public static class CourseOrderMapping
         return new CourseOrderDetails(
             CourseOrderId.For(CourseOrderSourceType.TopUpCheckout, topUp.Id.Value),
             CourseOrderSourceType.TopUpCheckout.ToString(), null, topUp.CreatedAtUtc,
-            UpdatedAt(topUp.UpdatedAt ?? topUp.CreatedAtUtc, purchases, [topUp]),
+            UpdatedAt(topUp.UpdatedAt ?? topUp.CreatedAtUtc, purchases, [], [topUp]),
             status.ToString(), Delivery(items).ToString(), items.Sum(item => item.FinalAmountInNoor),
             items.Length, null, null, topUp.Id.Value, null, items, MapTopUps([topUp]));
     }
@@ -163,7 +195,7 @@ public static class CourseOrderMapping
     private static CourseOrderItem MapItem(
         string externalId, string? title, decimal? basePrice, CoursePurchase? purchase,
         CourseOrderFinancialStatus orderStatus, decimal? allocatedAmount = null,
-        ProductItemType? itemType = null, string? parentExternalId = null)
+        ProductItemType? itemType = null, string? parentExternalId = null, int quantity = 1)
     {
         var paid = purchase is not null && IsPaid(purchase);
         var status = paid ? CourseOrderFinancialStatus.Paid
@@ -176,15 +208,37 @@ public static class CourseOrderMapping
             purchase?.Id.Value, purchase?.LedgerTransactionId, purchase?.Snapshot.PurchasedAt,
             status.ToString(), delivery.ToString(),
             (purchase?.Snapshot.ItemType ?? itemType ?? ProductItemType.Course).ToString(),
-            purchase?.Snapshot.ExternalParentId ?? parentExternalId);
+            purchase?.Snapshot.ExternalParentId ?? parentExternalId, quantity);
     }
 
-    private static bool CompletePurchases(string[] ids, CoursePurchase[] purchases) => ids.Length > 0 &&
-        purchases.Length == ids.Length && ids.All(id => purchases.Count(purchase =>
-            purchase.Snapshot.ExternalProductId == id && IsPaid(purchase)) == 1);
+    private static CourseOrderItem MapPhysicalItem(PhysicalProductPurchase physical, CartItem? quote)
+    {
+        var paid = IsPaid(physical);
+        var status = paid ? CourseOrderFinancialStatus.Paid : CourseOrderFinancialStatus.Processing;
+        var delivery = !paid ? CourseOrderDeliveryStatus.NotStarted
+            : physical.DeliveryStatus == PhysicalDeliveryStatus.Delivered
+                ? CourseOrderDeliveryStatus.Delivered : CourseOrderDeliveryStatus.Pending;
+        return new CourseOrderItem(physical.ExternalProductId, physical.ProductTitle,
+            quote?.PriceInNoor ?? physical.UnitPriceInNoor, physical.PaidAmountInNoor,
+            physical.Id.Value, physical.LedgerTransactionId, physical.CreatedAtUtc,
+            status.ToString(), delivery.ToString(), nameof(ProductItemType.Product), null,
+            physical.Quantity, physical.DeliveryStatus.ToString());
+    }
+
+    private static bool CompletePurchases(
+        string[] ids, CoursePurchase[] purchases, PhysicalProductPurchase[] physicalPurchases)
+    {
+        var records = purchases.Select(purchase => (Id: purchase.Snapshot.ExternalProductId, Paid: IsPaid(purchase)))
+            .Concat(physicalPurchases.Select(purchase => (Id: purchase.ExternalProductId, Paid: IsPaid(purchase))))
+            .ToArray();
+        return ids.Length > 0 && records.Length == ids.Length &&
+            ids.All(id => records.Count(record => record.Id == id && record.Paid) == 1);
+    }
 
     private static bool IsPaid(CoursePurchase purchase) => purchase.Status is
         CoursePurchaseStatus.Debited or CoursePurchaseStatus.NotificationSent or CoursePurchaseStatus.NotificationFailed;
+
+    private static bool IsPaid(PhysicalProductPurchase purchase) => purchase.LedgerTransactionId.HasValue;
 
     private static bool NeedsReview(TopUpRequest? topUp) => topUp?.IsUnderReview ?? false;
 
@@ -217,8 +271,17 @@ public static class CourseOrderMapping
         purchase.LastNotificationAttemptAtUtc ?? purchase.CreatedAtUtc
     }.Max();
 
-    private static DateTime UpdatedAt(DateTime source, CoursePurchase[] purchases, TopUpRequest[] topUps) =>
-        purchases.Select(PurchaseUpdatedAt).Concat(topUps.Select(topUp => new[]
+    private static DateTime PhysicalPurchaseUpdatedAt(PhysicalProductPurchase purchase) => new[]
+    {
+        purchase.CreatedAtUtc, purchase.UpdatedAt ?? purchase.CreatedAtUtc,
+        purchase.ShippedAtUtc ?? purchase.CreatedAtUtc, purchase.DeliveredAtUtc ?? purchase.CreatedAtUtc
+    }.Max();
+
+    private static DateTime UpdatedAt(
+        DateTime source, CoursePurchase[] purchases, PhysicalProductPurchase[] physicalPurchases,
+        TopUpRequest[] topUps) =>
+        purchases.Select(PurchaseUpdatedAt).Concat(physicalPurchases.Select(PhysicalPurchaseUpdatedAt))
+            .Concat(topUps.Select(topUp => new[]
         {
             topUp.CreatedAtUtc, topUp.UpdatedAt ?? topUp.CreatedAtUtc,
             topUp.ConfirmedAtUtc ?? topUp.CreatedAtUtc, topUp.RejectedAtUtc ?? topUp.CreatedAtUtc,

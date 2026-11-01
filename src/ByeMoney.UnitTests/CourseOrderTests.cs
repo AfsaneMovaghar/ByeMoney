@@ -293,11 +293,15 @@ public sealed class CourseOrderTests
     }
 
     private IReadOnlyList<CourseOrderReadRow> Map(
-        Cart[]? carts = null, TopUpRequest[]? topUps = null, CoursePurchase[]? purchases = null) =>
-        CourseOrderMapping.Build(Snapshot(carts ?? [], topUps ?? [], purchases ?? []));
+        Cart[]? carts = null, TopUpRequest[]? topUps = null, CoursePurchase[]? purchases = null,
+        PhysicalProductPurchase[]? physicalPurchases = null) =>
+        CourseOrderMapping.Build(Snapshot(carts ?? [], topUps ?? [], purchases ?? [], physicalPurchases ?? []));
 
-    private CourseOrderSnapshot Snapshot(Cart[] carts, TopUpRequest[] topUps, CoursePurchase[] purchases) =>
-        new(carts, topUps, purchases, [new CourseOrderBuyer(_buyer.Id.Value, _buyer.ExternalUserId, null)]);
+    private CourseOrderSnapshot Snapshot(
+        Cart[] carts, TopUpRequest[] topUps, CoursePurchase[] purchases,
+        PhysicalProductPurchase[]? physicalPurchases = null) =>
+        new(carts, topUps, purchases, [new CourseOrderBuyer(_buyer.Id.Value, _buyer.ExternalUserId, null)],
+            physicalPurchases ?? []);
 
     private static CoursePurchaseId LegacyId(TopUpRequest topUp, string course) => new(new Guid(
         SHA256.HashData(Encoding.UTF8.GetBytes($"{topUp.Id.Value:N}:{course}")).AsSpan(0, 16)));
