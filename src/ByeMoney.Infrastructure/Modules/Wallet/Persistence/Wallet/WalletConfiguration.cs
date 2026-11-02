@@ -12,7 +12,15 @@ public class WalletConfiguration : IEntityTypeConfiguration<WalletEntity>
 {
     public void Configure(EntityTypeBuilder<WalletEntity> builder)
     {
-        builder.ToTable("Wallets");
+        builder.ToTable("Wallets", table =>
+        {
+            table.HasCheckConstraint(
+                "CK_Wallets_Balance_NonNegative",
+                "\"Balance\" >= 0");
+            table.HasCheckConstraint(
+                "CK_Wallets_GiftBalance_NonNegative",
+                "\"GiftBalance\" >= 0");
+        });
 
         builder.HasKey(w => w.Id);
 

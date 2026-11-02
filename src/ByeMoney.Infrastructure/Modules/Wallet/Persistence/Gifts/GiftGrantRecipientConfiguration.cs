@@ -9,7 +9,15 @@ public class GiftGrantRecipientConfiguration : IEntityTypeConfiguration<GiftGran
 {
     public void Configure(EntityTypeBuilder<GiftGrantRecipient> builder)
     {
-        builder.ToTable("GiftGrantRecipients");
+        builder.ToTable("GiftGrantRecipients", table =>
+        {
+            table.HasCheckConstraint(
+                "CK_GiftGrantRecipients_AmountNoor_Positive",
+                "\"AmountNoor\" > 0");
+            table.HasCheckConstraint(
+                "CK_GiftGrantRecipients_NewGiftBalance_NonNegative",
+                "\"NewGiftBalance\" >= 0");
+        });
 
         builder.HasKey(r => r.Id);
 

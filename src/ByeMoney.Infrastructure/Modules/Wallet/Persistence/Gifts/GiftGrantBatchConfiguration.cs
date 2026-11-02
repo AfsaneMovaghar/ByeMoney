@@ -9,7 +9,15 @@ public class GiftGrantBatchConfiguration : IEntityTypeConfiguration<GiftGrantBat
 {
     public void Configure(EntityTypeBuilder<GiftGrantBatch> builder)
     {
-        builder.ToTable("GiftGrantBatches");
+        builder.ToTable("GiftGrantBatches", table =>
+        {
+            table.HasCheckConstraint(
+                "CK_GiftGrantBatches_AmountNoorPerUser_Positive",
+                "\"AmountNoorPerUser\" > 0");
+            table.HasCheckConstraint(
+                "CK_GiftGrantBatches_TotalAmountNoor_Positive",
+                "\"TotalAmountNoor\" > 0");
+        });
 
         builder.HasKey(b => b.Id);
 

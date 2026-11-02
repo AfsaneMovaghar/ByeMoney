@@ -9,6 +9,9 @@ using AccountEntity = ByeMoney.Domain.Modules.Wallet.Accounts.Account;
 
 public class AccountConfiguration : IEntityTypeConfiguration<AccountEntity>
 {
+    // HasData requires a fixed value; a dynamic timestamp would change the model snapshot on every build.
+    private static readonly DateTime SystemAccountSeedCreatedAtUtc = new(2026, 11, 2, 0, 0, 0, DateTimeKind.Utc);
+
     public void Configure(EntityTypeBuilder<AccountEntity> builder)
     {
         builder.ToTable("Accounts");
@@ -39,6 +42,15 @@ public class AccountConfiguration : IEntityTypeConfiguration<AccountEntity>
             .IsUnique();
 
         builder.HasIndex(a => a.Type);
+
+        builder.HasData(new
+        {
+            Id = AccountEntity.SystemAccountId,
+            Type = AccountType.System,
+            UserId = (UserId?)null,
+            Status = AccountStatus.Active,
+            CreatedAtUtc = SystemAccountSeedCreatedAtUtc
+        });
     }
 }
 

@@ -316,15 +316,6 @@ public sealed class WelcomeGiftFinancialTests : IAsyncLifetime
     {
         if (_provider is null) return;
 
-        // حساب سیستمی در محیط واقعی از قبل وجود دارد؛ آن را از پیش می‌سازیم تا آزمون
-        // فقط روی تداخل قید یکتای کاربر تمرکز کند، نه روی ساخت هم‌زمان حساب سیستمی.
-        using (var seedScope = _provider.CreateScope())
-        {
-            var seedDb = seedScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            seedDb.Add(Account.CreateSystemAccount());
-            await seedDb.SaveChangesAsync();
-        }
-
         var externalUserId = "pg-concurrent-user-" + Guid.NewGuid().ToString("N");
         var strapiUser = new TarhElahiUserDto
         {

@@ -46,7 +46,7 @@ public class WalletConcurrencyIntegrationTests
         var wallet = Wallet.Create(account.Id, beneficiary.Id);
         await using (var seed = database.Context())
         {
-            seed.AddRange(beneficiary, actor, account, system, wallet);
+            seed.AddRange(beneficiary, actor, account, wallet);
             await seed.SaveChangesAsync();
         }
 
@@ -192,7 +192,6 @@ public class WalletConcurrencyIntegrationTests
             var seedWallet = Wallet.Create(accountId, userId);
             seedWallet.Credit(100m, LedgerBalanceType.Gift);
             seedWallet.Credit(100m, LedgerBalanceType.Regular);
-            seed.Add(systemAccount);
             seed.Add(seedWallet);
             await seed.SaveChangesAsync();
         }

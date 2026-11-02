@@ -10,7 +10,12 @@ public class LedgerEntryConfiguration : IEntityTypeConfiguration<LedgerEntry>
 {
     public void Configure(EntityTypeBuilder<LedgerEntry> builder)
     {
-        builder.ToTable("LedgerEntries");
+        builder.ToTable("LedgerEntries", table =>
+        {
+            table.HasCheckConstraint(
+                "CK_LedgerEntries_Amount_NonZero",
+                "\"Amount\" <> 0");
+        });
 
         builder.HasKey(l => l.Id);
 

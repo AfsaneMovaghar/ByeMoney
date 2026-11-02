@@ -9,7 +9,12 @@ public class TopUpRequestConfiguration : IEntityTypeConfiguration<TopUpRequest>
 {
     public void Configure(EntityTypeBuilder<TopUpRequest> builder)
     {
-        builder.ToTable("TopUpRequests");
+        builder.ToTable("TopUpRequests", table =>
+        {
+            table.HasCheckConstraint(
+                "CK_TopUpRequests_AmountNoor_Positive",
+                "\"AmountNoor\" > 0");
+        });
 
         builder.HasKey(t => t.Id);
 

@@ -544,6 +544,15 @@ namespace ByeMoney.Infrastructure.Migrations
                         .IsUnique();
 
                     b.ToTable("Accounts", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0000-000000000001"),
+                            CreatedAtUtc = new DateTime(2026, 11, 2, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Status = "Active",
+                            Type = "System"
+                        });
                 });
 
             modelBuilder.Entity("ByeMoney.Domain.Modules.Wallet.Gifts.GiftCampaignSetting", b =>
@@ -648,7 +657,12 @@ namespace ByeMoney.Infrastructure.Migrations
                     b.HasIndex("IdempotencyKey")
                         .IsUnique();
 
-                    b.ToTable("GiftGrantBatches", (string)null);
+                    b.ToTable("GiftGrantBatches", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_GiftGrantBatches_AmountNoorPerUser_Positive", "\"AmountNoorPerUser\" > 0");
+
+                            t.HasCheckConstraint("CK_GiftGrantBatches_TotalAmountNoor_Positive", "\"TotalAmountNoor\" > 0");
+                        });
                 });
 
             modelBuilder.Entity("ByeMoney.Domain.Modules.Wallet.Gifts.GiftGrantRecipient", b =>
@@ -701,7 +715,12 @@ namespace ByeMoney.Infrastructure.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("GiftGrantRecipients", (string)null);
+                    b.ToTable("GiftGrantRecipients", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_GiftGrantRecipients_AmountNoor_Positive", "\"AmountNoor\" > 0");
+
+                            t.HasCheckConstraint("CK_GiftGrantRecipients_NewGiftBalance_NonNegative", "\"NewGiftBalance\" >= 0");
+                        });
                 });
 
             modelBuilder.Entity("ByeMoney.Domain.Modules.Wallet.Ledgers.LedgerEntry", b =>
@@ -750,7 +769,10 @@ namespace ByeMoney.Infrastructure.Migrations
 
                     b.HasIndex("AccountId", "CreatedAtUtc");
 
-                    b.ToTable("LedgerEntries", (string)null);
+                    b.ToTable("LedgerEntries", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_LedgerEntries_Amount_NonZero", "\"Amount\" <> 0");
+                        });
                 });
 
             modelBuilder.Entity("ByeMoney.Domain.Modules.Wallet.TopUps.TopUpRequest", b =>
@@ -921,7 +943,10 @@ namespace ByeMoney.Infrastructure.Migrations
 
                     b.HasIndex("UserId", "Status");
 
-                    b.ToTable("TopUpRequests", (string)null);
+                    b.ToTable("TopUpRequests", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_TopUpRequests_AmountNoor_Positive", "\"AmountNoor\" > 0");
+                        });
                 });
 
             modelBuilder.Entity("ByeMoney.Domain.Modules.Wallet.Wallets.Wallet", b =>
@@ -965,7 +990,12 @@ namespace ByeMoney.Infrastructure.Migrations
                     b.HasIndex("UserId")
                         .IsUnique();
 
-                    b.ToTable("Wallets", (string)null);
+                    b.ToTable("Wallets", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_Wallets_Balance_NonNegative", "\"Balance\" >= 0");
+
+                            t.HasCheckConstraint("CK_Wallets_GiftBalance_NonNegative", "\"GiftBalance\" >= 0");
+                        });
                 });
 
             modelBuilder.Entity("ByeMoney.Domain.Modules.Identity.Roles.RolePermission", b =>
