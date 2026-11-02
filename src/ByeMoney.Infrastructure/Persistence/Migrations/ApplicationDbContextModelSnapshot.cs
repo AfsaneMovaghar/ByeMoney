@@ -392,8 +392,10 @@ namespace ByeMoney.Infrastructure.Migrations
                         .HasMaxLength(1000)
                         .HasColumnType("character varying(1000)");
 
-                    b.Property<int>("Status")
-                        .HasColumnType("integer");
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -406,7 +408,10 @@ namespace ByeMoney.Infrastructure.Migrations
 
                     b.HasIndex("Status");
 
-                    b.ToTable("CoursePurchases", (string)null);
+                    b.ToTable("CoursePurchases", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_CoursePurchases_Status", "\"Status\" IN ('Pending', 'Debited', 'NotificationSent', 'NotificationFailed')");
+                        });
                 });
 
             modelBuilder.Entity("ByeMoney.Domain.Modules.Purchases.PhysicalProductPurchase", b =>
@@ -565,8 +570,10 @@ namespace ByeMoney.Infrastructure.Migrations
                         .HasPrecision(18, 4)
                         .HasColumnType("numeric(18,4)");
 
-                    b.Property<int>("CampaignType")
-                        .HasColumnType("integer");
+                    b.Property<string>("CampaignType")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
 
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("timestamp with time zone");
@@ -594,14 +601,17 @@ namespace ByeMoney.Infrastructure.Migrations
                     b.HasIndex("CampaignType")
                         .IsUnique();
 
-                    b.ToTable("GiftCampaignSettings", (string)null);
+                    b.ToTable("GiftCampaignSettings", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_GiftCampaignSettings_CampaignType", "\"CampaignType\" IN ('Welcome')");
+                        });
 
                     b.HasData(
                         new
                         {
                             Id = new Guid("88888888-8888-8888-8888-888888888888"),
                             AmountNoor = 50m,
-                            CampaignType = 1,
+                            CampaignType = "Welcome",
                             CreatedAtUtc = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             IsEnabled = true,
                             UpdatedAtUtc = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
@@ -639,8 +649,10 @@ namespace ByeMoney.Infrastructure.Migrations
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
 
-                    b.Property<int>("Source")
-                        .HasColumnType("integer");
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
 
                     b.Property<decimal>("TotalAmountNoor")
                         .HasPrecision(18, 4)
@@ -660,6 +672,8 @@ namespace ByeMoney.Infrastructure.Migrations
                     b.ToTable("GiftGrantBatches", null, t =>
                         {
                             t.HasCheckConstraint("CK_GiftGrantBatches_AmountNoorPerUser_Positive", "\"AmountNoorPerUser\" > 0");
+
+                            t.HasCheckConstraint("CK_GiftGrantBatches_Source", "\"Source\" IN ('AdminBatch', 'WelcomeBonus')");
 
                             t.HasCheckConstraint("CK_GiftGrantBatches_TotalAmountNoor_Positive", "\"TotalAmountNoor\" > 0");
                         });
@@ -735,10 +749,12 @@ namespace ByeMoney.Infrastructure.Migrations
                         .HasPrecision(18, 4)
                         .HasColumnType("numeric(18,4)");
 
-                    b.Property<int>("BalanceType")
+                    b.Property<string>("BalanceType")
+                        .IsRequired()
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasDefaultValue(1);
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("Regular");
 
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("timestamp with time zone");
@@ -750,8 +766,10 @@ namespace ByeMoney.Infrastructure.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
-                    b.Property<int>("ReferenceType")
-                        .HasColumnType("integer");
+                    b.Property<string>("ReferenceType")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
 
                     b.Property<Guid>("TransactionId")
                         .HasColumnType("uuid");
@@ -761,17 +779,19 @@ namespace ByeMoney.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("BalanceType");
-
-                    b.HasIndex("ReferenceType");
-
                     b.HasIndex("TransactionId");
 
                     b.HasIndex("AccountId", "CreatedAtUtc");
 
+                    b.HasIndex("ReferenceType", "ReferenceId");
+
                     b.ToTable("LedgerEntries", null, t =>
                         {
                             t.HasCheckConstraint("CK_LedgerEntries_Amount_NonZero", "\"Amount\" <> 0");
+
+                            t.HasCheckConstraint("CK_LedgerEntries_BalanceType", "\"BalanceType\" IN ('Regular', 'Gift')");
+
+                            t.HasCheckConstraint("CK_LedgerEntries_ReferenceType", "\"ReferenceType\" IN ('TopUp', 'Purchase', 'Refund', 'AdminGrant', 'WelcomeGift')");
                         });
                 });
 
@@ -1038,6 +1058,12 @@ namespace ByeMoney.Infrastructure.Migrations
 
             modelBuilder.Entity("ByeMoney.Domain.Modules.Purchases.Cart", b =>
                 {
+                    b.HasOne("ByeMoney.Domain.Modules.Identity.Users.User", null)
+                        .WithMany()
+                        .HasForeignKey("BuyerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.OwnsMany("ByeMoney.Domain.Modules.Purchases.CartItem", "Items", b1 =>
                         {
                             b1.Property<Guid>("CartId")
@@ -1107,6 +1133,17 @@ namespace ByeMoney.Infrastructure.Migrations
 
             modelBuilder.Entity("ByeMoney.Domain.Modules.Purchases.CoursePurchase", b =>
                 {
+                    b.HasOne("ByeMoney.Domain.Modules.Identity.Users.User", null)
+                        .WithMany()
+                        .HasForeignKey("BuyerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ByeMoney.Domain.Modules.Purchases.Cart", null)
+                        .WithMany()
+                        .HasForeignKey("CartId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.OwnsOne("ByeMoney.Domain.Modules.Purchases.ProductSnapshot", "Snapshot", b1 =>
                         {
                             b1.Property<Guid>("CoursePurchaseId")
@@ -1174,7 +1211,7 @@ namespace ByeMoney.Infrastructure.Migrations
 
                             b1.HasKey("CoursePurchaseId");
 
-                            b1.HasIndex("BuyerId", "ExternalProductId")
+                            b1.HasIndex("BuyerId", "ExternalProductId", "ItemType")
                                 .IsUnique()
                                 .HasDatabaseName("IX_CoursePurchases_UserId_ExternalProductId");
 
@@ -1188,12 +1225,66 @@ namespace ByeMoney.Infrastructure.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("ByeMoney.Domain.Modules.Purchases.PhysicalProductPurchase", b =>
+                {
+                    b.HasOne("ByeMoney.Domain.Modules.Identity.Users.User", null)
+                        .WithMany()
+                        .HasForeignKey("BuyerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ByeMoney.Domain.Modules.Purchases.Cart", null)
+                        .WithMany()
+                        .HasForeignKey("CartId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("ByeMoney.Domain.Modules.Wallet.Gifts.GiftGrantRecipient", b =>
                 {
                     b.HasOne("ByeMoney.Domain.Modules.Wallet.Gifts.GiftGrantBatch", null)
                         .WithMany("Recipients")
                         .HasForeignKey("BatchId")
                         .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("ByeMoney.Domain.Modules.Identity.Users.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("ByeMoney.Domain.Modules.Wallet.Ledgers.LedgerEntry", b =>
+                {
+                    b.HasOne("ByeMoney.Domain.Modules.Wallet.Accounts.Account", null)
+                        .WithMany()
+                        .HasForeignKey("AccountId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("ByeMoney.Domain.Modules.Wallet.TopUps.TopUpRequest", b =>
+                {
+                    b.HasOne("ByeMoney.Domain.Modules.Identity.Users.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("ByeMoney.Domain.Modules.Wallet.Wallets.Wallet", b =>
+                {
+                    b.HasOne("ByeMoney.Domain.Modules.Wallet.Accounts.Account", null)
+                        .WithMany()
+                        .HasForeignKey("AccountId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ByeMoney.Domain.Modules.Identity.Users.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
 

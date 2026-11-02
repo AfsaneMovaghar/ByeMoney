@@ -27,16 +27,16 @@ public static class CourseOrderMapping
             var ids = TopUpIds(cart).ToArray();
             var topUps = ids.Where(topUpsById.ContainsKey).Select(id => topUpsById[id]).ToArray();
             var invalidLink = topUps.Length != ids.Length ||
-                topUps.Any(topUp => topUp.UserId.Value != cart.BuyerId) ||
-                purchases.Any(purchase => purchase.BuyerId.Value != cart.BuyerId) ||
-                physicalPurchases.Any(purchase => purchase.BuyerId.Value != cart.BuyerId);
-            var ownedTopUps = topUps.Where(topUp => topUp.UserId.Value == cart.BuyerId).ToArray();
-            var ownedPurchases = purchases.Where(purchase => purchase.BuyerId.Value == cart.BuyerId).ToArray();
+                topUps.Any(topUp => topUp.UserId.Value != cart.BuyerId.Value) ||
+                purchases.Any(purchase => purchase.BuyerId.Value != cart.BuyerId.Value) ||
+                physicalPurchases.Any(purchase => purchase.BuyerId.Value != cart.BuyerId.Value);
+            var ownedTopUps = topUps.Where(topUp => topUp.UserId.Value == cart.BuyerId.Value).ToArray();
+            var ownedPurchases = purchases.Where(purchase => purchase.BuyerId.Value == cart.BuyerId.Value).ToArray();
             var ownedPhysicalPurchases = physicalPurchases
-                .Where(purchase => purchase.BuyerId.Value == cart.BuyerId).ToArray();
+                .Where(purchase => purchase.BuyerId.Value == cart.BuyerId.Value).ToArray();
             groupedPurchases.UnionWith(ownedPurchases.Select(purchase => purchase.Id.Value));
             groupedPhysicalPurchases.UnionWith(ownedPhysicalPurchases.Select(purchase => purchase.Id.Value));
-            rows.Add(new CourseOrderReadRow(cart.BuyerId,
+            rows.Add(new CourseOrderReadRow(cart.BuyerId.Value,
                 MapCart(cart, ownedPurchases, ownedPhysicalPurchases, ownedTopUps, invalidLink)));
         }
 

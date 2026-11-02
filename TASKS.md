@@ -35,11 +35,6 @@
 - [ ] **اعلان تغییر وضعیت تحویل به کاربر:** `Shipped` و `Delivered` اعلان نمی‌فرستند.
 - [ ] **کالای فیزیکی در مسیر قدیمی TopUpCheckout:** `PendingItems` فقط دوره دارد؛ شارژِ دارای کالای معلق در نمای سفارش نمی‌آید.
 - [ ] **سخت‌سازی دیتابیس مالی (بازبینی ۲۰۲۶-۱۱-۰۲، به ترتیب اجرا؛ هر مورد با migration و آزمون PostgreSQL، بدون گارد انتقال داده طبق بخش پلن‌ها):**
-  - [ ] **DB-01 — کلید خارجی جداول مالی:** ابتدا داخل Wallet (`LedgerEntries→Accounts`، `Wallets→Accounts`، `TopUpRequests→Users`) سپس بین‌ماژولی (`Carts`، `CoursePurchases`، `PhysicalProductPurchases`، `GiftGrantRecipients` به Users/Carts). همه `Restrict`. پذیرش: ثبت ردیف یتیم رد شود و آزمون‌های موجود سبز بمانند.
-  - [ ] **DB-03 — هم‌خوانی Wallet و Account:** کلید جایگزین `(Id, UserId)` روی `Accounts` و FK ترکیبی `Wallets(AccountId, UserId)`.
-  - [ ] **DB-05 — ایندکس Ledger:** حذف ایندکس‌های تکی `ReferenceType` و `BalanceType`؛ افزودن `(ReferenceType, ReferenceId)`.
-  - [ ] **DB-07 — یکسان‌سازی Enumها:** `CoursePurchases.Status`، `LedgerEntries.ReferenceType/BalanceType`، `GiftCampaignType` و `GiftGrantBatch.Source` رشته‌ای شوند و هر کدام قید `IN (...)` بگیرند.
-  - [ ] **DB-09 — ایندکس یکتای خرید:** `IX_CoursePurchases_UserId_ExternalProductId` شامل `ItemType` شود. وابسته به یادداشت `CartPurchaseIds` در بخش خارج از اسکوپ.
   - [ ] **DB-04 — حذف `Carts.TopUpRequestIds`:** ارتباط سبد و شارژ با ستون `CartId` (ایندکس‌دار، FK) روی `TopUpRequests` جایگزین شود؛ با تسک «تخصیص پرداخت واقعی هر قلم» هماهنگ شود.
   - [ ] **DB-06 — دقت نرخ تبدیل:** نوع نرخ ریال به نور در `TopUpRequests`، `CoursePurchases` و `SystemSettings` یکسان شود؛ `ConversionRateAtPurchaseTime` در صورت بلااستفاده بودن حذف شود. وابسته به A1/E4.
   - [ ] **DB-08 — ستون مشترک `CoursePurchases.UserId`:** Shadow Property از Owned Type `ProductSnapshot` برداشته و ایندکس یکتا روی خود Entity تعریف شود.
@@ -97,7 +92,7 @@
 - 2026-11-02: `CartPurchaseIds.For(cartId, externalId)` نوع قلم را در شناسهٔ خرید نمی‌گیرد؛ دورهٔ 1 و کالای 1 در یک سبد شناسهٔ خرید یکسان (در دو جدول جدا) می‌گیرند. فعلاً برخوردی ایجاد نمی‌کند، ولی هر جا شناسهٔ خرید به‌تنهایی کلید باشد باید بازبینی شود. محل: Application، ماژول Purchases، سرویس‌های سبد. مبدأ: ایمنی نگاشت اقلام سبد.
 - 2026-11-02: قید Check روی مبالغ ریالی و درگاه (`AmountRial`، `GatewayOriginalAmountRial`، `GatewayAffectiveAmountRial`) و قید «صحیح‌بودن» نور (نور تا ۴ رقم اعشار حساب می‌شود؛ اگر دامنه به نور صحیح تغییر کرد، اضافه شود). محل: Infrastructure، Wallet. مبدأ: DB-02.
 - 2026-11-02: `GetOrCreateSystemAccountAsync` پس از seed حساب سیستم مسیر ساخت مرده دارد؛ در صورت تأیید ساده شود. مبدأ: DB-10.
-- 2026-11-02: آزمون `GatewayTopUpConfirmationTests.ValidatorRejectsMissingBankData` در اجرای کامل مجموعه شکست می‌خورد ولی به‌تنهایی سبز است (وابسته به ترتیب/وضعیت مشترک). مبدأ: DB-02.
+- 2026-11-02: آزمون `GatewayTopUpConfirmationTests.ValidatorRejectsMissingBankData` در اجرای کامل مجموعه شکست می‌خورد ولی به‌تنهایی سبز است (وابسته به ترتیب/وضعیت مشترک). علت: `AddApplicationServices` مقدار سراسری `ValidatorOptions.Global.DefaultClassLevelCascadeMode = Stop` را تنظیم می‌کند و آزمون‌های دیگر آن را به این آزمون نشت می‌دهند؛ آزمون دو خطا انتظار دارد. مبدأ: DB-02، تأییدشده در DB-03.
 - 2026-11-02: سفارش لغوشده‌ای که با پرداخت دیرهنگام به `pending_verification` رفته، با ویرایش مستقیم ادمین به paid دوباره به همین وضعیت برگردانده می‌شود (رزرو آزادشده دوباره قابل رزرو نیست). مسیر تعیین تکلیف مجاز (بازگشت وجه یا رزرو مجدد با کفایت موجودی) تعریف نشده. محل: Strapi، `physicalStockMiddleware`. مبدأ: P0 پرداخت دیرهنگام پس از لغو.
 
 ## ترتیب اجرای خرید و عرضه

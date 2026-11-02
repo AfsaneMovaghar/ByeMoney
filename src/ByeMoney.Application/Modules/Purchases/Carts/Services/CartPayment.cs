@@ -67,7 +67,7 @@ public static class CartPayment
                 var physicalPurchase = PhysicalProductPurchase.Create(
                     new PhysicalProductPurchaseId(purchaseIdGuid),
                     cart.Id,
-                    new UserId(cart.BuyerId),
+                    cart.BuyerId,
                     item.ExternalCourseId,
                     item.Title,
                     item.Quantity,
@@ -97,7 +97,7 @@ public static class CartPayment
                     externalParentId: item.ParentExternalId);
 
                 var purchase = CoursePurchase.Create(
-                    new UserId(cart.BuyerId),
+                    cart.BuyerId,
                     snapshot,
                     amount == 0,
                     purchaseId: new CoursePurchaseId(purchaseIdGuid));

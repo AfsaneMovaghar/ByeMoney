@@ -86,8 +86,48 @@ public sealed class FinancialDatabaseConstraintsPostgresTests : IAsyncLifetime
     {
         await AssertCheckViolationAsync(
             "INSERT INTO \"LedgerEntries\" (\"Id\", \"AccountId\", \"Amount\", \"TransactionId\", \"ReferenceType\", \"BalanceType\", \"CreatedAtUtc\") " +
-            $"VALUES (gen_random_uuid(), gen_random_uuid(), {value}, gen_random_uuid(), 0, 0, now())");
+            $"VALUES (gen_random_uuid(), gen_random_uuid(), {value}, gen_random_uuid(), 'Purchase', 'Regular', now())");
     }
+
+    [PostgresFact]
+    public async Task LedgerEntries_RejectUnknownEnumValues()
+    {
+        await AssertCheckViolationAsync(LedgerInsertSql("'Unknown'", "'Regular'"));
+        await AssertCheckViolationAsync(LedgerInsertSql("'Purchase'", "'Unknown'"));
+    }
+
+    [PostgresFact]
+    public async Task LedgerEntries_RejectOrphanAccount()
+    {
+        await using var connection = new NpgsqlConnection(_schemaConnection);
+        await connection.OpenAsync();
+        await using var command = new NpgsqlCommand(LedgerInsertSql("'Purchase'", "'Regular'"), connection);
+
+        var act = async () => await command.ExecuteNonQueryAsync();
+
+        var exception = await act.Should().ThrowAsync<PostgresException>();
+        exception.Which.SqlState.Should().Be(PostgresErrorCodes.ForeignKeyViolation);
+    }
+
+    [PostgresFact]
+    public async Task Wallets_RejectOrphanAccountAndUser()
+    {
+        await using var connection = new NpgsqlConnection(_schemaConnection);
+        await connection.OpenAsync();
+        await using var command = new NpgsqlCommand(
+            "INSERT INTO \"Wallets\" (\"Id\", \"AccountId\", \"UserId\", \"Balance\", \"GiftBalance\", \"LastUpdatedAtUtc\", \"CreatedAtUtc\") " +
+            "VALUES (gen_random_uuid(), gen_random_uuid(), gen_random_uuid(), 0, 0, now(), now())",
+            connection);
+
+        var act = async () => await command.ExecuteNonQueryAsync();
+
+        var exception = await act.Should().ThrowAsync<PostgresException>();
+        exception.Which.SqlState.Should().Be(PostgresErrorCodes.ForeignKeyViolation);
+    }
+
+    private static string LedgerInsertSql(string referenceType, string balanceType) =>
+        "INSERT INTO \"LedgerEntries\" (\"Id\", \"AccountId\", \"Amount\", \"TransactionId\", \"ReferenceType\", \"BalanceType\", \"CreatedAtUtc\") " +
+        $"VALUES (gen_random_uuid(), gen_random_uuid(), 10, gen_random_uuid(), {referenceType}, {balanceType}, now())";
 
     [PostgresTheory]
     [InlineData("0")]
@@ -97,7 +137,7 @@ public sealed class FinancialDatabaseConstraintsPostgresTests : IAsyncLifetime
         await AssertCheckViolationAsync(
             "INSERT INTO \"GiftGrantBatches\" (\"Id\", \"IdempotencyKey\", \"RequestPayloadHash\", \"Source\", \"Reason\", " +
             "\"AmountNoorPerUser\", \"TotalRecipients\", \"TotalAmountNoor\", \"CreatedAtUtc\") " +
-            $"VALUES (gen_random_uuid(), 'k', 'h', 0, 'r', {value}, 1, 10, now())");
+            $"VALUES (gen_random_uuid(), 'k', 'h', 'AdminBatch', 'r', {value}, 1, 10, now())");
     }
 
     private async Task AssertCheckViolationAsync(string sql)

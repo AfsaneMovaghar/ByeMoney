@@ -1,5 +1,6 @@
 using ByeMoney.Domain.Modules.Identity.Users;
 using ByeMoney.Domain.Modules.Wallet.Gifts;
+using ByeMoney.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -9,12 +10,18 @@ public class GiftCampaignSettingConfiguration : IEntityTypeConfiguration<GiftCam
 {
     public void Configure(EntityTypeBuilder<GiftCampaignSetting> builder)
     {
-        builder.ToTable("GiftCampaignSettings");
+        builder.ToTable("GiftCampaignSettings", table =>
+        {
+            table.AddEnumCheckConstraint<GiftCampaignSetting, GiftCampaignType>(
+                "CK_GiftCampaignSettings_CampaignType",
+                nameof(GiftCampaignSetting.CampaignType));
+        });
 
         builder.HasKey(s => s.Id);
 
         builder.Property(s => s.CampaignType)
-            .HasConversion<int>()
+            .HasConversion<string>()
+            .HasMaxLength(30)
             .IsRequired();
 
         builder.HasIndex(s => s.CampaignType)

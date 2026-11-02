@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace ByeMoney.Infrastructure.Modules.Wallet.Persistence.Wallet;
 
+using AccountEntity = ByeMoney.Domain.Modules.Wallet.Accounts.Account;
 using WalletEntity = ByeMoney.Domain.Modules.Wallet.Wallets.Wallet;
 
 public class WalletConfiguration : IEntityTypeConfiguration<WalletEntity>
@@ -40,6 +41,16 @@ public class WalletConfiguration : IEntityTypeConfiguration<WalletEntity>
                 id => id.Value,
                 value => new UserId(value))
             .IsRequired();
+
+        builder.HasOne<AccountEntity>()
+            .WithMany()
+            .HasForeignKey(w => w.AccountId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne<User>()
+            .WithMany()
+            .HasForeignKey(w => w.UserId)
+            .OnDelete(DeleteBehavior.Restrict);
 
         builder.Property(w => w.RegularBalance)
             .HasColumnName("Balance")

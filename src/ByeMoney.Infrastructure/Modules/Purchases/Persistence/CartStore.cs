@@ -37,12 +37,12 @@ public sealed class CartStore(IServiceScopeFactory scopes) : ICartStore
     public Task<Cart?> FindAsync(Guid id, Guid buyerId, CancellationToken ct) =>
         Run((_, db) => db.Set<Cart>()
             .AsNoTracking()
-            .SingleOrDefaultAsync(x => x.Id == id && x.BuyerId == buyerId, ct));
+            .SingleOrDefaultAsync(x => x.Id == id && x.BuyerId == new UserId(buyerId), ct));
 
     public Task<Cart?> FindByTopUpAsync(Guid topUpId, Guid buyerId, CancellationToken ct) =>
         Run((_, db) => db.Set<Cart>()
             .AsNoTracking()
-            .SingleOrDefaultAsync(x => (x.TopUpRequestId == topUpId || x.TopUpRequestIds.Contains(topUpId)) && x.BuyerId == buyerId, ct));
+            .SingleOrDefaultAsync(x => (x.TopUpRequestId == topUpId || x.TopUpRequestIds.Contains(topUpId)) && x.BuyerId == new UserId(buyerId), ct));
 
     public Task<Result<Cart>> CreateAsync(Cart cart, CancellationToken ct) => Run(async (_, db) =>
     {
@@ -69,7 +69,7 @@ public sealed class CartStore(IServiceScopeFactory scopes) : ICartStore
         await using var tx = await db.Database.BeginTransactionAsync(ct);
         await Lock(db, id, ct);
 
-        var cart = await db.Set<Cart>().SingleOrDefaultAsync(x => x.Id == id && x.BuyerId == buyerId, ct);
+        var cart = await db.Set<Cart>().SingleOrDefaultAsync(x => x.Id == id && x.BuyerId == new UserId(buyerId), ct);
         if (cart is null)
         {
             return Result<Cart>.NotFound(CartErrors.NotFound, CartErrorCodes.NotFound);
@@ -91,7 +91,7 @@ public sealed class CartStore(IServiceScopeFactory scopes) : ICartStore
         await LockBuyer(db, buyerId, ct);
         await Lock(db, id, ct);
 
-        var cart = await db.Set<Cart>().SingleAsync(x => x.Id == id && x.BuyerId == buyerId, ct);
+        var cart = await db.Set<Cart>().SingleAsync(x => x.Id == id && x.BuyerId == new UserId(buyerId), ct);
         if (cart.ReservationId != reservationId)
         {
             return Result<Cart>.Success(cart);
@@ -126,7 +126,7 @@ public sealed class CartStore(IServiceScopeFactory scopes) : ICartStore
         await using var tx = await db.Database.BeginTransactionAsync(ct);
         await Lock(db, id, ct);
 
-        var cart = await db.Set<Cart>().SingleAsync(x => x.Id == id && x.BuyerId == buyerId, ct);
+        var cart = await db.Set<Cart>().SingleAsync(x => x.Id == id && x.BuyerId == new UserId(buyerId), ct);
         if (cart.ReservationId == reservationId)
         {
             cart.SetQuote(items, shippingAmountInNoor, shippingRuleLabel);
@@ -153,7 +153,7 @@ public sealed class CartStore(IServiceScopeFactory scopes) : ICartStore
                 await LockBuyer(db, buyerId, ct);
                 await Lock(db, id, ct);
 
-                var cart = await db.Set<Cart>().SingleAsync(x => x.Id == id && x.BuyerId == buyerId, ct);
+                var cart = await db.Set<Cart>().SingleAsync(x => x.Id == id && x.BuyerId == new UserId(buyerId), ct);
                 if (cart.Status == CartStatus.Paid)
                 {
                     return Result<Cart>.Success(cart);
@@ -257,7 +257,7 @@ public sealed class CartStore(IServiceScopeFactory scopes) : ICartStore
         await LockBuyer(db, buyerId, ct);
         await Lock(db, id, ct);
 
-        var cart = await db.Set<Cart>().SingleAsync(x => x.Id == id && x.BuyerId == buyerId, ct);
+        var cart = await db.Set<Cart>().SingleAsync(x => x.Id == id && x.BuyerId == new UserId(buyerId), ct);
         TopUpRequest? topUp;
 
         if (cart.TopUpRequestId is Guid topUpId)
@@ -361,7 +361,7 @@ public sealed class CartStore(IServiceScopeFactory scopes) : ICartStore
         await using var tx = await db.Database.BeginTransactionAsync(ct);
         await Lock(db, id, ct);
 
-        var cart = await db.Set<Cart>().SingleAsync(x => x.Id == id && x.BuyerId == buyerId, ct);
+        var cart = await db.Set<Cart>().SingleAsync(x => x.Id == id && x.BuyerId == new UserId(buyerId), ct);
         mutate(cart, db);
 
         await db.SaveChangesAsync(ct);

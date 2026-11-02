@@ -48,6 +48,11 @@ public class GiftGrantRecipientConfiguration : IEntityTypeConfiguration<GiftGran
         builder.Property(r => r.GrantedAtUtc)
             .IsRequired();
 
+        builder.HasOne<User>()
+            .WithMany()
+            .HasForeignKey(r => r.UserId)
+            .OnDelete(DeleteBehavior.Restrict);
+
         builder.HasIndex(r => r.BatchId);
 
         builder.HasIndex(r => r.UserId);

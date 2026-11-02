@@ -1,5 +1,6 @@
 ﻿using ByeMoney.Domain.Modules.Identity.Users;
 using ByeMoney.Domain.Modules.Purchases;
+using ByeMoney.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -9,7 +10,12 @@ public class CoursePurchaseConfiguration : IEntityTypeConfiguration<CoursePurcha
 {
     public void Configure(EntityTypeBuilder<CoursePurchase> builder)
     {
-        builder.ToTable("CoursePurchases");
+        builder.ToTable("CoursePurchases", table =>
+        {
+            table.AddEnumCheckConstraint<CoursePurchase, CoursePurchaseStatus>(
+                "CK_CoursePurchases_Status",
+                nameof(CoursePurchase.Status));
+        });
 
         builder.HasKey(cp => cp.Id);
         builder.Property(cp => cp.CartId);
@@ -29,7 +35,19 @@ public class CoursePurchaseConfiguration : IEntityTypeConfiguration<CoursePurcha
             .IsRequired();
 
         builder.Property(cp => cp.Status)
+            .HasConversion<string>()
+            .HasMaxLength(30)
             .IsRequired();
+
+        builder.HasOne<User>()
+            .WithMany()
+            .HasForeignKey(cp => cp.BuyerId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne<Cart>()
+            .WithMany()
+            .HasForeignKey(cp => cp.CartId)
+            .OnDelete(DeleteBehavior.Restrict);
 
         builder.Property(cp => cp.LedgerTransactionId);
 
@@ -67,7 +85,10 @@ public class CoursePurchaseConfiguration : IEntityTypeConfiguration<CoursePurcha
             snapshotBuilder.Property<UserId>("BuyerId")
                 .HasConversion(id => id.Value, value => new UserId(value))
                 .HasColumnName("UserId");
-            snapshotBuilder.HasIndex("BuyerId", nameof(ProductSnapshot.ExternalProductId))
+            snapshotBuilder.HasIndex(
+                    "BuyerId",
+                    nameof(ProductSnapshot.ExternalProductId),
+                    nameof(ProductSnapshot.ItemType))
                 .IsUnique().HasDatabaseName("IX_CoursePurchases_UserId_ExternalProductId");
 
             snapshotBuilder.Property(s => s.ProductSource)

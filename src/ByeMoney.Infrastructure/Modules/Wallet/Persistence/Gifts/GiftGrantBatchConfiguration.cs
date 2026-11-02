@@ -1,5 +1,6 @@
 using ByeMoney.Domain.Modules.Identity.Users;
 using ByeMoney.Domain.Modules.Wallet.Gifts;
+using ByeMoney.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -17,6 +18,9 @@ public class GiftGrantBatchConfiguration : IEntityTypeConfiguration<GiftGrantBat
             table.HasCheckConstraint(
                 "CK_GiftGrantBatches_TotalAmountNoor_Positive",
                 "\"TotalAmountNoor\" > 0");
+            table.AddEnumCheckConstraint<GiftGrantBatch, GiftGrantSource>(
+                "CK_GiftGrantBatches_Source",
+                nameof(GiftGrantBatch.Source));
         });
 
         builder.HasKey(b => b.Id);
@@ -30,6 +34,8 @@ public class GiftGrantBatchConfiguration : IEntityTypeConfiguration<GiftGrantBat
             .IsRequired();
 
         builder.Property(b => b.Source)
+            .HasConversion<string>()
+            .HasMaxLength(30)
             .IsRequired();
 
         builder.Property(b => b.Reason)
