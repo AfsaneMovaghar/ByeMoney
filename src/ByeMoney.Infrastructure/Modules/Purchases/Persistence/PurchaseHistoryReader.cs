@@ -153,7 +153,7 @@ public sealed class PurchaseHistoryReader(ApplicationDbContext db) : IPurchaseHi
         {
             var cart = purchase.CartId.HasValue
                 ? await db.Set<Cart>().AsNoTracking().SingleOrDefaultAsync(
-                    item => item.Id == purchase.CartId && item.BuyerId == purchase.BuyerId.Value, ct)
+                    item => item.Id == purchase.CartId && item.BuyerId == purchase.BuyerId, ct)
                 : null;
             return new PurchaseReceiptData(purchase, cart);
         }
@@ -170,7 +170,7 @@ public sealed class PurchaseHistoryReader(ApplicationDbContext db) : IPurchaseHi
         if (physical is not null)
         {
             var cart = await db.Set<Cart>().AsNoTracking().SingleOrDefaultAsync(
-                item => item.Id == physical.CartId && item.BuyerId == physical.BuyerId.Value, ct);
+                item => item.Id == physical.CartId && item.BuyerId == physical.BuyerId, ct);
             return new PurchaseReceiptData(null, cart, physical);
         }
 

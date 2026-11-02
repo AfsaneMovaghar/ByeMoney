@@ -847,7 +847,7 @@ public sealed class CartPostgresTests : IAsyncLifetime
             .FirstOrDefault(i => i.GetDatabaseName() == "IX_CoursePurchases_UserId_ExternalProductId");
         efIndex.Should().NotBeNull();
         efIndex!.IsUnique.Should().BeTrue();
-        efIndex.Properties.Select(p => p.GetColumnName()).Should().Contain(["UserId", "ExternalProductId"]);
+        efIndex.Properties.Select(p => p.GetColumnName()).Should().Contain(["UserId", "ExternalProductId", "ItemType"]);
 
         // Û². Ø¨Ø±Ø±Ø³ÛŒ ÙˆØ¬ÙˆØ¯ ÙˆØ§Ù‚Ø¹ÛŒ Ø¯Ø± Ú©Ø§ØªØ§Ù„ÙˆÚ¯ Ø¯ÛŒØªØ§Ø¨ÛŒØ³ Ù¾Ø³ØªÚ¯Ø±Ø³ (pg_indexes)
         var connection = (NpgsqlConnection)db.Database.GetDbConnection();
@@ -856,13 +856,13 @@ public sealed class CartPostgresTests : IAsyncLifetime
             await connection.OpenAsync();
         }
         await using var cmd = connection.CreateCommand();
-        cmd.CommandText = "SELECT indexname, indexdef FROM pg_indexes WHERE tablename = 'CoursePurchases' AND indexname = 'IX_CoursePurchases_UserId_ExternalProductId';";
+        cmd.CommandText = "SELECT indexname, indexdef FROM pg_indexes WHERE schemaname = current_schema() AND tablename = 'CoursePurchases' AND indexname = 'IX_CoursePurchases_UserId_ExternalProductId';";
         await using var reader = await cmd.ExecuteReaderAsync();
         var foundInPg = await reader.ReadAsync();
         foundInPg.Should().BeTrue();
         var indexDef = reader.GetString(1);
         indexDef.Should().Contain("UNIQUE INDEX");
-        indexDef.Should().Contain("\"UserId\", \"ExternalProductId\"");
+        indexDef.Should().Contain("\"UserId\", \"ExternalProductId\", \"ItemType\"");
         await reader.CloseAsync();
 
         // Û³. Ø¨Ø±Ø±Ø³ÛŒ Ø±ÙØªØ§Ø± Ø¹ÛŒÙ†ÛŒ Ø¯ÛŒØªØ§Ø¨ÛŒØ³ Ø¯Ø± Ø«Ø¨Øª ØªÚ©Ø±Ø§Ø±ÛŒ (Unique Violation 23505)

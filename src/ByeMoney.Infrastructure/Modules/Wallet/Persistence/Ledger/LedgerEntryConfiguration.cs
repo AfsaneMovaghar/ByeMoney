@@ -2,9 +2,12 @@ using ByeMoney.Domain.Modules.Wallet.Accounts;
 using ByeMoney.Domain.Modules.Identity.Users;
 using ByeMoney.Domain.Modules.Wallet.Ledgers;
 using Microsoft.EntityFrameworkCore;
+using ByeMoney.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace ByeMoney.Infrastructure.Modules.Wallet.Persistence.Ledger;
+
+using AccountEntity = ByeMoney.Domain.Modules.Wallet.Accounts.Account;
 
 public class LedgerEntryConfiguration : IEntityTypeConfiguration<LedgerEntry>
 {
@@ -15,6 +18,12 @@ public class LedgerEntryConfiguration : IEntityTypeConfiguration<LedgerEntry>
             table.HasCheckConstraint(
                 "CK_LedgerEntries_Amount_NonZero",
                 "\"Amount\" <> 0");
+            table.AddEnumCheckConstraint<LedgerEntry, LedgerReferenceType>(
+                "CK_LedgerEntries_ReferenceType",
+                nameof(LedgerEntry.ReferenceType));
+            table.AddEnumCheckConstraint<LedgerEntry, LedgerBalanceType>(
+                "CK_LedgerEntries_BalanceType",
+                nameof(LedgerEntry.BalanceType));
         });
 
         builder.HasKey(l => l.Id);
@@ -46,17 +55,24 @@ public class LedgerEntryConfiguration : IEntityTypeConfiguration<LedgerEntry>
             .IsRequired();
 
         builder.Property(l => l.ReferenceType)
+            .HasConversion<string>()
+            .HasMaxLength(30)
             .IsRequired();
 
         builder.Property(l => l.BalanceType)
+            .HasConversion<string>()
+            .HasMaxLength(20)
             .HasDefaultValue(LedgerBalanceType.Regular)
             .IsRequired();
 
+        builder.HasOne<AccountEntity>()
+            .WithMany()
+            .HasForeignKey(l => l.AccountId)
+            .OnDelete(DeleteBehavior.Restrict);
+
         builder.HasIndex(l => l.TransactionId);
 
-        builder.HasIndex(l => l.ReferenceType);
-
-        builder.HasIndex(l => l.BalanceType);
+        builder.HasIndex(l => new { l.ReferenceType, l.ReferenceId });
 
         builder.HasIndex(l => new { l.AccountId, l.CreatedAtUtc });
     }

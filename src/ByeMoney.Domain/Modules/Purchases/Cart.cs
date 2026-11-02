@@ -1,9 +1,11 @@
+using ByeMoney.Domain.Modules.Identity.Users;
+
 namespace ByeMoney.Domain.Modules.Purchases;
 
 public sealed class Cart
 {
     public Guid Id { get; private set; }
-    public Guid BuyerId { get; private set; }
+    public UserId BuyerId { get; private set; }
     public string BuyerExternalUserId { get; private set; } = null!;
 
     /// <summary>
@@ -51,7 +53,7 @@ public sealed class Cart
     {
         Id = id,
         ReservationId = id,
-        BuyerId = buyerId,
+        BuyerId = new UserId(buyerId),
         BuyerExternalUserId = externalUserId,
         RequestedItemSignatures = items
             .Select(x => CartItemSignature.Format(x.ExternalId, x.Type, x.Quantity))

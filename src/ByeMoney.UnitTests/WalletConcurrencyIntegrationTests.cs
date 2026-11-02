@@ -183,8 +183,10 @@ public class WalletConcurrencyIntegrationTests
     public async Task ConcurrentGiftDebitsWithLock_PreserveBalancesAndBalancedLedger()
     {
         await using var database = await TestDatabase.CreateAsync();
-        var accountId = AccountId.New();
-        var userId = UserId.New();
+        var user = User.CreateInitial("wallet-test-" + Guid.NewGuid().ToString("N"));
+        var userId = user.Id;
+        var userAccount = Account.CreateUserAccount(userId);
+        var accountId = userAccount.Id;
         var systemAccount = Account.CreateSystemAccount();
 
         await using (var seed = database.Context())
@@ -192,7 +194,7 @@ public class WalletConcurrencyIntegrationTests
             var seedWallet = Wallet.Create(accountId, userId);
             seedWallet.Credit(100m, LedgerBalanceType.Gift);
             seedWallet.Credit(100m, LedgerBalanceType.Regular);
-            seed.Add(seedWallet);
+            seed.AddRange(user, userAccount, seedWallet);
             await seed.SaveChangesAsync();
         }
 
@@ -254,7 +256,7 @@ public class WalletConcurrencyIntegrationTests
         var referenceType = amount > 0 ? LedgerReferenceType.TopUp : LedgerReferenceType.Purchase;
         context.AddRange(
             LedgerEntry.Create(wallet.AccountId, amount, transactionId, referenceType, transactionId.ToString()),
-            LedgerEntry.Create(new AccountId(Guid.Empty), -amount, transactionId, referenceType, transactionId.ToString()));
+            LedgerEntry.Create(Account.SystemAccountId, -amount, transactionId, referenceType, transactionId.ToString()));
     }
 
     private sealed class TestDatabase : IAsyncDisposable
@@ -295,7 +297,12 @@ public class WalletConcurrencyIntegrationTests
         public async Task<WalletId> SeedWalletAsync()
         {
             await using var context = Context();
-            var wallet = Wallet.Create(AccountId.New(), UserId.New());
+            var user = User.CreateInitial("wallet-test-" + Guid.NewGuid().ToString("N"));
+            var userId = user.Id;
+            var account = Account.CreateUserAccount(userId);
+            var wallet = Wallet.Create(account.Id, userId);
+            context.Add(user);
+            context.Add(account);
             context.Add(wallet);
             Record(context, wallet, 100m);
             await context.SaveChangesAsync();

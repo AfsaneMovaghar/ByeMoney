@@ -29,6 +29,11 @@ public class TopUpRequestConfiguration : IEntityTypeConfiguration<TopUpRequest>
                 value => new UserId(value))
             .IsRequired();
 
+        builder.HasOne<User>()
+            .WithMany()
+            .HasForeignKey(t => t.UserId)
+            .OnDelete(DeleteBehavior.Restrict);
+
         builder.Property(t => t.CreatedByUserId)
             .HasConversion(id => id.HasValue ? id.Value.Value : (Guid?)null, value => value.HasValue ? new UserId(value.Value) : null);
 

@@ -1,5 +1,4 @@
-using ByeMoney.Domain.Modules.Identity.Users;
-using ByeMoney.Domain.Modules.Purchases;
+using ByeMoney.Domain.Modules.Identity.Users;using ByeMoney.Domain.Modules.Purchases;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -29,6 +28,17 @@ public class PhysicalProductPurchaseConfiguration : IEntityTypeConfiguration<Phy
             .IsRequired();
 
         builder.Property(x => x.CartId).IsRequired();
+
+        builder.HasOne<User>()
+            .WithMany()
+            .HasForeignKey(x => x.BuyerId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne<Cart>()
+            .WithMany()
+            .HasForeignKey(x => x.CartId)
+            .OnDelete(DeleteBehavior.Restrict);
+
         builder.HasIndex(x => x.CartId);
         builder.HasIndex(x => x.BuyerId);
 

@@ -288,7 +288,7 @@ public sealed class PhysicalDeliveryAndOrderReceiptTests
         reader.Setup(item => item.ReadAsync(It.IsAny<Guid?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(snapshot);
         var user = new Mock<ICurrentUserService>();
-        user.SetupGet(item => item.UserId).Returns(paid.Cart.BuyerId);
+        user.SetupGet(item => item.UserId).Returns(paid.Cart.BuyerId.Value);
         var handler = new GetMyCourseOrderReceiptQueryHandler(reader.Object, user.Object);
 
         var unpaid = () => handler.Handle(

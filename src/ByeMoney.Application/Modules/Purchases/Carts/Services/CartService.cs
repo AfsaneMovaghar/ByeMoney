@@ -325,7 +325,7 @@ public sealed class CartService(
     {
         if (cart.Status is CartStatus.Preparing or CartStatus.Ready && cart.ExpiresAtUtc <= DateTime.UtcNow)
         {
-            await store.FailAsync(cart.Id, cart.BuyerId, true, cart.ReservationId, ct);
+            await store.FailAsync(cart.Id, cart.BuyerId.Value, true, cart.ReservationId, ct);
         }
 
         if (cart.Status == CartStatus.AwaitingTopUp && cart.TopUpRequestId is Guid topUpId)
@@ -333,20 +333,20 @@ public sealed class CartService(
             var topUp = await topUps.GetByIdAsync(new TopUpRequestId(topUpId), ct);
             if (topUp?.Status == TopUpStatus.Confirmed && !topUp.IsExceptionalConfirmation)
             {
-                await PurchaseAsync(cart.BuyerId, cart.Id, ct, cart.ReservationId);
+                await PurchaseAsync(cart.BuyerId.Value, cart.Id, ct, cart.ReservationId);
             }
             else if (topUp?.IsExceptionalConfirmation == true || topUp?.Status is TopUpStatus.Rejected or TopUpStatus.ManuallyRefunded or TopUpStatus.Unresolved or TopUpStatus.UnderReview)
             {
-                await store.FailAsync(cart.Id, cart.BuyerId, false, cart.ReservationId, ct);
+                await store.FailAsync(cart.Id, cart.BuyerId.Value, false, cart.ReservationId, ct);
             }
         }
 
-        await SynchronizeAsync(cart.Id, cart.BuyerId, ct);
+        await SynchronizeAsync(cart.Id, cart.BuyerId.Value, ct);
     }
 
     private async Task<CartResponse> ResponseAsync(Cart cart, CancellationToken ct)
     {
-        var wallet = await wallets.GetByUserIdAsync(new UserId(cart.BuyerId), ct);
+        var wallet = await wallets.GetByUserIdAsync(cart.BuyerId, ct);
         var balance = wallet?.TotalBalance ?? 0m;
         var shortfall = cart.Status == CartStatus.Ready ? decimal.Ceiling(Math.Max(0, cart.Total - balance)) : 0m;
         var rate = shortfall > 0 ? await settings.GetRialToNoorConversionRateAsync(ct) : 0m;

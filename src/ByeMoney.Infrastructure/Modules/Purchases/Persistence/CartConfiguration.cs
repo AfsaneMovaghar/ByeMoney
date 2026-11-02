@@ -1,3 +1,4 @@
+using ByeMoney.Domain.Modules.Identity.Users;
 using ByeMoney.Domain.Modules.Purchases;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
@@ -57,5 +58,9 @@ public sealed class CartConfiguration : IEntityTypeConfiguration<Cart>
         b.HasIndex(x => new { x.Synchronized, x.UpdatedAtUtc });
         b.HasIndex(x => x.TopUpRequestId).IsUnique();
         b.HasIndex(x => x.BuyerId);
+        b.HasOne<User>()
+            .WithMany()
+            .HasForeignKey(x => x.BuyerId)
+            .OnDelete(DeleteBehavior.Restrict);
     }
 }
