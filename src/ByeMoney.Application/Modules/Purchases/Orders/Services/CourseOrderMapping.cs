@@ -89,50 +89,71 @@ public static class CourseOrderMapping
         TopUpRequest[] topUps, bool invalidLink)
     {
         var requested = RequestedItems(cart);
-        var expectedIds = requested.Select(item => item.ExternalId).Distinct(StringComparer.Ordinal).ToArray();
-        var purchasedIds = purchases.Select(purchase => purchase.Snapshot.ExternalProductId)
-            .Concat(physicalPurchases.Select(purchase => purchase.ExternalProductId)).ToArray();
-        var complete = CompletePurchases(expectedIds, purchases, physicalPurchases);
+        var expectedKeys = requested.Select(item => new OrderItemKey(item.ExternalId, item.Type)).Distinct().ToArray();
+        var purchasedKeys = purchases.Select(KeyOf).Concat(physicalPurchases.Select(KeyOf)).ToArray();
+        var complete = CompletePurchases(expectedKeys, purchases, physicalPurchases);
         var hasPurchases = purchases.Any(IsPaid) || physicalPurchases.Any(IsPaid);
         var consistent = !invalidLink &&
-            purchasedIds.All(id => expectedIds.Contains(id, StringComparer.Ordinal)) &&
-            purchasedIds.GroupBy(id => id).All(group => group.Count() == 1) &&
-            purchases.Where(IsPaid).All(purchase => cart.Items.Any(item =>
-                item.ExternalCourseId == purchase.Snapshot.ExternalProductId &&
-                item.AllocatedAmountInNoor == purchase.Snapshot.PriceInNoorAtPurchaseTime)) &&
-            physicalPurchases.Where(IsPaid).All(purchase => cart.Items.Any(item =>
-                item.ExternalCourseId == purchase.ExternalProductId &&
-                item.AllocatedAmountInNoor == purchase.PaidAmountInNoor)) &&
+            purchasedKeys.All(expectedKeys.Contains) &&
+            purchasedKeys.GroupBy(key => key).All(group => group.Count() == 1) &&
+            purchases.Where(IsPaid).All(purchase => MatchesCartItem(cart, purchase)) &&
+            physicalPurchases.Where(IsPaid).All(purchase => MatchesCartItem(cart, purchase)) &&
             (cart.Status != CartStatus.AwaitingTopUp || cart.TopUpRequestId.HasValue);
         var current = topUps.SingleOrDefault(topUp => topUp.Id.Value == cart.TopUpRequestId);
         var status = CartFinancialStatus(cart, complete, hasPurchases, consistent, current);
-        var ids = expectedIds.Concat(purchasedIds)
-            .Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray();
-        var items = ids.Select(id =>
+        var keys = expectedKeys.Concat(purchasedKeys).Distinct()
+            .OrderBy(key => key.ExternalId, StringComparer.Ordinal).ThenBy(key => key.Type).ToArray();
+        var items = keys.Select(key =>
         {
-            var quote = cart.Items.SingleOrDefault(item => item.ExternalCourseId == id);
-            var physical = physicalPurchases.FirstOrDefault(item => item.ExternalProductId == id);
+            var quote = FindCartItem(cart, key);
+            var physical = key.Type == ProductItemType.Product
+                ? physicalPurchases.FirstOrDefault(item => KeyOf(item) == key)
+                : null;
             if (physical is not null)
             {
                 return MapPhysicalItem(physical, quote);
             }
 
-            var purchase = purchases.FirstOrDefault(item => item.Snapshot.ExternalProductId == id);
-            var requestedItem = requested.FirstOrDefault(item => item.ExternalId == id);
-            return MapItem(id, quote?.Title, quote?.PriceInNoor, purchase, status, quote?.AllocatedAmountInNoor,
-                quote?.ItemType ?? requestedItem?.Type, quote?.ParentExternalId,
+            var purchase = purchases.FirstOrDefault(item => KeyOf(item) == key);
+            var requestedItem = requested.FirstOrDefault(
+                item => new OrderItemKey(item.ExternalId, item.Type) == key);
+            return MapItem(key.ExternalId, quote?.Title, quote?.PriceInNoor, purchase, status,
+                quote?.AllocatedAmountInNoor, key.Type, quote?.ParentExternalId,
                 quote?.Quantity ?? requestedItem?.Quantity ?? 1);
         }).ToArray();
-        var hasQuote = cart.Items.Count > 0 && expectedIds.All(
-            id => cart.Items.Any(item => item.ExternalCourseId == id));
+        var hasQuote = cart.Items.Count > 0 && expectedKeys.All(key => FindCartItem(cart, key) is not null);
         var summary = hasQuote ? new PurchaseCartSummary(
             cart.OriginalTotal, cart.ItemDiscountInNoor, cart.CouponDiscountInNoor,
             cart.Total, cart.ShippingAmountInNoor) : null;
         return new CourseOrderDetails(
             CourseOrderId.For(CourseOrderSourceType.Cart, cart.Id), CourseOrderSourceType.Cart.ToString(),
             cart.Id, cart.CreatedAtUtc, UpdatedAt(cart.UpdatedAtUtc, purchases, physicalPurchases, topUps),
-            status.ToString(), Delivery(items).ToString(), summary?.FinalAmountInNoor, expectedIds.Length,
+            status.ToString(), Delivery(items).ToString(), summary?.FinalAmountInNoor, expectedKeys.Length,
             cart.Status.ToString(), cart.ExpiresAtUtc, cart.TopUpRequestId, summary, items, MapTopUps(topUps));
+    }
+
+    private static OrderItemKey KeyOf(CoursePurchase purchase) =>
+        new(purchase.Snapshot.ExternalProductId, purchase.Snapshot.ItemType);
+
+    private static OrderItemKey KeyOf(PhysicalProductPurchase purchase) =>
+        new(purchase.ExternalProductId, ProductItemType.Product);
+
+    private static CartItem? FindCartItem(Cart cart, OrderItemKey key) => cart.Items.FirstOrDefault(
+        item => item.ExternalCourseId == key.ExternalId && item.ItemType == key.Type);
+
+    private static bool MatchesCartItem(Cart cart, CoursePurchase purchase)
+    {
+        var item = FindCartItem(cart, KeyOf(purchase));
+        return item is not null && item.AllocatedAmountInNoor == purchase.Snapshot.PriceInNoorAtPurchaseTime;
+    }
+
+    private static bool MatchesCartItem(Cart cart, PhysicalProductPurchase purchase)
+    {
+        var item = FindCartItem(cart, KeyOf(purchase));
+        return item is not null &&
+            item.Quantity == purchase.Quantity &&
+            item.PriceInNoor == purchase.UnitPriceInNoor &&
+            item.AllocatedAmountInNoor == purchase.PaidAmountInNoor;
     }
 
     private static CartItemInput[] RequestedItems(Cart cart) =>
@@ -166,11 +187,11 @@ public static class CourseOrderMapping
     private static CourseOrderDetails MapTopUp(
         TopUpRequest topUp, PendingItemSnapshot[] pending, CoursePurchase[] purchases)
     {
-        var expectedIds = pending.Select(item => item.ExternalId).ToArray();
+        var expectedKeys = pending.Select(item => new OrderItemKey(item.ExternalId, ProductItemType.Course)).ToArray();
         var consistent = purchases.All(purchase => pending.Any(item =>
             item.ExternalId == purchase.Snapshot.ExternalProductId &&
             item.PriceNoorSnapshot == purchase.Snapshot.PriceInNoorAtPurchaseTime));
-        var complete = consistent && CompletePurchases(expectedIds, purchases, []);
+        var complete = consistent && CompletePurchases(expectedKeys, purchases, []);
         var status = complete && topUp.Status == TopUpStatus.Confirmed
             ? CourseOrderFinancialStatus.Paid
             : !consistent || NeedsReview(topUp) || purchases.Any(IsPaid)
@@ -226,14 +247,16 @@ public static class CourseOrderMapping
     }
 
     private static bool CompletePurchases(
-        string[] ids, CoursePurchase[] purchases, PhysicalProductPurchase[] physicalPurchases)
+        OrderItemKey[] keys, CoursePurchase[] purchases, PhysicalProductPurchase[] physicalPurchases)
     {
-        var records = purchases.Select(purchase => (Id: purchase.Snapshot.ExternalProductId, Paid: IsPaid(purchase)))
-            .Concat(physicalPurchases.Select(purchase => (Id: purchase.ExternalProductId, Paid: IsPaid(purchase))))
+        var records = purchases.Select(purchase => (Key: KeyOf(purchase), Paid: IsPaid(purchase)))
+            .Concat(physicalPurchases.Select(purchase => (Key: KeyOf(purchase), Paid: IsPaid(purchase))))
             .ToArray();
-        return ids.Length > 0 && records.Length == ids.Length &&
-            ids.All(id => records.Count(record => record.Id == id && record.Paid) == 1);
+        return keys.Length > 0 && records.Length == keys.Length &&
+            keys.All(key => records.Count(record => record.Key == key && record.Paid) == 1);
     }
+
+    private readonly record struct OrderItemKey(string ExternalId, ProductItemType Type);
 
     private static bool IsPaid(CoursePurchase purchase) => purchase.Status is
         CoursePurchaseStatus.Debited or CoursePurchaseStatus.NotificationSent or CoursePurchaseStatus.NotificationFailed;

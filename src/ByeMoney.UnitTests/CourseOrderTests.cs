@@ -312,6 +312,163 @@ public sealed class CourseOrderTests
             .IsValid.Should().BeFalse();
     }
 
+    [Fact]
+    public void ReadyCartWithSameIdForCourseAndProductMapsBothItemsWithoutThrowing()
+    {
+        var cart = SameIdCart(productQuantity: 2, productCouponDiscount: 10);
+
+        var order = Map([cart]).Single().Details;
+
+        order.FinancialStatus.Should().Be("AwaitingPayment");
+        order.ItemCount.Should().Be(2);
+        order.Items.Select(item => item.ItemType).Should()
+            .BeEquivalentTo(nameof(ProductItemType.Course), nameof(ProductItemType.Product));
+        order.Items.Single(item => item.ItemType == nameof(ProductItemType.Product)).Quantity.Should().Be(2);
+        order.CartSummary.Should().NotBeNull();
+    }
+
+    [Fact]
+    public void PaidCartWithSameIdForCourseAndProductIsPaidWithBothItemsPaid()
+    {
+        var cart = SameIdCart(productQuantity: 2, productCouponDiscount: 10);
+        cart.MarkPaid();
+        var course = Purchase("1", 100, cart);
+        var product = PhysicalPurchase(cart, "1", quantity: 2, unitPrice: 50, paid: 90);
+
+        var order = Map([cart], purchases: [course], physicalPurchases: [product]).Single().Details;
+
+        order.FinancialStatus.Should().Be("Paid");
+        order.Items.Should().HaveCount(2);
+        order.Items.Should().OnlyContain(item => item.FinancialStatus == "Paid" && item.PurchaseId != null);
+        order.Items.Single(item => item.ItemType == nameof(ProductItemType.Product))
+            .FinalAmountInNoor.Should().Be(90);
+        order.Items.Single(item => item.ItemType == nameof(ProductItemType.Course))
+            .FinalAmountInNoor.Should().Be(100);
+    }
+
+    [Fact]
+    public void FreeProductInPaidCartIsConsistentAndPaid()
+    {
+        var cart = Cart.Create(Guid.NewGuid(), _buyer.Id.Value, _buyer.ExternalUserId,
+            [new CartItemInput("free-product", ProductItemType.Product, 1)], null);
+        cart.SetQuote([new CartQuoteItem("free-product", "کالای رایگان", 50, 0, 50, 0, ProductItemType.Product)]);
+        cart.MarkPaid();
+        var product = PhysicalPurchase(cart, "free-product", quantity: 1, unitPrice: 50, paid: 0);
+
+        var order = Map([cart], physicalPurchases: [product]).Single().Details;
+
+        order.FinancialStatus.Should().Be("Paid");
+        order.Items.Single().FinalAmountInNoor.Should().Be(0);
+        order.FinalAmountInNoor.Should().Be(0);
+    }
+
+    [Theory]
+    [InlineData(3, 50, 90)]
+    [InlineData(2, 60, 90)]
+    [InlineData(2, 50, 80)]
+    public void PaidProductThatDiffersFromCartItemRequiresReview(int quantity, decimal unitPrice, decimal paid)
+    {
+        var cart = SameIdCart(productQuantity: 2, productCouponDiscount: 10);
+        cart.MarkPaid();
+        var course = Purchase("1", 100, cart);
+        var product = PhysicalPurchase(cart, "1", quantity, unitPrice, paid);
+
+        var order = Map([cart], purchases: [course], physicalPurchases: [product]).Single().Details;
+
+        order.FinancialStatus.Should().Be("RequiresReview");
+    }
+
+    [Fact]
+    public void PaidPurchaseWithDifferentTypeThanCartItemRequiresReview()
+    {
+        var courseCart = Cart.Create(Guid.NewGuid(), _buyer.Id.Value, _buyer.ExternalUserId,
+            [new CartItemInput("1", ProductItemType.Course, 1)], null);
+        courseCart.SetQuote([new CartQuoteItem("1", "دوره", 100, 0, 0, 100)]);
+        courseCart.MarkPaid();
+        var productInsteadOfCourse = PhysicalPurchase(courseCart, "1", quantity: 1, unitPrice: 100, paid: 100);
+        Map([courseCart], physicalPurchases: [productInsteadOfCourse]).Single().Details
+            .FinancialStatus.Should().Be("RequiresReview");
+
+        var productCart = Cart.Create(Guid.NewGuid(), _buyer.Id.Value, _buyer.ExternalUserId,
+            [new CartItemInput("1", ProductItemType.Product, 1)], null);
+        productCart.SetQuote([new CartQuoteItem("1", "کالا", 100, 0, 0, 100, ProductItemType.Product)]);
+        productCart.MarkPaid();
+        var courseInsteadOfProduct = Purchase("1", 100, productCart);
+        Map([productCart], purchases: [courseInsteadOfProduct]).Single().Details
+            .FinancialStatus.Should().Be("RequiresReview");
+    }
+
+    [Fact]
+    public async Task OrderOfAnotherUserIsNotFoundForCurrentUser()
+    {
+        var otherCart = Cart.Create(Guid.NewGuid(), Guid.NewGuid(), "other-buyer", ["a"], null);
+        var reader = new Mock<ICourseOrderReader>(MockBehavior.Strict);
+        reader.Setup(service => service.ReadAsync(_buyer.Id.Value, null, default))
+            .ReturnsAsync(Snapshot([], [], []));
+        var current = new Mock<ICurrentUserService>();
+        current.SetupGet(service => service.UserId).Returns(_buyer.Id.Value);
+
+        var action = () => new GetMyCourseOrderQueryHandler(reader.Object, current.Object).Handle(
+            new GetMyCourseOrderQuery(CourseOrderId.For(CourseOrderSourceType.Cart, otherCart.Id)), default);
+
+        await action.Should().ThrowAsync<NotFoundException>();
+        reader.VerifyAll();
+    }
+
+    [Fact]
+    public async Task AdminHandlersListAndShowCartWithSameIdForCourseAndProduct()
+    {
+        var cart = SameIdCart(productQuantity: 2, productCouponDiscount: 10);
+        cart.MarkPaid();
+        var snapshot = Snapshot([cart], [], [Purchase("1", 100, cart)],
+            [PhysicalPurchase(cart, "1", quantity: 2, unitPrice: 50, paid: 90)]);
+        var reader = new Mock<ICourseOrderReader>();
+        reader.Setup(item => item.ReadAsync(null, null, It.IsAny<CancellationToken>())).ReturnsAsync(snapshot);
+        var user = new Mock<ICurrentUserService>();
+        user.SetupGet(item => item.UserId).Returns(Guid.NewGuid());
+
+        var page = await new GetAdminCourseOrdersQueryHandler(reader.Object, user.Object)
+            .Handle(new GetAdminCourseOrdersQuery(new AdminCourseOrderFilter()), default);
+        var details = await new GetAdminCourseOrderQueryHandler(reader.Object, user.Object).Handle(
+            new GetAdminCourseOrderQuery(CourseOrderId.For(CourseOrderSourceType.Cart, cart.Id)), default);
+
+        page.Items.Should().ContainSingle().Which.ItemCount.Should().Be(2);
+        details.Order.FinancialStatus.Should().Be("Paid");
+        details.Order.Items.Should().HaveCount(2);
+    }
+
+    private Cart SameIdCart(int productQuantity, decimal productCouponDiscount)
+    {
+        var cart = Cart.Create(Guid.NewGuid(), _buyer.Id.Value, _buyer.ExternalUserId, [
+            new CartItemInput("1", ProductItemType.Course, 1),
+            new CartItemInput("1", ProductItemType.Product, productQuantity)
+        ], null);
+        var productLineTotal = productQuantity * 50m;
+        cart.SetQuote([
+            new CartQuoteItem("1", "دوره", 100, 0, 0, 100),
+            new CartQuoteItem("1", "کالا", 50, 0, productCouponDiscount,
+                productLineTotal - productCouponDiscount, ProductItemType.Product, Quantity: productQuantity)
+        ]);
+        return cart;
+    }
+
+    private PhysicalProductPurchase PhysicalPurchase(
+        Cart cart, string productId, int quantity, decimal unitPrice, decimal paid)
+    {
+        var purchase = PhysicalProductPurchase.Create(
+            PhysicalProductPurchaseId.New(), cart.Id, _buyer.Id, productId, "کالا", quantity, unitPrice, paid);
+        if (paid == 0)
+        {
+            purchase.MarkFree(cart.Id);
+        }
+        else
+        {
+            purchase.MarkDebited(Guid.NewGuid());
+        }
+
+        return purchase;
+    }
+
     private Cart CreateCart(params string[] ids) =>
         Cart.Create(Guid.NewGuid(), _buyer.Id.Value, _buyer.ExternalUserId, ids, null);
 

@@ -20,6 +20,7 @@
 | ماژول / کنترلر | متد | مسیر (Route) | سطح دسترسی / پالیسی | پرمیژن مورد نیاز |
 | :--- | :--- | :--- | :--- | :--- |
 | AdminAssistedTopUp | `POST` | `/api/admin/topups/assisted` | نیازمند پالیسی `RequireTopUpReview` | `TopUp.Review` |
+| AdminCourseOrders | `GET` | `/api/admin/course-orders/{orderId}` | نیازمند پالیسی `RequirePurchasesView` | `Purchases.View` |
 | AdminCourseOrders | `GET` | `/api/admin/course-orders` | نیازمند پالیسی `RequirePurchasesView` | `Purchases.View` |
 | AdminCourseOrders | `GET` | `/api/admin/course-orders/{orderId}/receipt` | نیازمند پالیسی `RequirePurchasesView` | `Purchases.View` |
 | AdminCoursePurchases | `GET` | `/api/admin/course-purchases` | نیازمند پالیسی `RequirePurchasesView` | `Purchases.View` |

@@ -44,8 +44,18 @@ public static class CourseOrderReceiptMapping
         var purchaseId = item.PurchaseId!.Value;
         var finalAmount = item.FinalAmountInNoor!.Value;
         var baseAmount = item.PriceInNoor * item.Quantity;
-        coursePurchases.TryGetValue(purchaseId, out var course);
-        physicalPurchases.TryGetValue(purchaseId, out var physical);
+        var isPhysical = item.ItemType == nameof(ProductItemType.Product);
+        CoursePurchase? course = null;
+        PhysicalProductPurchase? physical = null;
+        if (isPhysical)
+        {
+            physicalPurchases.TryGetValue(purchaseId, out physical);
+        }
+        else
+        {
+            coursePurchases.TryGetValue(purchaseId, out course);
+        }
+
         var deliveredAt = course?.CompletedAtUtc ?? physical?.DeliveredAtUtc;
 
         return new CourseOrderReceiptItem(

@@ -22,7 +22,6 @@
 
 - [ ] **پرداخت دیرهنگام پس از لغو (شاخهٔ اتصال):** حذف دستی موجودی را آزاد می‌کند ولی callback موفقِ دیرهنگام می‌تواند سفارش را paid کند بدون تضمین موجودی. پیش از ادغام، فروش آخرین واحد به نفر دوم و پرداخت دیرهنگام نفر اول آزموده و تعیین تکلیف شود. روی master مشاهده نشده؛ به‌عنوان اصلاح منتشرشده گزارش نشود.
 - [ ] **سبد Paid دارای Product بدون `PhysicalProductPurchases` در دیتابیس توسعه:** منشأ داده و ثبت سفارش در Strapi تطبیق داده شود. جزئیات در Verification-Summary.
-- [ ] **ایمنی نگاشت اقلام سبد:** `SingleOrDefault` فقط روی شناسه کلید می‌زند ولی کلید سبد (شناسه، نوع) است؛ دو قلم هم‌شناسه از دو نوع کل فهرست را ۵۰۰ می‌کند. سازگاری سفارش فقط مبلغ را با سبد می‌سنجد، نه تعداد، قیمت واحد و نوع. آزمون کالای رایگان، ۴۰۴ سفارش متعلق به دیگری و handler ادمین هم اضافه شود.
 
 ### P1 — بک‌اند مالی و کالا
 
@@ -36,6 +35,17 @@
 - [ ] **ثبت ادمین انجام‌دهندهٔ تغییر تحویل:** `ShippedAtUtc` و `DeliveredAtUtc` شناسهٔ ادمین ندارند؛ با تصمیم Audit کلی (D پنل و عملیات) هماهنگ شود.
 - [ ] **اعلان تغییر وضعیت تحویل به کاربر:** `Shipped` و `Delivered` اعلان نمی‌فرستند.
 - [ ] **کالای فیزیکی در مسیر قدیمی TopUpCheckout:** `PendingItems` فقط دوره دارد؛ شارژِ دارای کالای معلق در نمای سفارش نمی‌آید.
+- [ ] **سخت‌سازی دیتابیس مالی (بازبینی ۲۰۲۶-۱۱-۰۲، به ترتیب اجرا؛ هر مورد با migration و آزمون PostgreSQL، بدون گارد انتقال داده طبق بخش پلن‌ها):**
+  - [ ] **DB-02 — قید Check روی مبالغ:** `Wallets` (موجودی عادی و هدیه ≥ 0 و صحیح)، `LedgerEntries.Amount` (≠ 0 و صحیح)، مبالغ `TopUpRequests` و `GiftGrant*` (> 0 و صحیح). پذیرش: درج مقدار منفی یا اعشاری با SQL مستقیم رد شود.
+  - [ ] **DB-10 — Seed حساب سیستم:** حساب سیستم با `HasData` ساخته شود تا اولین پرداخت‌های هم‌زمان روی دیتابیس خالی با تداخل PK شکست نخورند.
+  - [ ] **DB-01 — کلید خارجی جداول مالی:** ابتدا داخل Wallet (`LedgerEntries→Accounts`، `Wallets→Accounts`، `TopUpRequests→Users`) سپس بین‌ماژولی (`Carts`، `CoursePurchases`، `PhysicalProductPurchases`، `GiftGrantRecipients` به Users/Carts). همه `Restrict`. پذیرش: ثبت ردیف یتیم رد شود و آزمون‌های موجود سبز بمانند.
+  - [ ] **DB-03 — هم‌خوانی Wallet و Account:** کلید جایگزین `(Id, UserId)` روی `Accounts` و FK ترکیبی `Wallets(AccountId, UserId)`.
+  - [ ] **DB-05 — ایندکس Ledger:** حذف ایندکس‌های تکی `ReferenceType` و `BalanceType`؛ افزودن `(ReferenceType, ReferenceId)`.
+  - [ ] **DB-07 — یکسان‌سازی Enumها:** `CoursePurchases.Status`، `LedgerEntries.ReferenceType/BalanceType`، `GiftCampaignType` و `GiftGrantBatch.Source` رشته‌ای شوند و هر کدام قید `IN (...)` بگیرند.
+  - [ ] **DB-09 — ایندکس یکتای خرید:** `IX_CoursePurchases_UserId_ExternalProductId` شامل `ItemType` شود. وابسته به یادداشت `CartPurchaseIds` در بخش خارج از اسکوپ.
+  - [ ] **DB-04 — حذف `Carts.TopUpRequestIds`:** ارتباط سبد و شارژ با ستون `CartId` (ایندکس‌دار، FK) روی `TopUpRequests` جایگزین شود؛ با تسک «تخصیص پرداخت واقعی هر قلم» هماهنگ شود.
+  - [ ] **DB-06 — دقت نرخ تبدیل:** نوع نرخ ریال به نور در `TopUpRequests`، `CoursePurchases` و `SystemSettings` یکسان شود؛ `ConversionRateAtPurchaseTime` در صورت بلااستفاده بودن حذف شود. وابسته به A1/E4.
+  - [ ] **DB-08 — ستون مشترک `CoursePurchases.UserId`:** Shadow Property از Owned Type `ProductSnapshot` برداشته و ایندکس یکتا روی خود Entity تعریف شود.
 
 ### P2 — اتصال فرانت و ادمین
 
@@ -69,6 +79,12 @@
 - [ ] **حذف نهایی payment-light** پس از بررسی callbackها و سفارش‌های موجود؛ نور قدیمی از برنامهٔ هات‌فیکس master خارج است و در همین برنامهٔ اتصال پیگیری می‌شود.
 - [ ] **TASK-MIGRATION-LEGACY-CARD-TO-CARD-TOPUPS:** ابتدا تعداد، مبلغ و وضعیت فیش سفارش‌های باز فقط‌خواندنی گزارش شود، سپس با تصمیم تجاری ابطال/انقضا و مهاجرت مشخص شود. رکورد مالی فیزیکی حذف نشود. ثبت جدید در شاخه اتصال مسدود شده (وضعیت master نیست). ثبت: ۲۰۲۶-۱۰-۰۳.
 - [ ] **صفحه‌بندی و رسید ادمین:** فهرست و رسید سفارش ادمین هنوز همهٔ سوابق محلی را می‌خوانند؛ اگر حجم زیاد شد فیلتر خریدار در دیتابیس بررسی شود (ظرفیت اندازه‌گیری نشده).
+- [ ] **DB-11 تا DB-15 — پاک‌سازی دیتابیس و Domain (بازبینی ۲۰۲۶-۱۱-۰۲):**
+  - ستون‌های زمان یکسان شوند (`UpdatedAtUtc` در `BaseEntity`؛ حذف `UpdatedAt`/`UpdatedAtUtc` تکراری در `GiftCampaignSettings`، `LastUpdatedAtUtc` در `Wallets`، و `CreatedAt` در `UserRoles`/`RolePermissions`).
+  - نام فیلد و ستون یکی شود (`RegularBalance`↔`Balance`، `BuyerId`↔`UserId`).
+  - حذف کد تکراری Domain: یکی از دو `Result`، `BaseEntity` با کلید long و فایل خالی `Domain/Exceptions/DomainException.cs`.
+  - `GiftGrantRecipients`: قید یکتای `(BatchId, UserId)` و هم‌طول‌کردن `ExternalUserId` با `Users` (۱۰۰).
+  - جداسازی `TopUpReviewCases` از `TopUpRequests` فقط اگر بخش بررسی (D19) رشد کرد.
 
 ### مؤجل
 
@@ -81,7 +97,7 @@
 
 موارد کشف‌شده حین تسک‌های دیگر که در همان تسک اجرا نشدند. هر ردیف: تاریخ، شرح کوتاه، محل، تسک مبدأ. پس از رسیدگی یا انتقال به اولویت‌ها، ردیف حذف شود.
 
-- (فعلاً خالی)
+- 2026-11-02: `CartPurchaseIds.For(cartId, externalId)` نوع قلم را در شناسهٔ خرید نمی‌گیرد؛ دورهٔ 1 و کالای 1 در یک سبد شناسهٔ خرید یکسان (در دو جدول جدا) می‌گیرند. فعلاً برخوردی ایجاد نمی‌کند، ولی هر جا شناسهٔ خرید به‌تنهایی کلید باشد باید بازبینی شود. محل: Application، ماژول Purchases، سرویس‌های سبد. مبدأ: ایمنی نگاشت اقلام سبد.
 
 ## ترتیب اجرای خرید و عرضه
 

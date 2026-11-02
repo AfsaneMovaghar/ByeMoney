@@ -72,10 +72,8 @@ public static class PurchaseHistoryMapping
 
         var purchase = data.Purchase!;
         var snapshot = purchase.Snapshot;
-        var baseAmount = cart?.Items.SingleOrDefault(
-            item => item.ExternalCourseId == snapshot.ExternalProductId && item.ItemType == snapshot.ItemType)?.LineTotalInNoor
-            ?? cart?.Items.SingleOrDefault(
-            item => item.ExternalCourseId == snapshot.ExternalProductId)?.LineTotalInNoor;
+        var baseAmount = cart?.Items.FirstOrDefault(
+            item => item.ExternalCourseId == snapshot.ExternalProductId && item.ItemType == snapshot.ItemType)?.LineTotalInNoor;
 
         return new PurchaseReceipt(
             purchase.Id.Value,
