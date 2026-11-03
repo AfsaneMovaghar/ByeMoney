@@ -240,3 +240,17 @@ migrationهای `20261018042919_AddCourseCartCheckout`، `20261018043654_AddCour
 | اثر مالی | مانده کیف پول و تعداد Ledger پس از همهٔ انتقال‌ها تغییر نکرد |
 
 نکته: `shippedAtUtc` در پاسخ نخست PUT دقت ۷ رقم اعشار دارد و پس از ذخیره در PostgreSQL ۶ رقم؛ اختلاف زیر یک میکروثانیه است و نقص نیست. اجرای کل مجموعه با `BYEMONEY_CART_PG_TESTS=1` و `BYEMONEY_TEST_CONNECTION_STRING`: ۵۰۴ از ۵۰۴ موفق، صفر ناموفق و صفر ردشده.
+
+## پذیرش آدرس تحویل ادمین و فهرست تلاش‌های درگاه با توکن واقعی (استرپی محلی) — ۳ نوامبر ۲۰۲۶
+
+درخواست HTTP واقعی به استرپی محلی (PostgreSQL محلی)؛ پروژه محیط staging جدا ندارد و دیتابیس محلی محیط پذیرش است. ایندکس `gateway_payment_attempts_top_up_request_id_idx` و ردیف migration `2026.11.01T12.00.00` در همین دیتابیس بازبینی شد.
+
+| سناریو | نتیجه |
+|---|---|
+| `GET /api/byemoney-carts/:cartId/address` با توکن full-access، سبد دارای `addressSnapshot` | ۲۰۰؛ `cartId`، `addressSnapshot` (شش فیلد I09-PH) و `addressVersion` |
+| همان مسیر با توکن read-only | ۴۰۳ |
+| همان مسیر با full-access و سبد ناموجود | ۴۰۴ |
+| `GET /api/gateway-payment-attempts` با `filters[topUpRequestId][$in]` و هفت فیلد `status,lastError,tokenIssuedAtUtc,tokenExpiresAtUtc,createdAt,updatedAt,retryCount` با full-access | ۲۰۰ |
+| همان فهرست با توکن read-only | ۲۰۰ (find برای read-only مجاز است) |
+
+محدودیت‌ها: سبد آزمون، سبد دارای کالای فیزیکی تأییدشده نبود (فقط وجود `addressSnapshot` بررسی شد)؛ رفتار پنل (۴۰۴ بی‌صدا و ۴۰۳/۵۰۰ هشدار) در مرورگر اجرا نشد. توکن‌های موقت read-only پس از آزمون ابطال شدند.

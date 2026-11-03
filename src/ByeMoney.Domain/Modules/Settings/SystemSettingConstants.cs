@@ -14,8 +14,8 @@ public static class SystemSettingConstants
 
     public static class Defaults
     {
-        public const decimal RialToNoorRate = 1000m;
-        public const string RialToNoorRateString = "1000";
+        public const decimal RialToNoorRate = 10m;
+        public const string RialToNoorRateString = "10";
         public const string RialToNoorDescription = "Rial to Noor conversion rate (Rials per 1 Noor).";
     }
 

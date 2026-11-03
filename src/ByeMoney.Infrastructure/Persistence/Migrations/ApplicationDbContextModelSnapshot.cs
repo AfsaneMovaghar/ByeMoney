@@ -529,7 +529,7 @@ namespace ByeMoney.Infrastructure.Migrations
                             Key = "ConversionRate:RialToNoor",
                             Description = "Rial to Noor conversion rate (Rials per 1 Noor).",
                             UpdatedAtUtc = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Value = "1000"
+                            Value = "10"
                         });
                 });
 
