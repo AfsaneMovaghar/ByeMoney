@@ -1,3 +1,4 @@
+using FluentValidation;
 using ByeMoney.Application.Modules.Settings.Interfaces;
 using ByeMoney.Application.Modules.Wallet.Commands.ConfirmTopUp;
 using ByeMoney.Application.Modules.Wallet.Commands.CreateTopUpRequest;
@@ -125,7 +126,8 @@ public class GatewayTopUpConfirmationTests
     public async Task ValidatorRejectsMissingBankData()
     {
         var topUp = CreateTopUp();
-        var validator = new ConfirmTopUpCommandValidator();
+        // The application sets a global class-level Stop mode; this test needs every error reported.
+        var validator = new ConfirmTopUpCommandValidator { ClassLevelCascadeMode = CascadeMode.Continue };
         var command = Command(topUp) with { BankReferenceNumber = "", OriginalAmountRial = null };
 
         var validation = await validator.ValidateAsync(command);
