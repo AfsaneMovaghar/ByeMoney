@@ -201,3 +201,19 @@ migrationهای `20261018042919_AddCourseCartCheckout`، `20261018043654_AddCour
 | مهاجرت | `Up` از دیتابیس خالی (آزمون schema موقت) و `Down` سپس `Up` روی دیتابیس توسعه بدون خطا اجرا شد. |
 
 محدودیت: جدول‌های دیتابیس توسعه داده‌ای نداشتند که ستون‌های جدید برایش backfill شود؛ طبق تصمیم پروژه گارد انتقال داده و backfill نوشته نشد و خریدهای قدیمی سهم null دارند. بازبینی مستقل مالی فاز ۱ جداگانه گزارش می‌شود. فاز ۲ (DB-08) هنوز اجرا نشده است.
+
+
+## DB-08 — ایندکس یکتای خرید دوره (فاز ۲) — ۳ نوامبر ۲۰۲۶
+
+شاخهٔ `feature/db08-purchase-unique-index` از `master`، EF Core 10.0.11، PostgreSQL محلی. نتیجه: مدل و دیتابیس بدون تغییر ماندند و migration ساخته نشد.
+
+| بررسی | نتیجه |
+|---|---|
+| ایندکس از سمت Owner با `OwnsOne` (`HasIndex(cp => new { cp.BuyerId, cp.Snapshot.ExternalProductId, ... })`) | رد شد: «not a valid member access expression». |
+| همان ایندکس با `ComplexProperty` به‌جای `OwnsOne` | رد شد با همان خطا. |
+| ایندکس با نام متنی `"Snapshot.ExternalProductId"` | رد شد: ویژگی روی `CoursePurchase` وجود ندارد. |
+| تصمیم | Shadow Property `BuyerId` در `Snapshot` می‌ماند؛ SQL خام و ایندکس پشت‌صحنه طبق AGENTS.md ممنوع است. |
+| رفتار ایندکس | آزمون‌های `BuyerCourseUniqueConstraintExistsInEfModelAndPostgresDatabase` (ایندکس یکتا در `pg_indexes` و رد خرید تکراری با خطای `23505`) و `ConcurrentCartsForSameChapterHaveOnlyOneFinancialEffect` سبز. |
+| همهٔ آزمون‌ها با `BYEMONEY_CART_PG_TESTS=1` و `BYEMONEY_TEST_CONNECTION_STRING` | ۵۰۳ از ۵۰۳ موفق، صفر ناموفق و صفر رد‌شده. |
+
+تنها تغییر کد: توضیح کنار Shadow Property. ثبت پیگیری در «یادداشت‌های خارج از اسکوپ» `TASKS.md`.

@@ -87,7 +87,8 @@ public class CoursePurchaseConfiguration : IEntityTypeConfiguration<CoursePurcha
                 .HasDefaultValue(ProductItemType.Course);
             snapshotBuilder.Property(s => s.ExternalParentId)
                 .HasColumnName("ExternalParentId").HasMaxLength(100);
-            // ستون خریدار با مالک مشترک است تا ایندکس تاریخی در مدل EF نیز بازنمایی شود.
+            // ستون خریدار با مالک مشترک است. EF Core 10 ایندکس روی ستون‌های Owned/Complex را از سمت
+            // Owner نمی‌پذیرد (DB-08)، پس این Shadow Property تنها راه بازنمایی ایندکس یکتا در مدل است.
             snapshotBuilder.Property<UserId>("BuyerId")
                 .HasConversion(id => id.Value, value => new UserId(value))
                 .HasColumnName("UserId");
