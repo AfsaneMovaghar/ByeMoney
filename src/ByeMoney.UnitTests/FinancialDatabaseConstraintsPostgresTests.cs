@@ -125,6 +125,27 @@ public sealed class FinancialDatabaseConstraintsPostgresTests : IAsyncLifetime
         exception.Which.SqlState.Should().Be(PostgresErrorCodes.ForeignKeyViolation);
     }
 
+    [PostgresFact]
+    public async Task PaymentAllocationSchema_HasTopUpCartLinkAndShareConstraints()
+    {
+        (await ScalarAsync("SELECT count(*) FROM pg_constraint WHERE connamespace = current_schema()::regnamespace AND conname = 'FK_TopUpRequests_Carts_CartId' AND confdeltype = 'r'"))
+            .Should().Be(1);
+        (await ScalarAsync("SELECT count(*) FROM pg_indexes WHERE schemaname = current_schema() AND indexname = 'IX_TopUpRequests_CartId'"))
+            .Should().Be(1);
+        (await ScalarAsync("SELECT count(*) FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = 'Carts' AND column_name = 'TopUpRequestIds'"))
+            .Should().Be(0);
+        (await ScalarAsync("SELECT count(*) FROM pg_constraint WHERE connamespace = current_schema()::regnamespace AND conname IN ('CK_CoursePurchases_PaymentShares', 'CK_PhysicalProductPurchases_PaymentShares')"))
+            .Should().Be(2);
+    }
+
+    private async Task<long> ScalarAsync(string sql)
+    {
+        await using var connection = new NpgsqlConnection(_schemaConnection);
+        await connection.OpenAsync();
+        await using var command = new NpgsqlCommand(sql, connection);
+        return (long)(await command.ExecuteScalarAsync())!;
+    }
+
     private static string LedgerInsertSql(string referenceType, string balanceType) =>
         "INSERT INTO \"LedgerEntries\" (\"Id\", \"AccountId\", \"Amount\", \"TransactionId\", \"ReferenceType\", \"BalanceType\", \"CreatedAtUtc\") " +
         $"VALUES (gen_random_uuid(), gen_random_uuid(), 10, gen_random_uuid(), {referenceType}, {balanceType}, now())";

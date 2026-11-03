@@ -186,9 +186,10 @@ public class TopUpConfirmedPurchaseHandler : INotificationHandler<TopUpConfirmed
 
         foreach (var item in itemsToPurchase)
         {
+            var debit = new WalletDebitResult(0m, 0m);
             if (item.PriceInNoor > 0)
             {
-                await _walletPostingService.PostDebitAsync(
+                debit = await _walletPostingService.PostDebitAsync(
                     provisioned,
                     systemAccount,
                     item.PriceInNoor,
@@ -201,6 +202,7 @@ public class TopUpConfirmedPurchaseHandler : INotificationHandler<TopUpConfirmed
             }
 
             item.Purchase.MarkDebited(transactionId);
+            item.Purchase.RecordPaymentShares(new PaymentShares(debit.RegularDebited, debit.GiftDebited));
             _coursePurchaseRepository.Update(item.Purchase);
         }
 

@@ -207,6 +207,15 @@ namespace ByeMoney.Domain.Resources {
         /// <summary>
         ///   Looks up a localized string similar to قیمت دوره آموزشی باید بزرگتر از صفر باشد..
         /// </summary>
+        public static string PaymentShares_Invalid {
+            get {
+                return ResourceManager.GetString("PaymentShares_Invalid", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to CoursePurchase_InvalidPrice.
+        /// </summary>
         public static string CoursePurchase_InvalidPrice {
             get {
                 return ResourceManager.GetString("CoursePurchase_InvalidPrice", resourceCulture);

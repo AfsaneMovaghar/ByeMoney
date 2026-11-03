@@ -42,7 +42,8 @@ public sealed class CartStore(IServiceScopeFactory scopes) : ICartStore
     public Task<Cart?> FindByTopUpAsync(Guid topUpId, Guid buyerId, CancellationToken ct) =>
         Run((_, db) => db.Set<Cart>()
             .AsNoTracking()
-            .SingleOrDefaultAsync(x => (x.TopUpRequestId == topUpId || x.TopUpRequestIds.Contains(topUpId)) && x.BuyerId == new UserId(buyerId), ct));
+            .SingleOrDefaultAsync(x => x.BuyerId == new UserId(buyerId) &&
+                db.Set<TopUpRequest>().Any(t => t.Id == new TopUpRequestId(topUpId) && t.CartId == x.Id), ct));
 
     public Task<Result<Cart>> CreateAsync(Cart cart, CancellationToken ct) => Run(async (_, db) =>
     {
@@ -284,6 +285,7 @@ public sealed class CartStore(IServiceScopeFactory scopes) : ICartStore
                 }
 
                 topUp = TopUpRequest.CreateGateway(new UserId(buyerId), amount, rate);
+                topUp.AttachToCart(cart.Id);
                 db.Add(topUp);
                 cart.AwaitTopUp(topUp.Id.Value);
 
@@ -312,6 +314,7 @@ public sealed class CartStore(IServiceScopeFactory scopes) : ICartStore
             }
 
             topUp = TopUpRequest.CreateGateway(new UserId(buyerId), amount, rate);
+            topUp.AttachToCart(cart.Id);
             db.Add(topUp);
             cart.AwaitTopUp(topUp.Id.Value);
 

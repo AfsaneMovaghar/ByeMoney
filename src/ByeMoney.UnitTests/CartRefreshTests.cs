@@ -207,7 +207,6 @@ public sealed class CartRefreshTests
         result.IsSuccess.Should().BeTrue();
         result.Value.Status.Should().Be("Ready");
         cart.TopUpRequestId.Should().BeNull();
-        cart.TopUpRequestIds.Should().Contain(topUp.Id.Value);
         _store.Verify(x => x.FailAsync(cart.Id, _buyer.Id.Value, false, It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Once);
         _store.Verify(x => x.ReopenAsync(cart.Id, _buyer.Id.Value, It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Once);
     }
@@ -267,7 +266,6 @@ public sealed class CartRefreshTests
         result.IsSuccess.Should().BeTrue();
         result.Value.Status.Should().Be("Ready");
         cart.TopUpRequestId.Should().BeNull();
-        cart.TopUpRequestIds.Should().Contain(topUp.Id.Value);
         _store.Verify(x => x.FailAsync(cart.Id, _buyer.Id.Value, false, It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Once);
         _store.Verify(x => x.ReopenAsync(cart.Id, _buyer.Id.Value, It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Once);
     }

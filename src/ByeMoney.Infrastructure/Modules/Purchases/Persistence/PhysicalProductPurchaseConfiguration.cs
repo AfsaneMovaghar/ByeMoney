@@ -12,6 +12,8 @@ public class PhysicalProductPurchaseConfiguration : IEntityTypeConfiguration<Phy
         {
             table.HasCheckConstraint("CK_PhysicalProductPurchases_NonNegativeAmounts",
                 "\"UnitPriceInNoor\" >= 0 AND \"PaidAmountInNoor\" >= 0 AND trunc(\"UnitPriceInNoor\") = \"UnitPriceInNoor\" AND trunc(\"PaidAmountInNoor\") = \"PaidAmountInNoor\"");
+            table.HasCheckConstraint("CK_PhysicalProductPurchases_PaymentShares",
+                "(\"RegularAmountInNoor\" IS NULL AND \"GiftAmountInNoor\" IS NULL) OR (\"RegularAmountInNoor\" >= 0 AND \"GiftAmountInNoor\" >= 0 AND \"RegularAmountInNoor\" + \"GiftAmountInNoor\" = \"PaidAmountInNoor\")");
             table.HasCheckConstraint("CK_PhysicalProductPurchases_Quantity", "\"Quantity\" >= 1");
             table.HasCheckConstraint("CK_PhysicalProductPurchases_DeliveryStatus",
                 "\"DeliveryStatus\" IN ('Preparing', 'Shipped', 'Delivered')");
@@ -47,6 +49,8 @@ public class PhysicalProductPurchaseConfiguration : IEntityTypeConfiguration<Phy
         builder.Property(x => x.Quantity).IsRequired();
         builder.Property(x => x.UnitPriceInNoor).HasPrecision(18, 4).IsRequired();
         builder.Property(x => x.PaidAmountInNoor).HasPrecision(18, 4).IsRequired();
+        builder.Property(x => x.RegularAmountInNoor).HasPrecision(18, 4);
+        builder.Property(x => x.GiftAmountInNoor).HasPrecision(18, 4);
         builder.Property(x => x.LedgerTransactionId);
         builder.Property(x => x.DeliveryStatus)
             .HasConversion<string>()

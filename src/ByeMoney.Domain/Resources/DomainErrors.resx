@@ -106,6 +106,9 @@
   <data name="CoursePurchase_CannotNotifyNonDebited" xml:space="preserve">
     <value>امکان ارسال نوتیفیکیشن دسترسی تنها برای خریدهای کسر شده از حساب وجود دارد. وضعیت فعلی: «{0}».</value>
   </data>
+  <data name="PaymentShares_Invalid" xml:space="preserve">
+    <value>سهم نور عادی و هدیه باید نامنفی باشد و جمع آن دقیقاً برابر مبلغ پرداخت‌شدهٔ قلم باشد.</value>
+  </data>
   <data name="CoursePurchase_InvalidPrice" xml:space="preserve">
     <value>قیمت دوره آموزشی باید بزرگتر از صفر باشد.</value>
   </data>

@@ -80,13 +80,12 @@ public sealed class CartTests
         cart.RecordSynchronization(true, null); cart.Reopen();
         cart.Id.Should().Be(cartId);
         cart.ReservationId.Should().NotBe(reservation);
-        cart.TopUpRequestIds.Should().Equal(topUp);
         cart.TopUpRequestId.Should().BeNull();
         cart.Status.Should().Be(CartStatus.Preparing);
         cart.SetQuote([new("a", "الف", 200, 0, 20, 180), new("b", "ب", 100, 0, 10, 90)]);
         cart.Total.Should().Be(270);
         cart.AwaitTopUp(Guid.NewGuid());
-        cart.TopUpRequestIds.Should().HaveCount(2);
+        cart.TopUpRequestId.Should().NotBeNull();
     }
     [Fact]
     public async Task ValidationRejectsInvalidListCouponAndIdWithoutInfrastructureCalls()

@@ -138,7 +138,7 @@ public sealed class GiftNoorFinancialPostgresTests : IAsyncLifetime
         wallet.WithdrawableBalance.Should().Be(0m);
         wallet.TotalBalance.Should().Be(40m);
 
-        var entries = await db.Set<LedgerEntry>().Where(x => x.ReferenceId == cart.Id.ToString()).ToListAsync();
+        var entries = await db.Set<LedgerEntry>().Where(x => x.TransactionId == cart.Id).ToListAsync();
         entries.Should().HaveCount(2); // ۱ جفت هدیه
         entries.Should().OnlyContain(x => x.BalanceType == LedgerBalanceType.Gift);
         entries.Single(x => x.AccountId == wallet.AccountId).Amount.Should().Be(-60m);
@@ -165,7 +165,7 @@ public sealed class GiftNoorFinancialPostgresTests : IAsyncLifetime
         wallet.WithdrawableBalance.Should().Be(70m);
         wallet.TotalBalance.Should().Be(70m);
 
-        var purchaseEntries = await db.Set<LedgerEntry>().Where(x => x.ReferenceId == cart.Id.ToString()).ToListAsync();
+        var purchaseEntries = await db.Set<LedgerEntry>().Where(x => x.TransactionId == cart.Id).ToListAsync();
         purchaseEntries.Should().HaveCount(4); // ۲ جفت: هدیه و عادی
 
         var userGiftEntry = purchaseEntries.Single(x => x.AccountId == wallet.AccountId && x.BalanceType == LedgerBalanceType.Gift);
@@ -173,6 +173,11 @@ public sealed class GiftNoorFinancialPostgresTests : IAsyncLifetime
 
         var userRegularEntry = purchaseEntries.Single(x => x.AccountId == wallet.AccountId && x.BalanceType == LedgerBalanceType.Regular);
         userRegularEntry.Amount.Should().Be(-30m);
+
+        // سهم نور عادی و هدیهٔ پرداخت واقعی قلم در خود خرید پایدار است
+        var purchase = await db.Set<CoursePurchase>().SingleAsync(x => x.CartId == cart.Id);
+        purchase.GiftAmountInNoor.Should().Be(40m);
+        purchase.RegularAmountInNoor.Should().Be(30m);
 
         // تطبیق جبری کل Ledger با مانده والت
         var userEntries = await db.Set<LedgerEntry>().Where(x => x.AccountId == wallet.AccountId).ToListAsync();
@@ -199,7 +204,7 @@ public sealed class GiftNoorFinancialPostgresTests : IAsyncLifetime
         wallet.GiftBalance.Should().Be(50m);
         wallet.WithdrawableBalance.Should().Be(50m);
 
-        var purchaseEntries = await db.Set<LedgerEntry>().Where(x => x.ReferenceId == cart.Id.ToString()).ToListAsync();
+        var purchaseEntries = await db.Set<LedgerEntry>().Where(x => x.TransactionId == cart.Id).ToListAsync();
         purchaseEntries.Should().BeEmpty();
     }
 
@@ -221,7 +226,7 @@ public sealed class GiftNoorFinancialPostgresTests : IAsyncLifetime
         wallet.GiftBalance.Should().Be(10m);
         wallet.WithdrawableBalance.Should().Be(50m);
 
-        var purchaseEntries = await db.Set<LedgerEntry>().Where(x => x.ReferenceId == cart.Id.ToString()).ToListAsync();
+        var purchaseEntries = await db.Set<LedgerEntry>().Where(x => x.TransactionId == cart.Id).ToListAsync();
         purchaseEntries.Should().HaveCount(2); // فقط یکبار کسر شده
     }
 

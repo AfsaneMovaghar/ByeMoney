@@ -25,6 +25,8 @@ public class TopUpRequest : BaseEntity<TopUpRequestId>
     public string? ReceiptId { get; private set; }
     /// <summary>کلید یکتای درخواست ایجاد؛ برای جلوگیری از ثبت دوباره یک عملیات در retryها استفاده می‌شود.</summary>
     public string? IdempotencyKey { get; private set; }
+    /// <summary>سبدی که این شارژ برای پرداخت آن ساخته شده؛ برای شارژ مستقل null است و سابقهٔ شارژهای هر سبد از همین ستون خوانده می‌شود.</summary>
+    public Guid? CartId { get; private set; }
     /// <summary>مقدار نور شارژ؛ پس از تأیید برای ثبت اعتبار کیف پول مبنا قرار می‌گیرد.</summary>
     public decimal AmountNoor { get; private set; }
     /// <summary>روش پرداخت، مانند کارت‌به‌کارت یا درگاه؛ برای انتخاب قواعد پیگیری و تأیید استفاده می‌شود.</summary>
@@ -299,6 +301,8 @@ public class TopUpRequest : BaseEntity<TopUpRequestId>
             PendingItems = itemsList.ToList()
         };
     }
+
+    public void AttachToCart(Guid cartId) => CartId = cartId;
 
     public static TopUpRequest CreateGateway(
         UserId userId,

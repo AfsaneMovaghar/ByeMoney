@@ -266,12 +266,14 @@ public sealed class PurchaseHistoryPostgresTests : IAsyncLifetime
         var first = TopUpRequest.CreateGateway(buyer.Id, 40, 1000);
         var second = TopUpRequest.CreateGateway(buyer.Id, 40, 1000);
         cart.AwaitTopUp(first.Id.Value);
+        first.AttachToCart(cart.Id);
         first.Reject("رد آزمون");
         cart.Fail();
         cart.RecordSynchronization(true, null);
         cart.Reopen();
         cart.SetQuote([new CartQuoteItem("cart-course", "دوره سبد", 40, 0, 0, 40)]);
         cart.AwaitTopUp(second.Id.Value);
+        second.AttachToCart(cart.Id);
         second.Confirm("confirmed-cart");
         cart.Fail();
         var legacy = TopUpRequest.CreateGateway(buyer.Id, 20, 1000,

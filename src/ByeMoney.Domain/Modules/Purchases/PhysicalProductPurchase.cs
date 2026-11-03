@@ -14,6 +14,12 @@ public class PhysicalProductPurchase : BaseEntity<PhysicalProductPurchaseId>
     public int Quantity { get; private set; }
     public decimal UnitPriceInNoor { get; private set; }
     public decimal PaidAmountInNoor { get; private set; }
+
+    /// <summary>سهم نور عادی پرداخت واقعی این قلم؛ برای خریدهای پیش از ثبت سهم null است.</summary>
+    public decimal? RegularAmountInNoor { get; private set; }
+
+    /// <summary>سهم نور هدیهٔ پرداخت واقعی این قلم؛ برای خریدهای پیش از ثبت سهم null است.</summary>
+    public decimal? GiftAmountInNoor { get; private set; }
     public Guid? LedgerTransactionId { get; private set; }
     public PhysicalDeliveryStatus DeliveryStatus { get; private set; } = PhysicalDeliveryStatus.Preparing;
     public DateTime? ShippedAtUtc { get; private set; }
@@ -57,6 +63,14 @@ public class PhysicalProductPurchase : BaseEntity<PhysicalProductPurchaseId>
             UnitPriceInNoor = unitPriceInNoor,
             PaidAmountInNoor = paidAmountInNoor
         };
+    }
+
+    public void RecordPaymentShares(PaymentShares shares)
+    {
+        shares.EnsureMatches(PaidAmountInNoor);
+        RegularAmountInNoor = shares.RegularInNoor;
+        GiftAmountInNoor = shares.GiftInNoor;
+        UpdatedAt = DateTime.UtcNow;
     }
 
     public void MarkFree(Guid? referenceId = null)

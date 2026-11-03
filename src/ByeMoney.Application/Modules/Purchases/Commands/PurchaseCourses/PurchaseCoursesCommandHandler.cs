@@ -114,6 +114,7 @@ public class PurchaseCoursesCommandHandler : IRequestHandler<PurchaseCoursesComm
                     foreach (var item in purchaseList)
                     {
                         item.Purchase.MarkDebited(transactionId);
+                        item.Purchase.RecordPaymentShares(new PaymentShares(0m, 0m));
                         _coursePurchaseRepository.Update(item.Purchase);
                     }
 
@@ -165,9 +166,10 @@ public class PurchaseCoursesCommandHandler : IRequestHandler<PurchaseCoursesComm
 
         foreach (var item in purchaseList)
         {
+            var debit = new WalletDebitResult(0m, 0m);
             if (item.PriceInNoor > 0)
             {
-                await _walletPostingService.PostDebitAsync(
+                debit = await _walletPostingService.PostDebitAsync(
                     provisioned,
                     systemAccount,
                     item.PriceInNoor,
@@ -180,6 +182,7 @@ public class PurchaseCoursesCommandHandler : IRequestHandler<PurchaseCoursesComm
             }
 
             item.Purchase.MarkDebited(transactionId);
+            item.Purchase.RecordPaymentShares(new PaymentShares(debit.RegularDebited, debit.GiftDebited));
             _coursePurchaseRepository.Update(item.Purchase);
         }
 

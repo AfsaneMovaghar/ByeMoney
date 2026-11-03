@@ -327,10 +327,6 @@ namespace ByeMoney.Infrastructure.Migrations
                     b.Property<Guid?>("TopUpRequestId")
                         .HasColumnType("uuid");
 
-                    b.PrimitiveCollection<Guid[]>("TopUpRequestIds")
-                        .IsRequired()
-                        .HasColumnType("uuid[]");
-
                     b.Property<DateTime>("UpdatedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
@@ -372,6 +368,10 @@ namespace ByeMoney.Infrastructure.Migrations
                         .HasMaxLength(1000)
                         .HasColumnType("character varying(1000)");
 
+                    b.Property<decimal?>("GiftAmountInNoor")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)");
+
                     b.Property<bool>("IsFree")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")
@@ -392,6 +392,10 @@ namespace ByeMoney.Infrastructure.Migrations
                         .HasMaxLength(1000)
                         .HasColumnType("character varying(1000)");
 
+                    b.Property<decimal?>("RegularAmountInNoor")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(30)
@@ -410,6 +414,8 @@ namespace ByeMoney.Infrastructure.Migrations
 
                     b.ToTable("CoursePurchases", null, t =>
                         {
+                            t.HasCheckConstraint("CK_CoursePurchases_PaymentShares", "(\"RegularAmountInNoor\" IS NULL AND \"GiftAmountInNoor\" IS NULL) OR (\"RegularAmountInNoor\" >= 0 AND \"GiftAmountInNoor\" >= 0 AND \"RegularAmountInNoor\" + \"GiftAmountInNoor\" = \"PriceInNoorAtPurchaseTime\")");
+
                             t.HasCheckConstraint("CK_CoursePurchases_Status", "\"Status\" IN ('Pending', 'Debited', 'NotificationSent', 'NotificationFailed')");
                         });
                 });
@@ -444,6 +450,10 @@ namespace ByeMoney.Infrastructure.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
+                    b.Property<decimal?>("GiftAmountInNoor")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)");
+
                     b.Property<Guid?>("LedgerTransactionId")
                         .HasColumnType("uuid");
 
@@ -458,6 +468,10 @@ namespace ByeMoney.Infrastructure.Migrations
 
                     b.Property<int>("Quantity")
                         .HasColumnType("integer");
+
+                    b.Property<decimal?>("RegularAmountInNoor")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)");
 
                     b.Property<DateTime?>("ShippedAtUtc")
                         .HasColumnType("timestamp with time zone");
@@ -480,6 +494,8 @@ namespace ByeMoney.Infrastructure.Migrations
                             t.HasCheckConstraint("CK_PhysicalProductPurchases_DeliveryStatus", "\"DeliveryStatus\" IN ('Preparing', 'Shipped', 'Delivered')");
 
                             t.HasCheckConstraint("CK_PhysicalProductPurchases_NonNegativeAmounts", "\"UnitPriceInNoor\" >= 0 AND \"PaidAmountInNoor\" >= 0 AND trunc(\"UnitPriceInNoor\") = \"UnitPriceInNoor\" AND trunc(\"PaidAmountInNoor\") = \"PaidAmountInNoor\"");
+
+                            t.HasCheckConstraint("CK_PhysicalProductPurchases_PaymentShares", "(\"RegularAmountInNoor\" IS NULL AND \"GiftAmountInNoor\" IS NULL) OR (\"RegularAmountInNoor\" >= 0 AND \"GiftAmountInNoor\" >= 0 AND \"RegularAmountInNoor\" + \"GiftAmountInNoor\" = \"PaidAmountInNoor\")");
 
                             t.HasCheckConstraint("CK_PhysicalProductPurchases_Quantity", "\"Quantity\" >= 1");
                         });
@@ -812,6 +828,9 @@ namespace ByeMoney.Infrastructure.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
+                    b.Property<Guid?>("CartId")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("ChargeType")
                         .HasMaxLength(80)
                         .HasColumnType("character varying(80)");
@@ -945,6 +964,8 @@ namespace ByeMoney.Infrastructure.Migrations
                         .HasColumnType("uuid");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("CartId");
 
                     b.HasIndex("ClientReferenceCode")
                         .IsUnique();
@@ -1083,10 +1104,6 @@ namespace ByeMoney.Infrastructure.Migrations
                                 .HasPrecision(18, 4)
                                 .HasColumnType("numeric(18,4)");
 
-                            b1.Property<decimal?>("GiftAmountInNoor")
-                                .HasPrecision(18, 4)
-                                .HasColumnType("numeric(18,4)");
-
                             b1.Property<string>("ParentExternalId")
                                 .HasMaxLength(100)
                                 .HasColumnType("character varying(100)");
@@ -1099,10 +1116,6 @@ namespace ByeMoney.Infrastructure.Migrations
                                 .ValueGeneratedOnAdd()
                                 .HasColumnType("integer")
                                 .HasDefaultValue(1);
-
-                            b1.Property<decimal?>("RegularAmountInNoor")
-                                .HasPrecision(18, 4)
-                                .HasColumnType("numeric(18,4)");
 
                             b1.Property<string>("Title")
                                 .IsRequired()
@@ -1118,8 +1131,6 @@ namespace ByeMoney.Infrastructure.Migrations
                                     t.HasCheckConstraint("CK_CartItems_NonNegativeAmounts", "\"PriceInNoor\" >= 0");
 
                                     t.HasCheckConstraint("CK_CartItems_Quantity", "\"Quantity\" >= 1");
-
-                                    t.HasCheckConstraint("CK_CartItems_Shares", "(\"RegularAmountInNoor\" IS NULL AND \"GiftAmountInNoor\" IS NULL) OR (\"RegularAmountInNoor\" >= 0 AND \"GiftAmountInNoor\" >= 0 AND trunc(\"RegularAmountInNoor\") = \"RegularAmountInNoor\" AND trunc(\"GiftAmountInNoor\") = \"GiftAmountInNoor\" AND \"RegularAmountInNoor\" + \"GiftAmountInNoor\" = \"AllocatedAmountInNoor\")");
 
                                     t.HasCheckConstraint("CK_CartItems_WholeNoorAmounts", "trunc(\"PriceInNoor\") = \"PriceInNoor\"");
                                 });
@@ -1266,6 +1277,11 @@ namespace ByeMoney.Infrastructure.Migrations
 
             modelBuilder.Entity("ByeMoney.Domain.Modules.Wallet.TopUps.TopUpRequest", b =>
                 {
+                    b.HasOne("ByeMoney.Domain.Modules.Purchases.Cart", null)
+                        .WithMany()
+                        .HasForeignKey("CartId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("ByeMoney.Domain.Modules.Identity.Users.User", null)
                         .WithMany()
                         .HasForeignKey("UserId")

@@ -23,6 +23,12 @@ public class CoursePurchase : BaseEntity<CoursePurchaseId>
 
     public bool IsFree { get; private set; }
 
+    /// <summary>سهم نور عادی پرداخت واقعی این قلم؛ برای خریدهای پیش از ثبت سهم null است.</summary>
+    public decimal? RegularAmountInNoor { get; private set; }
+
+    /// <summary>سهم نور هدیهٔ پرداخت واقعی این قلم؛ برای خریدهای پیش از ثبت سهم null است.</summary>
+    public decimal? GiftAmountInNoor { get; private set; }
+
     public string? FreeReason { get; private set; }
 
     /// <summary>Number of times the outbound Strapi access notification was attempted (capped at 5).</summary>
@@ -53,6 +59,14 @@ public class CoursePurchase : BaseEntity<CoursePurchaseId>
             FreeReason = isFree ? freeReason?.Trim() : null,
             NotificationAttempts = 0
         };
+    }
+
+    public void RecordPaymentShares(PaymentShares shares)
+    {
+        shares.EnsureMatches(Snapshot.PriceInNoorAtPurchaseTime);
+        RegularAmountInNoor = shares.RegularInNoor;
+        GiftAmountInNoor = shares.GiftInNoor;
+        UpdatedAt = DateTime.UtcNow;
     }
 
     public void MarkFree(Guid? referenceId = null)

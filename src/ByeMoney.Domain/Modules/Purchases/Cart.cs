@@ -31,7 +31,6 @@ public sealed class Cart
     public string? ShippingRuleLabel { get; private set; }
     public CartStatus Status { get; private set; }
     public Guid? TopUpRequestId { get; private set; }
-    public Guid[] TopUpRequestIds { get; private set; } = [];
     public Guid ReservationId { get; private set; }
     public bool Synchronized { get; private set; }
     public int SyncAttempts { get; private set; }
@@ -151,7 +150,6 @@ public sealed class Cart
             throw new InvalidOperationException();
         }
         TopUpRequestId = id;
-        TopUpRequestIds = TopUpRequestIds.Append(id).Distinct().ToArray();
         Status = CartStatus.AwaitingTopUp;
         UpdatedAtUtc = DateTime.UtcNow;
     }
@@ -161,10 +159,6 @@ public sealed class Cart
         if (Status is not (CartStatus.Failed or CartStatus.Expired) || !Synchronized)
         {
             throw new InvalidOperationException();
-        }
-        if (TopUpRequestId is Guid previous)
-        {
-            TopUpRequestIds = TopUpRequestIds.Append(previous).Distinct().ToArray();
         }
         TopUpRequestId = null;
         ReservationId = Guid.NewGuid();

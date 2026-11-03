@@ -14,8 +14,12 @@ public static class CourseOrderMapping
         var rows = new List<CourseOrderReadRow>();
         var purchasesByCart = snapshot.Purchases.Where(purchase => purchase.CartId.HasValue)
             .ToLookup(purchase => purchase.CartId!.Value);
-        var topUpsById = snapshot.TopUps.ToDictionary(topUp => topUp.Id.Value);
-        var attachedTopUps = snapshot.Carts.SelectMany(TopUpIds).ToHashSet();
+        var cartIds = snapshot.Carts.Select(cart => cart.Id).ToHashSet();
+        var topUpsByCart = snapshot.TopUps.Where(topUp => topUp.CartId.HasValue)
+            .ToLookup(topUp => topUp.CartId!.Value);
+        var attachedTopUps = snapshot.TopUps
+            .Where(topUp => topUp.CartId.HasValue && cartIds.Contains(topUp.CartId.Value))
+            .Select(topUp => topUp.Id.Value).ToHashSet();
         var physicalByCart = snapshot.PhysicalPurchases.ToLookup(purchase => purchase.CartId);
         var groupedPurchases = new HashSet<Guid>();
         var groupedPhysicalPurchases = new HashSet<Guid>();
@@ -24,10 +28,8 @@ public static class CourseOrderMapping
         {
             var purchases = purchasesByCart[cart.Id].ToArray();
             var physicalPurchases = physicalByCart[cart.Id].ToArray();
-            var ids = TopUpIds(cart).ToArray();
-            var topUps = ids.Where(topUpsById.ContainsKey).Select(id => topUpsById[id]).ToArray();
-            var invalidLink = topUps.Length != ids.Length ||
-                topUps.Any(topUp => topUp.UserId.Value != cart.BuyerId.Value) ||
+            var topUps = topUpsByCart[cart.Id].ToArray();
+            var invalidLink = topUps.Any(topUp => topUp.UserId.Value != cart.BuyerId.Value) ||
                 purchases.Any(purchase => purchase.BuyerId.Value != cart.BuyerId.Value) ||
                 physicalPurchases.Any(purchase => purchase.BuyerId.Value != cart.BuyerId.Value);
             var ownedTopUps = topUps.Where(topUp => topUp.UserId.Value == cart.BuyerId.Value).ToArray();
@@ -284,8 +286,6 @@ public static class CourseOrderMapping
             ? CourseOrderDeliveryStatus.Pending : CourseOrderDeliveryStatus.NotStarted;
     }
 
-    private static IEnumerable<Guid> TopUpIds(Cart cart) => cart.TopUpRequestIds
-        .Concat(cart.TopUpRequestId.HasValue ? [cart.TopUpRequestId.Value] : Array.Empty<Guid>()).Distinct();
 
     private static DateTime PurchaseUpdatedAt(CoursePurchase purchase) => new[]
     {

@@ -7,9 +7,7 @@ public sealed record CartItem(
     decimal AllocatedAmountInNoor,
     ProductItemType ItemType = ProductItemType.Course,
     string? ParentExternalId = null,
-    int Quantity = 1,
-    decimal? RegularAmountInNoor = null,
-    decimal? GiftAmountInNoor = null)
+    int Quantity = 1)
 {
     public decimal LineTotalInNoor => Quantity * PriceInNoor;
 }

@@ -15,6 +15,9 @@ public class CoursePurchaseConfiguration : IEntityTypeConfiguration<CoursePurcha
             table.AddEnumCheckConstraint<CoursePurchase, CoursePurchaseStatus>(
                 "CK_CoursePurchases_Status",
                 nameof(CoursePurchase.Status));
+            table.HasCheckConstraint(
+                "CK_CoursePurchases_PaymentShares",
+                "(\"RegularAmountInNoor\" IS NULL AND \"GiftAmountInNoor\" IS NULL) OR (\"RegularAmountInNoor\" >= 0 AND \"GiftAmountInNoor\" >= 0 AND \"RegularAmountInNoor\" + \"GiftAmountInNoor\" = \"PriceInNoorAtPurchaseTime\")");
         });
 
         builder.HasKey(cp => cp.Id);
@@ -50,6 +53,9 @@ public class CoursePurchaseConfiguration : IEntityTypeConfiguration<CoursePurcha
             .OnDelete(DeleteBehavior.Restrict);
 
         builder.Property(cp => cp.LedgerTransactionId);
+
+        builder.Property(cp => cp.RegularAmountInNoor).HasPrecision(18, 4);
+        builder.Property(cp => cp.GiftAmountInNoor).HasPrecision(18, 4);
 
         builder.Property(cp => cp.IsFree)
             .IsRequired()

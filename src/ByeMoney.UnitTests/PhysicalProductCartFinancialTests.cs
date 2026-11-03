@@ -71,15 +71,22 @@ public sealed class PhysicalProductCartFinancialTests
         physicalPurchase.CartId.Should().Be(cartId);
         physicalPurchase.LedgerTransactionId.Should().Be(cartId);
 
-        // Verify balanced single double-entry Ledger transaction
-        payment.LedgerEntries.Should().HaveCount(2);
+        // هر قلم و ارسال جفت ثبت جداگانه دارد و جمع بدهی دقیقاً برابر کل پرداخت است
+        payment.LedgerEntries.Should().HaveCount(6);
         payment.LedgerEntries.Sum(e => e.Amount).Should().Be(0m);
-        payment.LedgerEntries.Single(e => e.Amount < 0).Amount.Should().Be(-175m);
-        payment.LedgerEntries.Single(e => e.Amount > 0).Amount.Should().Be(175m);
+        payment.LedgerEntries.Where(e => e.Amount < 0).Sum(e => e.Amount).Should().Be(-cart.Total);
         payment.LedgerEntries.Should().OnlyContain(e => e.TransactionId == cartId);
-        (cart.Items.Sum(x => x.AllocatedAmountInNoor) + cart.ShippingAmountInNoor)
-            .Should().Be(-payment.LedgerEntries.Single(e => e.Amount < 0).Amount);
+        DebitOf(payment, coursePurchase.Id.ToString()).Should().Be(80m);
+        DebitOf(payment, physicalPurchase.Id.ToString()).Should().Be(70m);
+        DebitOf(payment, cartId.ToString()).Should().Be(25m);
+        coursePurchase.RegularAmountInNoor.Should().Be(80m);
+        coursePurchase.GiftAmountInNoor.Should().Be(0m);
+        physicalPurchase.RegularAmountInNoor.Should().Be(70m);
+        physicalPurchase.GiftAmountInNoor.Should().Be(0m);
     }
+
+    private static decimal DebitOf(CartPaymentRecords payment, string referenceId) =>
+        -payment.LedgerEntries.Where(e => e.ReferenceId == referenceId && e.Amount < 0).Sum(e => e.Amount);
 
     [Fact]
     public void FreeItemsWithPositiveShipping_IsNotFreeAndDebitsShippingAmount()

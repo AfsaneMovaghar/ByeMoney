@@ -30,36 +30,43 @@ public static class CartPayment
             throw new ArgumentException(nameof(cart));
         }
 
+        var items = cart.Items;
+        var partAmounts = items.Select(x => x.AllocatedAmountInNoor)
+            .Append(cart.ShippingAmountInNoor)
+            .ToArray();
+        var giftShares = new decimal[partAmounts.Length];
         var ledgerEntries = new List<LedgerEntry>();
 
         if (cart.Total > 0)
         {
             ArgumentNullException.ThrowIfNull(system);
             var debitResult = wallet.Wallet.Debit(cart.Total, WalletDebitPurpose.Purchase);
+            giftShares = PaymentShareAllocator.SplitGift(debitResult.GiftDebited, partAmounts);
+        }
 
-            if (debitResult.GiftDebited > 0)
+        for (var i = 0; i < partAmounts.Length; i++)
+        {
+            if (partAmounts[i] <= 0)
             {
-                ledgerEntries.Add(LedgerEntry.Create(
-                    wallet.Account.Id, -debitResult.GiftDebited, cart.Id, LedgerReferenceType.Purchase, cart.Id.ToString(), balanceType: LedgerBalanceType.Gift));
-                ledgerEntries.Add(LedgerEntry.Create(
-                    system.Id, debitResult.GiftDebited, cart.Id, LedgerReferenceType.Purchase, cart.Id.ToString(), balanceType: LedgerBalanceType.Gift));
+                continue;
             }
 
-            if (debitResult.RegularDebited > 0)
-            {
-                ledgerEntries.Add(LedgerEntry.Create(
-                    wallet.Account.Id, -debitResult.RegularDebited, cart.Id, LedgerReferenceType.Purchase, cart.Id.ToString(), balanceType: LedgerBalanceType.Regular));
-                ledgerEntries.Add(LedgerEntry.Create(
-                    system.Id, debitResult.RegularDebited, cart.Id, LedgerReferenceType.Purchase, cart.Id.ToString(), balanceType: LedgerBalanceType.Regular));
-            }
+            var referenceId = i < items.Count
+                ? CartPurchaseIds.For(cart.Id, items[i].ExternalCourseId).Value.ToString()
+                : cart.Id.ToString();
+            AddLedgerPair(ledgerEntries, wallet, system!, cart.Id, referenceId, giftShares[i], LedgerBalanceType.Gift);
+            AddLedgerPair(
+                ledgerEntries, wallet, system!, cart.Id, referenceId, partAmounts[i] - giftShares[i], LedgerBalanceType.Regular);
         }
 
         var purchases = new List<CoursePurchase>();
         var physicalPurchases = new List<PhysicalProductPurchase>();
 
-        foreach (var item in cart.Items)
+        for (var i = 0; i < items.Count; i++)
         {
+            var item = items[i];
             var amount = item.AllocatedAmountInNoor;
+            var shares = new PaymentShares(amount - giftShares[i], giftShares[i]);
             var purchaseIdGuid = CartPurchaseIds.For(cart.Id, item.ExternalCourseId).Value;
 
             if (item.ItemType == ProductItemType.Product)
@@ -83,6 +90,7 @@ public static class CartPayment
                     physicalPurchase.MarkDebited(cart.Id);
                 }
 
+                physicalPurchase.RecordPaymentShares(shares);
                 physicalPurchases.Add(physicalPurchase);
             }
             else
@@ -112,11 +120,32 @@ public static class CartPayment
                     purchase.MarkDebited(cart.Id);
                 }
 
+                purchase.RecordPaymentShares(shares);
                 purchases.Add(purchase);
             }
         }
 
         cart.MarkPaid();
         return new CartPaymentRecords(purchases, physicalPurchases, ledgerEntries);
+    }
+
+    private static void AddLedgerPair(
+        List<LedgerEntry> entries,
+        ProvisionedUserWallet wallet,
+        Account system,
+        Guid transactionId,
+        string referenceId,
+        decimal amount,
+        LedgerBalanceType balanceType)
+    {
+        if (amount <= 0)
+        {
+            return;
+        }
+
+        entries.Add(LedgerEntry.Create(
+            wallet.Account.Id, -amount, transactionId, LedgerReferenceType.Purchase, referenceId, balanceType: balanceType));
+        entries.Add(LedgerEntry.Create(
+            system.Id, amount, transactionId, LedgerReferenceType.Purchase, referenceId, balanceType: balanceType));
     }
 }

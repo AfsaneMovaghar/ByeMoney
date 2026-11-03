@@ -1,4 +1,5 @@
 using ByeMoney.Domain.Modules.Identity.Users;
+using ByeMoney.Domain.Modules.Purchases;
 using ByeMoney.Domain.Modules.Wallet.TopUps;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
@@ -33,6 +34,12 @@ public class TopUpRequestConfiguration : IEntityTypeConfiguration<TopUpRequest>
             .WithMany()
             .HasForeignKey(t => t.UserId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne<Cart>()
+            .WithMany()
+            .HasForeignKey(t => t.CartId)
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.HasIndex(t => t.CartId);
 
         builder.Property(t => t.CreatedByUserId)
             .HasConversion(id => id.HasValue ? id.Value.Value : (Guid?)null, value => value.HasValue ? new UserId(value.Value) : null);

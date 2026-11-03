@@ -89,6 +89,13 @@ public sealed class CartPostgresTests : IAsyncLifetime
         return (wallet.WithdrawableBalance, await db.Set<CoursePurchase>().CountAsync(), -ledger.Where(x => x.Amount < 0 && x.ReferenceType == LedgerReferenceType.Purchase).Sum(x => x.Amount), ledger.Sum(x => x.Amount));
     }
 
+    private async Task<Guid[]> TopUpIdsOfCartAsync(Guid cartId)
+    {
+        using var scope = _provider.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        return await db.Set<TopUpRequest>().Where(x => x.CartId == cartId).Select(x => x.Id.Value).ToArrayAsync();
+    }
+
     [CartPostgresFact]
     public async Task ChapterPaymentPersistsIdentityAndDebitsQuotedAllocationOnce()
     {
@@ -612,7 +619,7 @@ public sealed class CartPostgresTests : IAsyncLifetime
         var current = (await Store.FindAsync(cart.Id, _buyer.Id.Value, default))!;
         current.ReservationId.Should().NotBe(cart.ReservationId);
         current.TopUpRequestId.Should().BeNull();
-        current.TopUpRequestIds.Should().Contain(previousTopUp);
+        (await TopUpIdsOfCartAsync(cart.Id)).Should().Contain(previousTopUp);
 
         var attempts = await Task.WhenAll(Enumerable.Range(0, 3).Select(_ => Store.CreateTopUpAsync(cart.Id, _buyer.Id.Value, default)));
         attempts.Should().OnlyContain(x => x.IsSuccess);
@@ -671,7 +678,7 @@ public sealed class CartPostgresTests : IAsyncLifetime
         var current = (await Store.FindAsync(cart.Id, _buyer.Id.Value, default))!;
         current.ReservationId.Should().NotBe(cart.ReservationId);
         current.TopUpRequestId.Should().BeNull();
-        current.TopUpRequestIds.Should().Contain(previousTopUp);
+        (await TopUpIdsOfCartAsync(cart.Id)).Should().Contain(previousTopUp);
 
         var attempts = await Task.WhenAll(Enumerable.Range(0, 3).Select(_ => Store.CreateTopUpAsync(cart.Id, _buyer.Id.Value, default)));
         attempts.Should().OnlyContain(x => x.IsSuccess);
@@ -684,7 +691,7 @@ public sealed class CartPostgresTests : IAsyncLifetime
         order.Value.IsUnderReview.Should().BeFalse();
 
         var cartInDb = (await Store.FindAsync(cart.Id, _buyer.Id.Value, default))!;
-        cartInDb.TopUpRequestIds.Should().Contain(previousTopUp);
+        (await TopUpIdsOfCartAsync(cart.Id)).Should().Contain(previousTopUp);
     }
 
     [CartPostgresFact]
@@ -830,7 +837,7 @@ public sealed class CartPostgresTests : IAsyncLifetime
 
         var finalCart = (await Store.FindAsync(cart.Id, _buyer.Id.Value, default))!;
         finalCart.TopUpRequestId.Should().Be(newTopUpId);
-        finalCart.TopUpRequestIds.Should().Contain(firstTopUpId);
+        (await TopUpIdsOfCartAsync(cart.Id)).Should().Contain(firstTopUpId);
     }
 
     [CartPostgresFact]
@@ -912,7 +919,7 @@ public sealed class CartPostgresTests : IAsyncLifetime
         var current = (await Store.FindAsync(cart.Id, _buyer.Id.Value, default))!;
         current.ReservationId.Should().NotBe(cart.ReservationId);
         current.TopUpRequestId.Should().BeNull();
-        current.TopUpRequestIds.Should().Contain(previousTopUp);
+        (await TopUpIdsOfCartAsync(cart.Id)).Should().Contain(previousTopUp);
 
         // Ù¾Ø±Ø¯Ø§Ø®Øª ØªØ§Ø²Ù‡ Ø¨Ø§ Ø´Ù†Ø§Ø³Ù‡ Ùˆ Ø¯Ø±Ú¯Ø§Ù‡ ØªØ§Ø²Ù‡
         var attempts = await Task.WhenAll(Enumerable.Range(0, 3).Select(_ => Store.CreateTopUpAsync(cart.Id, _buyer.Id.Value, default)));
@@ -974,7 +981,7 @@ public sealed class CartPostgresTests : IAsyncLifetime
         var current = (await Store.FindAsync(cart.Id, _buyer.Id.Value, default))!;
         current.ReservationId.Should().NotBe(cart.ReservationId);
         current.TopUpRequestId.Should().BeNull();
-        current.TopUpRequestIds.Should().Contain(previousTopUp);
+        (await TopUpIdsOfCartAsync(cart.Id)).Should().Contain(previousTopUp);
 
         var createRetry = await Store.CreateTopUpAsync(cart.Id, _buyer.Id.Value, default);
         createRetry.IsSuccess.Should().BeTrue();

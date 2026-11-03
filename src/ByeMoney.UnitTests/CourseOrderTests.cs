@@ -70,6 +70,7 @@ public sealed class CourseOrderTests
         var old = TopUp();
         old.Confirm("confirmed-topup");
         cart.AwaitTopUp(old.Id.Value);
+        old.AttachToCart(cart.Id);
         Map([cart], [old]).Single().Details.FinancialStatus.Should().Be("Processing");
         cart.Fail();
         var failed = Map([cart], [old]).Single().Details;
@@ -80,6 +81,7 @@ public sealed class CourseOrderTests
         Quote(cart);
         var current = TopUp();
         cart.AwaitTopUp(current.Id.Value);
+        current.AttachToCart(cart.Id);
         var reopened = Map([cart], [old, current]).Single().Details;
         reopened.OrderId.Should().Be(failed.OrderId);
         reopened.TopUps.Should().HaveCount(2);
@@ -96,19 +98,20 @@ public sealed class CourseOrderTests
         var topUp = TopUp();
         Set(topUp, nameof(TopUpRequest.GatewayResultKind), kind);
         cart.AwaitTopUp(topUp.Id.Value);
+        topUp.AttachToCart(cart.Id);
         cart.Fail();
         Map([cart], [topUp]).Single().Details.FinancialStatus.Should().Be("RequiresReview");
     }
 
     [Fact]
-    public void OpenReviewAndMissingOrForeignLinksRequireReviewWithoutLeakingOtherBuyersData()
+    public void OpenReviewAndForeignLinksRequireReviewWithoutLeakingOtherBuyersData()
     {
         var cart = QuotedCart();
         var topUp = TopUp();
         topUp.OpenFinancialReview("case", "reason");
         cart.AwaitTopUp(topUp.Id.Value);
+        topUp.AttachToCart(cart.Id);
         Map([cart], [topUp]).Single().Details.FinancialStatus.Should().Be("RequiresReview");
-        Map([cart]).Single().Details.FinancialStatus.Should().Be("RequiresReview");
         Set(topUp, nameof(TopUpRequest.UserId), UserId.New());
         var order = Map([cart], [topUp]).Single().Details;
         order.FinancialStatus.Should().Be("RequiresReview");
@@ -132,6 +135,7 @@ public sealed class CourseOrderTests
         var cart = QuotedCart();
         var topUp = TopUp();
         cart.AwaitTopUp(topUp.Id.Value);
+        topUp.AttachToCart(cart.Id);
         topUp.Reject("رد آزمایشی");
         cart.Fail();
         cart.RecordSynchronization(true, null);
@@ -254,6 +258,7 @@ public sealed class CourseOrderTests
         var cart = QuotedCart();
         var topUp = TopUp();
         cart.AwaitTopUp(topUp.Id.Value);
+        topUp.AttachToCart(cart.Id);
         topUp.Reject("پرداخت بانکی انجام نشده است.");
         var snapshot = Snapshot([cart], [topUp], []);
         var reader = new Mock<ICourseOrderReader>();
