@@ -68,6 +68,7 @@ HF20 در کد محلی رفع و ردیف باز آن حذف شد. الزام �
 | سفارش و رسید با کالای فیزیکی I11-O؛ ۱ نوامبر | بای‌مانی روی `master` با HEAD برابر `b034134` و تغییرات commit‌نشده، Windows/.NET 10.0.400 و PostgreSQL توسعه با schema موقت؛ migration `AddPhysicalDeliveryStatus` روی دیتابیس توسعه اعمال شد | اجرای کامل با `BYEMONEY_CART_PG_TESTS=1`: ۴۳۹ موفق، صفر ناموفق، ۲۰ مشروط اجرا‌نشده؛ این ۲۰ آزمون `PostgresFact` (GiftNoorFinancial، TopUpNoorCredit، WalletConcurrency، WelcomeGift) بدون `BYEMONEY_TEST_CONNECTION_STRING` اجرا نمی‌شوند. آزمون‌های تازه: ۱۹ آزمون واحد (انتقال وضعیت، بی‌اثری تحویل بر Ledger/Wallet، سبد مختلط `Paid`، جمع اقلام + ارسال = مبلغ نهایی، رسید سفارش، handler و validator، پالیسی) و یک آزمون PostgreSQL (ذخیره، فیلتر Delivered/Pending، سفارش، check constraint). فرانت: `courseOrdersTracking` و `route.test.js` شامل ۴۳ آزمون بدون تغییر موفق. پذیرش HTTP با JWT واقعی انجام نشده است. |
 | سفارش‌های پروفایل؛ ۲۰ اکتبر | فرانت `feature/connect-course-purchase`؛ SHA دقیق اجرای آزمون ثبت نشده | ساخت تولیدی و ۵۹ آزمون در ۵ مجموعه موفق: کلاینت پیگیری، رسید، API سفارش و رابط فهرست. `/profile/orders` و جزئیات آن به I11-T وصل‌اند؛ Legacy با هشدار خطای بای‌مانی حفظ می‌شود. HTTP/JWT واقعی و فهرست ادمین با این شاهد پذیرفته نشده‌اند. |
 | بستن ردیف‌های TASKS؛ ۲ نوامبر | فرانت و استرپی روی شاخه‌های محلی کار؛ SHA ثبت نشده | فرانت: `PurchasesList` و آزمون‌های `byeMoney*` ۳۵ موفق (کالا با `type=product`، تعداد جمع‌شده، مبلغ بای‌مانی دوباره ضرب نمی‌شود). مرور درگاه: `GatewayReviews`، کلاینت و مسیرهای آن ۴۵ موفق (گزینهٔ `CONFIRMED_EXCEPTIONAL` با گارد `canCloseExceptional` و تأیید صریح). استرپی: چهار فایل `node:test` غیر-pg با `node --test` ۹۰ از ۹۰ موفق. بدون HTTP/JWT واقعی. |
+| اتصال فرانت به سفارش با کالا و رسید کل سفارش (I11-O و TRACK-03/04)؛ ۳ نوامبر | فرانت‌اند در شاخهٔ `ByeMoney` | ۱۰۷ آزمون Jest در ۹ مجموعه با موفقیت کامل گذرانده شدند (`byeMoneyPhysicalOrders`, `route.test.js`, `adminOrderTrackingApi`, `courseOrdersTracking`, `adminOrdersApi.byemoney`, `OrdersList`, `PhysicalDeliveryControl`, `ByeMoneyOrderPanel`, `page.test.jsx`). فیلدهای quantity، physicalDeliveryStatus، shippingAmountInNoor و اندپوینت رسید کل سفارش در پروفایل و پنل ادمین مصرف شدند؛ قلم کالا با دوره متمایز شد؛ تغییر وضعیت ارسال فقط از route سروری Next.js ثبت و پیام خطای دامنه (۴۰۰) و اعتبارسنجی مجوز ادمین پوشش داده شدند. پذیرش سرتاسری با JWT واقعی در TASKS باقی است. |
 
 محدودیت ظرفیت I11-T: فیلتر خریدار در پایگاه اعمال می‌شود، اما نگاشت، حذف تکرار و صفحه‌بندی نهایی از تصویر محلی سوابق است؛ ظرفیت فهرست ادمین بدون فیلتر خریدار برای حجم زیاد اندازه‌گیری نشده است. این گزارش طراحی تازه یا تسک بهینه‌سازی خودکار ایجاد نمی‌کند.
 
@@ -217,3 +218,25 @@ migrationهای `20261018042919_AddCourseCartCheckout`، `20261018043654_AddCour
 | همهٔ آزمون‌ها با `BYEMONEY_CART_PG_TESTS=1` و `BYEMONEY_TEST_CONNECTION_STRING` | ۵۰۳ از ۵۰۳ موفق، صفر ناموفق و صفر رد‌شده. |
 
 تنها تغییر کد: توضیح کنار Shadow Property. ثبت پیگیری در «یادداشت‌های خارج از اسکوپ» `TASKS.md`.
+
+
+## پذیرش HTTP سفارش و رسید I11-O با JWT واقعی — ۳ نوامبر ۲۰۲۶
+
+آزمون `PhysicalDeliveryHttpPostgresTests` روی `master`، PostgreSQL محلی (schema موقت) و میزبان کامل ASP.NET با `JwtBearer` واقعی، `RbacClaimsTransformation` و `UserAuthorizationService` اجرا شد. توکن HS256 با `Strapi:JwtSecret` و claim `documentId` امضا می‌شود؛ مجوزها از نقش‌های دیتابیس می‌آیند، نه هدر آزمایشی. توکن را استرپی صادر نکرده است، پس پذیرش محیط مقصد جداگانه در `TASKS.md` مانده است. کد بک‌اند تغییر نکرد و نقص قراردادی پیدا نشد.
+
+| سناریو | نتیجه |
+|---|---|
+| رسید ادمین بدون توکن | ۴۰۱ |
+| رسید ادمین: کاربر بدون نقش، خریدار، فقط `Courses.Manage` | ۴۰۳ |
+| رسید ادمین با `Purchases.View` | ۲۰۰؛ کلیدهای سطح سفارش و قلم دقیقاً برابر I11-O؛ جمع اقلام + ارسال برابر مبلغ نهایی |
+| رسید `/me` برای کاربر دیگر و برای سفارش ناموجود | هر دو ۴۰۴ با بدنهٔ یکسان |
+| رسید سفارش پرداخت‌نشده | ۴۰۴ |
+| PUT تحویل: بدون توکن، بدون نقش، خریدار، فقط `Purchases.View` | ۴۰۱ و سه ۴۰۳ |
+| PUT با `Courses.Manage`: `Preparing→Delivered`، `Preparing`، `Bogus`، خالی | ۴۰۰ |
+| PUT با `Courses.Manage`: خرید ناموجود | ۴۰۴ |
+| `Preparing→Shipped` | ۲۰۰ با `purchaseId,deliveryStatus,shippedAtUtc,deliveredAtUtc`؛ تکرار `Shipped` بی‌اثر و `shippedAtUtc` ثابت |
+| `Shipped→Delivered`، سپس بازگشت به `Shipped` | ۲۰۰ و ۴۰۰؛ تکرار `Delivered` ۲۰۰ |
+| نتیجه برای خریدار | `/me/course-orders/{id}` و رسید `/me` پس از هر انتقال `physicalDeliveryStatus` را نشان می‌دهند |
+| اثر مالی | مانده کیف پول و تعداد Ledger پس از همهٔ انتقال‌ها تغییر نکرد |
+
+نکته: `shippedAtUtc` در پاسخ نخست PUT دقت ۷ رقم اعشار دارد و پس از ذخیره در PostgreSQL ۶ رقم؛ اختلاف زیر یک میکروثانیه است و نقص نیست. اجرای کل مجموعه با `BYEMONEY_CART_PG_TESTS=1` و `BYEMONEY_TEST_CONNECTION_STRING`: ۵۰۴ از ۵۰۴ موفق، صفر ناموفق و صفر ردشده.
