@@ -420,6 +420,93 @@ namespace ByeMoney.Infrastructure.Migrations
                         });
                 });
 
+            modelBuilder.Entity("ByeMoney.Domain.Modules.Purchases.PhysicalProductCancellation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Actor")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<Guid>("CartId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<decimal>("GiftRefundInNoor")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)");
+
+                    b.Property<Guid>("OperationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("PerformedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("PurchaseId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Quantity")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<decimal>("RegularRefundInNoor")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)");
+
+                    b.Property<decimal>("ShippingGiftRefundInNoor")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)");
+
+                    b.Property<decimal>("ShippingRegularRefundInNoor")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)");
+
+                    b.Property<string>("StockReturnErrorCode")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<DateTime?>("StockReturnedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CartId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_PhysicalProductCancellations_CartId_ShippingRefund")
+                        .HasFilter("\"ShippingRegularRefundInNoor\" + \"ShippingGiftRefundInNoor\" > 0");
+
+                    b.HasIndex("OperationId")
+                        .HasDatabaseName("IX_PhysicalProductCancellations_PendingStockReturn")
+                        .HasFilter("\"StockReturnedAtUtc\" IS NULL");
+
+                    b.HasIndex("PerformedByUserId");
+
+                    b.HasIndex("PurchaseId");
+
+                    b.HasIndex("OperationId", "PurchaseId")
+                        .IsUnique();
+
+                    b.ToTable("PhysicalProductCancellations", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_PhysicalProductCancellations_Actor", "\"Actor\" IN ('Buyer', 'Admin')");
+
+                            t.HasCheckConstraint("CK_PhysicalProductCancellations_NonNegativeRefunds", "\"RegularRefundInNoor\" >= 0 AND \"GiftRefundInNoor\" >= 0 AND \"ShippingRegularRefundInNoor\" >= 0 AND \"ShippingGiftRefundInNoor\" >= 0");
+
+                            t.HasCheckConstraint("CK_PhysicalProductCancellations_Quantity", "\"Quantity\" >= 1");
+                        });
+                });
+
             modelBuilder.Entity("ByeMoney.Domain.Modules.Purchases.PhysicalProductPurchase", b =>
                 {
                     b.Property<Guid>("Id")
@@ -428,6 +515,11 @@ namespace ByeMoney.Infrastructure.Migrations
                     b.Property<Guid>("BuyerId")
                         .HasColumnType("uuid")
                         .HasColumnName("UserId");
+
+                    b.Property<int>("CancelledQuantity")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0);
 
                     b.Property<Guid>("CartId")
                         .HasColumnType("uuid");
@@ -469,6 +561,18 @@ namespace ByeMoney.Infrastructure.Migrations
                     b.Property<int>("Quantity")
                         .HasColumnType("integer");
 
+                    b.Property<decimal>("RefundedGiftInNoor")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasDefaultValue(0m);
+
+                    b.Property<decimal>("RefundedRegularInNoor")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasDefaultValue(0m);
+
                     b.Property<decimal?>("RegularAmountInNoor")
                         .HasPrecision(18, 4)
                         .HasColumnType("numeric(18,4)");
@@ -491,6 +595,8 @@ namespace ByeMoney.Infrastructure.Migrations
 
                     b.ToTable("PhysicalProductPurchases", null, t =>
                         {
+                            t.HasCheckConstraint("CK_PhysicalProductPurchases_CancelledQuantity", "\"CancelledQuantity\" >= 0 AND \"CancelledQuantity\" <= \"Quantity\"");
+
                             t.HasCheckConstraint("CK_PhysicalProductPurchases_DeliveryStatus", "\"DeliveryStatus\" IN ('Preparing', 'Shipped', 'Delivered')");
 
                             t.HasCheckConstraint("CK_PhysicalProductPurchases_NonNegativeAmounts", "\"UnitPriceInNoor\" >= 0 AND \"PaidAmountInNoor\" >= 0 AND trunc(\"UnitPriceInNoor\") = \"UnitPriceInNoor\" AND trunc(\"PaidAmountInNoor\") = \"PaidAmountInNoor\"");
@@ -498,6 +604,8 @@ namespace ByeMoney.Infrastructure.Migrations
                             t.HasCheckConstraint("CK_PhysicalProductPurchases_PaymentShares", "(\"RegularAmountInNoor\" IS NULL AND \"GiftAmountInNoor\" IS NULL) OR (\"RegularAmountInNoor\" >= 0 AND \"GiftAmountInNoor\" >= 0 AND \"RegularAmountInNoor\" + \"GiftAmountInNoor\" = \"PaidAmountInNoor\")");
 
                             t.HasCheckConstraint("CK_PhysicalProductPurchases_Quantity", "\"Quantity\" >= 1");
+
+                            t.HasCheckConstraint("CK_PhysicalProductPurchases_RefundCap", "\"RefundedRegularInNoor\" >= 0 AND \"RefundedGiftInNoor\" >= 0 AND \"RefundedRegularInNoor\" <= COALESCE(\"RegularAmountInNoor\", 0) AND \"RefundedGiftInNoor\" <= COALESCE(\"GiftAmountInNoor\", 0)");
                         });
                 });
 
@@ -1233,6 +1341,27 @@ namespace ByeMoney.Infrastructure.Migrations
                         });
 
                     b.Navigation("Snapshot")
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("ByeMoney.Domain.Modules.Purchases.PhysicalProductCancellation", b =>
+                {
+                    b.HasOne("ByeMoney.Domain.Modules.Purchases.Cart", null)
+                        .WithMany()
+                        .HasForeignKey("CartId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ByeMoney.Domain.Modules.Identity.Users.User", null)
+                        .WithMany()
+                        .HasForeignKey("PerformedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ByeMoney.Domain.Modules.Purchases.PhysicalProductPurchase", null)
+                        .WithMany()
+                        .HasForeignKey("PurchaseId")
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
 

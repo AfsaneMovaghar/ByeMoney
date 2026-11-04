@@ -29,6 +29,8 @@
 | AdminGatewayReview | `GET` | `/api/admin/topups/gateway-reviews/{clientReferenceCode}` | نیازمند پالیسی `RequireTopUpReview` | `TopUp.Review` |
 | AdminGatewayReview | `POST` | `/api/admin/topups/gateway-reviews/resolve` | نیازمند پالیسی `RequireTopUpReview` | `TopUp.Review` |
 | AdminGift | `POST` | `/api/admin/noor-gifts` | نیازمند پالیسی `RequireNoorGift` | `Noor.Gift` |
+| AdminPhysicalCancellations | `POST` | `/api/admin/physical-purchases/{purchaseId:guid}/cancel` | نیازمند پالیسی `RequireNoorInject` | `Noor.Inject` |
+| AdminPhysicalCancellations | `GET` | `/api/admin/physical-purchases/{purchaseId:guid}/cancellation-preview` | نیازمند پالیسی `RequireNoorInject` | `Noor.Inject` |
 | AdminPhysicalPurchases | `PUT` | `/api/admin/physical-purchases/{purchaseId:guid}/delivery-status` | نیازمند پالیسی `RequireCoursesManage` | `Courses.Manage` |
 | AdminTopUp | `POST` | `/api/admin/topups/{id:guid}/confirm` | نیازمند پالیسی `RequireTopUpReview` | `TopUp.Review` |
 | AdminTopUp | `GET` | `/api/admin/topups/by-reference/{clientReferenceCode}` | نیازمند پالیسی `RequireTopUpReview` | `TopUp.Review` |
@@ -55,6 +57,8 @@
 | MyCourseOrders | `GET` | `/api/me/course-orders/{orderId}/receipt` | احراز هویت شده (JWT) | — |
 | MyCoursePurchases | `GET` | `/api/me/course-purchases` | احراز هویت شده (JWT) | — |
 | MyCoursePurchases | `GET` | `/api/me/course-purchases/{purchaseId:guid}` | احراز هویت شده (JWT) | — |
+| MyPhysicalOrders | `POST` | `/api/me/physical-orders/{cartId:guid}/cancel` | احراز هویت شده (JWT) | — |
+| MyPhysicalOrders | `GET` | `/api/me/physical-orders/{cartId:guid}/cancellation-preview` | احراز هویت شده (JWT) | — |
 | Settings | `GET` | `/api/settings/conversion-rate` | عمومی (Public / بدون Authorize) | — |
 | TopUp | `POST` | `/api/topup/requests` | احراز هویت شده (JWT) | — |
 | TopUp | `GET` | `/api/topup/{topUpId:guid}/checkout` | احراز هویت شده (JWT) | — |

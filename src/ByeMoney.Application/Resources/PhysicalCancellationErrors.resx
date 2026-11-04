@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <data name="NotFound" xml:space="preserve"><value>سفارش کالای فیزیکی یافت نشد.</value></data>
+  <data name="NoPhysicalItems" xml:space="preserve"><value>این سبد کالای فیزیکی قابل لغو ندارد.</value></data>
+  <data name="Conflict" xml:space="preserve"><value>این لغو با وضعیت فعلی سفارش یا با عملیات قبلی همین شناسه سازگار نیست.</value></data>
+  <data name="AwaitingTopUp" xml:space="preserve"><value>نتیجهٔ پرداخت این سبد هنوز معلوم نیست؛ پس از مشخص شدن نتیجهٔ شارژ دوباره تلاش کنید.</value></data>
+  <data name="AlreadyShipped" xml:space="preserve"><value>کالا ارسال شده است؛ لغو پس از ارسال فقط با رسیدگی دستی پشتیبانی انجام می‌شود.</value></data>
+  <data name="ManualReview" xml:space="preserve"><value>سهم پرداخت این سفارش برای برگشت خودکار ثبت نشده است؛ لغو فقط با رسیدگی دستی پشتیبانی انجام می‌شود.</value></data>
+  <data name="Unavailable" xml:space="preserve"><value>آزادسازی رزرو سبد انجام نشد؛ کمی بعد دوباره تلاش کنید.</value></data>
+  <data name="InvalidCartId" xml:space="preserve"><value>شناسهٔ سبد معتبر نیست.</value></data>
+  <data name="InvalidPurchaseId" xml:space="preserve"><value>شناسهٔ خرید کالا معتبر نیست.</value></data>
+  <data name="InvalidOperationId" xml:space="preserve"><value>شناسهٔ عملیات لغو معتبر نیست.</value></data>
+  <data name="InvalidQuantity" xml:space="preserve"><value>تعداد لغو باید عددی صحیح و دست‌کم یک باشد.</value></data>
+  <data name="InvalidReason" xml:space="preserve"><value>علت لغو الزامی است و حداکثر ۵۰۰ نویسه دارد.</value></data>
+  <data name="Warning_CouponRemoved" xml:space="preserve"><value>کوپن تخفیف این سفارش با لغو برنمی‌گردد و ظرفیت آن مصرف‌شده می‌ماند.</value></data>
+  <data name="Warning_FreeShippingRemoved" xml:space="preserve"><value>ارسال رایگان این سفارش با لغو حذف می‌شود و دوباره محاسبه نمی‌شود.</value></data>
+  <data name="Warning_ShippingNotRefunded" xml:space="preserve"><value>هزینهٔ ارسال فقط در لغو کامل مرسوله پیش از ارسال برمی‌گردد؛ در این لغو برگشت ارسال نیست.</value></data>
+</root>

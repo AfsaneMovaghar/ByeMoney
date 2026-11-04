@@ -20,7 +20,7 @@ public sealed class NoorCreditService(
 
         var userWallet = await provisioningService.GetOrCreateUserWalletAsync(request.UserId, ct);
         var systemAccount = await provisioningService.GetOrCreateSystemAccountAsync(ct);
-        var transactionId = Guid.NewGuid();
+        var transactionId = request.TransactionId ?? Guid.NewGuid();
 
         await postingService.PostCreditAsync(
             userWallet,

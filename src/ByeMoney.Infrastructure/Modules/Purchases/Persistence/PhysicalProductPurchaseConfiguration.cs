@@ -17,6 +17,13 @@ public class PhysicalProductPurchaseConfiguration : IEntityTypeConfiguration<Phy
             table.HasCheckConstraint("CK_PhysicalProductPurchases_Quantity", "\"Quantity\" >= 1");
             table.HasCheckConstraint("CK_PhysicalProductPurchases_DeliveryStatus",
                 "\"DeliveryStatus\" IN ('Preparing', 'Shipped', 'Delivered')");
+            table.HasCheckConstraint("CK_PhysicalProductPurchases_CancelledQuantity",
+                "\"CancelledQuantity\" >= 0 AND \"CancelledQuantity\" <= \"Quantity\"");
+            // سقف برگشت: جمع برگشت هر نوع نور از سهم پرداخت واقعی همان نوع بیشتر نمی‌شود؛ خرید بدون سهم برگشت ندارد.
+            table.HasCheckConstraint("CK_PhysicalProductPurchases_RefundCap",
+                "\"RefundedRegularInNoor\" >= 0 AND \"RefundedGiftInNoor\" >= 0 AND " +
+                "\"RefundedRegularInNoor\" <= COALESCE(\"RegularAmountInNoor\", 0) AND " +
+                "\"RefundedGiftInNoor\" <= COALESCE(\"GiftAmountInNoor\", 0)");
         });
 
         builder.HasKey(x => x.Id);
@@ -59,6 +66,9 @@ public class PhysicalProductPurchaseConfiguration : IEntityTypeConfiguration<Phy
             .IsRequired();
         builder.Property(x => x.ShippedAtUtc);
         builder.Property(x => x.DeliveredAtUtc);
+        builder.Property(x => x.CancelledQuantity).HasDefaultValue(0).IsRequired();
+        builder.Property(x => x.RefundedRegularInNoor).HasPrecision(18, 4).HasDefaultValue(0m).IsRequired();
+        builder.Property(x => x.RefundedGiftInNoor).HasPrecision(18, 4).HasDefaultValue(0m).IsRequired();
         builder.Property(x => x.CreatedAtUtc).IsRequired();
         builder.Property(x => x.UpdatedAt);
     }

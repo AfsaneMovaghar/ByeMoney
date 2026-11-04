@@ -25,14 +25,10 @@ public sealed class CartStore(IServiceScopeFactory scopes) : ICartStore
     }
 
     private static Task Lock(ApplicationDbContext db, Guid id, CancellationToken ct) =>
-        db.Database.IsNpgsql()
-            ? db.Database.ExecuteSqlInterpolatedAsync($"SELECT pg_advisory_xact_lock(1869767797, hashtext({id.ToString()}))", ct)
-            : Task.CompletedTask;
+        PurchaseAdvisoryLocks.LockCartAsync(db, id, ct);
 
     private static Task LockBuyer(ApplicationDbContext db, Guid id, CancellationToken ct) =>
-        db.Database.IsNpgsql()
-            ? db.Database.ExecuteSqlInterpolatedAsync($"SELECT pg_advisory_xact_lock(1869767798, hashtext({id.ToString()}))", ct)
-            : Task.CompletedTask;
+        PurchaseAdvisoryLocks.LockBuyerAsync(db, id, ct);
 
     public Task<Cart?> FindAsync(Guid id, Guid buyerId, CancellationToken ct) =>
         Run((_, db) => db.Set<Cart>()

@@ -25,6 +25,19 @@ public class PhysicalProductPurchase : BaseEntity<PhysicalProductPurchaseId>
     public DateTime? ShippedAtUtc { get; private set; }
     public DateTime? DeliveredAtUtc { get; private set; }
 
+    /// <summary>جمع تعداد لغوشدهٔ این قلم در همهٔ عملیات لغو.</summary>
+    public int CancelledQuantity { get; private set; }
+
+    /// <summary>جمع نور عادی برگشتی این قلم؛ هرگز از سهم عادی پرداخت بیشتر نمی‌شود (D09).</summary>
+    public decimal RefundedRegularInNoor { get; private set; }
+
+    /// <summary>جمع نور هدیهٔ برگشتی این قلم؛ هرگز از سهم هدیهٔ پرداخت بیشتر نمی‌شود (D09).</summary>
+    public decimal RefundedGiftInNoor { get; private set; }
+
+    public int RemainingQuantity => Quantity - CancelledQuantity;
+
+    public bool HasPaymentShares => RegularAmountInNoor.HasValue && GiftAmountInNoor.HasValue;
+
     private PhysicalProductPurchase() { }
 
     public static PhysicalProductPurchase Create(
@@ -102,7 +115,8 @@ public class PhysicalProductPurchase : BaseEntity<PhysicalProductPurchaseId>
             return;
         }
 
-        if (DeliveryStatus != PhysicalDeliveryStatus.Preparing)
+        // قلمی که همهٔ تعدادش لغو شده، چیزی برای ارسال ندارد.
+        if (DeliveryStatus != PhysicalDeliveryStatus.Preparing || RemainingQuantity == 0)
         {
             throw InvalidDeliveryTransition(PhysicalDeliveryStatus.Shipped);
         }
@@ -129,6 +143,31 @@ public class PhysicalProductPurchase : BaseEntity<PhysicalProductPurchaseId>
         DeliveryStatus = PhysicalDeliveryStatus.Delivered;
         DeliveredAtUtc = now;
         UpdatedAt = now;
+    }
+
+    /// <summary>
+    /// ثبت لغو تعدادی از این قلم پیش از ارسال؛ سقف برگشت «سهم پرداخت واقعی منهای برگشت‌های قبلی» است.
+    /// </summary>
+    public void RecordCancellation(int quantity, PaymentShares refund)
+    {
+        var exceedsShares = !HasPaymentShares ||
+            RefundedRegularInNoor + refund.RegularInNoor > RegularAmountInNoor!.Value ||
+            RefundedGiftInNoor + refund.GiftInNoor > GiftAmountInNoor!.Value;
+
+        if (DeliveryStatus != PhysicalDeliveryStatus.Preparing ||
+            quantity < 1 ||
+            quantity > RemainingQuantity ||
+            refund.RegularInNoor < 0 ||
+            refund.GiftInNoor < 0 ||
+            exceedsShares)
+        {
+            throw new DomainException(DomainErrors.PhysicalProductPurchase_CancellationInvalid);
+        }
+
+        CancelledQuantity += quantity;
+        RefundedRegularInNoor += refund.RegularInNoor;
+        RefundedGiftInNoor += refund.GiftInNoor;
+        UpdatedAt = DateTime.UtcNow;
     }
 
     private DomainException InvalidDeliveryTransition(PhysicalDeliveryStatus target) =>

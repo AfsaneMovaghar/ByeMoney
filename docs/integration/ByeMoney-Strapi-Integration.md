@@ -435,6 +435,36 @@ Paid و دادهٔ لازم برای ارسال در همان تراکنش مح�
 
 آزمون خودکار این برش فقط منطق رزرو است: دو خریدار بر آخرین واحد، تعداد بیش از موجودی، شکست یک قلم بدون رزرو جزئی، تکرار reserve/commit/release و رقابت release/commit. این مجموعه روی PostgreSQL محلی ۱۰/۱۰ گذشت. باقی رفتارها با کلاینت HTTP/API محلی پذیرفته شدند؛ شواهد و محدودیت‌ها در `docs/testing/Verification-Summary.md` ثبت شده‌اند.
 
+### I09-PC — لغو کالای فیزیکی و برگشت نور (C8، D09)؛ پیاده‌سازی محلی ۲۰۲۶-۱۱-۰۳
+
+مسیرهای لغو فقط در بای‌مانی‌اند؛ تنها افزودهٔ استرپی، برگشت موجودی پس از لغو پرداخت‌شده (پایین همین بخش) است. استرپی/فرانت مسیرها را با JWT نشست کاربر یا ادمین صدا می‌زنند و مبلغ یا هویت از بدنه نمی‌فرستند. `operationId` یک UUID تازه برای هر اقدام لغو است که مرورگر می‌سازد و در تلاش مجدد همان اقدام ثابت می‌ماند.
+
+| مسیر | مجوز | ورودی |
+|---|---|---|
+| `GET /api/me/physical-orders/{cartId}/cancellation-preview` | JWT کاربر | — |
+| `POST /api/me/physical-orders/{cartId}/cancel` | JWT کاربر | `{operationId: UUID, reason: string(1..500)}` |
+| `GET /api/admin/physical-purchases/{purchaseId}/cancellation-preview?quantity=n` | `Noor.Inject` | `quantity ≥ 1` |
+| `POST /api/admin/physical-purchases/{purchaseId}/cancel` | `Noor.Inject` | `{operationId: UUID, quantity: int ≥ 1, reason: string(1..500)}` |
+
+- **اختیار:** کاربر فقط کل بخش فیزیکی سبد خودش (همهٔ تعداد باقی‌مانده) را لغو می‌کند؛ سبد کاربر دیگر ۴۰۴ است. لغو یک قلم یا بخشی از تعداد فقط با مسیر ادمین است. `purchaseId` همان شناسهٔ قلم در رسید I11-O است.
+- **سبد پرداخت‌نشده:** `Preparing|Ready|Failed|Expired` مثل cancel سبد I09-C فقط رزرو را آزاد می‌کند و `outcome=ReservationReleased` بدون برگشت می‌دهد؛ `AwaitingTopUp` ۴۰۹ است، چون نتیجهٔ نامعلوم بانکی حدسی آزاد نمی‌شود.
+- **سبد پرداخت‌شده:** برگشت تا سقف «پرداخت واقعی هر قلم منهای برگشت‌های قبلی» و جدا برای نور عادی و هدیه است؛ باقیماندهٔ گردکردن به آخرین واحد می‌رسد. ظرفیت کوپن مصرف‌شده برنمی‌گردد (release استرپی صدا زده نمی‌شود) و قیمت، کوپن و ارسال رایگان دوباره محاسبه نمی‌شوند. ارسال فقط وقتی برمی‌گردد که این لغو، همهٔ اقلام فیزیکی سبد را پیش از ارسال تمام کند (حتی اگر بخشی قبلاً با ادمین لغو شده باشد). موجودی کالای استرپی پس از commit برگشت نور با restock برمی‌گردد (پایین).
+- **تکرار و هم‌زمانی:** همان `operationId` با همان محتوا همان پاسخ را بدون برگشت دوباره می‌دهد؛ همان شناسه با محتوای دیگر ۴۰۹ است. درخواست‌های هم‌زمان زیر قفل خریدار و سبد سریال می‌شوند.
+
+پاسخ لغو: `{operationId, cartId, outcome: Refunded|ReservationReleased, actor: Buyer|Admin, items: [{purchaseId, externalProductId, title, quantity, regularRefundInNoor, giftRefundInNoor}], shippingRegularRefundInNoor, shippingGiftRefundInNoor, totalRefundInNoor, cancelledAtUtc}`. پاسخ پیش‌نمایش بدون اثر و بدون `operationId` است: `{cartId, outcome, items, shippingRegularRefundInNoor, shippingGiftRefundInNoor, totalRefundInNoor, warnings: [{code, message}]}`. کدهای هشدار: `COUPON_REMOVED` (سفارش کوپن داشته)، `FREE_SHIPPING_REMOVED` (ارسال رایگان بوده)، `SHIPPING_NOT_REFUNDED` (لغو بخشی با ارسال پولی). فرانت پیش از تأیید لغو، `message` هشدارها را نمایش دهد.
+
+خطاها `{code, error}` با پیام فارسی‌اند: `PHYSICAL_CANCEL_NOT_FOUND` ۴۰۴؛ `PHYSICAL_CANCEL_CONFLICT` ۴۰۹ (چیزی برای لغو نمانده، تعداد بیش از باقی‌مانده، سبد بدون کالا یا در انتظار شارژ، تعارض شناسهٔ عملیات)؛ `PHYSICAL_CANCEL_ALREADY_SHIPPED` ۴۰۹ (قلم ارسال‌شده؛ رسیدگی دستی)؛ `PHYSICAL_CANCEL_MANUAL_REVIEW` ۴۰۹ (خرید پیش از ثبت سهم عادی/هدیه یا ناسازگاری سهم ارسال)؛ `PHYSICAL_CANCEL_UNAVAILABLE` ۵۰۳ (آزادسازی رزرو سبد پرداخت‌نشده انجام نشد). خطای اعتبارسنجی ورودی از middleware مشترک ۴۰۰ می‌گیرد.
+
+ذخیره: جدول `PhysicalProductCancellations` ردیف هر قلم در هر عملیات (تعداد، برگشت عادی/هدیه، برگشت ارسال، اجراکننده، علت، زمان UTC) با ایندکس یکتای `OperationId,PurchaseId` و ایندکس یکتای فیلترشدهٔ برگشت ارسال هر سبد؛ جمع تعداد لغوشده و برگشت هر نوع روی `PhysicalProductPurchases` با قید Check سقف. Ledger: نوع `Refund`، `TransactionId` برابر `operationId` و `ReferenceId` برابر مرجع ثبت خرید (شناسهٔ قلم، یا شناسهٔ سبد برای ارسال)؛ مهاجرت `AddPhysicalProductCancellations`. قلم کاملاً لغوشده دیگر به `Shipped` نمی‌رود.
+
+**برگشت موجودی استرپی (۲۰۲۶-۱۱-۰۴):** فقط برای لغو پرداخت‌شده (`outcome=Refunded`)؛ لغو سبد پرداخت‌نشده همان release رزرو I09-C است و restock ندارد.
+
+- مسیر: `POST /api/integrations/byemoney/v1/carts/{cartId}/restock` با `X-Service-Key` (سرویس‌به‌سرویس، بدون JWT کاربر). `cartId` همان `reservationId` سبد است که commit با آن انجام شده، نه شناسهٔ سبد بای‌مانی.
+- بدنه: `{operationId: UUID, items: [{purchaseId: UUID, quantity: int ≥ 1}]}`؛ `operationId` همان شناسهٔ عملیات لغو، `purchaseId` همان شناسهٔ قلم در `purchaseIds` commit و `quantity` تعداد لغوشده در همین عملیات است. `purchaseId` تکراری مجاز نیست.
+- پاسخ ۲۰۰: `{success: true, restocked: true|false}`؛ `false` یعنی همان `operationId` با همان اقلام قبلاً اعمال شده و اثری ندارد (idempotent).
+- خطا `{code, error}`: ۴۰۰ `CART_INVALID` (شناسه یا تعداد نامعتبر)؛ ۴۰۹ `CART_CONFLICT` (سبد committed یا قلم کالا یافت نشد، جمع برگشت بیش از تعداد خرید، یا همان `operationId` با اقلام دیگر)؛ ۴۰۱ کلید سرویس.
+- بای‌مانی: نیاز به برگشت موجودی در همان تراکنش برگشت نور روی ردیف‌های `PhysicalProductCancellations` پایدار است (`StockReturnedAtUtc` خالی، مهاجرت `AddPhysicalCancellationStockReturn`). فراخوانی فقط پس از commit انجام می‌شود؛ هر شکست یا قطعی پاسخ لغو و برگشت نور را تغییر نمی‌دهد و کد خطا در `StockReturnErrorCode` ثبت می‌شود. تلاش مجدد با بازپخش همان `operationId` و با سرویس پس‌زمینهٔ هر دقیقه انجام می‌شود تا تأیید ۲۰۰ برسد. ۴۰۹ ناشی از commit همگام‌نشدهٔ سبد با همین تکرار برطرف می‌شود؛ ۴۰۹ دائمی در صف می‌ماند و رسیدگی عملیاتی می‌خواهد.
+
 ## I10 — Entitlement و کالای فیزیکی
 
 بای‌مانی فرمان دامنه‌ای «اعطای دوره/فصل مشخص به کاربر مشخص» می‌فرستد؛ ساختار relations، enrolledChapters و idهای داخلی را Strapi مدیریت می‌کند. اعطای مجدد به مالک فعلی موفق/no-op باشد؛ ولی قبل از پرداخت جدید، مالکیت Legacy نیز چک شود تا هزینه بی‌دلیل دریافت نشود.

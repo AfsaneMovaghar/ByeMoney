@@ -19,6 +19,8 @@ public static class DependencyInjection
 
         services.AddValidatorsFromAssembly(Assembly.GetExecutingAssembly());
         services.AddScoped<ByeMoney.Application.Modules.Purchases.Carts.Services.CartService>();
+        services.AddScoped<ByeMoney.Application.Modules.Purchases.PhysicalCancellations.Services.PhysicalCancellationService>();
+        services.AddScoped<ByeMoney.Application.Modules.Purchases.PhysicalCancellations.Services.PhysicalRestockService>();
         ValidatorOptions.Global.DefaultRuleLevelCascadeMode = CascadeMode.Stop;
         ValidatorOptions.Global.DefaultClassLevelCascadeMode = CascadeMode.Stop;
 
