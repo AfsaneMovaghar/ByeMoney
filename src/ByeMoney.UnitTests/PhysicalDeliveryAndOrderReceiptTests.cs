@@ -121,6 +121,37 @@ public sealed class PhysicalDeliveryAndOrderReceiptTests
         CourseOrderMapping.Build(Snapshot(paid)).Single().Details.DeliveryStatus.Should().Be("Delivered");
     }
 
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    public void OrderItemAndReceiptExposeCancelledQuantityWithoutChangingStatuses(int cancelled)
+    {
+        var paid = PayMixedCart();
+        var physical = paid.Payment.PhysicalPurchases.Single();
+        if (cancelled > 0)
+        {
+            physical.RecordPaymentShares(new PaymentShares(ProductAmount, 0m));
+            physical.RecordCancellation(cancelled, new PaymentShares(cancelled * 10m, 0m));
+        }
+
+        var snapshot = Snapshot(paid);
+        var order = CourseOrderMapping.Build(snapshot).Single().Details;
+        var product = order.Items.Single(item => item.ItemType == "Product");
+        var course = order.Items.Single(item => item.ItemType == "Course");
+
+        order.FinancialStatus.Should().Be("Paid");
+        product.FinancialStatus.Should().Be("Paid");
+        product.Quantity.Should().Be(2);
+        product.CancelledQuantity.Should().Be(cancelled);
+        product.PhysicalDeliveryStatus.Should().Be("Preparing");
+        course.CancelledQuantity.Should().Be(0);
+
+        var receipt = CourseOrderReceiptMapping.Build(order, snapshot)!;
+        receipt.Items.Single(item => item.ItemType == "Product").CancelledQuantity.Should().Be(cancelled);
+        receipt.Items.Single(item => item.ItemType == "Course").CancelledQuantity.Should().Be(0);
+    }
+
     [Fact]
     public void MissingPhysicalPurchaseOfPaidCartRequiresReview()
     {

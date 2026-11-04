@@ -245,7 +245,7 @@ public static class CourseOrderMapping
             quote?.PriceInNoor ?? physical.UnitPriceInNoor, physical.PaidAmountInNoor,
             physical.Id.Value, physical.LedgerTransactionId, physical.CreatedAtUtc,
             status.ToString(), delivery.ToString(), nameof(ProductItemType.Product), null,
-            physical.Quantity, physical.DeliveryStatus.ToString());
+            physical.Quantity, physical.DeliveryStatus.ToString(), physical.CancelledQuantity);
     }
 
     private static bool CompletePurchases(
