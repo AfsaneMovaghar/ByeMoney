@@ -170,6 +170,6 @@ public class PhysicalProductPurchase : BaseEntity<PhysicalProductPurchaseId>
         UpdatedAt = DateTime.UtcNow;
     }
 
-    private DomainException InvalidDeliveryTransition(PhysicalDeliveryStatus target) =>
+    private ConflictDomainException InvalidDeliveryTransition(PhysicalDeliveryStatus target) =>
         new(string.Format(DomainErrors.PhysicalProductPurchase_InvalidDeliveryTransition, DeliveryStatus, target));
 }

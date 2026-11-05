@@ -89,6 +89,11 @@ public class GlobalExceptionHandlingMiddleware
                 ApiErrors.Middleware_NotFoundTitle,
                 new List<object> { notFoundEx.Message }
             ),
+            ConflictDomainException conflictEx => (
+                HttpStatusCode.Conflict,
+                ApiErrors.Middleware_ConflictTitle,
+                new List<object> { conflictEx.Message }
+            ),
             DomainException domainEx => (
                 HttpStatusCode.BadRequest,
                 ApiErrors.Middleware_BusinessRuleViolationTitle,

@@ -355,7 +355,7 @@ public sealed class PhysicalDeliveryHttpPostgresTests : IAsyncLifetime
         var url = $"/api/admin/physical-purchases/{seed.BookId}/delivery-status";
 
         (await SendAsync(client, HttpMethod.Put, url, admin, new { status = "Delivered" })).StatusCode
-            .Should().Be(HttpStatusCode.BadRequest);
+            .Should().Be(HttpStatusCode.Conflict);
         (await SendAsync(client, HttpMethod.Put, url, admin, new { status = "Preparing" })).StatusCode
             .Should().Be(HttpStatusCode.BadRequest);
         (await SendAsync(client, HttpMethod.Put, url, admin, new { status = "Bogus" })).StatusCode
@@ -391,7 +391,7 @@ public sealed class PhysicalDeliveryHttpPostgresTests : IAsyncLifetime
         deliveredBody.RootElement.GetProperty("deliveredAtUtc").ValueKind.Should().Be(JsonValueKind.String);
 
         (await SendAsync(client, HttpMethod.Put, url, admin, new { status = "Shipped" })).StatusCode
-            .Should().Be(HttpStatusCode.BadRequest);
+            .Should().Be(HttpStatusCode.Conflict);
         (await SendAsync(client, HttpMethod.Put, url, admin, new { status = "Delivered" })).StatusCode
             .Should().Be(HttpStatusCode.OK);
 

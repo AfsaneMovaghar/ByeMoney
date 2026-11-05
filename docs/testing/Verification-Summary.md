@@ -2,6 +2,15 @@
 
 بازبینی شواهد: ۲۰۲۶-۱۰-۳۱. این گزارش نتیجه‌های ثبت‌شده را خلاصه می‌کند. تعداد آزمون‌های اجراهای مختلف با هم جمع نمی‌شود. آزمون محلی، ادغام و انتشار سه شاهد مستقل‌اند؛ کار باقی‌مانده فقط در [TASKS](../../TASKS.md) و [HOTFIXES](../../HOTFIXES.md) است.
 
+## BND-01 — رقابت لغو فیزیکی و تغییر وضعیت ارسال — ۵ نوامبر ۲۰۲۶
+
+- تغییر وضعیت ارسال زیر قفل خریدار و سبد همان لغو اجرا می‌شود (`PhysicalDeliveryStore.ExecuteLockedAsync`). آزمون PostgreSQL `DeliveryStatusUpdate_WaitsForBuyerAndCartLocksHeldByCancellation` نشان می‌دهد تغییر وضعیت پشت قفل لغو منتظر می‌ماند.
+- `ConcurrentCancellationAndShipping_NeverLeaveShippedPurchaseWithRefund` (۱۲ تکرار، PostgreSQL): لغو و ارسال هم‌زمان هرگز هر دو موفق نمی‌شوند و قلم «ارسال‌شده» با تعداد لغوشده ثبت نمی‌شود.
+- `ConcurrentAdminShippedAndDelivered_NeverRegressDeliveredToShipped` (۱۲ تکرار، PostgreSQL): دو ادمین هم‌زمان، یکی «تحویل‌شده» و دیگری «ارسال‌شده»؛ وضعیت نهایی همیشه `Delivered` است و هرگز به `Shipped` برنمی‌گردد.
+- انتقال وضعیت نامعتبر (مثلاً `Shipped` پس از `Delivered`، یا ارسال قلم لغوشده) اکنون `ConflictDomainException` می‌اندازد و HTTP ۴۰۹ برمی‌گرداند، نه ۴۰۰ (آزمون HTTP `ReceiptAndDeliveryContractHoldsOverHttpWithRealJwt`).
+- اجرای کل آزمون‌های ByeMoney با PostgreSQL محلی: ۵۳۸ موفق، بدون شکست.
+- محدودیت: شاهد محلی است، روی محیط مقصد اجرا نشده.
+
 ## برش فرانت‌اند خرید فصل دوره با نور — ۲۱ اکتبر ۲۰۲۶
 
 فرانت‌اند در شاخهٔ `feature/chapter-cart-purchase` مطابق قراردادهای I06، I09-C، I09-CH، I11-P و I11-T و تصمیم‌های D08 و D11–D12 تکمیل شد. تغییرات کامیت‌نشده‌اند؛ بر روی شاخه‌های اصلی (master/main) کاری کامیت نشد.

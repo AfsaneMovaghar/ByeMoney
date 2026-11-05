@@ -639,6 +639,29 @@ public sealed class PhysicalCancellationPostgresTests : IAsyncLifetime
         }
     }
 
+    [CartPostgresFact]
+    public async Task ConcurrentAdminShippedAndDelivered_NeverRegressDeliveredToShipped()
+    {
+        const int attempts = 12;
+        for (var i = 0; i < attempts; i++)
+        {
+            var cart = await PaidCartAsync([new Line($"admins-{i}", "کتاب دو ادمین", 20m, 0m, 1)], shipping: 0m, coupon: null);
+            var purchase = await PurchaseAsync(cart.Id, $"admins-{i}");
+            (await TrySendDeliveryStatusAsync(purchase.Id.Value, nameof(PhysicalDeliveryStatus.Shipped))).Should().BeTrue();
+
+            // ادمین اول «تحویل‌شده» و ادمین دوم «ارسال‌شده» را هم‌زمان می‌زند؛ تحویل‌شده هرگز نباید به ارسال‌شده برگردد.
+            var deliver = TrySendDeliveryStatusAsync(purchase.Id.Value, nameof(PhysicalDeliveryStatus.Delivered));
+            var ship = TrySendDeliveryStatusAsync(purchase.Id.Value, nameof(PhysicalDeliveryStatus.Shipped));
+            await Task.WhenAll(deliver, ship);
+
+            var stored = await PurchaseAsync(cart.Id, $"admins-{i}");
+            deliver.Result.Should().BeTrue($"attempt {i}");
+            stored.DeliveryStatus.Should().Be(PhysicalDeliveryStatus.Delivered, $"attempt {i}");
+            stored.DeliveredAtUtc.Should().NotBeNull($"attempt {i}");
+            // «ارسال‌شده» تکراری روی قلم ارسال‌شده بی‌اثر است و فقط پس از تحویل رد (۴۰۹) می‌شود.
+        }
+    }
+
     private sealed record Line(string Id, string Title, decimal UnitPrice, decimal Discount, int Quantity);
 
     // مقادیر قفل‌های PurchaseAdvisoryLocks (internal در Infrastructure)؛ باید با آن کلاس یکی بمانند.
