@@ -5,11 +5,14 @@ using ByeMoney.Application.Modules.Purchases.Carts.DTOs;
 using ByeMoney.Application.Modules.Purchases.Carts.Interfaces;
 using ByeMoney.Application.Modules.Purchases.Commands.AdminCancelPhysicalPurchase;
 using ByeMoney.Application.Modules.Purchases.Commands.CancelMyPhysicalOrder;
+using ByeMoney.Application.Modules.Purchases.Commands.UpdatePhysicalDeliveryStatus;
+using ByeMoney.Domain.Common.Exceptions;
 using ByeMoney.Application.Modules.Purchases.PhysicalCancellations.Constants;
 using ByeMoney.Application.Modules.Purchases.Carts.Constants;
 using ByeMoney.Application.Modules.Purchases.PhysicalCancellations.DTOs;
 using ByeMoney.Application.Modules.Purchases.PhysicalCancellations.Interfaces;
 using ByeMoney.Application.Modules.Purchases.PhysicalCancellations.Services;
+using ByeMoney.Application.Modules.Purchases.Queries.GetAdminPendingPhysicalRestocks;
 using ByeMoney.Application.Modules.Purchases.Queries.GetAdminPhysicalCancellationPreview;
 using ByeMoney.Application.Modules.Purchases.Queries.GetMyPhysicalCancellationPreview;
 using ByeMoney.Application.Modules.Wallet.Interfaces;
@@ -90,6 +93,7 @@ public sealed class PhysicalCancellationPostgresTests : IAsyncLifetime
             .AddInfrastructureServices(configuration);
         services.AddDbContext<ApplicationDbContext>(options => options.UseNpgsql(builder.ConnectionString,
             postgres => postgres.MigrationsHistoryTable("__EFMigrationsHistory", _schema)));
+        services.AddSingleton(new PhysicalRestockSettings { MaxAttempts = RestockMaxAttempts });
         services.AddSingleton(_pricing.Object);
         services.AddSingleton(_stock.Object);
         services.AddSingleton<ICurrentUserService>(_currentUser);
@@ -422,6 +426,72 @@ public sealed class PhysicalCancellationPostgresTests : IAsyncLifetime
     }
 
     [CartPostgresFact]
+    public async Task PermanentStrapiConflict_StopsBackgroundRetryAtMaxAttempts_AndStaysListedForAdmin()
+    {
+        var cart = await PaidCartAsync([new Line("book", "کتاب فیزیکی", 40m, 20m, 3)], shipping: 0m, coupon: null);
+        var book = await PurchaseAsync(cart.Id, "book");
+        StockClientReturns(Result.Conflict(CartErrors.Conflict, CartErrorCodes.Conflict));
+
+        var operationId = Guid.NewGuid();
+        await SendAsync(_buyer.Id.Value, new CancelMyPhysicalOrderCommand(cart.Id, operationId, Reason));
+        _restocks.Count(x => x.OperationId == operationId).Should().Be(1);
+
+        // تلاش اول همان لغو بود؛ بازیابی فقط تا سقف ادامه می‌دهد و بعد از آن دیگر استرپی را صدا نمی‌زند.
+        for (var i = 0; i < RestockMaxAttempts + 3; i++)
+        {
+            await RetryPendingRestocksAsync();
+        }
+
+        _restocks.Count(x => x.OperationId == operationId).Should().Be(RestockMaxAttempts);
+        var stored = await StockReturnAttemptsAsync(operationId);
+        stored.Should().Be(RestockMaxAttempts);
+
+        var listed = (await PendingRestocksForAdminAsync()).Should().ContainSingle(x => x.OperationId == operationId).Subject;
+        listed.Abandoned.Should().BeTrue();
+        listed.Attempts.Should().Be(RestockMaxAttempts);
+        listed.MaxAttempts.Should().Be(RestockMaxAttempts);
+        listed.LastErrorCode.Should().Be(CartErrorCodes.Conflict);
+        listed.CartId.Should().Be(cart.Id);
+        listed.Items.Should().BeEquivalentTo([new PhysicalRestockItem(book.Id.Value, 3)]);
+    }
+
+    [CartPostgresFact]
+    public async Task AdminPendingRestockList_ShowsUnfinishedOnly_AndMarksBelowCapAsNotAbandoned()
+    {
+        var failing = await PaidCartAsync([new Line("book", "کتاب فیزیکی", 40m, 20m, 3)], shipping: 0m, coupon: null);
+        StockClientReturns(Result.Failure(CartErrors.Unavailable, CartErrorCodes.Unavailable));
+        var failingOperation = Guid.NewGuid();
+        await SendAsync(_buyer.Id.Value, new CancelMyPhysicalOrderCommand(failing.Id, failingOperation, Reason));
+
+        var succeeding = await PaidCartAsync([new Line("pen", "خودکار", 50m, 0m, 1)], shipping: 0m, coupon: null);
+        StockClientReturns(Result.Success());
+        var doneOperation = Guid.NewGuid();
+        await SendAsync(_admin.Id.Value, new AdminCancelPhysicalPurchaseCommand(
+            (await PurchaseAsync(succeeding.Id, "pen")).Id.Value, 1, doneOperation, Reason));
+
+        var listed = await PendingRestocksForAdminAsync();
+
+        var row = listed.Should().ContainSingle().Subject;
+        row.OperationId.Should().Be(failingOperation);
+        row.Attempts.Should().Be(0, "قطعی موقت استرپی از سقف تلاش کم نمی‌کند");
+        row.Abandoned.Should().BeFalse();
+        row.LastErrorCode.Should().Be(CartErrorCodes.Unavailable);
+        row.LastAttemptAtUtc.Should().NotBeNull();
+    }
+
+    [CartPostgresFact]
+    public void PendingRestockEndpoint_IsProtectedByNoorInjectPolicy()
+    {
+        var method = typeof(AdminPhysicalCancellationsController)
+            .GetMethod(nameof(AdminPhysicalCancellationsController.PendingRestocks));
+
+        method.Should().NotBeNull();
+        method!.GetCustomAttributes(typeof(AllowAnonymousAttribute), true).Should().BeEmpty();
+        method.GetCustomAttributes(typeof(AuthorizeAttribute), true).Should().BeEmpty("مجوز از سطح کنترلر (RequireNoorInject) ارث می‌رسد");
+        PolicyOf(typeof(AdminPhysicalCancellationsController)).Should().Be(PolicyNames.RequireNoorInject);
+    }
+
+    [CartPostgresFact]
     public async Task Shipping_IsRefundedOnlyWhenWholeShipmentIsCancelledBeforeDispatch()
     {
         var cart = await PaidCartAsync(
@@ -525,7 +595,85 @@ public sealed class PhysicalCancellationPostgresTests : IAsyncLifetime
         (await PurchaseAsync(cart.Id, "book")).RegularAmountInNoor.Should().BeNull();
     }
 
+    [CartPostgresFact]
+    public async Task DeliveryStatusUpdate_WaitsForBuyerAndCartLocksHeldByCancellation()
+    {
+        var cart = await PaidCartAsync([new Line("locked-book", "کتاب قفل", 20m, 0m, 1)], shipping: 0m, coupon: null);
+        var purchase = await PurchaseAsync(cart.Id, "locked-book");
+
+        // شبیه‌سازی لغوِ در جریان: همان دو قفل خریدار و سبد که PhysicalCancellationStore.ExecuteAsync می‌گیرد.
+        await using var holder = new NpgsqlConnection(_adminConnection);
+        await holder.OpenAsync();
+        await using var holderTx = await holder.BeginTransactionAsync();
+        await HoldAdvisoryLockAsync(holder, holderTx, BuyerLockSpace, _buyer.Id.Value);
+        await HoldAdvisoryLockAsync(holder, holderTx, CartLockSpace, cart.Id);
+
+        var shipping = SendDeliveryStatusAsync(purchase.Id.Value, nameof(PhysicalDeliveryStatus.Shipped));
+        var finished = await Task.WhenAny(shipping, Task.Delay(TimeSpan.FromSeconds(2)));
+
+        finished.Should().NotBe(shipping, "تغییر وضعیت باید پشت قفل سبدِ در حال لغو منتظر بماند");
+
+        await holderTx.CommitAsync();
+        var response = await shipping;
+        response.DeliveryStatus.Should().Be(nameof(PhysicalDeliveryStatus.Shipped));
+    }
+
+    [CartPostgresFact]
+    public async Task ConcurrentCancellationAndShipping_NeverLeaveShippedPurchaseWithRefund()
+    {
+        const int attempts = 12;
+        for (var i = 0; i < attempts; i++)
+        {
+            var cart = await PaidCartAsync([new Line($"race-{i}", "کتاب رقابت", 20m, 0m, 1)], shipping: 0m, coupon: null);
+            var purchase = await PurchaseAsync(cart.Id, $"race-{i}");
+
+            var cancel = SendAsync(_buyer.Id.Value, new CancelMyPhysicalOrderCommand(cart.Id, Guid.NewGuid(), Reason));
+            var ship = TrySendDeliveryStatusAsync(purchase.Id.Value, nameof(PhysicalDeliveryStatus.Shipped));
+            await Task.WhenAll(cancel, ship);
+
+            // لغو پس از ارسال یا ارسال پس از لغو مجاز نیست؛ فقط یکی از دو عملیات می‌تواند اثر بگذارد.
+            var stored = await PurchaseAsync(cart.Id, $"race-{i}");
+            var shippedWithRefund = stored.DeliveryStatus == PhysicalDeliveryStatus.Shipped && stored.CancelledQuantity > 0;
+            shippedWithRefund.Should().BeFalse($"attempt {i}: ارسال و لغو نباید هم‌زمان موفق شوند");
+            (cancel.Result.IsSuccess && ship.Result).Should().BeFalse($"attempt {i}");
+        }
+    }
+
     private sealed record Line(string Id, string Title, decimal UnitPrice, decimal Discount, int Quantity);
+
+    // مقادیر قفل‌های PurchaseAdvisoryLocks (internal در Infrastructure)؛ باید با آن کلاس یکی بمانند.
+    private const int CartLockSpace = 1869767797;
+    private const int BuyerLockSpace = 1869767798;
+
+    private static async Task HoldAdvisoryLockAsync(
+        NpgsqlConnection connection, NpgsqlTransaction transaction, int lockSpace, Guid key)
+    {
+        await using var command = new NpgsqlCommand(
+            "SELECT pg_advisory_xact_lock(@space, hashtext(@key))", connection, transaction);
+        command.Parameters.AddWithValue("space", lockSpace);
+        command.Parameters.AddWithValue("key", key.ToString());
+        await command.ExecuteNonQueryAsync();
+    }
+
+    private async Task<PhysicalDeliveryStatusResponse> SendDeliveryStatusAsync(Guid purchaseId, string status)
+    {
+        using var scope = _provider.CreateScope();
+        return await scope.ServiceProvider.GetRequiredService<ISender>()
+            .Send(new UpdatePhysicalDeliveryStatusCommand(purchaseId, status));
+    }
+
+    private async Task<bool> TrySendDeliveryStatusAsync(Guid purchaseId, string status)
+    {
+        try
+        {
+            await SendDeliveryStatusAsync(purchaseId, status);
+            return true;
+        }
+        catch (DomainException)
+        {
+            return false;
+        }
+    }
 
     private void StockClientReturns(Result result)
     {
@@ -545,6 +693,24 @@ public sealed class PhysicalCancellationPostgresTests : IAsyncLifetime
     {
         using var scope = _provider.CreateScope();
         await scope.ServiceProvider.GetRequiredService<PhysicalRestockService>().RetryPendingAsync(50, default);
+    }
+
+    private const int RestockMaxAttempts = 3;
+
+    private async Task<IReadOnlyList<PendingPhysicalRestockResponse>> PendingRestocksForAdminAsync()
+    {
+        using var scope = _provider.CreateScope();
+        return await scope.ServiceProvider.GetRequiredService<ISender>()
+            .Send(new GetAdminPendingPhysicalRestocksQuery());
+    }
+
+    private async Task<int> StockReturnAttemptsAsync(Guid operationId)
+    {
+        using var scope = _provider.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        return await db.Set<PhysicalProductCancellation>()
+            .Where(x => x.OperationId == operationId)
+            .MaxAsync(x => x.StockReturnAttempts);
     }
 
     private async Task<int> PendingRestockRowsAsync()

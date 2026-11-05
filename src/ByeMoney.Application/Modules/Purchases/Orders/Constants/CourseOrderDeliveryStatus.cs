@@ -5,5 +5,6 @@ public enum CourseOrderDeliveryStatus
     NotStarted,
     Pending,
     PartiallyDelivered,
-    Delivered
+    Delivered,
+    Cancelled
 }

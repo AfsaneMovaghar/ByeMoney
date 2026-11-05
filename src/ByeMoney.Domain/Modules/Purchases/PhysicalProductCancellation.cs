@@ -35,6 +35,9 @@ public class PhysicalProductCancellation : BaseEntity<PhysicalProductCancellatio
     /// <summary>کد خطای آخرین تلاش ناموفق برگشت موجودی، برای رسیدگی عملیاتی.</summary>
     public string? StockReturnErrorCode { get; private set; }
 
+    /// <summary>تعداد تلاش‌های ناموفق برگشت موجودی؛ با رسیدن به سقف تنظیم‌شده، بازیابی پس‌زمینه عملیات را رها می‌کند.</summary>
+    public int StockReturnAttempts { get; private set; }
+
     private PhysicalProductCancellation() { }
 
     public static PhysicalProductCancellation Create(

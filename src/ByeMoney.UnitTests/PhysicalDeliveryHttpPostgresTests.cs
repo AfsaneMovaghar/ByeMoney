@@ -9,9 +9,15 @@ using ByeMoney.API.Controllers;
 using ByeMoney.API.Middleware;
 using ByeMoney.Application;
 using ByeMoney.Application.Common.Interfaces;
-using ByeMoney.Application.Modules.Identity.Authorization;
-using ByeMoney.Application.Modules.Purchases.History.Interfaces;
-using ByeMoney.Application.Modules.Purchases.Orders.Interfaces;
+using ByeMoney.Application.Modules.Purchases.Carts.DTOs;
+using ByeMoney.Application.Modules.Purchases.Carts.Interfaces;
+using ByeMoney.Application.Modules.Purchases.PhysicalCancellations.DTOs;
+using ByeMoney.Application.Modules.Purchases.PhysicalCancellations.Interfaces;
+using ByeMoney.Application.Modules.Wallet.Interfaces;
+using ByeMoney.Domain.Common;
+using ByeMoney.Infrastructure;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Moq;
 using ByeMoney.Domain.Modules.Identity.Permissions;
 using ByeMoney.Domain.Modules.Identity.Roles;
 using ByeMoney.Domain.Modules.Identity.Users;
@@ -43,6 +49,7 @@ namespace ByeMoney.UnitTests;
 public sealed class PhysicalDeliveryHttpPostgresTests : IAsyncLifetime
 {
     private const string JwtSecret = "physical-delivery-http-tests-secret-at-least-32-bytes";
+    private const string CancellationReason = "انصراف خریدار پیش از ارسال";
 
     private static readonly string[] ReceiptKeys =
     [
@@ -54,13 +61,16 @@ public sealed class PhysicalDeliveryHttpPostgresTests : IAsyncLifetime
     [
         "purchaseId", "externalId", "title", "itemType", "parentExternalId", "quantity", "unitPriceInNoor",
         "baseAmountInNoor", "discountAmountInNoor", "finalAmountInNoor", "referenceRialPerNoorAtPurchaseTime",
-        "deliveryStatus", "physicalDeliveryStatus", "purchasedAtUtc", "deliveredAtUtc"
+        "deliveryStatus", "physicalDeliveryStatus", "purchasedAtUtc", "deliveredAtUtc", "cancelledQuantity",
+        "refundedRegularInNoor", "refundedGiftInNoor"
     ];
 
     private static readonly string[] DeliveryResponseKeys =
         ["purchaseId", "deliveryStatus", "shippedAtUtc", "deliveredAtUtc"];
 
     private readonly string _schema = "physical_http_test_" + Guid.NewGuid().ToString("N");
+    private readonly Mock<ICartPricingClient> _pricing = new();
+    private readonly Mock<IPhysicalStockClient> _stock = new();
     private string _connectionString = null!;
     private DbContextOptions<ApplicationDbContext> _options = null!;
 
@@ -94,6 +104,13 @@ public sealed class PhysicalDeliveryHttpPostgresTests : IAsyncLifetime
                 options => options.MigrationsHistoryTable("__EFMigrationsHistory", _schema)).Options;
         await using var db = new ApplicationDbContext(_options);
         await db.Database.MigrateAsync();
+
+        _pricing
+            .Setup(x => x.TransitionAsync(It.IsAny<CartTransitionRequest>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Result.Success());
+        _stock
+            .Setup(x => x.RestockAsync(It.IsAny<PhysicalRestockRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Result.Success());
     }
 
     public async Task DisposeAsync()
@@ -123,6 +140,141 @@ public sealed class PhysicalDeliveryHttpPostgresTests : IAsyncLifetime
         await VerifyDeliveryAuthorizationAsync(client, seed);
         await VerifyDeliveryTransitionsAsync(client, seed, orderId);
         await VerifyMoneyUntouchedAsync(seed);
+    }
+
+    [CartPostgresFact]
+    public async Task PhysicalCancellationContractHoldsOverHttpWithRealJwt()
+    {
+        await using var app = await StartAppAsync();
+        using var client = new HttpClient { BaseAddress = new Uri(app.Urls.Single()) };
+        var seed = await SeedCancellationAsync(app.Services);
+
+        await VerifyBuyerCancellationAsync(client, seed);
+        await VerifyAdminCancellationAsync(client, seed);
+    }
+
+    private async Task VerifyBuyerCancellationAsync(HttpClient client, CancellationSeed seed)
+    {
+        var url = $"/api/me/physical-orders/{seed.BuyerCartId}/cancel";
+        var operationId = Guid.NewGuid();
+        var body = new { operationId, reason = CancellationReason };
+
+        (await SendAsync(client, HttpMethod.Post, url, null, body)).StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+        (await SendAsync(client, HttpMethod.Post, url, Token(seed.OtherUser), body)).StatusCode
+            .Should().Be(HttpStatusCode.NotFound);
+        (await CancellationStateAsync(seed)).Should().Be(seed.StartState);
+
+        var owner = await SendAsync(client, HttpMethod.Post, url, Token(seed.Buyer), body);
+        owner.StatusCode.Should().Be(HttpStatusCode.OK);
+        using var ownerBody = JsonDocument.Parse(await owner.Content.ReadAsStringAsync());
+        ownerBody.RootElement.GetProperty("outcome").GetString().Should().Be("Refunded");
+        ownerBody.RootElement.GetProperty("totalRefundInNoor").GetDecimal().Should().Be(100m);
+        var afterFirst = await CancellationStateAsync(seed);
+        afterFirst.Should().Be(seed.StartState with
+        {
+            Balance = seed.StartState.Balance + 100m,
+            LedgerCount = afterFirst.LedgerCount,
+            CancellationRows = 1
+        });
+        afterFirst.LedgerCount.Should().BeGreaterThan(seed.StartState.LedgerCount);
+
+        var replay = await SendAsync(client, HttpMethod.Post, url, Token(seed.Buyer), body);
+        replay.StatusCode.Should().Be(HttpStatusCode.OK);
+        using var replayBody = JsonDocument.Parse(await replay.Content.ReadAsStringAsync());
+        replayBody.RootElement.GetProperty("totalRefundInNoor").GetDecimal().Should().Be(100m);
+        (await CancellationStateAsync(seed)).Should().Be(afterFirst);
+    }
+
+    private async Task VerifyAdminCancellationAsync(HttpClient client, CancellationSeed seed)
+    {
+        var url = $"/api/admin/physical-purchases/{seed.AdminPurchaseId}/cancel";
+        var operationId = Guid.NewGuid();
+        var body = new { operationId, quantity = 1, reason = CancellationReason };
+        var before = await CancellationStateAsync(seed);
+
+        (await SendAsync(client, HttpMethod.Post, url, null, body)).StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+        (await SendAsync(client, HttpMethod.Post, url, Token(seed.Buyer), body)).StatusCode
+            .Should().Be(HttpStatusCode.Forbidden);
+        (await SendAsync(client, HttpMethod.Post, url, Token(seed.CoursesManageAdmin), body)).StatusCode
+            .Should().Be(HttpStatusCode.Forbidden);
+        (await CancellationStateAsync(seed)).Should().Be(before);
+
+        var allowed = await SendAsync(client, HttpMethod.Post, url, Token(seed.NoorInjectAdmin), body);
+        allowed.StatusCode.Should().Be(HttpStatusCode.OK);
+        using var allowedBody = JsonDocument.Parse(await allowed.Content.ReadAsStringAsync());
+        allowedBody.RootElement.GetProperty("actor").GetString().Should().Be("Admin");
+        allowedBody.RootElement.GetProperty("totalRefundInNoor").GetDecimal().Should().Be(30m);
+        var afterFirst = await CancellationStateAsync(seed);
+        afterFirst.Balance.Should().Be(before.Balance + 30m);
+        afterFirst.CancellationRows.Should().Be(before.CancellationRows + 1);
+
+        var replay = await SendAsync(client, HttpMethod.Post, url, Token(seed.NoorInjectAdmin), body);
+        replay.StatusCode.Should().Be(HttpStatusCode.OK);
+        (await CancellationStateAsync(seed)).Should().Be(afterFirst);
+    }
+
+    private async Task<CancellationState> CancellationStateAsync(CancellationSeed seed)
+    {
+        await using var db = new ApplicationDbContext(_options);
+        var wallet = await db.Set<Wallet>().AsNoTracking().SingleAsync(item => item.UserId == new UserId(seed.BuyerId));
+        return new CancellationState(
+            wallet.WithdrawableBalance,
+            await db.Set<LedgerEntry>().CountAsync(),
+            await db.Set<PhysicalProductCancellation>().CountAsync());
+    }
+
+    private async Task<CancellationSeed> SeedCancellationAsync(IServiceProvider services)
+    {
+        var buyer = User.CreateInitial("http-cancel-buyer");
+        var other = User.CreateInitial("http-cancel-other");
+        var manageAdmin = User.CreateInitial("http-cancel-manage-admin");
+        var noorAdmin = User.CreateInitial("http-cancel-noor-admin");
+        var manageRole = Role.Create("CancelCoursesManageOnly");
+        var noorRole = Role.Create("CancelNoorInjectOnly");
+
+        using var scope = services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        db.AddRange(buyer, other, manageAdmin, noorAdmin, manageRole, noorRole);
+        await db.SaveChangesAsync();
+        db.AddRange(
+            RolePermission.Create(manageRole.Id, PermissionConfiguration.CoursesManagePermissionId),
+            RolePermission.Create(noorRole.Id, PermissionConfiguration.NoorInjectPermissionId),
+            UserRole.Create(manageAdmin.Id, manageRole.Id),
+            UserRole.Create(noorAdmin.Id, noorRole.Id));
+        await db.SaveChangesAsync();
+
+        var provisioning = scope.ServiceProvider.GetRequiredService<IUserWalletProvisioningService>();
+        var wallet = await provisioning.GetOrCreateUserWalletAsync(buyer.Id);
+        wallet.Wallet.ApplyCredit(1000m);
+        await provisioning.GetOrCreateSystemAccountAsync();
+        await db.SaveChangesAsync();
+
+        var carts = scope.ServiceProvider.GetRequiredService<ICartStore>();
+        var buyerCart = await PayCartAsync(carts, buyer, "cancel-book", unitPrice: 50m, quantity: 2);
+        var adminCart = await PayCartAsync(carts, buyer, "cancel-pen", unitPrice: 30m, quantity: 2);
+        var adminPurchaseId = await db.Set<PhysicalProductPurchase>()
+            .Where(item => item.CartId == adminCart.Id)
+            .Select(item => item.Id.Value)
+            .SingleAsync();
+
+        var seed = new CancellationSeed(
+            buyer.ExternalUserId, other.ExternalUserId, manageAdmin.ExternalUserId, noorAdmin.ExternalUserId,
+            buyer.Id.Value, buyerCart.Id, adminPurchaseId, default!);
+        return seed with { StartState = await CancellationStateAsync(seed) };
+    }
+
+    private static async Task<Cart> PayCartAsync(
+        ICartStore carts, User buyer, string externalId, decimal unitPrice, int quantity)
+    {
+        var cart = Cart.Create(Guid.NewGuid(), buyer.Id.Value, buyer.ExternalUserId, [
+            new CartItemInput(externalId, ProductItemType.Product, quantity)
+        ], null);
+        (await carts.CreateAsync(cart, default)).IsSuccess.Should().BeTrue();
+        var quote = new CartQuoteItem(
+            externalId, externalId, unitPrice, 0, 0, unitPrice * quantity, ProductItemType.Product, null, quantity);
+        await carts.SetQuoteAsync(cart.Id, buyer.Id.Value, [quote], 0m, null, cart.ReservationId, default);
+        (await carts.PayAsync(cart.Id, buyer.Id.Value, cart.ReservationId, default)).IsSuccess.Should().BeTrue();
+        return cart;
     }
 
     private static async Task VerifyReceiptAccessAsync(HttpClient client, SeedData seed, string orderId)
@@ -179,6 +331,8 @@ public sealed class PhysicalDeliveryHttpPostgresTests : IAsyncLifetime
         book.GetProperty("quantity").GetInt32().Should().Be(2);
         book.GetProperty("physicalDeliveryStatus").GetString().Should().Be("Preparing");
         book.GetProperty("deliveryStatus").GetString().Should().Be("Pending");
+        book.GetProperty("refundedRegularInNoor").GetDecimal().Should().Be(0m);
+        book.GetProperty("refundedGiftInNoor").GetDecimal().Should().Be(0m);
     }
 
     private static async Task VerifyDeliveryAuthorizationAsync(HttpClient client, SeedData seed)
@@ -287,13 +441,13 @@ public sealed class PhysicalDeliveryHttpPostgresTests : IAsyncLifetime
         builder.Services.AddPresentationServices(builder.Configuration);
         builder.Services.AddApplicationServices();
         builder.Services.AddControllers().AddApplicationPart(typeof(AdminPhysicalPurchasesController).Assembly);
+        builder.Services.AddInfrastructureServices(builder.Configuration);
+        // کارهای پس‌زمینهٔ واقعی نباید در آزمون اجرا شوند و دیتابیس باید همان schema اختصاصی آزمون باشد.
+        RemoveApplicationHostedServices(builder.Services);
         builder.Services.AddSingleton(_options);
         builder.Services.AddScoped<ApplicationDbContext>();
-        builder.Services.AddScoped<IUnitOfWork>(provider => provider.GetRequiredService<ApplicationDbContext>());
-        builder.Services.AddScoped(typeof(IRepository<,>), typeof(BaseRepository<,>));
-        builder.Services.AddScoped<IUserAuthorizationService, UserAuthorizationService>();
-        builder.Services.AddScoped<IPurchaseHistoryReader, PurchaseHistoryReader>();
-        builder.Services.AddScoped<ICourseOrderReader, CourseOrderReader>();
+        builder.Services.AddSingleton(_pricing.Object);
+        builder.Services.AddSingleton(_stock.Object);
 
         var app = builder.Build();
         app.UseMiddleware<GlobalExceptionHandlingMiddleware>();
@@ -302,6 +456,18 @@ public sealed class PhysicalDeliveryHttpPostgresTests : IAsyncLifetime
         app.MapControllers();
         await app.StartAsync();
         return app;
+    }
+
+    private static void RemoveApplicationHostedServices(IServiceCollection services)
+    {
+        var hostedServices = services
+            .Where(item => item.ServiceType == typeof(IHostedService) &&
+                item.ImplementationType?.Namespace?.StartsWith("ByeMoney", StringComparison.Ordinal) == true)
+            .ToList();
+        foreach (var descriptor in hostedServices)
+        {
+            services.Remove(descriptor);
+        }
     }
 
     private async Task<SeedData> SeedAsync()
@@ -384,6 +550,18 @@ public sealed class PhysicalDeliveryHttpPostgresTests : IAsyncLifetime
     {
         return element.EnumerateObject().Select(property => property.Name).ToArray();
     }
+
+    private sealed record CancellationSeed(
+        string Buyer,
+        string OtherUser,
+        string CoursesManageAdmin,
+        string NoorInjectAdmin,
+        Guid BuyerId,
+        Guid BuyerCartId,
+        Guid AdminPurchaseId,
+        CancellationState StartState);
+
+    private sealed record CancellationState(decimal Balance, int LedgerCount, int CancellationRows);
 
     private sealed record SeedData(
         string Buyer,

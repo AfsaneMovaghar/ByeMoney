@@ -39,7 +39,11 @@ public sealed class CourseOrderReader(ApplicationDbContext db) : ICourseOrderRea
             .Where(purchase => userIds.Contains(purchase.BuyerId)).ToListAsync(ct);
         var physicalPurchases = await db.Set<PhysicalProductPurchase>().AsNoTracking()
             .Where(purchase => userIds.Contains(purchase.BuyerId)).ToListAsync(ct);
+        var physicalPurchaseIds = db.Set<PhysicalProductPurchase>()
+            .Where(purchase => userIds.Contains(purchase.BuyerId)).Select(purchase => purchase.Id);
+        var cancellations = await db.Set<PhysicalProductCancellation>().AsNoTracking()
+            .Where(cancellation => physicalPurchaseIds.Contains(cancellation.PurchaseId)).ToListAsync(ct);
         await transaction.CommitAsync(ct);
-        return new CourseOrderSnapshot(carts, topUps, purchases, buyers, physicalPurchases);
+        return new CourseOrderSnapshot(carts, topUps, purchases, buyers, physicalPurchases, cancellations);
     }
 }

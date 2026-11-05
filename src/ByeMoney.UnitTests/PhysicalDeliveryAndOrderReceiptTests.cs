@@ -9,6 +9,8 @@ using ByeMoney.Application.Modules.Purchases.History.Services;
 using ByeMoney.Application.Modules.Purchases.Orders.DTOs;
 using ByeMoney.Application.Modules.Purchases.Orders.Interfaces;
 using ByeMoney.Application.Modules.Purchases.Orders.Services;
+using ByeMoney.Application.Modules.Purchases.PhysicalCancellations.Interfaces;
+using ByeMoney.Application.Modules.Purchases.Queries.GetAdminCourseOrders;
 using ByeMoney.Application.Modules.Purchases.Queries.GetMyCourseOrderReceipt;
 using ByeMoney.Application.Modules.Wallet.DTOs;
 using ByeMoney.Domain.Common.Exceptions;
@@ -131,8 +133,8 @@ public sealed class PhysicalDeliveryAndOrderReceiptTests
         var physical = paid.Payment.PhysicalPurchases.Single();
         if (cancelled > 0)
         {
-            physical.RecordPaymentShares(new PaymentShares(ProductAmount, 0m));
-            physical.RecordCancellation(cancelled, new PaymentShares(cancelled * 10m, 0m));
+            physical.RecordPaymentShares(new PaymentShares(ProductAmount - 20m, 20m));
+            physical.RecordCancellation(cancelled, new PaymentShares(cancelled * 5m, cancelled * 3m));
         }
 
         var snapshot = Snapshot(paid);
@@ -144,11 +146,18 @@ public sealed class PhysicalDeliveryAndOrderReceiptTests
         product.FinancialStatus.Should().Be("Paid");
         product.Quantity.Should().Be(2);
         product.CancelledQuantity.Should().Be(cancelled);
+        product.RefundedRegularInNoor.Should().Be(cancelled * 5m);
+        product.RefundedGiftInNoor.Should().Be(cancelled * 3m);
         product.PhysicalDeliveryStatus.Should().Be("Preparing");
         course.CancelledQuantity.Should().Be(0);
+        course.RefundedRegularInNoor.Should().Be(0m);
+        course.RefundedGiftInNoor.Should().Be(0m);
 
         var receipt = CourseOrderReceiptMapping.Build(order, snapshot)!;
-        receipt.Items.Single(item => item.ItemType == "Product").CancelledQuantity.Should().Be(cancelled);
+        var receiptProduct = receipt.Items.Single(item => item.ItemType == "Product");
+        receiptProduct.CancelledQuantity.Should().Be(cancelled);
+        receiptProduct.RefundedRegularInNoor.Should().Be(cancelled * 5m);
+        receiptProduct.RefundedGiftInNoor.Should().Be(cancelled * 3m);
         receipt.Items.Single(item => item.ItemType == "Course").CancelledQuantity.Should().Be(0);
     }
 
@@ -157,7 +166,7 @@ public sealed class PhysicalDeliveryAndOrderReceiptTests
     {
         var paid = PayMixedCart();
         var snapshot = new CourseOrderSnapshot(
-            [paid.Cart], [], paid.Payment.Purchases, [], []);
+            [paid.Cart], [], paid.Payment.Purchases, [], [], []);
 
         CourseOrderMapping.Build(snapshot).Single().Details.FinancialStatus.Should().Be("RequiresReview");
     }
@@ -206,7 +215,7 @@ public sealed class PhysicalDeliveryAndOrderReceiptTests
         var cart = Cart.Create(Guid.NewGuid(), buyer.Value, "buyer-ext", [
             new CartItemInput("product-1", ProductItemType.Product, 2)
         ], null);
-        var snapshot = new CourseOrderSnapshot([cart], [], [], [], []);
+        var snapshot = new CourseOrderSnapshot([cart], [], [], [], [], []);
 
         var item = CourseOrderMapping.Build(snapshot).Single().Details.Items.Single();
 
@@ -218,7 +227,7 @@ public sealed class PhysicalDeliveryAndOrderReceiptTests
     public void OrderReceiptIsUnavailableUntilOrderIsPaid()
     {
         var paid = PayMixedCart();
-        var snapshot = new CourseOrderSnapshot([paid.Cart], [], paid.Payment.Purchases, [], []);
+        var snapshot = new CourseOrderSnapshot([paid.Cart], [], paid.Payment.Purchases, [], [], []);
         var incomplete = CourseOrderMapping.Build(snapshot).Single().Details;
 
         CourseOrderReceiptMapping.Build(incomplete, snapshot).Should().BeNull();
@@ -285,7 +294,22 @@ public sealed class PhysicalDeliveryAndOrderReceiptTests
         repository.Setup(item => item.GetByIdAsync(physical.Id, It.IsAny<CancellationToken>())).ReturnsAsync(physical);
         repository.Setup(item => item.GetByIdAsync(It.Is<PhysicalProductPurchaseId>(id => id != physical.Id),
             It.IsAny<CancellationToken>())).ReturnsAsync((PhysicalProductPurchase?)null);
-        var handler = new UpdatePhysicalDeliveryStatusCommandHandler(repository.Object, unitOfWork.Object);
+        var deliveryStore = new Mock<IPhysicalDeliveryStore>();
+        var fresh = CreatePhysical(ProductAmount);
+        var knownPurchaseIds = new[] { physical.Id.Value, fresh.Id.Value };
+        deliveryStore
+            .Setup(item => item.FindOwnerAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Guid id, CancellationToken _) =>
+                knownPurchaseIds.Contains(id) ? new PhysicalPurchaseOwner(Guid.NewGuid(), Guid.NewGuid()) : null);
+        deliveryStore
+            .Setup(item => item.ExecuteLockedAsync(
+                It.IsAny<Guid>(),
+                It.IsAny<Guid>(),
+                It.IsAny<Func<Task<PhysicalDeliveryStatusResponse>>>(),
+                It.IsAny<CancellationToken>()))
+            .Returns((Guid _, Guid _, Func<Task<PhysicalDeliveryStatusResponse>> work, CancellationToken _) => work());
+        var handler = new UpdatePhysicalDeliveryStatusCommandHandler(
+            repository.Object, deliveryStore.Object, unitOfWork.Object);
 
         var response = await handler.Handle(
             new UpdatePhysicalDeliveryStatusCommand(physical.Id.Value, "Shipped"), CancellationToken.None);
@@ -303,7 +327,6 @@ public sealed class PhysicalDeliveryAndOrderReceiptTests
             new UpdatePhysicalDeliveryStatusCommand(physical.Id.Value, "Delivered"), CancellationToken.None);
         (await deliver.Should().NotThrowAsync()).Subject.DeliveryStatus.Should().Be("Delivered");
 
-        var fresh = CreatePhysical(ProductAmount);
         repository.Setup(item => item.GetByIdAsync(fresh.Id, It.IsAny<CancellationToken>())).ReturnsAsync(fresh);
         var skip = () => handler.Handle(
             new UpdatePhysicalDeliveryStatusCommand(fresh.Id.Value, "Delivered"), CancellationToken.None);
@@ -314,7 +337,7 @@ public sealed class PhysicalDeliveryAndOrderReceiptTests
     public async Task OrderReceiptHandlerReturnsNotFoundForUnknownOrUnpaidOrder()
     {
         var paid = PayMixedCart();
-        var snapshot = new CourseOrderSnapshot([paid.Cart], [], paid.Payment.Purchases, [], []);
+        var snapshot = new CourseOrderSnapshot([paid.Cart], [], paid.Payment.Purchases, [], [], []);
         var reader = new Mock<ICourseOrderReader>();
         reader.Setup(item => item.ReadAsync(It.IsAny<Guid?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(snapshot);
@@ -348,7 +371,110 @@ public sealed class PhysicalDeliveryAndOrderReceiptTests
     }
 
     private static CourseOrderSnapshot Snapshot(PaidMixedCart paid) => new(
-        [paid.Cart], [], paid.Payment.Purchases, [], paid.Payment.PhysicalPurchases);
+        [paid.Cart], [], paid.Payment.Purchases, [], paid.Payment.PhysicalPurchases, []);
+
+    [Fact]
+    public async Task AdminListShowsZeroRefundForOrderWithoutCancellation()
+    {
+        var paid = PayMixedCart();
+
+        var item = await ReadAdminListItemAsync(paid, []);
+
+        item.RefundedAmountInNoor.Should().Be(0m);
+        item.FinalAmountInNoor.Should().Be(CartTotal);
+    }
+
+    [Fact]
+    public async Task AdminListSumsPartialCancellationsOfBothActors()
+    {
+        var paid = PayMixedCart();
+        var physical = paid.Payment.PhysicalPurchases.Single();
+        var buyerCancellation = Cancel(paid, 1, new PaymentShares(20m, 5m), new PaymentShares(0m, 0m),
+            PhysicalCancellationActor.Buyer);
+        var adminCancellation = Cancel(paid, 1, new PaymentShares(10m, 0m), new PaymentShares(0m, 0m),
+            PhysicalCancellationActor.Admin);
+
+        var item = await ReadAdminListItemAsync(paid, [buyerCancellation, adminCancellation]);
+
+        item.RefundedAmountInNoor.Should().Be(35m);
+        item.FinalAmountInNoor.Should().Be(CartTotal);
+        physical.PaidAmountInNoor.Should().Be(ProductAmount);
+    }
+
+    [Fact]
+    public async Task AdminListCountsFullCancellationAndNeverExceedsFinalAmount()
+    {
+        var paid = PayMixedCart();
+        var full = Cancel(paid, 2, new PaymentShares(ProductAmount, 0m), new PaymentShares(0m, 0m),
+            PhysicalCancellationActor.Buyer);
+
+        var item = await ReadAdminListItemAsync(paid, [full]);
+        item.RefundedAmountInNoor.Should().Be(ProductAmount);
+
+        var excessive = Cancel(paid, 1, new PaymentShares(CartTotal, 50m), new PaymentShares(0m, 0m),
+            PhysicalCancellationActor.Admin);
+        var capped = await ReadAdminListItemAsync(paid, [full, excessive]);
+        capped.RefundedAmountInNoor.Should().Be(CartTotal);
+    }
+
+    [Fact]
+    public async Task AdminListIncludesShippingRefundOfCompletingCancellation()
+    {
+        var paid = PayMixedCart();
+        var completing = Cancel(paid, 2, new PaymentShares(ProductAmount, 0m), new PaymentShares(Shipping - 5m, 5m),
+            PhysicalCancellationActor.Admin);
+
+        var item = await ReadAdminListItemAsync(paid, [completing]);
+
+        item.RefundedAmountInNoor.Should().Be(ProductAmount + Shipping);
+    }
+
+    [Fact]
+    public async Task AdminListDeliveryStatusIsCancelledWhenAllPhysicalQuantityIsCancelled()
+    {
+        var paid = PayMixedCart();
+        paid.Payment.PhysicalPurchases.Single().RecordCancellation(2, new PaymentShares(ProductAmount, 0m));
+
+        var item = await ReadAdminListItemAsync(paid, []);
+
+        item.DeliveryStatus.Should().Be("Cancelled");
+        item.FinancialStatus.Should().Be("Paid");
+    }
+
+    [Fact]
+    public async Task AdminListDeliveryStatusIsKeptForPartialQuantityCancellation()
+    {
+        var paid = PayMixedCart();
+        paid.Payment.PhysicalPurchases.Single().RecordCancellation(1, new PaymentShares(20m, 0m));
+
+        var item = await ReadAdminListItemAsync(paid, []);
+
+        item.DeliveryStatus.Should().Be("Pending");
+    }
+
+    private static async Task<AdminCourseOrderListItem> ReadAdminListItemAsync(
+        PaidMixedCart paid, PhysicalProductCancellation[] cancellations)
+    {
+        var snapshot = new CourseOrderSnapshot(
+            [paid.Cart], [], paid.Payment.Purchases,
+            [new CourseOrderBuyer(paid.Cart.BuyerId.Value, "buyer-ext", null)],
+            paid.Payment.PhysicalPurchases, cancellations);
+        var reader = new Mock<ICourseOrderReader>();
+        reader.Setup(item => item.ReadAsync(null, null, It.IsAny<CancellationToken>())).ReturnsAsync(snapshot);
+        var user = new Mock<ICurrentUserService>();
+        user.SetupGet(item => item.UserId).Returns(Guid.NewGuid());
+
+        var page = await new GetAdminCourseOrdersQueryHandler(reader.Object, user.Object)
+            .Handle(new GetAdminCourseOrdersQuery(new AdminCourseOrderFilter()), default);
+
+        return page.Items.Single();
+    }
+
+    private static PhysicalProductCancellation Cancel(
+        PaidMixedCart paid, int quantity, PaymentShares refund, PaymentShares shippingRefund,
+        PhysicalCancellationActor actor) => PhysicalProductCancellation.Create(
+        Guid.NewGuid(), paid.Payment.PhysicalPurchases.Single(), quantity, refund, shippingRefund,
+        actor, paid.Cart.BuyerId, "reason");
 
     private static PhysicalProductPurchase CreatePhysical(decimal paid) => PhysicalProductPurchase.Create(
         PhysicalProductPurchaseId.New(), Guid.NewGuid(), new UserId(Guid.NewGuid()),

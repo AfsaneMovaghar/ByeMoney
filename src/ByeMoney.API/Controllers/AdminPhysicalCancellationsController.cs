@@ -1,6 +1,7 @@
 using ByeMoney.API.Contracts.Purchases;
 using ByeMoney.Application.Modules.Purchases.Commands.AdminCancelPhysicalPurchase;
 using ByeMoney.Application.Modules.Purchases.PhysicalCancellations.DTOs;
+using ByeMoney.Application.Modules.Purchases.Queries.GetAdminPendingPhysicalRestocks;
 using ByeMoney.Application.Modules.Purchases.Queries.GetAdminPhysicalCancellationPreview;
 using ByeMoney.Domain.Modules.Identity.Constants;
 using MediatR;
@@ -25,6 +26,14 @@ public sealed class AdminPhysicalCancellationsController(ISender sender) : Contr
     {
         var result = await sender.Send(new GetAdminPhysicalCancellationPreviewQuery(purchaseId, quantity), ct);
         return PhysicalCancellationHttp.Respond(this, result);
+    }
+
+    /// <summary>عملیات‌های لغو که برگشت موجودی استرپی‌شان هنوز تأیید نشده است (شامل رهاشده‌های رسیده به سقف تلاش).</summary>
+    [HttpGet("pending-restocks")]
+    [ProducesResponseType(typeof(IReadOnlyList<PendingPhysicalRestockResponse>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<IReadOnlyList<PendingPhysicalRestockResponse>>> PendingRestocks(CancellationToken ct)
+    {
+        return Ok(await sender.Send(new GetAdminPendingPhysicalRestocksQuery(), ct));
     }
 
     [HttpPost("{purchaseId:guid}/cancel")]

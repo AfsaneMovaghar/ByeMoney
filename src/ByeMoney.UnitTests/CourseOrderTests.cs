@@ -222,7 +222,7 @@ public sealed class CourseOrderTests
 
     [Theory]
     [InlineData("3", null, null)]
-    [InlineData(null, "Cancelled", null)]
+    [InlineData(null, "Returned", null)]
     [InlineData(null, null, "cart")]
     public async Task InvalidStatusAndSourceFiltersAreRejected(string? financial, string? delivery, string? source)
     {
@@ -513,7 +513,7 @@ public sealed class CourseOrderTests
         Cart[] carts, TopUpRequest[] topUps, CoursePurchase[] purchases,
         PhysicalProductPurchase[]? physicalPurchases = null) =>
         new(carts, topUps, purchases, [new CourseOrderBuyer(_buyer.Id.Value, _buyer.ExternalUserId, null)],
-            physicalPurchases ?? []);
+            physicalPurchases ?? [], []);
 
     private static CoursePurchaseId LegacyId(TopUpRequest topUp, string course) => new(new Guid(
         SHA256.HashData(Encoding.UTF8.GetBytes($"{topUp.Id.Value:N}:{course}")).AsSpan(0, 16)));

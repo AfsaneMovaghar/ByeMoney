@@ -63,6 +63,6 @@ public static class CourseOrderReceiptMapping
             item.ParentExternalId, item.Quantity, item.PriceInNoor, baseAmount, baseAmount - finalAmount,
             finalAmount, course?.Snapshot.ReferenceRialPerNoorAtPurchaseTime, item.DeliveryStatus,
             item.PhysicalDeliveryStatus, item.PurchasedAtUtc ?? orderCreatedAtUtc, deliveredAt,
-            item.CancelledQuantity);
+            item.CancelledQuantity, item.RefundedRegularInNoor, item.RefundedGiftInNoor);
     }
 }

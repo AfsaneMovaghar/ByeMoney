@@ -245,7 +245,8 @@ public static class CourseOrderMapping
             quote?.PriceInNoor ?? physical.UnitPriceInNoor, physical.PaidAmountInNoor,
             physical.Id.Value, physical.LedgerTransactionId, physical.CreatedAtUtc,
             status.ToString(), delivery.ToString(), nameof(ProductItemType.Product), null,
-            physical.Quantity, physical.DeliveryStatus.ToString(), physical.CancelledQuantity);
+            physical.Quantity, physical.DeliveryStatus.ToString(), physical.CancelledQuantity,
+            physical.RefundedRegularInNoor, physical.RefundedGiftInNoor);
     }
 
     private static bool CompletePurchases(
@@ -273,6 +274,11 @@ public static class CourseOrderMapping
 
     private static CourseOrderDeliveryStatus Delivery(IReadOnlyList<CourseOrderItem> items)
     {
+        if (AllPhysicalItemsCancelled(items))
+        {
+            return CourseOrderDeliveryStatus.Cancelled;
+        }
+
         var delivered = items.Count(item => item.DeliveryStatus == CourseOrderDeliveryStatus.Delivered.ToString());
         if (items.Count > 0 && delivered == items.Count)
         {
@@ -286,6 +292,21 @@ public static class CourseOrderMapping
             ? CourseOrderDeliveryStatus.Pending : CourseOrderDeliveryStatus.NotStarted;
     }
 
+
+    /// <summary>
+    /// Cancelled فقط وضعیت بخش کالا را نشان می‌دهد: سفارش بدون کالای پرداخت‌شده هرگز Cancelled نیست
+    /// و لغو جزئی (بخشی از اقلام یا تعداد) وضعیت قبلی را حفظ می‌کند.
+    /// </summary>
+    private static bool AllPhysicalItemsCancelled(IReadOnlyList<CourseOrderItem> items)
+    {
+        var physicalItems = items
+            .Where(item => item.ItemType == nameof(ProductItemType.Product))
+            .ToArray();
+
+        return physicalItems.Length > 0 && physicalItems.All(item =>
+            item.FinancialStatus == CourseOrderFinancialStatus.Paid.ToString() &&
+            item.CancelledQuantity >= item.Quantity);
+    }
 
     private static DateTime PurchaseUpdatedAt(CoursePurchase purchase) => new[]
     {

@@ -1,3 +1,4 @@
+using ByeMoney.Application.Modules.Purchases.Carts.Constants;
 using ByeMoney.Application.Modules.Purchases.PhysicalCancellations.Constants;
 using ByeMoney.Application.Modules.Purchases.PhysicalCancellations.DTOs;
 using ByeMoney.Application.Modules.Purchases.PhysicalCancellations.Interfaces;
@@ -83,10 +84,11 @@ public sealed class PhysicalCancellationStore(ApplicationDbContext db) : IPhysic
         return new PhysicalRestockRequest(rows[0].ReservationId, operationId, items);
     }
 
-    public async Task<IReadOnlyList<Guid>> GetPendingRestockOperationsAsync(int limit, CancellationToken ct) =>
+    public async Task<IReadOnlyList<Guid>> GetPendingRestockOperationsAsync(
+        int limit, int maxAttempts, CancellationToken ct) =>
         await db.Set<PhysicalProductCancellation>()
             .AsNoTracking()
-            .Where(x => x.StockReturnedAtUtc == null)
+            .Where(x => x.StockReturnedAtUtc == null && x.StockReturnAttempts < maxAttempts)
             .GroupBy(x => x.OperationId)
             .Select(g => new { OperationId = g.Key, CreatedAtUtc = g.Min(x => x.CreatedAtUtc) })
             .OrderBy(x => x.CreatedAtUtc)
@@ -108,12 +110,33 @@ public sealed class PhysicalCancellationStore(ApplicationDbContext db) : IPhysic
     public Task RecordStockReturnFailureAsync(Guid operationId, string? errorCode, CancellationToken ct)
     {
         var now = DateTime.UtcNow;
+        // قطعی موقت استرپی (شبکه یا 5xx) از سقف تلاش کم نمی‌کند؛ فقط خطای دائمی شمرده می‌شود.
+        var increment = errorCode == CartErrorCodes.Unavailable ? 0 : 1;
         return db.Set<PhysicalProductCancellation>()
             .Where(x => x.OperationId == operationId && x.StockReturnedAtUtc == null)
             .ExecuteUpdateAsync(s => s
                 .SetProperty(x => x.StockReturnErrorCode, errorCode)
+                .SetProperty(x => x.StockReturnAttempts, x => x.StockReturnAttempts + increment)
                 .SetProperty(x => x.UpdatedAt, now), ct);
     }
+
+    public async Task<IReadOnlyList<PendingRestockRow>> GetUnfinishedRestocksAsync(int limit, CancellationToken ct) =>
+        await db.Set<PhysicalProductCancellation>()
+            .AsNoTracking()
+            .Where(x => x.StockReturnedAtUtc == null)
+            .OrderBy(x => x.CreatedAtUtc)
+            .ThenBy(x => x.PurchaseId)
+            .Take(limit)
+            .Select(x => new PendingRestockRow(
+                x.OperationId,
+                x.CartId,
+                x.PurchaseId.Value,
+                x.Quantity,
+                x.StockReturnAttempts,
+                x.StockReturnErrorCode,
+                x.CreatedAtUtc,
+                x.UpdatedAt))
+            .ToListAsync(ct);
 
     public async Task<Result<T>> ExecuteAsync<T>(
         Guid buyerId, Guid cartId, Func<Task<Result<T>>> work, CancellationToken ct)

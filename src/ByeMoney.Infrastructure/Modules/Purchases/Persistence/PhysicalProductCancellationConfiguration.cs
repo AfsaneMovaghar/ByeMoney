@@ -74,6 +74,7 @@ public class PhysicalProductCancellationConfiguration : IEntityTypeConfiguration
         builder.Property(x => x.Reason).HasMaxLength(500).IsRequired();
         builder.Property(x => x.StockReturnedAtUtc);
         builder.Property(x => x.StockReturnErrorCode).HasMaxLength(50);
+        builder.Property(x => x.StockReturnAttempts).HasDefaultValue(0).IsRequired();
         builder.Property(x => x.CreatedAtUtc).IsRequired();
         builder.Property(x => x.UpdatedAt);
     }

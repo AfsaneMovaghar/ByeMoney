@@ -28,12 +28,18 @@ public interface IPhysicalCancellationStore
     /// <summary>درخواست برگشت موجودی عملیات، اگر هنوز تأیید نشده باشد؛ در غیر این صورت null.</summary>
     Task<PhysicalRestockRequest?> FindPendingRestockAsync(Guid operationId, CancellationToken ct);
 
-    /// <summary>شناسهٔ عملیات‌های لغو که برگشت موجودی‌شان هنوز تأیید نشده است، قدیمی‌ترین اول.</summary>
-    Task<IReadOnlyList<Guid>> GetPendingRestockOperationsAsync(int limit, CancellationToken ct);
+    /// <summary>
+    /// شناسهٔ عملیات‌های لغو که برگشت موجودی‌شان تأیید نشده و تلاش‌هایشان به سقف نرسیده است، قدیمی‌ترین اول.
+    /// </summary>
+    Task<IReadOnlyList<Guid>> GetPendingRestockOperationsAsync(int limit, int maxAttempts, CancellationToken ct);
 
     Task MarkStockReturnedAsync(Guid operationId, CancellationToken ct);
 
+    /// <summary>کد خطا را ثبت و شمارندهٔ تلاش‌های ناموفق عملیات را یکی زیاد می‌کند.</summary>
     Task RecordStockReturnFailureAsync(Guid operationId, string? errorCode, CancellationToken ct);
+
+    /// <summary>سطرهای برگشت موجودی تأییدنشده (شامل رهاشده‌ها)، قدیمی‌ترین اول، برای فهرست ادمین.</summary>
+    Task<IReadOnlyList<PendingRestockRow>> GetUnfinishedRestocksAsync(int limit, CancellationToken ct);
 
     /// <summary>
     /// اجرای کار در یک تراکنش محلی زیر قفل خریدار و سبد (همان قفل‌های پرداخت سبد). نتیجهٔ ناموفق یا تعارض

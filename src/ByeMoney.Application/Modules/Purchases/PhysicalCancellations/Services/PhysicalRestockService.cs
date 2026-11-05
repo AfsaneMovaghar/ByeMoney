@@ -1,3 +1,4 @@
+using ByeMoney.Application.Modules.Purchases.PhysicalCancellations.DTOs;
 using ByeMoney.Application.Modules.Purchases.PhysicalCancellations.Interfaces;
 
 namespace ByeMoney.Application.Modules.Purchases.PhysicalCancellations.Services;
@@ -9,7 +10,8 @@ namespace ByeMoney.Application.Modules.Purchases.PhysicalCancellations.Services;
 /// </summary>
 public sealed class PhysicalRestockService(
     IPhysicalCancellationStore store,
-    IPhysicalStockClient stock)
+    IPhysicalStockClient stock,
+    PhysicalRestockSettings settings)
 {
     public async Task RestockAsync(Guid operationId, CancellationToken ct)
     {
@@ -31,7 +33,7 @@ public sealed class PhysicalRestockService(
 
     public async Task RetryPendingAsync(int batchSize, CancellationToken ct)
     {
-        var operations = await store.GetPendingRestockOperationsAsync(batchSize, ct);
+        var operations = await store.GetPendingRestockOperationsAsync(batchSize, settings.MaxAttempts, ct);
         foreach (var operationId in operations)
         {
             await RestockAsync(operationId, ct);

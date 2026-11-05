@@ -469,6 +469,11 @@ namespace ByeMoney.Infrastructure.Migrations
                         .HasPrecision(18, 4)
                         .HasColumnType("numeric(18,4)");
 
+                    b.Property<int>("StockReturnAttempts")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0);
+
                     b.Property<string>("StockReturnErrorCode")
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
