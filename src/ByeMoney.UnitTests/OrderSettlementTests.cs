@@ -274,7 +274,7 @@ public sealed class OrderSettlementTests
         new(
             "cart:" + Guid.NewGuid(), nameof(CourseOrderSourceType.Cart), Guid.NewGuid(),
             DateTime.UtcNow, DateTime.UtcNow, financialStatus, nameof(CourseOrderDeliveryStatus.Pending),
-            finalAmount, items.Length, null, null, null, null, items, []);
+            finalAmount, items.Length, null, null, null, null, items, [], null);
 
     private static CourseOrderItem CourseItem() =>
         new("course", "Course", 100m, 100m, Guid.NewGuid(), Guid.NewGuid(), DateTime.UtcNow,

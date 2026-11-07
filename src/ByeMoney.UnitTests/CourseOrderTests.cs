@@ -148,6 +148,32 @@ public sealed class CourseOrderTests
     }
 
     [Fact]
+    public void ReservationIdIsExposedOnlyForPaidCartAndFollowsReopenedReservation()
+    {
+        var cart = QuotedCart();
+        Map([cart]).Single().Details.ReservationId.Should().BeNull();
+        cart.Fail();
+        cart.RecordSynchronization(true, null);
+        cart.Reopen();
+        Quote(cart);
+        Map([cart]).Single().Details.ReservationId.Should().BeNull();
+        cart.MarkPaid();
+        var order = Map([cart], purchases: [Purchase("a", 0, cart), Purchase("b", 30, cart)]).Single().Details;
+        order.ReservationId.Should().Be(cart.ReservationId);
+        order.ReservationId.Should().NotBe(cart.Id);
+        order.CartId.Should().Be(cart.Id);
+    }
+
+    [Fact]
+    public void NonCartOrdersHaveNoReservationId()
+    {
+        var topUp = TopUp([new PendingItemSnapshot(PendingItemType.Course, "legacy", 20)]);
+        var rows = Map(topUps: [topUp], purchases: [Purchase("standalone", 20)]);
+        rows.Should().HaveCount(2);
+        rows.Should().OnlyContain(row => row.Details.ReservationId == null);
+    }
+
+    [Fact]
     public void LegacyTopUpGroupsOnlyDeterministicOwnedPurchasesAndKeepsStableId()
     {
         var topUp = TopUp([new PendingItemSnapshot(PendingItemType.Course, "legacy", 20)]);

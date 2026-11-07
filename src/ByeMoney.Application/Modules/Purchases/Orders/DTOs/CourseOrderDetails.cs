@@ -7,7 +7,7 @@ public sealed record CourseOrderDetails(
     string FinancialStatus, string DeliveryStatus, decimal? FinalAmountInNoor, int ItemCount,
     string? CartStatus, DateTime? ExpiresAtUtc, Guid? CurrentTopUpRequestId,
     PurchaseCartSummary? CartSummary, IReadOnlyList<CourseOrderItem> Items,
-    IReadOnlyList<CourseOrderTopUp> TopUps)
+    IReadOnlyList<CourseOrderTopUp> TopUps, Guid? ReservationId)
 {
     public CourseOrderListItem ToListItem() => new(
         OrderId, SourceType, CartId, CreatedAtUtc, UpdatedAtUtc, FinancialStatus,

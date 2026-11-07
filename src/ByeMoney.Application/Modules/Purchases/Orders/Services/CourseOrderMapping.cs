@@ -69,7 +69,7 @@ public static class CourseOrderMapping
                 CourseOrderId.For(CourseOrderSourceType.Purchase, purchase.Id.Value),
                 CourseOrderSourceType.Purchase.ToString(), purchase.CartId, purchase.CreatedAtUtc,
                 PurchaseUpdatedAt(purchase), status.ToString(), Delivery([item]).ToString(),
-                purchase.Snapshot.PriceInNoorAtPurchaseTime, 1, null, null, null, null, [item], [])));
+                purchase.Snapshot.PriceInNoorAtPurchaseTime, 1, null, null, null, null, [item], [], null)));
         }
 
         foreach (var physical in snapshot.PhysicalPurchases
@@ -80,7 +80,7 @@ public static class CourseOrderMapping
                 CourseOrderId.For(CourseOrderSourceType.Purchase, physical.Id.Value),
                 CourseOrderSourceType.Purchase.ToString(), physical.CartId, physical.CreatedAtUtc,
                 PhysicalPurchaseUpdatedAt(physical), CourseOrderFinancialStatus.RequiresReview.ToString(),
-                Delivery([item]).ToString(), physical.PaidAmountInNoor, 1, null, null, null, null, [item], [])));
+                Delivery([item]).ToString(), physical.PaidAmountInNoor, 1, null, null, null, null, [item], [], null)));
         }
 
         return rows;
@@ -131,8 +131,13 @@ public static class CourseOrderMapping
             CourseOrderId.For(CourseOrderSourceType.Cart, cart.Id), CourseOrderSourceType.Cart.ToString(),
             cart.Id, cart.CreatedAtUtc, UpdatedAt(cart.UpdatedAtUtc, purchases, physicalPurchases, topUps),
             status.ToString(), Delivery(items).ToString(), summary?.FinalAmountInNoor, expectedKeys.Length,
-            cart.Status.ToString(), cart.ExpiresAtUtc, cart.TopUpRequestId, summary, items, MapTopUps(topUps));
+            cart.Status.ToString(), cart.ExpiresAtUtc, cart.TopUpRequestId, summary, items, MapTopUps(topUps),
+            CommittedReservationId(cart));
     }
+
+    // A paid cart can no longer be reopened, so its current reservation is the one committed to Strapi.
+    private static Guid? CommittedReservationId(Cart cart) =>
+        cart.Status == CartStatus.Paid ? cart.ReservationId : null;
 
     private static OrderItemKey KeyOf(CoursePurchase purchase) =>
         new(purchase.Snapshot.ExternalProductId, purchase.Snapshot.ItemType);
@@ -212,7 +217,7 @@ public static class CourseOrderMapping
             CourseOrderSourceType.TopUpCheckout.ToString(), null, topUp.CreatedAtUtc,
             UpdatedAt(topUp.UpdatedAt ?? topUp.CreatedAtUtc, purchases, [], [topUp]),
             status.ToString(), Delivery(items).ToString(), items.Sum(item => item.FinalAmountInNoor),
-            items.Length, null, null, topUp.Id.Value, null, items, MapTopUps([topUp]));
+            items.Length, null, null, topUp.Id.Value, null, items, MapTopUps([topUp]), null);
     }
 
     private static CourseOrderItem MapItem(
