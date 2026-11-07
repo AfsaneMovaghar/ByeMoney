@@ -17,7 +17,12 @@ public class OrderSettlementPeriod : BaseEntity<OrderSettlementPeriodId>
     public string? Title { get; private set; }
     public string? Note { get; private set; }
     public int OrderCount { get; private set; }
+    public decimal TotalRegularNetAmountInNoor { get; private set; }
+    public decimal TotalGiftNetAmountInNoor { get; private set; }
+
+    /// <summary>جمع کل نور خالص دوره؛ همیشه برابر جمع سهم عادی به‌علاوهٔ جمع سهم هدیه.</summary>
     public decimal TotalNetAmountInNoor { get; private set; }
+
     public UserId ClosedByUserId { get; private set; }
     public IReadOnlyCollection<OrderSettlementItem> Items => _items;
 
@@ -50,6 +55,8 @@ public class OrderSettlementPeriod : BaseEntity<OrderSettlementPeriodId>
             Title = Normalize(title),
             Note = Normalize(note),
             OrderCount = items.Count,
+            TotalRegularNetAmountInNoor = items.Sum(item => item.RegularNetAmountInNoor),
+            TotalGiftNetAmountInNoor = items.Sum(item => item.GiftNetAmountInNoor),
             TotalNetAmountInNoor = items.Sum(item => item.NetAmountInNoor),
             ClosedByUserId = closedByUserId
         };

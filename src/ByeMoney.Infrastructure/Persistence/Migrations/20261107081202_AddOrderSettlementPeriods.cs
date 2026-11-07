@@ -19,6 +19,8 @@ namespace ByeMoney.Infrastructure.Persistence.Migrations
                     Title = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: true),
                     Note = table.Column<string>(type: "character varying(1000)", maxLength: 1000, nullable: true),
                     OrderCount = table.Column<int>(type: "integer", nullable: false),
+                    TotalRegularNetAmountInNoor = table.Column<decimal>(type: "numeric(18,4)", precision: 18, scale: 4, nullable: false),
+                    TotalGiftNetAmountInNoor = table.Column<decimal>(type: "numeric(18,4)", precision: 18, scale: 4, nullable: false),
                     TotalNetAmountInNoor = table.Column<decimal>(type: "numeric(18,4)", precision: 18, scale: 4, nullable: false),
                     ClosedByUserId = table.Column<Guid>(type: "uuid", nullable: false),
                     CreatedAtUtc = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
@@ -27,8 +29,8 @@ namespace ByeMoney.Infrastructure.Persistence.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_OrderSettlementPeriods", x => x.Id);
+                    table.CheckConstraint("CK_OrderSettlementPeriods_NetShares", "\"TotalRegularNetAmountInNoor\" >= 0 AND \"TotalGiftNetAmountInNoor\" >= 0 AND \"TotalNetAmountInNoor\" = \"TotalRegularNetAmountInNoor\" + \"TotalGiftNetAmountInNoor\"");
                     table.CheckConstraint("CK_OrderSettlementPeriods_OrderCount", "\"OrderCount\" >= 1");
-                    table.CheckConstraint("CK_OrderSettlementPeriods_TotalNetAmount", "\"TotalNetAmountInNoor\" >= 0");
                     table.ForeignKey(
                         name: "FK_OrderSettlementPeriods_Users_ClosedByUserId",
                         column: x => x.ClosedByUserId,
@@ -46,12 +48,14 @@ namespace ByeMoney.Infrastructure.Persistence.Migrations
                     SourceType = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false),
                     BuyerExternalUserId = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
                     OrderCreatedAtUtc = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    RegularNetAmountInNoor = table.Column<decimal>(type: "numeric(18,4)", precision: 18, scale: 4, nullable: false),
+                    GiftNetAmountInNoor = table.Column<decimal>(type: "numeric(18,4)", precision: 18, scale: 4, nullable: false),
                     NetAmountInNoor = table.Column<decimal>(type: "numeric(18,4)", precision: 18, scale: 4, nullable: false)
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_OrderSettlementItems", x => x.OrderId);
-                    table.CheckConstraint("CK_OrderSettlementItems_NetAmount", "\"NetAmountInNoor\" >= 0");
+                    table.CheckConstraint("CK_OrderSettlementItems_NetShares", "\"RegularNetAmountInNoor\" >= 0 AND \"GiftNetAmountInNoor\" >= 0 AND \"NetAmountInNoor\" = \"RegularNetAmountInNoor\" + \"GiftNetAmountInNoor\"");
                     table.ForeignKey(
                         name: "FK_OrderSettlementItems_OrderSettlementPeriods_PeriodId",
                         column: x => x.PeriodId,

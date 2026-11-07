@@ -444,6 +444,10 @@ namespace ByeMoney.Infrastructure.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
+                    b.Property<decimal>("GiftNetAmountInNoor")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)");
+
                     b.Property<decimal>("NetAmountInNoor")
                         .HasPrecision(18, 4)
                         .HasColumnType("numeric(18,4)");
@@ -453,6 +457,10 @@ namespace ByeMoney.Infrastructure.Migrations
 
                     b.Property<Guid>("PeriodId")
                         .HasColumnType("uuid");
+
+                    b.Property<decimal>("RegularNetAmountInNoor")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)");
 
                     b.Property<string>("SourceType")
                         .IsRequired()
@@ -466,7 +474,7 @@ namespace ByeMoney.Infrastructure.Migrations
 
                     b.ToTable("OrderSettlementItems", null, t =>
                         {
-                            t.HasCheckConstraint("CK_OrderSettlementItems_NetAmount", "\"NetAmountInNoor\" >= 0");
+                            t.HasCheckConstraint("CK_OrderSettlementItems_NetShares", "\"RegularNetAmountInNoor\" >= 0 AND \"GiftNetAmountInNoor\" >= 0 AND \"NetAmountInNoor\" = \"RegularNetAmountInNoor\" + \"GiftNetAmountInNoor\"");
                         });
                 });
 
@@ -492,7 +500,15 @@ namespace ByeMoney.Infrastructure.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
 
+                    b.Property<decimal>("TotalGiftNetAmountInNoor")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)");
+
                     b.Property<decimal>("TotalNetAmountInNoor")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)");
+
+                    b.Property<decimal>("TotalRegularNetAmountInNoor")
                         .HasPrecision(18, 4)
                         .HasColumnType("numeric(18,4)");
 
@@ -507,9 +523,9 @@ namespace ByeMoney.Infrastructure.Migrations
 
                     b.ToTable("OrderSettlementPeriods", null, t =>
                         {
-                            t.HasCheckConstraint("CK_OrderSettlementPeriods_OrderCount", "\"OrderCount\" >= 1");
+                            t.HasCheckConstraint("CK_OrderSettlementPeriods_NetShares", "\"TotalRegularNetAmountInNoor\" >= 0 AND \"TotalGiftNetAmountInNoor\" >= 0 AND \"TotalNetAmountInNoor\" = \"TotalRegularNetAmountInNoor\" + \"TotalGiftNetAmountInNoor\"");
 
-                            t.HasCheckConstraint("CK_OrderSettlementPeriods_TotalNetAmount", "\"TotalNetAmountInNoor\" >= 0");
+                            t.HasCheckConstraint("CK_OrderSettlementPeriods_OrderCount", "\"OrderCount\" >= 1");
                         });
                 });
 

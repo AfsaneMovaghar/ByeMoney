@@ -686,14 +686,14 @@ Legacy فقط گزارش: `GET /api/integrations/byemoney/v1/legacy-sales` در 
 
 | مسیر | مجوز | ورودی | پاسخ |
 |---|---|---|---|
-| `GET /api/admin/course-order-settlements/preview` | `Purchases.View` | `page` (پیش‌فرض ۱)، `pageSize` (۱ تا ۱۰۰، پیش‌فرض ۲۰) | `{orderCount,totalNetAmountInNoor,previewToken,orders:{items[],page,pageSize,totalCount}}`. سفارش‌های قابل تسویهٔ تسویه‌نشده، قدیمی‌ترین اول. `orderCount`، `totalNetAmountInNoor` و `previewToken` روی کل فهرست‌اند، نه فقط همین صفحه. `previewToken` رشتهٔ ۶۴ نویسه‌ای hex و اثر انگشت شناسه و مبلغ خالص همهٔ سفارش‌هاست؛ فرانت آن را تفسیر نمی‌کند |
+| `GET /api/admin/course-order-settlements/preview` | `Purchases.View` | `page` (پیش‌فرض ۱)، `pageSize` (۱ تا ۱۰۰، پیش‌فرض ۲۰) | `{orderCount,totalRegularNetAmountInNoor,totalGiftNetAmountInNoor,totalNetAmountInNoor,previewToken,orders:{items[],page,pageSize,totalCount}}`. سفارش‌های قابل تسویهٔ تسویه‌نشده، قدیمی‌ترین اول. تعداد، سه جمع و `previewToken` روی کل فهرست‌اند، نه فقط همین صفحه. `previewToken` رشتهٔ ۶۴ نویسه‌ای hex و اثر انگشت شناسه و مبلغ خالص همهٔ سفارش‌هاست؛ فرانت آن را تفسیر نمی‌کند |
 | `POST /api/admin/course-order-settlements` | `Purchases.Settle` | `{title?,note?,previewToken}`. عنوان حداکثر ۲۰۰ و یادداشت حداکثر ۱۰۰۰ نویسه است؛ `previewToken` همان مقدار پیش‌نمایشی است که ادمین تأیید کرده | `201` با DTO دوره. خطاهای `409` به شکل `{code,error}`: `SETTLEMENT_EMPTY` (سفارش قابل تسویه‌ای نیست)، `SETTLEMENT_PREVIEW_CHANGED` (فهرست لحظهٔ بستن با پیش‌نمایش یکی نیست، حتی اگر تعداد و جمع یکی باشد)، `SETTLEMENT_ALREADY_SETTLED` (بستن هم‌زمان ادمین دیگر). در هر سه حالت فرانت باید پیش‌نمایش را دوباره بگیرد. ورودی نامعتبر `400` است |
 | `GET /api/admin/course-order-settlements` | `Purchases.View` | `page`، `pageSize` | `{items[],page,pageSize,totalCount}` با جدیدترین دوره اول |
 | `GET /api/admin/course-order-settlements/{periodId}/orders` | `Purchases.View` | `page`، `pageSize` | `{items[],page,pageSize,totalCount}` با Snapshot لحظهٔ بستن. دورهٔ ناموجود `404` است |
 
-- **DTO دوره:** `periodId,title,note,orderCount,totalNetAmountInNoor,closedByExternalUserId,closedAtUtc`. `closedByExternalUserId` همان `documentId` ادمین بستن‌کننده (I02) است.
-- **DTO سفارش (پیش‌نمایش و دوره):** `orderId,sourceType,buyerExternalUserId,orderCreatedAtUtc,netAmountInNoor`. جزئیات زندهٔ سفارش از `GET /api/admin/course-orders/{orderId}` خوانده می‌شود.
-- **مبلغ خالص:** `finalAmountInNoor` منهای `refundedAmountInNoor` (همان تعریف I11-T).
+- **DTO دوره:** `periodId,title,note,orderCount,totalRegularNetAmountInNoor,totalGiftNetAmountInNoor,totalNetAmountInNoor,closedByExternalUserId,closedAtUtc`. `closedByExternalUserId` همان `documentId` ادمین بستن‌کننده (I02) است.
+- **DTO سفارش (پیش‌نمایش و دوره):** `orderId,sourceType,buyerExternalUserId,orderCreatedAtUtc,regularNetAmountInNoor,giftNetAmountInNoor,netAmountInNoor`. جزئیات زندهٔ سفارش از `GET /api/admin/course-orders/{orderId}` خوانده می‌شود.
+- **مبلغ خالص:** `netAmountInNoor` (جمع کل) برابر `finalAmountInNoor` منهای `refundedAmountInNoor` (همان تعریف I11-T) و همیشه برابر `regularNetAmountInNoor + giftNetAmountInNoor` است. نور هدیه پشتوانهٔ ریالی ندارد؛ کدام عدد مبنای انتقال دستی باشد با ادمین است (D10).
 - **یکتایی:** هر `orderId` کلید اصلی جدول سفارش‌های تسویه‌شده است. بستن هم‌زمان دو ادمین فقط یک دوره می‌سازد و درخواست دوم بدون ثبت هیچ ردیفی `409` می‌گیرد. دورهٔ بسته‌شده ویرایش یا حذف نمی‌شود.
 
 ## I12 — انتقال و مسیرهای ممنوع

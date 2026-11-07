@@ -174,7 +174,7 @@ public sealed class OrderSettlementTests
     {
         var fixture = new HandlerFixture();
         var settledOrderId = fixture.AddPaidCoursePurchase("course-a", 30m);
-        var openOrderId = fixture.AddPaidCoursePurchase("course-b", 20m);
+        var openOrderId = fixture.AddPaidCoursePurchase("course-b", 20m, giftShare: 5m);
         fixture.SettledOrderIds.Add(settledOrderId);
 
         var result = await fixture.CloseAsync(await fixture.PreviewTokenAsync());
@@ -182,6 +182,8 @@ public sealed class OrderSettlementTests
         result.IsSuccess.Should().BeTrue();
         fixture.SavedPeriod!.Items.Select(item => item.OrderId).Should().Equal(openOrderId);
         fixture.SavedPeriod.OrderCount.Should().Be(1);
+        fixture.SavedPeriod.TotalRegularNetAmountInNoor.Should().Be(15m);
+        fixture.SavedPeriod.TotalGiftNetAmountInNoor.Should().Be(5m);
         fixture.SavedPeriod.TotalNetAmountInNoor.Should().Be(20m);
         fixture.SavedPeriod.ClosedByUserId.Should().Be(new UserId(fixture.AdminId));
     }
@@ -199,9 +201,10 @@ public sealed class OrderSettlementTests
     }
 
     [Fact]
-    public async Task Candidates_NetAmountSubtractsRealCancellationRefund()
+    public async Task Candidates_SplitNetAmountIntoRegularAndGiftAfterRefund()
     {
-        // سبد: کتاب ۲×۵۰ (ارسال‌شده)، خودکار ۱×۲۰ (پیش از ارسال لغو و ۲۰ نور برگشت شد)، ارسال ۱۰.
+        // سبد: کتاب ۲×۵۰ (۸۰ عادی، ۲۰ هدیه؛ ارسال‌شده)، خودکار ۱×۲۰ (۱۵ عادی، ۵ هدیه؛ پیش از ارسال لغو و کامل برگشت شد)،
+        // ارسال ۱۰ نور عادی از Ledger سبد.
         var fixture = new HandlerFixture();
         var cartOrderId = fixture.AddPaidPhysicalCartWithCancelledPen();
 
@@ -209,15 +212,29 @@ public sealed class OrderSettlementTests
 
         var order = orders.Single();
         order.OrderId.Should().Be(cartOrderId);
+        order.RegularNetAmountInNoor.Should().Be(90m);
+        order.GiftNetAmountInNoor.Should().Be(20m);
         order.NetAmountInNoor.Should().Be(110m);
+    }
+
+    [Fact]
+    public async Task Candidates_ExcludeOrderWithoutRecordedPaymentShares()
+    {
+        var fixture = new HandlerFixture();
+        fixture.AddPaidCoursePurchase("legacy-course", 30m, recordShares: false);
+
+        var orders = await fixture.CandidatesAsync();
+
+        orders.Should().BeEmpty();
     }
 
     [Fact]
     public void ClosePeriod_RejectsEmptyAndDuplicateOrders()
     {
         var admin = new UserId(Guid.NewGuid());
-        var item = OrderSettlementItem.Create("purchase:" + Guid.NewGuid(), "Purchase", "buyer", DateTime.UtcNow, 10m);
-        var duplicate = OrderSettlementItem.Create(item.OrderId, "Purchase", "buyer", DateTime.UtcNow, 10m);
+        var shares = new PaymentShares(10m, 0m);
+        var item = OrderSettlementItem.Create("purchase:" + Guid.NewGuid(), "Purchase", "buyer", DateTime.UtcNow, shares);
+        var duplicate = OrderSettlementItem.Create(item.OrderId, "Purchase", "buyer", DateTime.UtcNow, shares);
 
         var empty = () => OrderSettlementPeriod.Close(admin, null, null, []);
         var repeated = () => OrderSettlementPeriod.Close(admin, null, null, [item, duplicate]);
@@ -243,14 +260,14 @@ public sealed class OrderSettlementTests
     [Fact]
     public void PreviewToken_DependsOnOrderIdsAndAmounts()
     {
-        var x = new SettlementOrderResponse("purchase:x", "Purchase", "buyer", DateTime.UtcNow, 40m);
+        var x = new SettlementOrderResponse("purchase:x", "Purchase", "buyer", DateTime.UtcNow, 30m, 10m, 40m);
         var y = x with { OrderId = "purchase:y" };
+        var resplit = x with { RegularNetAmountInNoor = 35m, GiftNetAmountInNoor = 5m };
 
         OrderSettlementPreviewToken.Compute([x]).Should().HaveLength(OrderSettlementPreviewToken.Length);
         OrderSettlementPreviewToken.Compute([x]).Should().Be(OrderSettlementPreviewToken.Compute([x with { }]));
         OrderSettlementPreviewToken.Compute([x]).Should().NotBe(OrderSettlementPreviewToken.Compute([y]));
-        OrderSettlementPreviewToken.Compute([x]).Should().NotBe(
-            OrderSettlementPreviewToken.Compute([x with { NetAmountInNoor = 41m }]));
+        OrderSettlementPreviewToken.Compute([x]).Should().NotBe(OrderSettlementPreviewToken.Compute([resplit]));
     }
 
     private static CourseOrderDetails Order(string financialStatus, decimal? finalAmount, params CourseOrderItem[] items) =>
@@ -290,6 +307,9 @@ public sealed class OrderSettlementTests
                 .Setup(x => x.GetSettledOrderIdsAsync(It.IsAny<CancellationToken>()))
                 .ReturnsAsync(() => SettledOrderIds);
             Store
+                .Setup(x => x.GetShippingPaymentsAsync(It.IsAny<IReadOnlyCollection<Guid>>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(() => ShippingByCart);
+            Store
                 .Setup(x => x.TryAddAsync(It.IsAny<OrderSettlementPeriod>(), It.IsAny<CancellationToken>()))
                 .Callback<OrderSettlementPeriod, CancellationToken>((period, _) => SavedPeriod = period)
                 .ReturnsAsync(() => AcceptSave);
@@ -297,6 +317,7 @@ public sealed class OrderSettlementTests
                 .Setup(x => x.FindPeriodAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync((Guid id, CancellationToken _) => new OrderSettlementPeriodResponse(
                     id, SavedPeriod!.Title, SavedPeriod.Note, SavedPeriod.OrderCount,
+                    SavedPeriod.TotalRegularNetAmountInNoor, SavedPeriod.TotalGiftNetAmountInNoor,
                     SavedPeriod.TotalNetAmountInNoor, "admin-document", SavedPeriod.CreatedAtUtc));
 
             var currentUser = new Mock<ICurrentUserService>();
@@ -309,14 +330,21 @@ public sealed class OrderSettlementTests
         public Guid AdminId { get; } = Guid.NewGuid();
         public Mock<IOrderSettlementStore> Store { get; } = new();
         public HashSet<string> SettledOrderIds { get; } = new(StringComparer.Ordinal);
+        public Dictionary<Guid, PaymentShares> ShippingByCart { get; } = [];
         public bool AcceptSave { get; init; } = true;
         public OrderSettlementPeriod? SavedPeriod { get; private set; }
         private CloseOrderSettlementPeriodCommandHandler Handler { get; }
 
-        public string AddPaidCoursePurchase(string externalId, decimal price)
+        public string AddPaidCoursePurchase(
+            string externalId, decimal price, decimal giftShare = 0m, bool recordShares = true)
         {
             var purchase = CoursePurchase.Create(new UserId(_buyer.Id), ProductSnapshot.Create(externalId, externalId, price));
             purchase.MarkDebited(Guid.NewGuid());
+            if (recordShares)
+            {
+                purchase.RecordPaymentShares(new PaymentShares(price - giftShare, giftShare));
+            }
+
             _purchases.Add(purchase);
             return "purchase:" + purchase.Id.Value.ToString("D");
         }
@@ -337,6 +365,7 @@ public sealed class OrderSettlementTests
             var book = PhysicalProductPurchase.Create(
                 PhysicalProductPurchaseId.New(), cart.Id, buyerId, "book", "Book", 2, 50, 100);
             book.MarkDebited(cart.Id);
+            book.RecordPaymentShares(new PaymentShares(80m, 20m));
             book.MarkShipped();
 
             var pen = PhysicalProductPurchase.Create(
@@ -350,6 +379,7 @@ public sealed class OrderSettlementTests
                 PhysicalCancellationActor.Admin, new UserId(AdminId), "لغو پیش از ارسال");
 
             _carts.Add(cart);
+            ShippingByCart[cart.Id] = new PaymentShares(10m, 0m);
             _physicalPurchases.AddRange([book, pen]);
             _cancellations.Add(cancellation);
             return "cart:" + cart.Id.ToString("D");

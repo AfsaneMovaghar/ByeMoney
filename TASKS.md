@@ -128,7 +128,6 @@
 موارد کشف‌شده حین تسک‌های دیگر که در همان تسک اجرا نشدند. هر ردیف: تاریخ، شرح کوتاه، محل، تسک مبدأ. پس از رسیدگی یا انتقال به اولویت‌ها، ردیف حذف شود.
 
 - 2026-11-07 (مؤجل): پیش‌نمایش و بستن دورهٔ تسویه هر بار کل سبدها، خریدها و شناسه‌های تسویه‌شده را در حافظه می‌خوانند؛ الگوی فهرست ادمین I11-T هم همین است و در حجم فاز اول مشکلی نمی‌سازد. محل: `OrderSettlementCandidateService` و `OrderSettlementStore.GetSettledOrderIdsAsync`. مبدأ: ADMIN-SETTLEMENT-BYEMONEY.
-- 2026-11-07 (پرسش کسب‌وکار، تأییدنشده): مبلغ خالص تسویه شامل نوری است که از هدیه پرداخت شده؛ برگشت هدیه هم از آن کم می‌شود. خرید به‌نیابت ادمین هم به‌صورت سفارش `Purchase` قابل تسویه است. نور هدیه پشتوانهٔ ریالی ندارد، ولی کد مطابق پلن مصوب («مبلغ نهایی منهای برگشتی») است. اگر مالک فقط سهم عادی را بخواهد، کار جداگانه است. محل: `CourseOrderSettlementRule.NetAmount`. مبدأ: ADMIN-SETTLEMENT-BYEMONEY.
 
 - 2026-11-07: اسکریپت `npm test` استرپی بعد از Jest، `node --test` را با همان آرگومان‌های مسیر اجرا می‌کند و `MODULE_NOT_FOUND` می‌دهد؛ دستور README (`npm test -- --runInBand tests/api tests/services tests/config`) با آن نمی‌خواند (فقط `npx jest --runInBand ...` کار می‌کند). محل: backend `package.json` و `README.md`. مبدأ: BND-04.
 - 2026-11-07: `ServiceKeyFilter` (gateway-confirmations و gateway-cancellations) هنوز با `BYEMONEY_SERVICE_KEY` است و فراخواننده را لاگ نمی‌کند. کلید `FRONTEND_TO_BYEMONEY_SERVICE_KEY` در محیط محلی تنظیم شده؛ مقدار محیط مقصد در DEPLOY-01 و SEC-08. محل: فرانت و بای‌مانی API. مبدأ: BND-03.

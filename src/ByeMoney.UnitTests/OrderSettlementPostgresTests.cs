@@ -1,6 +1,9 @@
 using ByeMoney.Application;
 using ByeMoney.Application.Common.Interfaces;
+using ByeMoney.Application.Modules.Purchases.Carts.DTOs;
+using ByeMoney.Application.Modules.Purchases.Carts.Interfaces;
 using ByeMoney.Application.Modules.Purchases.Commands.CloseOrderSettlementPeriod;
+using ByeMoney.Application.Modules.Wallet.Interfaces;
 using ByeMoney.Application.Modules.Purchases.History.DTOs;
 using ByeMoney.Application.Modules.Purchases.Queries.GetOrderSettlementPeriodOrders;
 using ByeMoney.Application.Modules.Purchases.Queries.GetOrderSettlementPeriods;
@@ -19,6 +22,7 @@ using ByeMoney.Infrastructure.Modules.Purchases.Persistence;
 using ByeMoney.Infrastructure.Persistence;
 using FluentAssertions;
 using MediatR;
+using Moq;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -32,6 +36,7 @@ namespace ByeMoney.UnitTests;
 public sealed class OrderSettlementPostgresTests : IAsyncLifetime
 {
     private readonly string _schema = "settlement_test_" + Guid.NewGuid().ToString("N");
+    private readonly Mock<ICartPricingClient> _pricing = new();
     private string _connectionString = null!;
     private DbContextOptions<ApplicationDbContext> _options = null!;
     private IConfiguration _configuration = null!;
@@ -70,6 +75,10 @@ public sealed class OrderSettlementPostgresTests : IAsyncLifetime
             .Options;
         await using var db = new ApplicationDbContext(_options);
         await db.Database.MigrateAsync();
+
+        _pricing
+            .Setup(x => x.TransitionAsync(It.IsAny<CartTransitionRequest>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Result.Success());
     }
 
     public async Task DisposeAsync()
@@ -89,18 +98,22 @@ public sealed class OrderSettlementPostgresTests : IAsyncLifetime
     [CartPostgresFact]
     public async Task SequentialPeriodsNeverRepeatOrdersAndUnshippedOrderJoinsNextPeriod()
     {
-        var seed = await SeedAsync();
         await using var provider = BuildProvider();
+        var seed = await SeedAsync(provider);
         var ledgerCount = await LedgerCountAsync();
 
         var firstPreview = await SendAsync(provider, seed.AdminA, new GetOrderSettlementPreviewQuery());
         firstPreview.OrderCount.Should().Be(1);
+        firstPreview.TotalRegularNetAmountInNoor.Should().Be(30m);
+        firstPreview.TotalGiftNetAmountInNoor.Should().Be(10m);
         firstPreview.TotalNetAmountInNoor.Should().Be(40m);
         firstPreview.Orders.Items.Single().OrderId.Should().Be(seed.CourseOrderId);
 
         var first = await CloseAsync(provider, seed.AdminA, firstPreview, "آبان");
         first.IsSuccess.Should().BeTrue();
         first.Value.OrderCount.Should().Be(1);
+        first.Value.TotalRegularNetAmountInNoor.Should().Be(30m);
+        first.Value.TotalGiftNetAmountInNoor.Should().Be(10m);
         first.Value.TotalNetAmountInNoor.Should().Be(40m);
         first.Value.Title.Should().Be("آبان");
         first.Value.ClosedByExternalUserId.Should().Be(seed.AdminAExternalId);
@@ -113,7 +126,9 @@ public sealed class OrderSettlementPostgresTests : IAsyncLifetime
         await ShipAsync(seed.PhysicalPurchaseId);
         var secondPreview = await SendAsync(provider, seed.AdminA, new GetOrderSettlementPreviewQuery());
         secondPreview.Orders.Items.Select(order => order.OrderId).Should().Equal(seed.PhysicalOrderId);
-        secondPreview.TotalNetAmountInNoor.Should().Be(110m);
+        // سهم ارسال (۱۰ نور عادی) از بدهی Ledger سبد آمده است.
+        secondPreview.Orders.Items.Single().Should().BeEquivalentTo(
+            new { RegularNetAmountInNoor = 110m, GiftNetAmountInNoor = 0m, NetAmountInNoor = 110m });
 
         var second = await CloseAsync(provider, seed.AdminB, secondPreview, null);
         second.IsSuccess.Should().BeTrue();
@@ -125,7 +140,14 @@ public sealed class OrderSettlementPostgresTests : IAsyncLifetime
         var firstOrders = await SendAsync(provider, seed.AdminA,
             new GetOrderSettlementPeriodOrdersQuery(first.Value.PeriodId));
         firstOrders.Items.Single().Should().BeEquivalentTo(
-            new { OrderId = seed.CourseOrderId, NetAmountInNoor = 40m, BuyerExternalUserId = seed.BuyerExternalId });
+            new
+            {
+                OrderId = seed.CourseOrderId,
+                RegularNetAmountInNoor = 30m,
+                GiftNetAmountInNoor = 10m,
+                NetAmountInNoor = 40m,
+                BuyerExternalUserId = seed.BuyerExternalId
+            });
 
         var missing = () => SendAsync(provider, seed.AdminA, new GetOrderSettlementPeriodOrdersQuery(Guid.NewGuid()));
         await missing.Should().ThrowAsync<NotFoundException>();
@@ -138,10 +160,10 @@ public sealed class OrderSettlementPostgresTests : IAsyncLifetime
     [CartPostgresFact]
     public async Task ConcurrentClosesProduceExactlyOneSuccess()
     {
-        var seed = await SeedAsync();
-        await ShipAsync(seed.PhysicalPurchaseId);
         var barrier = new InsertBarrier(participants: 2);
         await using var provider = BuildProvider(barrier);
+        var seed = await SeedAsync(provider);
+        await ShipAsync(seed.PhysicalPurchaseId);
         var ledgerCount = await LedgerCountAsync();
         var preview = await SendAsync(provider, seed.AdminA, new GetOrderSettlementPreviewQuery());
         preview.OrderCount.Should().Be(2);
@@ -166,7 +188,8 @@ public sealed class OrderSettlementPostgresTests : IAsyncLifetime
     [CartPostgresFact]
     public async Task DatabaseRejectsSameOrderInSecondPeriod()
     {
-        var seed = await SeedAsync();
+        await using var provider = BuildProvider();
+        var seed = await SeedAsync(provider);
         var orderId = seed.CourseOrderId;
 
         await using (var db = new ApplicationDbContext(_options))
@@ -188,7 +211,7 @@ public sealed class OrderSettlementPostgresTests : IAsyncLifetime
 
     private static OrderSettlementPeriod Period(Guid adminId, string orderId) =>
         OrderSettlementPeriod.Close(new UserId(adminId), null, null,
-            [OrderSettlementItem.Create(orderId, "Purchase", "buyer", DateTime.UtcNow, 40m)]);
+            [OrderSettlementItem.Create(orderId, "Purchase", "buyer", DateTime.UtcNow, new PaymentShares(30m, 10m))]);
 
     private ServiceProvider BuildProvider(InsertBarrier? barrier = null)
     {
@@ -200,6 +223,7 @@ public sealed class OrderSettlementPostgresTests : IAsyncLifetime
         services.AddScoped<ApplicationDbContext>();
         services.AddScoped<TestCurrentUser>();
         services.AddScoped<ICurrentUserService>(sp => sp.GetRequiredService<TestCurrentUser>());
+        services.AddSingleton(_pricing.Object);
 
         if (barrier is not null)
         {
@@ -238,7 +262,11 @@ public sealed class OrderSettlementPostgresTests : IAsyncLifetime
         await db.SaveChangesAsync();
     }
 
-    private async Task<SeedData> SeedAsync()
+    /// <summary>
+    /// سفارش فقط‌دوره (۳۰ عادی و ۱۰ هدیه) و سبد کالا (۲×۵۰ به‌علاوهٔ ارسال ۱۰) که با پرداخت واقعی سبد
+    /// ثبت می‌شود تا سهم ارسال از بدهی Ledger همان سبد خوانده شود.
+    /// </summary>
+    private static async Task<SeedData> SeedAsync(ServiceProvider provider)
     {
         var buyer = User.CreateInitial("settlement-buyer-" + Guid.NewGuid().ToString("N"));
         var adminA = User.CreateInitial("settlement-admin-a-" + Guid.NewGuid().ToString("N"));
@@ -246,21 +274,31 @@ public sealed class OrderSettlementPostgresTests : IAsyncLifetime
 
         var course = CoursePurchase.Create(buyer.Id, ProductSnapshot.Create("settled-course", "Course", 40m));
         course.MarkDebited(Guid.NewGuid());
+        course.RecordPaymentShares(new PaymentShares(30m, 10m));
 
+        await using var scope = provider.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        db.AddRange(buyer, adminA, adminB, course);
+        await db.SaveChangesAsync();
+
+        var provisioning = scope.ServiceProvider.GetRequiredService<IUserWalletProvisioningService>();
+        var wallet = await provisioning.GetOrCreateUserWalletAsync(buyer.Id);
+        wallet.Wallet.ApplyCredit(1000m);
+        await provisioning.GetOrCreateSystemAccountAsync();
+        await db.SaveChangesAsync();
+
+        var carts = scope.ServiceProvider.GetRequiredService<ICartStore>();
         var cart = Cart.Create(Guid.NewGuid(), buyer.Id.Value, buyer.ExternalUserId, [
             new CartItemInput("book", ProductItemType.Product, 2)
         ], null);
-        cart.SetQuote([
-            new CartQuoteItem("book", "Book", 50, 0, 0, 100, ProductItemType.Product, null, 2)
-        ], shippingAmountInNoor: 10);
-        cart.MarkPaid();
-        var book = PhysicalProductPurchase.Create(
-            PhysicalProductPurchaseId.New(), cart.Id, buyer.Id, "book", "Book", 2, 50, 100);
-        book.MarkDebited(cart.Id);
-
-        await using var db = new ApplicationDbContext(_options);
-        db.AddRange(buyer, adminA, adminB, course, cart, book);
-        await db.SaveChangesAsync();
+        (await carts.CreateAsync(cart, default)).IsSuccess.Should().BeTrue();
+        var quote = new CartQuoteItem("book", "Book", 50, 0, 0, 100, ProductItemType.Product, null, 2);
+        await carts.SetQuoteAsync(cart.Id, buyer.Id.Value, [quote], 10m, null, cart.ReservationId, default);
+        (await carts.PayAsync(cart.Id, buyer.Id.Value, cart.ReservationId, default)).IsSuccess.Should().BeTrue();
+        var bookId = await db.Set<PhysicalProductPurchase>()
+            .Where(item => item.CartId == cart.Id)
+            .Select(item => item.Id.Value)
+            .SingleAsync();
 
         return new SeedData(
             buyer.ExternalUserId,
@@ -269,7 +307,7 @@ public sealed class OrderSettlementPostgresTests : IAsyncLifetime
             adminB.Id.Value,
             "purchase:" + course.Id.Value.ToString("D"),
             "cart:" + cart.Id.ToString("D"),
-            book.Id.Value);
+            bookId);
     }
 
     private sealed record SeedData(
@@ -308,6 +346,10 @@ public sealed class OrderSettlementPostgresTests : IAsyncLifetime
     {
         public Task<IReadOnlySet<string>> GetSettledOrderIdsAsync(CancellationToken ct) =>
             inner.GetSettledOrderIdsAsync(ct);
+
+        public Task<IReadOnlyDictionary<Guid, PaymentShares>> GetShippingPaymentsAsync(
+            IReadOnlyCollection<Guid> cartIds, CancellationToken ct) =>
+            inner.GetShippingPaymentsAsync(cartIds, ct);
 
         public async Task<bool> TryAddAsync(OrderSettlementPeriod period, CancellationToken ct)
         {

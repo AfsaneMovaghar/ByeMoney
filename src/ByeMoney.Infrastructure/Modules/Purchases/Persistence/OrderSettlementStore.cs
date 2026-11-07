@@ -3,6 +3,7 @@ using ByeMoney.Application.Modules.Purchases.Settlements.DTOs;
 using ByeMoney.Application.Modules.Purchases.Settlements.Interfaces;
 using ByeMoney.Domain.Modules.Identity.Users;
 using ByeMoney.Domain.Modules.Purchases;
+using ByeMoney.Domain.Modules.Wallet.Ledgers;
 using ByeMoney.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
@@ -19,6 +20,33 @@ public sealed class OrderSettlementStore(ApplicationDbContext db) : IOrderSettle
             .ToListAsync(ct);
 
         return orderIds.ToHashSet(StringComparer.Ordinal);
+    }
+
+    public async Task<IReadOnlyDictionary<Guid, PaymentShares>> GetShippingPaymentsAsync(
+        IReadOnlyCollection<Guid> cartIds, CancellationToken ct)
+    {
+        if (cartIds.Count == 0)
+        {
+            return new Dictionary<Guid, PaymentShares>();
+        }
+
+        // تراکنش پرداخت سبد همان شناسهٔ سبد است؛ بدهی ارسال مرجع خود سبد دارد و بدهی اقلام مرجع شناسهٔ خرید (D08).
+        var debits = await db.Set<LedgerEntry>()
+            .AsNoTracking()
+            .Where(x => cartIds.Contains(x.TransactionId) &&
+                x.ReferenceType == LedgerReferenceType.Purchase &&
+                x.Amount < 0)
+            .Select(x => new { x.TransactionId, x.ReferenceId, x.BalanceType, x.Amount })
+            .ToListAsync(ct);
+
+        return debits
+            .Where(x => x.ReferenceId == x.TransactionId.ToString())
+            .GroupBy(x => x.TransactionId)
+            .ToDictionary(
+                group => group.Key,
+                group => new PaymentShares(
+                    -group.Where(x => x.BalanceType == LedgerBalanceType.Regular).Sum(x => x.Amount),
+                    -group.Where(x => x.BalanceType == LedgerBalanceType.Gift).Sum(x => x.Amount)));
     }
 
     public async Task<bool> TryAddAsync(OrderSettlementPeriod period, CancellationToken ct)
@@ -65,6 +93,8 @@ public sealed class OrderSettlementStore(ApplicationDbContext db) : IOrderSettle
                     period.Title,
                     period.Note,
                     period.OrderCount,
+                    period.TotalRegularNetAmountInNoor,
+                    period.TotalGiftNetAmountInNoor,
                     period.TotalNetAmountInNoor,
                     user.ExternalUserId,
                     period.CreatedAtUtc))
@@ -100,6 +130,8 @@ public sealed class OrderSettlementStore(ApplicationDbContext db) : IOrderSettle
                 x.SourceType,
                 x.BuyerExternalUserId,
                 x.OrderCreatedAtUtc,
+                x.RegularNetAmountInNoor,
+                x.GiftNetAmountInNoor,
                 x.NetAmountInNoor))
             .ToListAsync(ct);
 
@@ -114,6 +146,8 @@ public sealed class OrderSettlementStore(ApplicationDbContext db) : IOrderSettle
             period.Title,
             period.Note,
             period.OrderCount,
+            period.TotalRegularNetAmountInNoor,
+            period.TotalGiftNetAmountInNoor,
             period.TotalNetAmountInNoor,
             user.ExternalUserId,
             period.CreatedAtUtc);

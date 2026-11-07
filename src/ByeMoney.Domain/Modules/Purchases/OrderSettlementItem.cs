@@ -3,7 +3,8 @@ namespace ByeMoney.Domain.Modules.Purchases;
 /// <summary>
 /// سفارشی که در یک دورهٔ تسویه ثبت شده است. شناسهٔ سفارش کلید اصلی است،
 /// پس هر سفارش حداکثر در یک دوره می‌آید، حتی اگر دو ادمین هم‌زمان دوره را ببندند.
-/// مقادیر Snapshot لحظهٔ بستن‌اند و بعداً تغییر نمی‌کنند.
+/// مقادیر Snapshot لحظهٔ بستن‌اند و بعداً تغییر نمی‌کنند. نور خالص به سهم عادی و هدیه تفکیک می‌شود،
+/// چون نور هدیه پشتوانهٔ ریالی ندارد و ادمین مبنای انتقال دستی را خودش انتخاب می‌کند.
 /// </summary>
 public class OrderSettlementItem
 {
@@ -16,6 +17,10 @@ public class OrderSettlementItem
     public string SourceType { get; private set; } = null!;
     public string BuyerExternalUserId { get; private set; } = null!;
     public DateTime OrderCreatedAtUtc { get; private set; }
+    public decimal RegularNetAmountInNoor { get; private set; }
+    public decimal GiftNetAmountInNoor { get; private set; }
+
+    /// <summary>جمع کل نور خالص؛ همیشه برابر سهم عادی به‌علاوهٔ سهم هدیه.</summary>
     public decimal NetAmountInNoor { get; private set; }
 
     private OrderSettlementItem() { }
@@ -25,12 +30,13 @@ public class OrderSettlementItem
         string sourceType,
         string buyerExternalUserId,
         DateTime orderCreatedAtUtc,
-        decimal netAmountInNoor)
+        PaymentShares netShares)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(orderId);
         ArgumentException.ThrowIfNullOrWhiteSpace(sourceType);
         ArgumentException.ThrowIfNullOrWhiteSpace(buyerExternalUserId);
-        ArgumentOutOfRangeException.ThrowIfNegative(netAmountInNoor);
+        ArgumentOutOfRangeException.ThrowIfNegative(netShares.RegularInNoor);
+        ArgumentOutOfRangeException.ThrowIfNegative(netShares.GiftInNoor);
 
         return new OrderSettlementItem
         {
@@ -38,7 +44,9 @@ public class OrderSettlementItem
             SourceType = sourceType,
             BuyerExternalUserId = buyerExternalUserId,
             OrderCreatedAtUtc = orderCreatedAtUtc,
-            NetAmountInNoor = netAmountInNoor
+            RegularNetAmountInNoor = netShares.RegularInNoor,
+            GiftNetAmountInNoor = netShares.GiftInNoor,
+            NetAmountInNoor = netShares.RegularInNoor + netShares.GiftInNoor
         };
     }
 

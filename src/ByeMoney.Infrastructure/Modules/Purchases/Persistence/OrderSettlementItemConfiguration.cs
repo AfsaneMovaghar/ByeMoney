@@ -16,7 +16,9 @@ public class OrderSettlementItemConfiguration : IEntityTypeConfiguration<OrderSe
     {
         builder.ToTable("OrderSettlementItems", table =>
         {
-            table.HasCheckConstraint("CK_OrderSettlementItems_NetAmount", "\"NetAmountInNoor\" >= 0");
+            table.HasCheckConstraint("CK_OrderSettlementItems_NetShares",
+                "\"RegularNetAmountInNoor\" >= 0 AND \"GiftNetAmountInNoor\" >= 0 AND " +
+                "\"NetAmountInNoor\" = \"RegularNetAmountInNoor\" + \"GiftNetAmountInNoor\"");
         });
 
         builder.HasKey(x => x.OrderId).HasName(PrimaryKeyName);
@@ -34,6 +36,8 @@ public class OrderSettlementItemConfiguration : IEntityTypeConfiguration<OrderSe
             .HasMaxLength(OrderSettlementItem.BuyerExternalUserIdMaxLength)
             .IsRequired();
         builder.Property(x => x.OrderCreatedAtUtc).IsRequired();
+        builder.Property(x => x.RegularNetAmountInNoor).HasPrecision(18, 4).IsRequired();
+        builder.Property(x => x.GiftNetAmountInNoor).HasPrecision(18, 4).IsRequired();
         builder.Property(x => x.NetAmountInNoor).HasPrecision(18, 4).IsRequired();
 
         builder.HasIndex(x => new { x.PeriodId, x.OrderCreatedAtUtc });

@@ -9,6 +9,13 @@ public interface IOrderSettlementStore
     Task<IReadOnlySet<string>> GetSettledOrderIdsAsync(CancellationToken ct);
 
     /// <summary>
+    /// سهم عادی و هدیهٔ پرداخت هزینهٔ ارسال هر سبد. ارسال ستون سهم ندارد و از بدهی Ledger
+    /// با مرجع خود سبد خوانده می‌شود (D08). سبد بدون ارسال در خروجی نمی‌آید.
+    /// </summary>
+    Task<IReadOnlyDictionary<Guid, PaymentShares>> GetShippingPaymentsAsync(
+        IReadOnlyCollection<Guid> cartIds, CancellationToken ct);
+
+    /// <summary>
     /// دوره و سفارش‌هایش را اتمیک ذخیره می‌کند. اگر سفارشی هم‌زمان در دورهٔ دیگری ثبت شده باشد،
     /// قید یکتایی دیتابیس مانع می‌شود، هیچ ردیفی ذخیره نمی‌شود و <c>false</c> برمی‌گردد.
     /// </summary>

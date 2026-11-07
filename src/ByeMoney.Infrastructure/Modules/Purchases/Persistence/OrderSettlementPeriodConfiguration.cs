@@ -13,7 +13,9 @@ public class OrderSettlementPeriodConfiguration : IEntityTypeConfiguration<Order
         {
             // دورهٔ خالی بسته نمی‌شود (D10).
             table.HasCheckConstraint("CK_OrderSettlementPeriods_OrderCount", "\"OrderCount\" >= 1");
-            table.HasCheckConstraint("CK_OrderSettlementPeriods_TotalNetAmount", "\"TotalNetAmountInNoor\" >= 0");
+            table.HasCheckConstraint("CK_OrderSettlementPeriods_NetShares",
+                "\"TotalRegularNetAmountInNoor\" >= 0 AND \"TotalGiftNetAmountInNoor\" >= 0 AND " +
+                "\"TotalNetAmountInNoor\" = \"TotalRegularNetAmountInNoor\" + \"TotalGiftNetAmountInNoor\"");
         });
 
         builder.HasKey(x => x.Id);
@@ -41,6 +43,8 @@ public class OrderSettlementPeriodConfiguration : IEntityTypeConfiguration<Order
         builder.Property(x => x.Title).HasMaxLength(OrderSettlementPeriod.TitleMaxLength);
         builder.Property(x => x.Note).HasMaxLength(OrderSettlementPeriod.NoteMaxLength);
         builder.Property(x => x.OrderCount).IsRequired();
+        builder.Property(x => x.TotalRegularNetAmountInNoor).HasPrecision(18, 4).IsRequired();
+        builder.Property(x => x.TotalGiftNetAmountInNoor).HasPrecision(18, 4).IsRequired();
         builder.Property(x => x.TotalNetAmountInNoor).HasPrecision(18, 4).IsRequired();
         builder.Property(x => x.CreatedAtUtc).IsRequired();
         builder.Property(x => x.UpdatedAt);

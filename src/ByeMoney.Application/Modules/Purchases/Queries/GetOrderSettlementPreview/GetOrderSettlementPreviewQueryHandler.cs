@@ -25,6 +25,8 @@ public sealed class GetOrderSettlementPreviewQueryHandler(
 
         return new OrderSettlementPreviewResponse(
             orders.Count,
+            orders.Sum(order => order.RegularNetAmountInNoor),
+            orders.Sum(order => order.GiftNetAmountInNoor),
             orders.Sum(order => order.NetAmountInNoor),
             OrderSettlementPreviewToken.Compute(orders),
             new PurchasePage<SettlementOrderResponse>(pageItems, request.Page, request.PageSize, orders.Count));

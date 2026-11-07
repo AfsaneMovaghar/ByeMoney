@@ -46,7 +46,7 @@ public sealed class CloseOrderSettlementPeriodCommandHandler(
                 order.SourceType,
                 order.BuyerExternalUserId,
                 order.OrderCreatedAtUtc,
-                order.NetAmountInNoor))
+                new PaymentShares(order.RegularNetAmountInNoor, order.GiftNetAmountInNoor)))
             .ToArray();
         var period = OrderSettlementPeriod.Close(new UserId(adminId), request.Title, request.Note, items);
 
