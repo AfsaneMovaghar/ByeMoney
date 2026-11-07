@@ -49,6 +49,8 @@ namespace ByeMoney.UnitTests;
 public sealed class PhysicalDeliveryHttpPostgresTests : IAsyncLifetime
 {
     private const string JwtSecret = "physical-delivery-http-tests-secret-at-least-32-bytes";
+    private const string JwtIssuer = "bye-money-tests-issuer";
+    private const string JwtAudience = "bye-money-tests-audience";
     private const string CancellationReason = "انصراف خریدار پیش از ارسال";
 
     private static readonly string[] ReceiptKeys =
@@ -140,6 +142,30 @@ public sealed class PhysicalDeliveryHttpPostgresTests : IAsyncLifetime
         await VerifyDeliveryAuthorizationAsync(client, seed);
         await VerifyDeliveryTransitionsAsync(client, seed, orderId);
         await VerifyMoneyUntouchedAsync(seed);
+    }
+
+    [CartPostgresFact]
+    public async Task TokenWithWrongOrMissingIssuerOrAudienceIsRejectedOverHttp()
+    {
+        var seed = await SeedAsync();
+        await using var app = await StartAppAsync();
+        using var client = new HttpClient { BaseAddress = new Uri(app.Urls.Single()) };
+        const string url = "/api/me/course-orders";
+
+        var rejectedTokens = new[]
+        {
+            Token(seed.Buyer, null, JwtAudience),
+            Token(seed.Buyer, "wrong-issuer", JwtAudience),
+            Token(seed.Buyer, JwtIssuer, null),
+            Token(seed.Buyer, JwtIssuer, "wrong-audience")
+        };
+
+        foreach (var token in rejectedTokens)
+        {
+            (await SendAsync(client, HttpMethod.Get, url, token)).StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+        }
+
+        (await SendAsync(client, HttpMethod.Get, url, Token(seed.Buyer))).StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
     [CartPostgresFact]
@@ -437,7 +463,12 @@ public sealed class PhysicalDeliveryHttpPostgresTests : IAsyncLifetime
         builder.WebHost.UseUrls("http://127.0.0.1:0");
         builder.Host.UseDefaultServiceProvider(settings => settings.ValidateOnBuild = false);
         builder.Logging.ClearProviders();
-        builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?> { ["Strapi:JwtSecret"] = JwtSecret });
+        builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["Strapi:JwtSecret"] = JwtSecret,
+            ["Strapi:JwtIssuer"] = JwtIssuer,
+            ["Strapi:JwtAudience"] = JwtAudience
+        });
         builder.Services.AddPresentationServices(builder.Configuration);
         builder.Services.AddApplicationServices();
         builder.Services.AddControllers().AddApplicationPart(typeof(AdminPhysicalPurchasesController).Assembly);
@@ -519,9 +550,16 @@ public sealed class PhysicalDeliveryHttpPostgresTests : IAsyncLifetime
 
     private static string Token(string documentId)
     {
+        return Token(documentId, JwtIssuer, JwtAudience);
+    }
+
+    private static string Token(string documentId, string? issuer, string? audience)
+    {
         var descriptor = new SecurityTokenDescriptor
         {
             Subject = new ClaimsIdentity([new Claim("id", "1"), new Claim("documentId", documentId)]),
+            Issuer = issuer,
+            Audience = audience,
             Expires = DateTime.UtcNow.AddHours(1),
             SigningCredentials = new SigningCredentials(
                 new SymmetricSecurityKey(Encoding.UTF8.GetBytes(JwtSecret)), SecurityAlgorithms.HmacSha256)

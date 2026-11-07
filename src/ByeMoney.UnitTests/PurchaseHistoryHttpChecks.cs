@@ -36,7 +36,9 @@ internal static class PurchaseHistoryHttpChecks
         builder.Logging.ClearProviders();
         builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
         {
-            ["Strapi:JwtSecret"] = "purchase-history-tests-only-secret-at-least-32-bytes"
+            ["Strapi:JwtSecret"] = "purchase-history-tests-only-secret-at-least-32-bytes",
+            ["Strapi:JwtIssuer"] = "purchase-history-tests-issuer",
+            ["Strapi:JwtAudience"] = "purchase-history-tests-audience"
         });
         builder.Services.AddPresentationServices(builder.Configuration);
         builder.Services.AddApplicationServices();

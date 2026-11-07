@@ -61,6 +61,12 @@
   <data name="Auth_JwtSecretMissing" xml:space="preserve">
     <value>کلید محرمانه Strapi JWT در تنظیمات یافت نشد. لطفاً 'Strapi:JwtSecret' را تنظیم کنید.</value>
   </data>
+  <data name="Auth_JwtIssuerMissing" xml:space="preserve">
+    <value>صادرکنندهٔ Strapi JWT در تنظیمات یافت نشد. لطفاً 'Strapi:JwtIssuer' را تنظیم کنید.</value>
+  </data>
+  <data name="Auth_JwtAudienceMissing" xml:space="preserve">
+    <value>مخاطب Strapi JWT در تنظیمات یافت نشد. لطفاً 'Strapi:JwtAudience' را تنظیم کنید.</value>
+  </data>
   <data name="Middleware_BusinessRuleViolationTitle" xml:space="preserve">
     <value>خطای قانون کسب‌وکار</value>
   </data>

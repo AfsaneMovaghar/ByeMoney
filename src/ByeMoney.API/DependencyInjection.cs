@@ -50,13 +50,27 @@ public static class DependencyInjection
             throw new InvalidOperationException(ApiErrors.Auth_JwtSecretMissing);
         }
 
+        var strapiJwtIssuer = configuration["Strapi:JwtIssuer"];
+        if (string.IsNullOrEmpty(strapiJwtIssuer))
+        {
+            throw new InvalidOperationException(ApiErrors.Auth_JwtIssuerMissing);
+        }
+
+        var strapiJwtAudience = configuration["Strapi:JwtAudience"];
+        if (string.IsNullOrEmpty(strapiJwtAudience))
+        {
+            throw new InvalidOperationException(ApiErrors.Auth_JwtAudienceMissing);
+        }
+
         services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             .AddJwtBearer(options =>
             {
                 options.TokenValidationParameters = new TokenValidationParameters
                 {
-                    ValidateIssuer = false,
-                    ValidateAudience = false,
+                    ValidateIssuer = true,
+                    ValidIssuer = strapiJwtIssuer,
+                    ValidateAudience = true,
+                    ValidAudience = strapiJwtAudience,
                     ValidateLifetime = true,
                     ValidateIssuerSigningKey = true,
                     IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(strapiJwtSecret)),

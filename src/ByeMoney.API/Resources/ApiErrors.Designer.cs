@@ -68,6 +68,24 @@ namespace ByeMoney.API.Resources {
                 return ResourceManager.GetString("Auth_JwtSecretMissing", resourceCulture);
             }
         }
+
+        /// <summary>
+        ///   Looks up a localized string similar to صادرکنندهٔ Strapi JWT در تنظیمات یافت نشد. لطفاً &apos;Strapi:JwtIssuer&apos; را تنظیم کنید..
+        /// </summary>
+        public static string Auth_JwtIssuerMissing {
+            get {
+                return ResourceManager.GetString("Auth_JwtIssuerMissing", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to مخاطب Strapi JWT در تنظیمات یافت نشد. لطفاً &apos;Strapi:JwtAudience&apos; را تنظیم کنید..
+        /// </summary>
+        public static string Auth_JwtAudienceMissing {
+            get {
+                return ResourceManager.GetString("Auth_JwtAudienceMissing", resourceCulture);
+            }
+        }
         
         /// <summary>
         ///   Looks up a localized string similar to خطای قانون کسب‌وکار.
