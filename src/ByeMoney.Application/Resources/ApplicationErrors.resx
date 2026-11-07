@@ -234,6 +234,8 @@
   <data name="Cart_NotFound" xml:space="preserve"><value>سبد خرید یافت نشد.</value></data>
   <data name="Cart_InsufficientBalance" xml:space="preserve"><value>موجودی نور برای خرید سبد کافی نیست.</value></data>
   <data name="Cart_Unavailable" xml:space="preserve"><value>ارتباط با سرویس خرید برقرار نشد؛ وضعیت همین سبد را دوباره پیگیری کنید.</value></data>
+  <data name="Cart_OutOfStock" xml:space="preserve"><value>موجودی یکی از کالاهای سبد تمام شده است؛ آن را از سبد حذف کنید.</value></data>
+  <data name="Cart_InsufficientStock" xml:space="preserve"><value>تعداد درخواستی یکی از کالاهای سبد بیشتر از موجودی است؛ حداکثر {0} عدد قابل خرید است.</value></data>
     <data name="Gift_IdempotencyKeyRequired" xml:space="preserve"><value>کلید تکرار درخواست (Idempotency-Key) الزامی است.</value></data>
   <data name="Gift_ReasonRequired" xml:space="preserve"><value>علت اعطای هدیه الزامی است.</value></data>
   <data name="Gift_AmountMustBePositiveInteger" xml:space="preserve"><value>مقدار نور هدیه باید یک عدد صحیح مثبت باشد.</value></data>

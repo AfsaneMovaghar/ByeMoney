@@ -1,3 +1,5 @@
+using System.Globalization;
+
 namespace ByeMoney.Application.Modules.Purchases.Carts.Constants;
 
 public static class CartErrors
@@ -8,4 +10,8 @@ public static class CartErrors
     public static string NotFound => Read("Cart_NotFound");
     public static string InsufficientBalance => Read("Cart_InsufficientBalance");
     public static string Unavailable => Read("Cart_Unavailable");
+    public static string OutOfStock => Read("Cart_OutOfStock");
+
+    public static string InsufficientStock(int availableQuantity) =>
+        string.Format(CultureInfo.InvariantCulture, Read("Cart_InsufficientStock"), availableQuantity);
 }

@@ -1,6 +1,7 @@
 using ByeMoney.API.Contracts.Carts;
 using ByeMoney.Application.Modules.Purchases.Carts.Constants;
 using ByeMoney.Application.Modules.Purchases.Carts.DTOs;
+using ByeMoney.Application.Modules.Purchases.Carts.Services;
 using ByeMoney.Application.Modules.Purchases.Commands.CancelCart;
 using ByeMoney.Application.Modules.Purchases.Commands.CreateCartTopUp;
 using ByeMoney.Application.Modules.Purchases.Commands.PrepareCart;
@@ -94,6 +95,7 @@ public sealed class CartsController(ISender sender) : ControllerBase
 
         return StatusCode(statusCode, new CartErrorResponse(
             result.ErrorCode ?? CartErrorCodes.Invalid,
-            result.ErrorMessage!));
+            result.ErrorMessage!,
+            (result as ICartStockFailure)?.LineError));
     }
 }

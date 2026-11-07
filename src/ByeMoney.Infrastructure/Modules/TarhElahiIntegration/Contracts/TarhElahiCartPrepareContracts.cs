@@ -33,6 +33,21 @@ internal sealed record TarhElahiCartPrepareResponse(
     string? ShippingRuleLabel = null,
     decimal PriceInNoor = 0m);
 
+/// <summary>
+/// بدنهٔ خطای سبد طرح الهی؛ <c>lineError</c> فقط وقتی می‌آید که یک قلم مشخص قابل فروش نباشد.
+/// </summary>
+internal sealed record TarhElahiCartErrorResponse(
+    string? Code,
+    string? Error,
+    TarhElahiCartLineError? LineError);
+
+internal sealed record TarhElahiCartLineError(
+    string? ExternalId,
+    string? Type,
+    int? Quantity,
+    string? Reason,
+    int? AvailableQuantity);
+
 internal sealed record TarhElahiCartPrepareResponseItem(
     string ExternalCourseId,
     string Title,

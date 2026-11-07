@@ -1,6 +1,7 @@
 using ByeMoney.Application.Modules.Purchases.Carts.Constants;
 using ByeMoney.Application.Modules.Purchases.Carts.DTOs;
 using ByeMoney.Application.Modules.Purchases.Carts.Interfaces;
+using ByeMoney.Application.Modules.Purchases.Carts.Services;
 using ByeMoney.Domain.Common.Generic;
 using ByeMoney.Domain.Modules.Purchases;
 using ByeMoney.Infrastructure.Modules.TarhElahiIntegration.Contracts;
@@ -33,7 +34,7 @@ public sealed class CartPricingClient(HttpClient http) : ICartPricingClient
                 ct);
             if (!response.IsSuccessStatusCode)
             {
-                return Failure<CartQuote>(response.StatusCode);
+                return await FailureAsync<CartQuote>(response, ct);
             }
 
             var wire = await response.Content.ReadFromJsonAsync<TarhElahiCartPrepareResponse>(QuoteJsonOptions, ct);
@@ -52,7 +53,7 @@ public sealed class CartPricingClient(HttpClient http) : ICartPricingClient
         try
         {
             using var response = await http.PostAsJsonAsync($"api/integrations/byemoney/v1/carts/{request.CartId:D}/{action}", request, ct);
-            return response.IsSuccessStatusCode ? Result.Success() : Failure<bool>(response.StatusCode);
+            return response.IsSuccessStatusCode ? Result.Success() : await FailureAsync<bool>(response, ct);
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
         catch (Exception ex) when (ex is HttpRequestException or OperationCanceledException)
@@ -133,6 +134,48 @@ public sealed class CartPricingClient(HttpClient http) : ICartPricingClient
         ProductItemType.Product => item.ParentExternalId is null && item.Quantity >= 1,
         _ => false
     };
+
+    private static async Task<Result<T>> FailureAsync<T>(HttpResponseMessage response, CancellationToken ct)
+    {
+        if (response.StatusCode == HttpStatusCode.Conflict)
+        {
+            var lineError = await ReadStockLineErrorAsync(response, ct);
+            if (lineError is not null)
+            {
+                return CartStockFailure<T>.Create(lineError);
+            }
+        }
+
+        return Failure<T>(response.StatusCode);
+    }
+
+    /// <summary>
+    /// فقط کمبود موجودی قلم به خطای اختصاصی نگاشت می‌شود؛ بدنهٔ ناقص یا دلیل دیگر همان تعارض عمومی می‌ماند.
+    /// </summary>
+    private static async Task<CartLineError?> ReadStockLineErrorAsync(HttpResponseMessage response, CancellationToken ct)
+    {
+        TarhElahiCartErrorResponse? body;
+        try
+        {
+            body = await response.Content.ReadFromJsonAsync<TarhElahiCartErrorResponse>(ct);
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+
+        var line = body?.LineError;
+        if (line is null || string.IsNullOrWhiteSpace(line.ExternalId) || line.AvailableQuantity < 0)
+        {
+            return null;
+        }
+
+        var isStockReason = line.Reason == CartStockReasons.OutOfStock ||
+            (line.Reason == CartStockReasons.InsufficientStock && line.AvailableQuantity is not null);
+        return isStockReason
+            ? new CartLineError(line.ExternalId, line.Reason!, line.AvailableQuantity)
+            : null;
+    }
 
     private static Result<T> Failure<T>(HttpStatusCode status) => status switch
     {

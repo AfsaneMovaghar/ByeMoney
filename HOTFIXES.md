@@ -303,7 +303,7 @@
 #### HF04 — موجودی در شکست و لغو پرداخت
 - بک؛ بالا؛ مانع انتشار فروش فیزیکی تا پذیرش.
 - master: `lifecycles.js` موجودی را هنگام سفارش معلق کم می‌کند و هنگام لغو یا شکست آزاد نمی‌کند (`physicalStockMiddleware.js` در master نیست).
-- شاخهٔ `byeMoney`: lifecycle ساده شده و `physicalStockMiddleware` و `stockReservation` رزرو و آزادسازی را انجام می‌دهند. پرداخت دیرهنگام پس از لغو به `pending_verification` می‌رود (آزمون PostgreSQL ۲۰۲۶-۱۱-۰۲ پاس شد). اصلاح در شاخهٔ اتصال کامیت/ادغام نشده بود.
+- شاخهٔ `byeMoney`: lifecycle ساده شده و `physicalStockMiddleware` و `stockReservation` رزرو و آزادسازی را انجام می‌دهند. پرداخت دیرهنگام پس از لغو به `pending_verification` می‌رود (آزمون PostgreSQL ۲۰۲۶-۱۱-۰۲ پاس شد). اصلاح در شاخهٔ اتصال commit شده و فقط ادغام در master مانده است.
 - باقی: پذیرش HTTP؛ ادغام در شاخهٔ انتشار (DEPLOY-02). آخرین واحد با دو خریدار هم‌زمان و تکرار callback آزموده شود.
 
 #### HF06 — برخورد شناسهٔ دوره و کالا در سبد

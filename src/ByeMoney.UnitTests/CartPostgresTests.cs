@@ -186,6 +186,47 @@ public sealed class CartPostgresTests : IAsyncLifetime
     }
 
     [CartPostgresFact]
+    public async Task OutOfStockPrepareFailsCartReleasesOnceAndReturnsLineError()
+    {
+        var lineError = new CartLineError("product-1", CartStockReasons.InsufficientStock, 1);
+        _pricing.Setup(x => x.PrepareAsync(It.IsAny<CartQuoteRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(CartStockFailure<CartQuote>.Create(lineError));
+        var cartId = Guid.NewGuid();
+        using var scope = _provider.CreateScope();
+        var service = scope.ServiceProvider.GetRequiredService<CartService>();
+
+        var result = await service.PrepareAsync(_buyer.Id.Value, cartId,
+            [new CartItemInput("product-1", ProductItemType.Product, 3)], null, default);
+
+        result.ErrorCode.Should().Be(CartErrorCodes.StockUnavailable);
+        ((ICartStockFailure)result).LineError.Should().Be(lineError);
+        var cart = await Store.FindAsync(cartId, _buyer.Id.Value, default);
+        cart!.Status.Should().Be(CartStatus.Failed);
+        cart.Synchronized.Should().BeTrue();
+        _pricing.Verify(x => x.TransitionAsync(It.IsAny<CartTransitionRequest>(), "release", It.IsAny<CancellationToken>()), Times.Once);
+        (await Financials()).Should().Be((1000m, 0, 0m, 0m));
+    }
+
+    [CartPostgresFact]
+    public async Task OutOfStockCheckBeforePaymentFailsCartWithoutDebit()
+    {
+        var cart = await Ready();
+        var lineError = new CartLineError("a", CartStockReasons.OutOfStock, 0);
+        _pricing.Setup(x => x.TransitionAsync(It.IsAny<CartTransitionRequest>(), "check", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(CartStockFailure<bool>.Create(lineError));
+        using var scope = _provider.CreateScope();
+        var service = scope.ServiceProvider.GetRequiredService<CartService>();
+
+        var result = await service.PurchaseAsync(_buyer.Id.Value, cart.Id, default);
+
+        result.ErrorCode.Should().Be(CartErrorCodes.StockUnavailable);
+        ((ICartStockFailure)result).LineError.Should().Be(lineError);
+        (await Store.FindAsync(cart.Id, _buyer.Id.Value, default))!.Status.Should().Be(CartStatus.Failed);
+        _pricing.Verify(x => x.TransitionAsync(It.IsAny<CartTransitionRequest>(), "release", It.IsAny<CancellationToken>()), Times.Once);
+        (await Financials()).Should().Be((1000m, 0, 0m, 0m));
+    }
+
+    [CartPostgresFact]
     public async Task PurchaseReferenceRateIsFrozenAtPaymentAcrossReplayAndFreePurchase()
     {
         var paid = await Ready();

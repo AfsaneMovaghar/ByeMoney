@@ -3,6 +3,8 @@ using System.Text;
 using System.Text.Json;
 using ByeMoney.Application.Modules.Purchases.Carts.Constants;
 using ByeMoney.Application.Modules.Purchases.Carts.DTOs;
+using ByeMoney.Application.Modules.Purchases.Carts.Services;
+using ByeMoney.Domain.Common;
 using ByeMoney.Domain.Modules.Purchases;
 using ByeMoney.Infrastructure.Modules.TarhElahiIntegration.Clients;
 using FluentAssertions;
@@ -81,20 +83,66 @@ public sealed class CartPricingClientTests
         cart.Items.Single().ParentExternalId.Should().Be("bundle");
     }
 
+    [Fact]
+    public async Task PrepareStockLineErrorKeepsItemReasonAndAvailableQuantity()
+    {
+        const string body = """{"code":"CART_UNAVAILABLE","error":"x","lineError":{"externalId":"p","type":"product","quantity":3,"reason":"INSUFFICIENT_STOCK","availableQuantity":1}}""";
+        var client = Client(new CapturingHandler(body, HttpStatusCode.Conflict));
+
+        var result = await client.PrepareAsync(new CartQuoteRequest(CartId, "buyer", null,
+            [new CartItemInput("p", ProductItemType.Product, 3)]), default);
+
+        result.Status.Should().Be(ResultStatus.Conflict);
+        result.ErrorCode.Should().Be(CartErrorCodes.StockUnavailable);
+        result.ErrorMessage.Should().Be(CartErrors.InsufficientStock(1));
+        ((ICartStockFailure)result).LineError.Should().Be(new CartLineError("p", CartStockReasons.InsufficientStock, 1));
+    }
+
+    [Fact]
+    public async Task CheckOutOfStockLineErrorIsStockFailure()
+    {
+        const string body = """{"code":"CART_UNAVAILABLE","error":"x","lineError":{"externalId":"p","type":"product","quantity":1,"reason":"OUT_OF_STOCK","availableQuantity":0}}""";
+        var client = Client(new CapturingHandler(body, HttpStatusCode.Conflict));
+
+        var result = await client.TransitionAsync(new CartTransitionRequest(CartId, "buyer"), "check", default);
+
+        result.ErrorCode.Should().Be(CartErrorCodes.StockUnavailable);
+        result.ErrorMessage.Should().Be(CartErrors.OutOfStock);
+        ((ICartStockFailure)result).LineError.Should().Be(new CartLineError("p", CartStockReasons.OutOfStock, 0));
+    }
+
+    [Theory]
+    [InlineData("""{"code":"CART_CONFLICT","error":"x"}""")]
+    [InlineData("""{"code":"CART_UNAVAILABLE","error":"x","lineError":{"externalId":"c","type":"course","quantity":1,"reason":"ALREADY_OWNED"}}""")]
+    [InlineData("""{"code":"CART_UNAVAILABLE","error":"x","lineError":{"externalId":"p","reason":"INSUFFICIENT_STOCK"}}""")]
+    [InlineData("""{"code":"CART_UNAVAILABLE","error":"x","lineError":{"reason":"OUT_OF_STOCK","availableQuantity":0}}""")]
+    [InlineData("not json")]
+    [InlineData("")]
+    public async Task OtherConflictsStayGenericConflict(string body)
+    {
+        var client = Client(new CapturingHandler(body, HttpStatusCode.Conflict));
+
+        var result = await client.PrepareAsync(new CartQuoteRequest(CartId, "buyer", null, [new CartItemInput("c")]), default);
+
+        result.Status.Should().Be(ResultStatus.Conflict);
+        result.ErrorCode.Should().Be(CartErrorCodes.Conflict);
+        result.Should().NotBeAssignableTo<ICartStockFailure>();
+    }
+
     private static CartPricingClient Client(HttpMessageHandler handler) =>
         new(new HttpClient(handler) { BaseAddress = new Uri("https://strapi.test/") });
 
     private static string QuoteJson(string itemJson) =>
         $$"""{"cartId":"{{CartId}}","buyerExternalUserId":"buyer","couponCode":null,"items":[{{itemJson}}]}""";
 
-    private sealed class CapturingHandler(string responseJson) : HttpMessageHandler
+    private sealed class CapturingHandler(string responseJson, HttpStatusCode status = HttpStatusCode.OK) : HttpMessageHandler
     {
         public string? Body { get; private set; }
 
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             Body = request.Content is null ? null : await request.Content.ReadAsStringAsync(cancellationToken);
-            return new HttpResponseMessage(HttpStatusCode.OK)
+            return new HttpResponseMessage(status)
             {
                 Content = new StringContent(responseJson, Encoding.UTF8, "application/json")
             };
