@@ -21,7 +21,7 @@ public static class PurchaseHistoryMapping
         : DeliveryStatus(row.Status);
 
     public static PurchaseListItem ToListItem(PurchaseReadRow row) => new(
-        row.PurchaseId, row.CartId, row.CourseTitle, row.FinalAmountInNoor,
+        row.PurchaseId, row.CartId, row.ItemTitle, row.FinalAmountInNoor,
         row.PurchasedAtUtc, PurchaseFinancialStatus.Paid.ToString(), DeliveryStatus(row),
         row.ItemType.ToString(), row.ParentExternalId);
 
@@ -29,7 +29,7 @@ public static class PurchaseHistoryMapping
     {
         var name = $"{row.BuyerFirstName} {row.BuyerLastName}".Trim();
         return new AdminPurchaseListItem(
-            row.PurchaseId, row.CartId, row.CourseTitle, row.FinalAmountInNoor,
+            row.PurchaseId, row.CartId, row.ItemTitle, row.FinalAmountInNoor,
             row.PurchasedAtUtc, PurchaseFinancialStatus.Paid.ToString(), DeliveryStatus(row),
             row.BuyerExternalUserId, string.IsNullOrWhiteSpace(name) ? null : name,
             row.ItemType.ToString(), row.ParentExternalId);
@@ -73,7 +73,7 @@ public static class PurchaseHistoryMapping
         var purchase = data.Purchase!;
         var snapshot = purchase.Snapshot;
         var baseAmount = cart?.Items.FirstOrDefault(
-            item => item.ExternalCourseId == snapshot.ExternalProductId && item.ItemType == snapshot.ItemType)?.LineTotalInNoor;
+            item => item.ExternalItemId == snapshot.ExternalProductId && item.ItemType == snapshot.ItemType)?.LineTotalInNoor;
 
         return new PurchaseReceipt(
             purchase.Id.Value,

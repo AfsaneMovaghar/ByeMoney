@@ -7,7 +7,5 @@ namespace ByeMoney.Application.Modules.Purchases.Commands.PrepareCart;
 
 public sealed record PrepareCartCommand(
     Guid CartId,
-    string[]? ExternalCourseIds = null,
-    string? CouponCode = null,
-    CartItemInput[]? Items = null) : IRequest<Result<CartResponse>>;
-
+    CartItemInput[]? Items = null,
+    string? CouponCode = null) : IRequest<Result<CartResponse>>;

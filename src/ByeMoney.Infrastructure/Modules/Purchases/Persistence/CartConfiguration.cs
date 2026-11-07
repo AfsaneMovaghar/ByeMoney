@@ -35,8 +35,8 @@ public sealed class CartConfiguration : IEntityTypeConfiguration<Cart>
                     "\"AllocatedAmountInNoor\" >= 0 AND trunc(\"AllocatedAmountInNoor\") = \"AllocatedAmountInNoor\" AND \"AllocatedAmountInNoor\" <= \"Quantity\" * \"PriceInNoor\"");
             });
             items.WithOwner().HasForeignKey("CartId");
-            items.HasKey("CartId", nameof(CartItem.ExternalCourseId), nameof(CartItem.ItemType));
-            items.Property(x => x.ExternalCourseId).HasMaxLength(100);
+            items.HasKey("CartId", nameof(CartItem.ExternalItemId), nameof(CartItem.ItemType));
+            items.Property(x => x.ExternalItemId).HasMaxLength(100);
             items.Property(x => x.ItemType).HasConversion<string>().HasMaxLength(30).HasDefaultValue(ProductItemType.Course);
             items.Property(x => x.ParentExternalId).HasMaxLength(100);
             items.Property(x => x.Title).HasMaxLength(255).IsRequired();

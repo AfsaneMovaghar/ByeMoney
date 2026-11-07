@@ -91,11 +91,11 @@ public sealed class CartTests
     public async Task ValidationRejectsInvalidListCouponAndIdWithoutInfrastructureCalls()
     {
         var validator = new PrepareCartValidator();
-        (await validator.ValidateAsync(new PrepareCartCommand(Guid.NewGuid(), ["a", "a"], null))).IsValid.Should().BeFalse();
-        (await validator.ValidateAsync(new PrepareCartCommand(Guid.NewGuid(), ["a"], " "))).IsValid.Should().BeFalse();
-        (await validator.ValidateAsync(new PrepareCartCommand(Guid.Empty, ["a"], null))).IsValid.Should().BeFalse();
-        (await validator.ValidateAsync(new PrepareCartCommand(Guid.NewGuid(), [" a"], null))).IsValid.Should().BeFalse();
-        (await validator.ValidateAsync(new PrepareCartCommand(Guid.NewGuid(), ["a", "b"], "OFF"))).IsValid.Should().BeTrue();
+        (await validator.ValidateAsync(new PrepareCartCommand(Guid.NewGuid(), [new("a"), new("a")], null))).IsValid.Should().BeFalse();
+        (await validator.ValidateAsync(new PrepareCartCommand(Guid.NewGuid(), [new("a")], " "))).IsValid.Should().BeFalse();
+        (await validator.ValidateAsync(new PrepareCartCommand(Guid.Empty, [new("a")], null))).IsValid.Should().BeFalse();
+        (await validator.ValidateAsync(new PrepareCartCommand(Guid.NewGuid(), [new(" a")], null))).IsValid.Should().BeFalse();
+        (await validator.ValidateAsync(new PrepareCartCommand(Guid.NewGuid(), [new("a"), new("b")], "OFF"))).IsValid.Should().BeTrue();
     }
 }
 

@@ -2,6 +2,8 @@ using ByeMoney.Application.Modules.Purchases.Carts.Constants;
 using ByeMoney.Application.Modules.Purchases.Carts.DTOs;
 using ByeMoney.Application.Modules.Purchases.Carts.Interfaces;
 using ByeMoney.Domain.Common.Generic;
+using ByeMoney.Domain.Modules.Purchases;
+using ByeMoney.Infrastructure.Modules.TarhElahiIntegration.Contracts;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -10,20 +12,35 @@ using ByeMoney.Domain.Common;
 
 namespace ByeMoney.Infrastructure.Modules.TarhElahiIntegration.Clients;
 
+/// <summary>
+/// آداپتور قیمت‌گذاری و رزرو سبد طرح الهی. ترجمهٔ نام عام قلم به قرارداد فروشنده و قواعد مخصوص
+/// کاتالوگ طرح الهی (والد فصل، تعداد دوره) فقط اینجا نگهداری می‌شوند.
+/// </summary>
 public sealed class CartPricingClient(HttpClient http) : ICartPricingClient
 {
     private static readonly JsonSerializerOptions QuoteJsonOptions = new(JsonSerializerDefaults.Web)
     {
         Converters = { new JsonStringEnumConverter(JsonNamingPolicy.SnakeCaseLower, allowIntegerValues: false) }
     };
+
     public async Task<Result<CartQuote>> PrepareAsync(CartQuoteRequest request, CancellationToken ct)
     {
         try
         {
-            using var response = await http.PostAsJsonAsync("api/integrations/byemoney/v1/carts/prepare", request, ct);
-            if (!response.IsSuccessStatusCode) return Failure<CartQuote>(response.StatusCode);
-            var quote = await response.Content.ReadFromJsonAsync<CartQuote>(QuoteJsonOptions, ct);
-            return quote is null ? Result<CartQuote>.Failure(CartErrors.Invalid, CartErrorCodes.Invalid) : Result<CartQuote>.Success(quote);
+            using var response = await http.PostAsJsonAsync(
+                "api/integrations/byemoney/v1/carts/prepare",
+                ToWireRequest(request),
+                ct);
+            if (!response.IsSuccessStatusCode)
+            {
+                return Failure<CartQuote>(response.StatusCode);
+            }
+
+            var wire = await response.Content.ReadFromJsonAsync<TarhElahiCartPrepareResponse>(QuoteJsonOptions, ct);
+            var quote = wire is null ? null : ToQuote(wire);
+            return quote is null
+                ? Result<CartQuote>.Failure(CartErrors.Invalid, CartErrorCodes.Invalid)
+                : Result<CartQuote>.Success(quote);
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
         catch (Exception ex) when (ex is HttpRequestException or OperationCanceledException or System.Text.Json.JsonException)
@@ -41,6 +58,82 @@ public sealed class CartPricingClient(HttpClient http) : ICartPricingClient
         catch (Exception ex) when (ex is HttpRequestException or OperationCanceledException)
         { return Result.Failure(CartErrors.Unavailable, CartErrorCodes.Unavailable); }
     }
+
+    /// <summary>
+    /// سبد فقط دوره/فصل تک‌تایی با قالب قدیمی <c>externalCourseIds</c> فرستاده می‌شود تا قرارداد موجود استرپی
+    /// دست نخورد؛ کالا یا تعداد بیش از یک به قالب اقلام تایپ‌دار نیاز دارد.
+    /// </summary>
+    internal static TarhElahiCartPrepareRequest ToWireRequest(CartQuoteRequest request)
+    {
+        var needsTypedItems = request.Items.Any(x => x.Type == ProductItemType.Product || x.Quantity > 1);
+        if (!needsTypedItems)
+        {
+            var ids = request.Items
+                .Select(x => x.ExternalId)
+                .Order(StringComparer.Ordinal)
+                .ToArray();
+            return new TarhElahiCartPrepareRequest(request.CartId, request.BuyerExternalUserId, ids, request.CouponCode);
+        }
+
+        var items = request.Items
+            .Select(x => new TarhElahiCartPrepareItemRequest(x.ExternalId, ToWireType(x.Type), x.Quantity))
+            .ToArray();
+        return new TarhElahiCartPrepareRequest(request.CartId, request.BuyerExternalUserId, null, request.CouponCode, items);
+    }
+
+    private static string ToWireType(ProductItemType type) => type switch
+    {
+        ProductItemType.CourseChapter => "course_chapter",
+        ProductItemType.Product => "product",
+        _ => "course"
+    };
+
+    private static CartQuote? ToQuote(TarhElahiCartPrepareResponse wire)
+    {
+        if (wire.Items is null ||
+            wire.Items.Any(x => string.IsNullOrWhiteSpace(x.ExternalCourseId)) ||
+            !wire.Items.All(HasValidCatalogShape))
+        {
+            return null;
+        }
+
+        var items = wire.Items
+            .Select(x => new CartQuoteItem(
+                x.ExternalCourseId,
+                x.Title,
+                x.BasePriceInNoor,
+                x.ItemDiscountInNoor,
+                x.CouponDiscountInNoor,
+                x.PriceInNoor,
+                x.Type,
+                x.ParentExternalId,
+                x.Quantity))
+            .ToArray();
+
+        return new CartQuote(
+            wire.CartId,
+            wire.BuyerExternalUserId,
+            wire.CouponCode,
+            items,
+            wire.OriginalTotalInNoor,
+            wire.ItemDiscountInNoor,
+            wire.CouponDiscountInNoor,
+            wire.ShippingAmountInNoor,
+            wire.ShippingRuleLabel,
+            wire.PriceInNoor);
+    }
+
+    /// <summary>
+    /// قاعدهٔ کاتالوگ طرح الهی: فصل والد دارد و تک‌تایی است، دوره والد ندارد و تک‌تایی است، کالا والد ندارد.
+    /// </summary>
+    private static bool HasValidCatalogShape(TarhElahiCartPrepareResponseItem item) => item.Type switch
+    {
+        ProductItemType.CourseChapter => !string.IsNullOrWhiteSpace(item.ParentExternalId) && item.Quantity == 1,
+        ProductItemType.Course => item.ParentExternalId is null && item.Quantity == 1,
+        ProductItemType.Product => item.ParentExternalId is null && item.Quantity >= 1,
+        _ => false
+    };
+
     private static Result<T> Failure<T>(HttpStatusCode status) => status switch
     {
         HttpStatusCode.BadRequest => Result<T>.Failure(CartErrors.Invalid, CartErrorCodes.Invalid),

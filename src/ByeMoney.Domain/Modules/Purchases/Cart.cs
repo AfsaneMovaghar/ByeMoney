@@ -21,7 +21,7 @@ public sealed class Cart
     /// ترتیب قطعی (شناسه و سپس نوع) تا تخصیص مبلغ به اقلام قابل بازتولید بماند.
     /// </summary>
     public IReadOnlyList<CartItem> Items => _items
-        .OrderBy(x => x.ExternalCourseId, StringComparer.Ordinal)
+        .OrderBy(x => x.ExternalItemId, StringComparer.Ordinal)
         .ThenBy(x => x.ItemType)
         .ToArray();
 
@@ -92,20 +92,14 @@ public sealed class Cart
             items.Sum(x => x.LineTotalInNoor) > MaximumOriginalTotalInNoor ||
             !IsWholeNonNegativeNoor(shippingAmountInNoor) ||
             items.Any(HasInvalidPrice) ||
-            items.GroupBy(x => (x.ExternalCourseId, x.Type)).Any(g => g.Count() > 1) ||
-            items.Any(x => !Enum.IsDefined(x.Type) ||
-                (x.Type == ProductItemType.CourseChapter
-                    ? string.IsNullOrWhiteSpace(x.ParentExternalId) || x.ParentExternalId.Length > 100 ||
-                      x.ParentExternalId == x.ExternalCourseId || x.Quantity != 1
-                    : x.Type == ProductItemType.Course
-                        ? x.ParentExternalId is not null || x.Quantity != 1
-                        : x.ParentExternalId is not null || x.Quantity < 1)))
+            items.GroupBy(x => (x.ExternalItemId, x.Type)).Any(g => g.Count() > 1) ||
+            items.Any(x => !Enum.IsDefined(x.Type) || !ProductParentRule.IsValid(x.ExternalItemId, x.ParentExternalId)))
         {
             throw new ArgumentException(nameof(items));
         }
 
         var signatures = items
-            .Select(x => CartItemSignature.Format(x.ExternalCourseId, x.Type, x.Quantity))
+            .Select(x => CartItemSignature.Format(x.ExternalItemId, x.Type, x.Quantity))
             .Order(StringComparer.Ordinal)
             .ToArray();
         if (!signatures.SequenceEqual(RequestedItemSignatures))
@@ -115,7 +109,7 @@ public sealed class Cart
 
         _items.Clear();
         _items.AddRange(items.Select(x => new CartItem(
-            x.ExternalCourseId, x.Title, x.BasePriceInNoor, x.PriceInNoor, x.Type, x.ParentExternalId, x.Quantity)));
+            x.ExternalItemId, x.Title, x.BasePriceInNoor, x.PriceInNoor, x.Type, x.ParentExternalId, x.Quantity)));
         ItemDiscountInNoor = items.Sum(x => x.ItemDiscountInNoor);
         CouponDiscountInNoor = items.Sum(x => x.CouponDiscountInNoor);
         ShippingAmountInNoor = shippingAmountInNoor;

@@ -12,11 +12,11 @@ public sealed class UpdatePhysicalDeliveryStatusCommandValidator : AbstractValid
 
         RuleFor(command => command.PurchaseId)
             .NotEmpty()
-            .WithMessage(CourseOrderErrors.InvalidPurchaseId);
+            .WithMessage(OrderErrors.InvalidPurchaseId);
 
         RuleFor(command => command.Status)
             .Must(IsAllowedTarget)
-            .WithMessage(CourseOrderErrors.InvalidDeliveryStatus);
+            .WithMessage(OrderErrors.InvalidDeliveryStatus);
     }
 
     private static bool IsAllowedTarget(string? status) =>

@@ -52,7 +52,7 @@ public static class CartPayment
             }
 
             var referenceId = i < items.Count
-                ? CartPurchaseIds.For(cart.Id, items[i].ExternalCourseId).Value.ToString()
+                ? CartPurchaseIds.For(cart.Id, items[i].ExternalItemId).Value.ToString()
                 : cart.Id.ToString();
             AddLedgerPair(ledgerEntries, wallet, system!, cart.Id, referenceId, giftShares[i], LedgerBalanceType.Gift);
             AddLedgerPair(
@@ -67,7 +67,7 @@ public static class CartPayment
             var item = items[i];
             var amount = item.AllocatedAmountInNoor;
             var shares = new PaymentShares(amount - giftShares[i], giftShares[i]);
-            var purchaseIdGuid = CartPurchaseIds.For(cart.Id, item.ExternalCourseId).Value;
+            var purchaseIdGuid = CartPurchaseIds.For(cart.Id, item.ExternalItemId).Value;
 
             if (item.ItemType == ProductItemType.Product)
             {
@@ -75,7 +75,7 @@ public static class CartPayment
                     new PhysicalProductPurchaseId(purchaseIdGuid),
                     cart.Id,
                     cart.BuyerId,
-                    item.ExternalCourseId,
+                    item.ExternalItemId,
                     item.Title,
                     item.Quantity,
                     item.PriceInNoor,
@@ -96,7 +96,7 @@ public static class CartPayment
             else
             {
                 var snapshot = ProductSnapshot.Create(
-                    item.ExternalCourseId,
+                    item.ExternalItemId,
                     item.Title,
                     amount,
                     isFree: amount == 0,

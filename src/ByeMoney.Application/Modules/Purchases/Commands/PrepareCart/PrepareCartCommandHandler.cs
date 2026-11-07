@@ -15,7 +15,7 @@ public sealed class PrepareCartCommandHandler(CartService service, ICurrentUserS
 
     public Task<Result<CartResponse>> Handle(PrepareCartCommand request, CancellationToken ct)
     {
-        var items = request.Items ?? request.ExternalCourseIds?.Select(x => new CartItemInput(x, ProductItemType.Course, 1)).ToArray() ?? [];
+        var items = request.Items ?? [];
         return service.PrepareAsync(Buyer, request.CartId, items, request.CouponCode, ct);
     }
 }

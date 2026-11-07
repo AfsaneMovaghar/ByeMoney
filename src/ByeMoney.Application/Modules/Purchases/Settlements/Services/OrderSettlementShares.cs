@@ -20,7 +20,7 @@ public sealed record OrderSettlementPayments(
 public static class OrderSettlementShares
 {
     public static OrderSettlementPayments BuildPayments(
-        CourseOrderSnapshot snapshot,
+        OrderSnapshot snapshot,
         IReadOnlyDictionary<Guid, PaymentShares> shippingByCart)
     {
         var itemShares = new Dictionary<Guid, PaymentShares>();
@@ -53,7 +53,7 @@ public static class OrderSettlementShares
         return new OrderSettlementPayments(itemShares, shippingByCart, refundsByCart);
     }
 
-    public static PaymentShares? Calculate(CourseOrderDetails order, OrderSettlementPayments payments)
+    public static PaymentShares? Calculate(OrderDetails order, OrderSettlementPayments payments)
     {
         var regular = 0m;
         var gift = 0m;

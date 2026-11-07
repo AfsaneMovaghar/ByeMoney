@@ -18,7 +18,7 @@ namespace ByeMoney.API.Controllers;
 [ApiController]
 [Authorize]
 // مسیر عمومی سبد قرارداد بیرونی فرانت است؛ تغییر آن نیازمند هماهنگی است.
-[Route("api/course-carts")]
+[Route("api/carts")]
 public sealed class CartsController(ISender sender) : ControllerBase
 {
     [HttpPost("checkout")]
@@ -27,7 +27,7 @@ public sealed class CartsController(ISender sender) : ControllerBase
         [FromBody] PrepareCartRequest request,
         CancellationToken ct)
     {
-        var command = new PrepareCartCommand(request.CartId, request.ExternalCourseIds, request.CouponCode, request.Items);
+        var command = new PrepareCartCommand(request.CartId, request.Items, request.CouponCode);
         var result = await sender.Send(command, ct);
         return Respond(result);
     }

@@ -7,15 +7,15 @@ using ByeMoney.Application.Modules.Purchases.Settlements.Interfaces;
 namespace ByeMoney.Application.Modules.Purchases.Settlements.Services;
 
 /// <summary>سفارش‌های قابل تسویه‌ای که هنوز در هیچ دوره‌ای ثبت نشده‌اند، به ترتیب زمان ساخت سفارش.</summary>
-public sealed class OrderSettlementCandidateService(ICourseOrderReader reader, IOrderSettlementStore store)
+public sealed class OrderSettlementCandidateService(IOrderReader reader, IOrderSettlementStore store)
 {
     public async Task<IReadOnlyList<SettlementOrderResponse>> GetUnsettledAsync(CancellationToken ct)
     {
         var snapshot = await reader.ReadAsync(null, null, ct);
         var settledOrderIds = await store.GetSettledOrderIdsAsync(ct);
-        var settleable = CourseOrderMapping.Build(snapshot)
+        var settleable = OrderMapping.Build(snapshot)
             .Where(row => !settledOrderIds.Contains(row.Details.OrderId))
-            .Where(row => CourseOrderSettlementRule.IsSettleable(row.Details))
+            .Where(row => OrderSettlementRule.IsSettleable(row.Details))
             .ToArray();
 
         var cartIds = settleable
@@ -25,7 +25,7 @@ public sealed class OrderSettlementCandidateService(ICourseOrderReader reader, I
         var shippingByCart = await store.GetShippingPaymentsAsync(cartIds, ct);
         var payments = OrderSettlementShares.BuildPayments(snapshot, shippingByCart);
         var buyers = snapshot.Buyers.ToDictionary(buyer => buyer.Id);
-        var refundsByCart = CourseOrderRefunds.ByCart(snapshot);
+        var refundsByCart = OrderRefunds.ByCart(snapshot);
 
         return settleable
             .Select(row => ToCandidate(row, buyers, payments, refundsByCart))
@@ -39,8 +39,8 @@ public sealed class OrderSettlementCandidateService(ICourseOrderReader reader, I
     /// سفارشی که سهم پرداختش ثبت نشده یا جمع سهم‌هایش با مبلغ خالص سفارش نمی‌خواند، قابل تسویه نیست.
     /// </summary>
     private static SettlementOrderResponse? ToCandidate(
-        CourseOrderReadRow row,
-        IReadOnlyDictionary<Guid, CourseOrderBuyer> buyers,
+        OrderReadRow row,
+        IReadOnlyDictionary<Guid, OrderBuyer> buyers,
         OrderSettlementPayments payments,
         IReadOnlyDictionary<Guid, decimal> refundsByCart)
     {
@@ -51,7 +51,7 @@ public sealed class OrderSettlementCandidateService(ICourseOrderReader reader, I
             return null;
         }
 
-        var netAmount = CourseOrderSettlementRule.NetAmount(order, CourseOrderRefunds.For(order, refundsByCart));
+        var netAmount = OrderSettlementRule.NetAmount(order, OrderRefunds.For(order, refundsByCart));
         if (netShares.RegularInNoor + netShares.GiftInNoor != netAmount)
         {
             return null;

@@ -328,8 +328,8 @@ public sealed class PhysicalProductCartFinancialTests
         receipt.PurchaseId.Should().Be(physicalId.Value);
         receipt.CartId.Should().Be(cart.Id);
         receipt.TransactionId.Should().Be(cart.Id);
-        receipt.CourseExternalId.Should().Be("product-book");
-        receipt.CourseTitle.Should().Be("Ú©ØªØ§Ø¨ ÙÛŒØ²ÛŒÚ©ÛŒ");
+        receipt.ExternalItemId.Should().Be("product-book");
+        receipt.ItemTitle.Should().Be("Ú©ØªØ§Ø¨ ÙÛŒØ²ÛŒÚ©ÛŒ");
         receipt.BaseAmountInNoor.Should().Be(150m);
         receipt.DiscountAmountInNoor.Should().Be(50m);
         receipt.FinalAmountInNoor.Should().Be(100m);
@@ -403,7 +403,6 @@ public sealed class PhysicalProductCartFinancialTests
                     "quantity": 3
                 }
             ],
-            "externalCourseIds": ["chap-123"],
             "couponCode": "OFF10"
         }
         """;
@@ -419,7 +418,6 @@ public sealed class PhysicalProductCartFinancialTests
         request.Items[1].ExternalId.Should().Be("prod-456");
         request.Items[1].Type.Should().Be(ProductItemType.Product);
         request.Items[1].Quantity.Should().Be(3);
-        request.ExternalCourseIds.Should().ContainSingle().Which.Should().Be("chap-123");
         request.CouponCode.Should().Be("OFF10");
     }
 }

@@ -256,7 +256,7 @@ public sealed class CartPostgresTests : IAsyncLifetime
         var migrator = db.GetService<IMigrator>();
         await migrator.MigrateAsync("20261018061504_AddCourseCartPaymentRetries");
         var json = await db.Database.SqlQuery<string>($"SELECT \"Items\"::text AS \"Value\" FROM \"CourseCarts\" WHERE \"Id\" = {cart.Id}").SingleAsync();
-        var items = System.Text.Json.JsonSerializer.Deserialize<CartQuoteItem[]>(json);
+        var items = System.Text.Json.JsonSerializer.Deserialize<LegacyCartJsonItem[]>(json);
         items!.Select(x => new CartItem(x.ExternalCourseId, x.Title, x.BasePriceInNoor, x.PriceInNoor)).Should().Equal(cart.Items);
         await migrator.MigrateAsync();
         (await Store.FindAsync(cart.Id, _buyer.Id.Value, default)).Should().BeNull();
@@ -301,13 +301,38 @@ public sealed class CartPostgresTests : IAsyncLifetime
         (await Store.PayAsync(fresh.Id, _buyer.Id.Value, fresh.ReservationId, default)).IsSuccess.Should().BeTrue();
         (await Financials()).Should().Be((830m, 2, 170m, 0m));
     }
+
+    [CartPostgresFact]
+    public async Task ExternalItemIdRenameMigrationKeepsCartRowsAcrossDownAndUp()
+    {
+        const string previousMigration = "20261107081202_AddOrderSettlementPeriods";
+        var cart = await Ready(["a", "b"]);
+        using var scope = _provider.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var migrator = db.GetService<IMigrator>();
+
+        await migrator.MigrateAsync(previousMigration);
+        var legacyIds = await db.Database.SqlQuery<string>(
+                $"SELECT \"ExternalCourseId\" AS \"Value\" FROM \"CartItems\" WHERE \"CartId\" = {cart.Id} ORDER BY 1")
+            .ToListAsync();
+        legacyIds.Should().Equal("a", "b");
+
+        await migrator.MigrateAsync();
+        var restored = await Store.FindAsync(cart.Id, _buyer.Id.Value, default);
+        restored!.Items.Should().Equal(cart.Items);
+        (await Store.PayAsync(cart.Id, _buyer.Id.Value, cart.ReservationId, default)).IsSuccess.Should().BeTrue();
+    }
+
+    /// <summary>قالب JSON سبد پیش از نرمال‌سازی؛ نام کلید همان ستون قدیمی است.</summary>
+    private sealed record LegacyCartJsonItem(string ExternalCourseId, string Title, decimal BasePriceInNoor, decimal PriceInNoor);
+
     [CartPostgresFact]
     public async Task RelationalItemsPreserveSnapshotOrderAcrossReplayAndRecovery()
     {
         var cart = await Ready(["z", "A", "a"]);
         var loaded = (await Store.FindAsync(cart.Id, _buyer.Id.Value, default))!;
         loaded.Items.Should().Equal(cart.Items);
-        loaded.Items.Select(x => x.ExternalCourseId).Should().Equal("A", "a", "z");
+        loaded.Items.Select(x => x.ExternalItemId).Should().Equal("A", "a", "z");
         (await Store.CreateAsync(Cart.Create(cart.Id, _buyer.Id.Value, _buyer.ExternalUserId,
             cart.RequestedItemSignatures, "OFF"), default)).Value.Items.Should().Equal(cart.Items);
         await Store.FailAsync(cart.Id, _buyer.Id.Value, false, cart.ReservationId, default);
@@ -328,7 +353,7 @@ public sealed class CartPostgresTests : IAsyncLifetime
         CartQuoteItem[] quote = [new("a", "Ù‚ÛŒÙ…Øª ØªØ§Ø²Ù‡", 200, 10, 20, 170), new("b", "Ø±Ø§ÛŒÚ¯Ø§Ù†", 100, 100, 0, 0)];
         await Store.SetQuoteAsync(cart.Id, _buyer.Id.Value, quote, reopened.ReservationId, default);
         var loaded = (await Store.FindAsync(cart.Id, _buyer.Id.Value, default))!;
-        loaded.Items.Should().Equal(quote.Select(x => new CartItem(x.ExternalCourseId, x.Title, x.BasePriceInNoor, x.PriceInNoor)));
+        loaded.Items.Should().Equal(quote.Select(x => new CartItem(x.ExternalItemId, x.Title, x.BasePriceInNoor, x.PriceInNoor)));
         loaded.ItemDiscountInNoor.Should().Be(110);
         loaded.CouponDiscountInNoor.Should().Be(20);
         loaded.Items.Sum(x => x.AllocatedAmountInNoor).Should().Be(170);
@@ -447,7 +472,7 @@ public sealed class CartPostgresTests : IAsyncLifetime
             var service = scope.ServiceProvider.GetRequiredService<CartService>();
             var response = await service.PurchaseAsync(_buyer.Id.Value, cart.Id, default);
             response.Value.Status.Should().Be("Paid");
-            response.Value.Courses.Should().OnlyContain(x => x.PurchaseStatus == "DeliveryPending");
+            response.Value.Items.Should().OnlyContain(x => x.PurchaseStatus == "DeliveryPending");
             var pending = await Store.FindAsync(cart.Id, _buyer.Id.Value, default);
             pending!.SyncAttempts.Should().Be(1);
             pending.LastSyncErrorCode.Should().Be(CartErrorCodes.Unavailable);
@@ -457,7 +482,7 @@ public sealed class CartPostgresTests : IAsyncLifetime
         {
             var service = scope.ServiceProvider.GetRequiredService<CartService>();
             await service.ProcessAsync((await Store.FindAsync(cart.Id, _buyer.Id.Value, default))!, default);
-            (await service.GetAsync(_buyer.Id.Value, cart.Id, default)).Value.Courses.Should().OnlyContain(x => x.PurchaseStatus == "Completed");
+            (await service.GetAsync(_buyer.Id.Value, cart.Id, default)).Value.Items.Should().OnlyContain(x => x.PurchaseStatus == "Completed");
         }
         (await Financials()).Should().Be((811m, 2, 189m, 0m));
     }
@@ -515,7 +540,7 @@ public sealed class CartPostgresTests : IAsyncLifetime
         var service = scope.ServiceProvider.GetRequiredService<CartService>();
         await service.ProcessAsync(cart, default); await service.ProcessAsync(cart, default);
         var result = await service.GetAsync(_buyer.Id.Value, cart.Id, default);
-        result.Value.Status.Should().Be("Paid"); result.Value.Courses.Should().OnlyContain(x => x.PurchaseStatus == "Completed");
+        result.Value.Status.Should().Be("Paid"); result.Value.Items.Should().OnlyContain(x => x.PurchaseStatus == "Completed");
         result.Value.PriceInNoor.Should().Be(189); result.Value.TopUpStatus.Should().Be("Confirmed");
         (await Financials()).Should().Be((.2m, 2, 189m, 0m));
         var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();

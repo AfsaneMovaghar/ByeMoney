@@ -32,7 +32,7 @@ public sealed class CartPaymentTests
             """;
         using var http = new HttpClient(new QuoteResponseHandler(json)) { BaseAddress = new Uri("https://strapi.test/") };
         var client = new CartPricingClient(http);
-        var quote = await client.PrepareAsync(new CartQuoteRequest(cart.Id, "buyer", ["chapter-uuid"], null), default);
+        var quote = await client.PrepareAsync(new CartQuoteRequest(cart.Id, "buyer", null, [new CartItemInput("chapter-uuid", ProductItemType.CourseChapter)]), default);
         quote.IsSuccess.Should().BeTrue();
         cart.SetQuote(quote.Value.Items);
 

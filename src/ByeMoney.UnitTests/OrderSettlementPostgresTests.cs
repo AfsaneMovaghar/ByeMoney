@@ -107,7 +107,7 @@ public sealed class OrderSettlementPostgresTests : IAsyncLifetime
         firstPreview.TotalRegularNetAmountInNoor.Should().Be(30m);
         firstPreview.TotalGiftNetAmountInNoor.Should().Be(10m);
         firstPreview.TotalNetAmountInNoor.Should().Be(40m);
-        firstPreview.Orders.Items.Single().OrderId.Should().Be(seed.CourseOrderId);
+        firstPreview.Orders.Items.Single().OrderId.Should().Be(seed.OrderIdFormat);
 
         var first = await CloseAsync(provider, seed.AdminA, firstPreview, "آبان");
         first.IsSuccess.Should().BeTrue();
@@ -142,7 +142,7 @@ public sealed class OrderSettlementPostgresTests : IAsyncLifetime
         firstOrders.Items.Single().Should().BeEquivalentTo(
             new
             {
-                OrderId = seed.CourseOrderId,
+                OrderId = seed.OrderIdFormat,
                 RegularNetAmountInNoor = 30m,
                 GiftNetAmountInNoor = 10m,
                 NetAmountInNoor = 40m,
@@ -181,7 +181,7 @@ public sealed class OrderSettlementPostgresTests : IAsyncLifetime
         await using var db = new ApplicationDbContext(_options);
         (await db.Set<OrderSettlementPeriod>().CountAsync()).Should().Be(1);
         (await db.Set<OrderSettlementItem>().Select(item => item.OrderId).ToListAsync())
-            .Should().BeEquivalentTo([seed.CourseOrderId, seed.PhysicalOrderId]);
+            .Should().BeEquivalentTo([seed.OrderIdFormat, seed.PhysicalOrderId]);
         (await LedgerCountAsync()).Should().Be(ledgerCount);
     }
 
@@ -190,7 +190,7 @@ public sealed class OrderSettlementPostgresTests : IAsyncLifetime
     {
         await using var provider = BuildProvider();
         var seed = await SeedAsync(provider);
-        var orderId = seed.CourseOrderId;
+        var orderId = seed.OrderIdFormat;
 
         await using (var db = new ApplicationDbContext(_options))
         {
@@ -315,7 +315,7 @@ public sealed class OrderSettlementPostgresTests : IAsyncLifetime
         Guid AdminA,
         string AdminAExternalId,
         Guid AdminB,
-        string CourseOrderId,
+        string OrderIdFormat,
         string PhysicalOrderId,
         Guid PhysicalPurchaseId);
 

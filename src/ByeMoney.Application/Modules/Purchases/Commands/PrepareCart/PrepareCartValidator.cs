@@ -6,6 +6,9 @@ namespace ByeMoney.Application.Modules.Purchases.Commands.PrepareCart;
 
 public sealed class PrepareCartValidator : AbstractValidator<PrepareCartCommand>
 {
+    private const int MaxItems = 100;
+    private const int MaxExternalIdLength = 100;
+
     public PrepareCartValidator()
     {
         RuleLevelCascadeMode = CascadeMode.Stop;
@@ -15,45 +18,24 @@ public sealed class PrepareCartValidator : AbstractValidator<PrepareCartCommand>
             .NotEmpty()
             .WithMessage(CartErrors.Invalid);
 
-        RuleFor(x => x)
-            .Must(x => (x.Items != null && x.Items.Length > 0) || (x.ExternalCourseIds != null && x.ExternalCourseIds.Length > 0))
+        RuleFor(x => x.Items)
+            .NotNull()
+            .WithMessage(CartErrors.Invalid)
+            .NotEmpty()
+            .WithMessage(CartErrors.Invalid)
+            .Must(items => items!.Length <= MaxItems &&
+                           items.GroupBy(i => (i.ExternalId, i.Type)).All(g => g.Count() == 1))
             .WithMessage(CartErrors.Invalid);
 
-        When(x => x.Items != null && x.Items.Length > 0, () =>
-        {
-            RuleFor(x => x.Items!)
-                .Must(items => items.Length <= 100 &&
-                               items.GroupBy(i => (i.ExternalId, i.Type)).All(g => g.Count() == 1))
-                .WithMessage(CartErrors.Invalid);
-
-            RuleForEach(x => x.Items!)
-                .Must(item => !string.IsNullOrWhiteSpace(item.ExternalId) &&
-                              item.ExternalId == item.ExternalId.Trim() &&
-                              item.ExternalId.Length <= 100 &&
-                              item.Quantity >= 1 &&
-                              (item.Type != ProductItemType.Course || item.Quantity == 1) &&
-                              (item.Type != ProductItemType.CourseChapter || item.Quantity == 1))
-                .WithMessage(CartErrors.Invalid);
-        });
-
-        When(x => x.Items == null || x.Items.Length == 0, () =>
-        {
-            RuleFor(x => x.ExternalCourseIds)
-                .NotNull()
-                .WithMessage(CartErrors.Invalid)
-                .NotEmpty()
-                .WithMessage(CartErrors.Invalid)
-                .Must(ids => ids != null && ids.Length <= 100 && ids.Distinct(StringComparer.Ordinal).Count() == ids.Length)
-                .WithMessage(CartErrors.Invalid);
-
-            RuleForEach(x => x.ExternalCourseIds!)
-                .NotEmpty()
-                .WithMessage(CartErrors.Invalid)
-                .MaximumLength(100)
-                .WithMessage(CartErrors.Invalid)
-                .Must(id => id == id.Trim())
-                .WithMessage(CartErrors.Invalid);
-        });
+        RuleForEach(x => x.Items)
+            .Must(item => item is not null &&
+                          !string.IsNullOrWhiteSpace(item.ExternalId) &&
+                          item.ExternalId == item.ExternalId.Trim() &&
+                          item.ExternalId.Length <= MaxExternalIdLength &&
+                          Enum.IsDefined(item.Type) &&
+                          item.Quantity >= 1 &&
+                          (item.Type == ProductItemType.Product || item.Quantity == 1))
+            .WithMessage(CartErrors.Invalid);
 
         RuleFor(x => x.CouponCode)
             .MaximumLength(100)

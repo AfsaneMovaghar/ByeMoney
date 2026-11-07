@@ -42,11 +42,11 @@ internal static class PurchaseHistoryHttpChecks
         });
         builder.Services.AddPresentationServices(builder.Configuration);
         builder.Services.AddApplicationServices();
-        builder.Services.AddControllers().AddApplicationPart(typeof(MyCoursePurchasesController).Assembly);
+        builder.Services.AddControllers().AddApplicationPart(typeof(MyPurchasesController).Assembly);
         builder.Services.AddSingleton(options);
         builder.Services.AddScoped<ApplicationDbContext>();
         builder.Services.AddScoped<IPurchaseHistoryReader, PurchaseHistoryReader>();
-        builder.Services.AddScoped<ICourseOrderReader, CourseOrderReader>();
+        builder.Services.AddScoped<IOrderReader, OrderReader>();
         builder.Services.AddSingleton<IClaimsTransformation, TestClaimsTransformation>();
         builder.Services.AddAuthentication(authentication =>
         {
@@ -64,56 +64,56 @@ internal static class PurchaseHistoryHttpChecks
         using var client = new HttpClient { BaseAddress = new Uri(app.Urls.Single()) };
         try
         {
-            (await client.GetAsync("/api/me/course-purchases")).StatusCode.Should().Be(HttpStatusCode.Unauthorized);
-            (await client.GetAsync($"/api/admin/course-purchases/{otherId}")).StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+            (await client.GetAsync("/api/purchases")).StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+            (await client.GetAsync($"/api/admin/purchases/{otherId}")).StatusCode.Should().Be(HttpStatusCode.Unauthorized);
             client.DefaultRequestHeaders.Add("X-Test-Buyer", buyerId.ToString());
-            var mine = await client.GetAsync("/api/me/course-purchases?page=1&pageSize=2");
+            var mine = await client.GetAsync("/api/purchases?page=1&pageSize=2");
             mine.StatusCode.Should().Be(HttpStatusCode.OK);
             using var page = JsonDocument.Parse(await mine.Content.ReadAsStringAsync());
             page.RootElement.GetProperty("totalCount").GetInt32().Should().Be(3);
             page.RootElement.GetProperty("items").GetArrayLength().Should().Be(2);
             page.RootElement.GetProperty("items")[0].TryGetProperty("buyerExternalUserId", out _).Should().BeFalse();
 
-            var free = await client.GetAsync($"/api/me/course-purchases/{freeId}");
+            var free = await client.GetAsync($"/api/purchases/{freeId}");
             free.StatusCode.Should().Be(HttpStatusCode.OK);
             using var receipt = JsonDocument.Parse(await free.Content.ReadAsStringAsync());
             receipt.RootElement.GetProperty("financialStatus").GetString().Should().Be("Paid");
             receipt.RootElement.GetProperty("finalAmountInNoor").GetDecimal().Should().Be(0);
             receipt.RootElement.GetProperty("referenceRialPerNoorAtPurchaseTime").ValueKind.Should().Be(JsonValueKind.Null);
-            var foreign = await client.GetAsync($"/api/me/course-purchases/{otherId}");
-            var missing = await client.GetAsync($"/api/me/course-purchases/{Guid.NewGuid()}");
+            var foreign = await client.GetAsync($"/api/purchases/{otherId}");
+            var missing = await client.GetAsync($"/api/purchases/{Guid.NewGuid()}");
             foreign.StatusCode.Should().Be(HttpStatusCode.NotFound);
             missing.StatusCode.Should().Be(HttpStatusCode.NotFound);
             (await foreign.Content.ReadAsStringAsync()).Should().Be(await missing.Content.ReadAsStringAsync());
 
-            (await client.GetAsync("/api/admin/course-purchases")).StatusCode.Should().Be(HttpStatusCode.Forbidden);
-            (await client.GetAsync($"/api/admin/course-purchases/{otherId}")).StatusCode.Should().Be(HttpStatusCode.Forbidden);
+            (await client.GetAsync("/api/admin/purchases")).StatusCode.Should().Be(HttpStatusCode.Forbidden);
+            (await client.GetAsync($"/api/admin/purchases/{otherId}")).StatusCode.Should().Be(HttpStatusCode.Forbidden);
             client.DefaultRequestHeaders.Add("X-Test-Permission", Permissions.Courses.Manage);
-            (await client.GetAsync("/api/admin/course-purchases")).StatusCode.Should().Be(HttpStatusCode.Forbidden);
-            (await client.GetAsync($"/api/admin/course-purchases/{otherId}")).StatusCode.Should().Be(HttpStatusCode.Forbidden);
+            (await client.GetAsync("/api/admin/purchases")).StatusCode.Should().Be(HttpStatusCode.Forbidden);
+            (await client.GetAsync($"/api/admin/purchases/{otherId}")).StatusCode.Should().Be(HttpStatusCode.Forbidden);
             client.DefaultRequestHeaders.Remove("X-Test-Permission");
             client.DefaultRequestHeaders.Add("X-Test-Permission", Permissions.Purchases.View);
-            var adminReceipt = await client.GetAsync($"/api/admin/course-purchases/{otherId}");
+            var adminReceipt = await client.GetAsync($"/api/admin/purchases/{otherId}");
             adminReceipt.StatusCode.Should().Be(HttpStatusCode.OK);
             using var adminReceiptBody = JsonDocument.Parse(await adminReceipt.Content.ReadAsStringAsync());
             adminReceiptBody.RootElement.GetProperty("purchaseId").GetGuid().Should().Be(otherId);
-            (await client.GetAsync($"/api/me/course-purchases/{otherId}")).StatusCode.Should().Be(HttpStatusCode.NotFound);
-            (await client.GetAsync($"/api/admin/course-purchases/{Guid.NewGuid()}")).StatusCode.Should().Be(HttpStatusCode.NotFound);
-            (await client.GetAsync($"/api/admin/course-purchases/{Guid.Empty}")).StatusCode.Should().Be(HttpStatusCode.BadRequest);
-            var admin = await client.GetAsync("/api/admin/course-purchases");
+            (await client.GetAsync($"/api/purchases/{otherId}")).StatusCode.Should().Be(HttpStatusCode.NotFound);
+            (await client.GetAsync($"/api/admin/purchases/{Guid.NewGuid()}")).StatusCode.Should().Be(HttpStatusCode.NotFound);
+            (await client.GetAsync($"/api/admin/purchases/{Guid.Empty}")).StatusCode.Should().Be(HttpStatusCode.BadRequest);
+            var admin = await client.GetAsync("/api/admin/purchases");
             admin.StatusCode.Should().Be(HttpStatusCode.OK);
             using var adminPage = JsonDocument.Parse(await admin.Content.ReadAsStringAsync());
             adminPage.RootElement.GetProperty("page").GetInt32().Should().Be(1);
             adminPage.RootElement.GetProperty("pageSize").GetInt32().Should().Be(20);
             adminPage.RootElement.GetProperty("totalCount").GetInt32().Should().Be(4);
-            var filtered = await client.GetAsync("/api/admin/course-purchases?buyerExternalUserId=history-buyer" +
+            var filtered = await client.GetAsync("/api/admin/purchases?buyerExternalUserId=history-buyer" +
                 "&fromUtc=2026-10-19T10:01:00Z&toUtc=2026-10-19T10:02:00Z" +
                 "&financialStatus=Paid&deliveryStatus=Delivered");
             filtered.StatusCode.Should().Be(HttpStatusCode.OK);
             using var filteredPage = JsonDocument.Parse(await filtered.Content.ReadAsStringAsync());
             filteredPage.RootElement.GetProperty("totalCount").GetInt32().Should().Be(1);
-            (await client.GetAsync("/api/admin/course-purchases?deliveryStatus=3")).StatusCode.Should().Be(HttpStatusCode.BadRequest);
-            (await client.GetAsync("/api/me/course-purchases?pageSize=0")).StatusCode.Should().Be(HttpStatusCode.BadRequest);
+            (await client.GetAsync("/api/admin/purchases?deliveryStatus=3")).StatusCode.Should().Be(HttpStatusCode.BadRequest);
+            (await client.GetAsync("/api/purchases?pageSize=0")).StatusCode.Should().Be(HttpStatusCode.BadRequest);
             await VerifyOrdersAsync(client, otherId);
         }
         finally
@@ -124,7 +124,7 @@ internal static class PurchaseHistoryHttpChecks
 
     private static async Task VerifyOrdersAsync(HttpClient client, Guid otherPurchaseId)
     {
-        var mine = await client.GetAsync("/api/me/course-orders");
+        var mine = await client.GetAsync("/api/me/orders");
         mine.StatusCode.Should().Be(HttpStatusCode.OK);
         using var page = JsonDocument.Parse(await mine.Content.ReadAsStringAsync());
         page.RootElement.GetProperty("totalCount").GetInt32().Should().Be(4);
@@ -134,47 +134,47 @@ internal static class PurchaseHistoryHttpChecks
         foreach (var item in items)
         {
             var orderId = item.GetProperty("orderId").GetString();
-            var response = await client.GetAsync($"/api/me/course-orders/{orderId}");
+            var response = await client.GetAsync($"/api/me/orders/{orderId}");
             response.StatusCode.Should().Be(HttpStatusCode.OK);
             var json = await response.Content.ReadAsStringAsync();
             json.Should().NotContain("notificationFailureReason");
             json.Should().NotContain("buyerExternalUserId");
         }
 
-        var foreign = await client.GetAsync($"/api/me/course-orders/purchase:{otherPurchaseId:D}");
-        var missing = await client.GetAsync($"/api/me/course-orders/purchase:{Guid.NewGuid():D}");
+        var foreign = await client.GetAsync($"/api/me/orders/purchase:{otherPurchaseId:D}");
+        var missing = await client.GetAsync($"/api/me/orders/purchase:{Guid.NewGuid():D}");
         foreign.StatusCode.Should().Be(HttpStatusCode.NotFound);
         missing.StatusCode.Should().Be(HttpStatusCode.NotFound);
         using var foreignBody = JsonDocument.Parse(await foreign.Content.ReadAsStringAsync());
         using var missingBody = JsonDocument.Parse(await missing.Content.ReadAsStringAsync());
         foreignBody.RootElement.GetProperty("errors").GetRawText().Should()
             .Be(missingBody.RootElement.GetProperty("errors").GetRawText());
-        (await client.GetAsync("/api/me/course-orders/cart:invalid")).StatusCode.Should().Be(HttpStatusCode.BadRequest);
-        (await client.GetAsync("/api/me/course-orders?financialStatus=1")).StatusCode.Should().Be(HttpStatusCode.BadRequest);
-        (await client.GetAsync("/api/me/course-orders?deliveryStatus=Failed")).StatusCode.Should().Be(HttpStatusCode.BadRequest);
-        (await client.GetAsync("/api/me/course-orders?sourceType=1")).StatusCode.Should().Be(HttpStatusCode.BadRequest);
-        (await client.GetAsync("/api/me/course-orders?pageSize=0")).StatusCode.Should().Be(HttpStatusCode.BadRequest);
-        (await client.GetAsync("/api/me/course-orders?fromUtc=invalid")).StatusCode.Should().Be(HttpStatusCode.BadRequest);
-        var filtered = await client.GetAsync("/api/me/course-orders?financialStatus=Processing&sourceType=Purchase");
+        (await client.GetAsync("/api/me/orders/cart:invalid")).StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        (await client.GetAsync("/api/me/orders?financialStatus=1")).StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        (await client.GetAsync("/api/me/orders?deliveryStatus=Failed")).StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        (await client.GetAsync("/api/me/orders?sourceType=1")).StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        (await client.GetAsync("/api/me/orders?pageSize=0")).StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        (await client.GetAsync("/api/me/orders?fromUtc=invalid")).StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        var filtered = await client.GetAsync("/api/me/orders?financialStatus=Processing&sourceType=Purchase");
         filtered.StatusCode.Should().Be(HttpStatusCode.OK);
         using var filteredPage = JsonDocument.Parse(await filtered.Content.ReadAsStringAsync());
         filteredPage.RootElement.GetProperty("totalCount").GetInt32().Should().Be(1);
 
         client.DefaultRequestHeaders.Remove("X-Test-Permission");
-        (await client.GetAsync("/api/admin/course-orders")).StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        (await client.GetAsync("/api/admin/orders")).StatusCode.Should().Be(HttpStatusCode.Forbidden);
         client.DefaultRequestHeaders.Add("X-Test-Permission", Permissions.Courses.Manage);
-        (await client.GetAsync("/api/admin/course-orders")).StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        (await client.GetAsync("/api/admin/orders")).StatusCode.Should().Be(HttpStatusCode.Forbidden);
         client.DefaultRequestHeaders.Remove("X-Test-Permission");
         client.DefaultRequestHeaders.Add("X-Test-Permission", Permissions.Purchases.View);
-        var admin = await client.GetAsync("/api/admin/course-orders?buyerExternalUserId=history-other");
+        var admin = await client.GetAsync("/api/admin/orders?buyerExternalUserId=history-other");
         admin.StatusCode.Should().Be(HttpStatusCode.OK);
         using var adminPage = JsonDocument.Parse(await admin.Content.ReadAsStringAsync());
         adminPage.RootElement.GetProperty("totalCount").GetInt32().Should().Be(1);
         adminPage.RootElement.GetProperty("items")[0].GetProperty("buyerExternalUserId")
             .GetString().Should().Be("history-other");
         client.DefaultRequestHeaders.Remove("X-Test-Buyer");
-        (await client.GetAsync("/api/me/course-orders")).StatusCode.Should().Be(HttpStatusCode.Unauthorized);
-        (await client.GetAsync("/api/admin/course-orders")).StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+        (await client.GetAsync("/api/me/orders")).StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+        (await client.GetAsync("/api/admin/orders")).StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 
     private sealed class TestClaimsTransformation : IClaimsTransformation

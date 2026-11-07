@@ -1312,7 +1312,7 @@ namespace ByeMoney.Infrastructure.Migrations
                             b1.Property<Guid>("CartId")
                                 .HasColumnType("uuid");
 
-                            b1.Property<string>("ExternalCourseId")
+                            b1.Property<string>("ExternalItemId")
                                 .HasMaxLength(100)
                                 .HasColumnType("character varying(100)");
 
@@ -1344,7 +1344,7 @@ namespace ByeMoney.Infrastructure.Migrations
                                 .HasMaxLength(255)
                                 .HasColumnType("character varying(255)");
 
-                            b1.HasKey("CartId", "ExternalCourseId", "ItemType");
+                            b1.HasKey("CartId", "ExternalItemId", "ItemType");
 
                             b1.ToTable("CartItems", null, t =>
                                 {

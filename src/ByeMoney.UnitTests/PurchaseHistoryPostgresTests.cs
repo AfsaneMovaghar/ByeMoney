@@ -192,14 +192,14 @@ public sealed class PurchaseHistoryPostgresTests : IAsyncLifetime
         waiting.Items.Single().PurchaseId.Should().Be(pen.Id.Value);
         PurchaseHistoryMapping.ToListItem(waiting.Items.Single()).DeliveryStatus.Should().Be("Pending");
 
-        var snapshot = await new CourseOrderReader(db).ReadAsync(buyer.Id.Value, null, default);
-        var order = CourseOrderMapping.Build(snapshot).Single().Details;
+        var snapshot = await new OrderReader(db).ReadAsync(buyer.Id.Value, null, default);
+        var order = OrderMapping.Build(snapshot).Single().Details;
         order.FinancialStatus.Should().Be("Paid");
         order.DeliveryStatus.Should().Be("PartiallyDelivered");
         order.FinalAmountInNoor.Should().Be(130);
-        order.Items.Single(x => x.ExternalCourseId == "book").PhysicalDeliveryStatus.Should().Be("Delivered");
-        order.Items.Single(x => x.ExternalCourseId == "pen").PhysicalDeliveryStatus.Should().Be("Preparing");
-        var receipt = CourseOrderReceiptMapping.Build(order, snapshot)!;
+        order.Items.Single(x => x.ExternalItemId == "book").PhysicalDeliveryStatus.Should().Be("Delivered");
+        order.Items.Single(x => x.ExternalItemId == "pen").PhysicalDeliveryStatus.Should().Be("Preparing");
+        var receipt = OrderReceiptMapping.Build(order, snapshot)!;
         (receipt.Items.Sum(x => x.FinalAmountInNoor) + receipt.CartSummary!.ShippingAmountInNoor)
             .Should().Be(receipt.FinalAmountInNoor);
 
@@ -243,12 +243,12 @@ public sealed class PurchaseHistoryPostgresTests : IAsyncLifetime
         });
         var options = new DbContextOptionsBuilder<ApplicationDbContext>(_options).AddInterceptors(interceptor).Options;
         await using var db = new ApplicationDbContext(options);
-        var reader = new CourseOrderReader(db);
-        var before = CourseOrderMapping.Build(await reader.ReadAsync(buyer.Id.Value, null, default)).Single().Details;
+        var reader = new OrderReader(db);
+        var before = OrderMapping.Build(await reader.ReadAsync(buyer.Id.Value, null, default)).Single().Details;
         interceptor.Committed.Should().BeTrue();
         before.FinancialStatus.Should().Be("AwaitingPayment");
         before.Items.Single().PurchaseId.Should().BeNull();
-        var after = CourseOrderMapping.Build(await reader.ReadAsync(buyer.Id.Value, null, default)).Single().Details;
+        var after = OrderMapping.Build(await reader.ReadAsync(buyer.Id.Value, null, default)).Single().Details;
         after.FinancialStatus.Should().Be("Paid");
         after.Items.Single().PurchaseId.Should().NotBeNull();
         before.OrderId.Should().Be(after.OrderId);
@@ -291,8 +291,8 @@ public sealed class PurchaseHistoryPostgresTests : IAsyncLifetime
         }
 
         await using var db = new ApplicationDbContext(_options);
-        var reader = new CourseOrderReader(db);
-        var rows = CourseOrderMapping.Build(await reader.ReadAsync(null, buyer.ExternalUserId, default));
+        var reader = new OrderReader(db);
+        var rows = OrderMapping.Build(await reader.ReadAsync(null, buyer.ExternalUserId, default));
         rows.Should().HaveCount(2);
         var cartOrder = rows.Single(row => row.Details.SourceType == "Cart").Details;
         cartOrder.FinancialStatus.Should().Be("Failed");

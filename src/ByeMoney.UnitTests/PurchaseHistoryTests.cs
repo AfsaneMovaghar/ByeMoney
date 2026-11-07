@@ -205,9 +205,9 @@ public sealed class PurchaseHistoryTests
     [Fact]
     public void AdminRequiresDedicatedReadPermissionAndUserEndpointsRequireAuthentication()
     {
-        typeof(AdminCoursePurchasesController).GetCustomAttribute<AuthorizeAttribute>()!
+        typeof(AdminPurchasesController).GetCustomAttribute<AuthorizeAttribute>()!
             .Policy.Should().Be(PolicyNames.RequirePurchasesView);
-        typeof(MyCoursePurchasesController).GetCustomAttribute<AuthorizeAttribute>().Should().NotBeNull();
+        typeof(MyPurchasesController).GetCustomAttribute<AuthorizeAttribute>().Should().NotBeNull();
     }
 
     private static CoursePurchase PaidPurchase(decimal amount, decimal? rate)

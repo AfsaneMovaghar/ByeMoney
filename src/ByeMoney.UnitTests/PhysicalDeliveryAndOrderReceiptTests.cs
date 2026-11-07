@@ -10,8 +10,8 @@ using ByeMoney.Application.Modules.Purchases.Orders.DTOs;
 using ByeMoney.Application.Modules.Purchases.Orders.Interfaces;
 using ByeMoney.Application.Modules.Purchases.Orders.Services;
 using ByeMoney.Application.Modules.Purchases.PhysicalCancellations.Interfaces;
-using ByeMoney.Application.Modules.Purchases.Queries.GetAdminCourseOrders;
-using ByeMoney.Application.Modules.Purchases.Queries.GetMyCourseOrderReceipt;
+using ByeMoney.Application.Modules.Purchases.Queries.GetAdminOrders;
+using ByeMoney.Application.Modules.Purchases.Queries.GetMyOrderReceipt;
 using ByeMoney.Application.Modules.Wallet.DTOs;
 using ByeMoney.Domain.Common.Exceptions;
 using ByeMoney.Domain.Modules.Identity.Constants;
@@ -82,7 +82,7 @@ public sealed class PhysicalDeliveryAndOrderReceiptTests
     {
         var paid = PayMixedCart();
 
-        var order = CourseOrderMapping.Build(Snapshot(paid)).Single().Details;
+        var order = OrderMapping.Build(Snapshot(paid)).Single().Details;
 
         order.FinancialStatus.Should().Be("Paid");
         order.DeliveryStatus.Should().Be("Pending");
@@ -109,18 +109,18 @@ public sealed class PhysicalDeliveryAndOrderReceiptTests
         var course = paid.Payment.Purchases.Single();
 
         physical.MarkShipped();
-        var shipped = CourseOrderMapping.Build(Snapshot(paid)).Single().Details;
+        var shipped = OrderMapping.Build(Snapshot(paid)).Single().Details;
         shipped.DeliveryStatus.Should().Be("Pending");
         shipped.Items.Single(item => item.ItemType == "Product").PhysicalDeliveryStatus.Should().Be("Shipped");
         shipped.Items.Single(item => item.ItemType == "Product").DeliveryStatus.Should().Be("Pending");
 
         physical.MarkDelivered();
-        var partial = CourseOrderMapping.Build(Snapshot(paid)).Single().Details;
+        var partial = OrderMapping.Build(Snapshot(paid)).Single().Details;
         partial.DeliveryStatus.Should().Be("PartiallyDelivered");
         partial.Items.Single(item => item.ItemType == "Product").DeliveryStatus.Should().Be("Delivered");
 
         course.MarkNotificationSent();
-        CourseOrderMapping.Build(Snapshot(paid)).Single().Details.DeliveryStatus.Should().Be("Delivered");
+        OrderMapping.Build(Snapshot(paid)).Single().Details.DeliveryStatus.Should().Be("Delivered");
     }
 
     [Theory]
@@ -138,7 +138,7 @@ public sealed class PhysicalDeliveryAndOrderReceiptTests
         }
 
         var snapshot = Snapshot(paid);
-        var order = CourseOrderMapping.Build(snapshot).Single().Details;
+        var order = OrderMapping.Build(snapshot).Single().Details;
         var product = order.Items.Single(item => item.ItemType == "Product");
         var course = order.Items.Single(item => item.ItemType == "Course");
 
@@ -153,7 +153,7 @@ public sealed class PhysicalDeliveryAndOrderReceiptTests
         course.RefundedRegularInNoor.Should().Be(0m);
         course.RefundedGiftInNoor.Should().Be(0m);
 
-        var receipt = CourseOrderReceiptMapping.Build(order, snapshot)!;
+        var receipt = OrderReceiptMapping.Build(order, snapshot)!;
         var receiptProduct = receipt.Items.Single(item => item.ItemType == "Product");
         receiptProduct.CancelledQuantity.Should().Be(cancelled);
         receiptProduct.RefundedRegularInNoor.Should().Be(cancelled * 5m);
@@ -165,10 +165,10 @@ public sealed class PhysicalDeliveryAndOrderReceiptTests
     public void MissingPhysicalPurchaseOfPaidCartRequiresReview()
     {
         var paid = PayMixedCart();
-        var snapshot = new CourseOrderSnapshot(
+        var snapshot = new OrderSnapshot(
             [paid.Cart], [], paid.Payment.Purchases, [], [], []);
 
-        CourseOrderMapping.Build(snapshot).Single().Details.FinancialStatus.Should().Be("RequiresReview");
+        OrderMapping.Build(snapshot).Single().Details.FinancialStatus.Should().Be("RequiresReview");
     }
 
     [Fact]
@@ -179,9 +179,9 @@ public sealed class PhysicalDeliveryAndOrderReceiptTests
         physical.MarkShipped();
         physical.MarkDelivered();
         var snapshot = Snapshot(paid);
-        var order = CourseOrderMapping.Build(snapshot).Single().Details;
+        var order = OrderMapping.Build(snapshot).Single().Details;
 
-        var receipt = CourseOrderReceiptMapping.Build(order, snapshot)!;
+        var receipt = OrderReceiptMapping.Build(order, snapshot)!;
 
         receipt.OrderId.Should().Be(order.OrderId);
         receipt.TransactionId.Should().Be(paid.Cart.Id);
@@ -215,9 +215,9 @@ public sealed class PhysicalDeliveryAndOrderReceiptTests
         var cart = Cart.Create(Guid.NewGuid(), buyer.Value, "buyer-ext", [
             new CartItemInput("product-1", ProductItemType.Product, 2)
         ], null);
-        var snapshot = new CourseOrderSnapshot([cart], [], [], [], [], []);
+        var snapshot = new OrderSnapshot([cart], [], [], [], [], []);
 
-        var item = CourseOrderMapping.Build(snapshot).Single().Details.Items.Single();
+        var item = OrderMapping.Build(snapshot).Single().Details.Items.Single();
 
         item.ItemType.Should().Be("Product");
         item.Quantity.Should().Be(2);
@@ -227,10 +227,10 @@ public sealed class PhysicalDeliveryAndOrderReceiptTests
     public void OrderReceiptIsUnavailableUntilOrderIsPaid()
     {
         var paid = PayMixedCart();
-        var snapshot = new CourseOrderSnapshot([paid.Cart], [], paid.Payment.Purchases, [], [], []);
-        var incomplete = CourseOrderMapping.Build(snapshot).Single().Details;
+        var snapshot = new OrderSnapshot([paid.Cart], [], paid.Payment.Purchases, [], [], []);
+        var incomplete = OrderMapping.Build(snapshot).Single().Details;
 
-        CourseOrderReceiptMapping.Build(incomplete, snapshot).Should().BeNull();
+        OrderReceiptMapping.Build(incomplete, snapshot).Should().BeNull();
     }
 
     [Fact]
@@ -337,21 +337,21 @@ public sealed class PhysicalDeliveryAndOrderReceiptTests
     public async Task OrderReceiptHandlerReturnsNotFoundForUnknownOrUnpaidOrder()
     {
         var paid = PayMixedCart();
-        var snapshot = new CourseOrderSnapshot([paid.Cart], [], paid.Payment.Purchases, [], [], []);
-        var reader = new Mock<ICourseOrderReader>();
+        var snapshot = new OrderSnapshot([paid.Cart], [], paid.Payment.Purchases, [], [], []);
+        var reader = new Mock<IOrderReader>();
         reader.Setup(item => item.ReadAsync(It.IsAny<Guid?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(snapshot);
         var user = new Mock<ICurrentUserService>();
         user.SetupGet(item => item.UserId).Returns(paid.Cart.BuyerId.Value);
-        var handler = new GetMyCourseOrderReceiptQueryHandler(reader.Object, user.Object);
+        var handler = new GetMyOrderReceiptQueryHandler(reader.Object, user.Object);
 
         var unpaid = () => handler.Handle(
-            new GetMyCourseOrderReceiptQuery(CourseOrderId.For(
-                Application.Modules.Purchases.Orders.Constants.CourseOrderSourceType.Cart, paid.Cart.Id)),
+            new GetMyOrderReceiptQuery(OrderIdFormat.For(
+                Application.Modules.Purchases.Orders.Constants.OrderSourceType.Cart, paid.Cart.Id)),
             CancellationToken.None);
         var unknown = () => handler.Handle(
-            new GetMyCourseOrderReceiptQuery(CourseOrderId.For(
-                Application.Modules.Purchases.Orders.Constants.CourseOrderSourceType.Cart, Guid.NewGuid())),
+            new GetMyOrderReceiptQuery(OrderIdFormat.For(
+                Application.Modules.Purchases.Orders.Constants.OrderSourceType.Cart, Guid.NewGuid())),
             CancellationToken.None);
 
         await unpaid.Should().ThrowAsync<NotFoundException>();
@@ -363,14 +363,14 @@ public sealed class PhysicalDeliveryAndOrderReceiptTests
     {
         typeof(AdminPhysicalPurchasesController).GetCustomAttribute<AuthorizeAttribute>()!
             .Policy.Should().Be(PolicyNames.RequireCoursesManage);
-        typeof(AdminCourseOrdersController).GetCustomAttribute<AuthorizeAttribute>()!
+        typeof(AdminOrdersController).GetCustomAttribute<AuthorizeAttribute>()!
             .Policy.Should().Be(PolicyNames.RequirePurchasesView);
-        typeof(MyCourseOrdersController).GetCustomAttribute<AuthorizeAttribute>().Should().NotBeNull();
-        typeof(AdminCourseOrdersController).GetMethod(nameof(AdminCourseOrdersController.Receipt)).Should().NotBeNull();
-        typeof(MyCourseOrdersController).GetMethod(nameof(MyCourseOrdersController.Receipt)).Should().NotBeNull();
+        typeof(MyOrdersController).GetCustomAttribute<AuthorizeAttribute>().Should().NotBeNull();
+        typeof(AdminOrdersController).GetMethod(nameof(AdminOrdersController.Receipt)).Should().NotBeNull();
+        typeof(MyOrdersController).GetMethod(nameof(MyOrdersController.Receipt)).Should().NotBeNull();
     }
 
-    private static CourseOrderSnapshot Snapshot(PaidMixedCart paid) => new(
+    private static OrderSnapshot Snapshot(PaidMixedCart paid) => new(
         [paid.Cart], [], paid.Payment.Purchases, [], paid.Payment.PhysicalPurchases, []);
 
     [Fact]
@@ -452,20 +452,20 @@ public sealed class PhysicalDeliveryAndOrderReceiptTests
         item.DeliveryStatus.Should().Be("Pending");
     }
 
-    private static async Task<AdminCourseOrderListItem> ReadAdminListItemAsync(
+    private static async Task<AdminOrderListItem> ReadAdminListItemAsync(
         PaidMixedCart paid, PhysicalProductCancellation[] cancellations)
     {
-        var snapshot = new CourseOrderSnapshot(
+        var snapshot = new OrderSnapshot(
             [paid.Cart], [], paid.Payment.Purchases,
-            [new CourseOrderBuyer(paid.Cart.BuyerId.Value, "buyer-ext", null)],
+            [new OrderBuyer(paid.Cart.BuyerId.Value, "buyer-ext", null)],
             paid.Payment.PhysicalPurchases, cancellations);
-        var reader = new Mock<ICourseOrderReader>();
+        var reader = new Mock<IOrderReader>();
         reader.Setup(item => item.ReadAsync(null, null, It.IsAny<CancellationToken>())).ReturnsAsync(snapshot);
         var user = new Mock<ICurrentUserService>();
         user.SetupGet(item => item.UserId).Returns(Guid.NewGuid());
 
-        var page = await new GetAdminCourseOrdersQueryHandler(reader.Object, user.Object)
-            .Handle(new GetAdminCourseOrdersQuery(new AdminCourseOrderFilter()), default);
+        var page = await new GetAdminOrdersQueryHandler(reader.Object, user.Object)
+            .Handle(new GetAdminOrdersQuery(new AdminOrderFilter()), default);
 
         return page.Items.Single();
     }

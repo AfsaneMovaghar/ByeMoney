@@ -61,7 +61,7 @@ public sealed class PhysicalDeliveryHttpPostgresTests : IAsyncLifetime
 
     private static readonly string[] ReceiptItemKeys =
     [
-        "purchaseId", "externalId", "title", "itemType", "parentExternalId", "quantity", "unitPriceInNoor",
+        "purchaseId", "externalItemId", "title", "itemType", "parentExternalId", "quantity", "unitPriceInNoor",
         "baseAmountInNoor", "discountAmountInNoor", "finalAmountInNoor", "referenceRialPerNoorAtPurchaseTime",
         "deliveryStatus", "physicalDeliveryStatus", "purchasedAtUtc", "deliveredAtUtc", "cancelledQuantity",
         "refundedRegularInNoor", "refundedGiftInNoor"
@@ -150,7 +150,7 @@ public sealed class PhysicalDeliveryHttpPostgresTests : IAsyncLifetime
         var seed = await SeedAsync();
         await using var app = await StartAppAsync();
         using var client = new HttpClient { BaseAddress = new Uri(app.Urls.Single()) };
-        const string url = "/api/me/course-orders";
+        const string url = "/api/me/orders";
 
         var rejectedTokens = new[]
         {
@@ -305,8 +305,8 @@ public sealed class PhysicalDeliveryHttpPostgresTests : IAsyncLifetime
 
     private static async Task VerifyReceiptAccessAsync(HttpClient client, SeedData seed, string orderId)
     {
-        var adminUrl = $"/api/admin/course-orders/{orderId}/receipt";
-        var meUrl = $"/api/me/course-orders/{orderId}/receipt";
+        var adminUrl = $"/api/admin/orders/{orderId}/receipt";
+        var meUrl = $"/api/me/orders/{orderId}/receipt";
 
         (await SendAsync(client, HttpMethod.Get, adminUrl, null)).StatusCode.Should().Be(HttpStatusCode.Unauthorized);
         (await SendAsync(client, HttpMethod.Get, adminUrl, Token(seed.PlainUser))).StatusCode
@@ -321,12 +321,12 @@ public sealed class PhysicalDeliveryHttpPostgresTests : IAsyncLifetime
         (await SendAsync(client, HttpMethod.Get, meUrl, Token(seed.Buyer))).StatusCode.Should().Be(HttpStatusCode.OK);
         var foreign = await SendAsync(client, HttpMethod.Get, meUrl, Token(seed.PlainUser));
         var missing = await SendAsync(
-            client, HttpMethod.Get, $"/api/me/course-orders/cart:{Guid.NewGuid():D}/receipt", Token(seed.PlainUser));
+            client, HttpMethod.Get, $"/api/me/orders/cart:{Guid.NewGuid():D}/receipt", Token(seed.PlainUser));
         foreign.StatusCode.Should().Be(HttpStatusCode.NotFound);
         missing.StatusCode.Should().Be(HttpStatusCode.NotFound);
         (await foreign.Content.ReadAsStringAsync()).Should().Be(await missing.Content.ReadAsStringAsync());
 
-        var unpaidUrl = $"/api/admin/course-orders/cart:{seed.UnpaidCartId:D}/receipt";
+        var unpaidUrl = $"/api/admin/orders/cart:{seed.UnpaidCartId:D}/receipt";
         (await SendAsync(client, HttpMethod.Get, unpaidUrl, Token(seed.PurchasesViewAdmin))).StatusCode
             .Should().Be(HttpStatusCode.NotFound);
     }
@@ -334,7 +334,7 @@ public sealed class PhysicalDeliveryHttpPostgresTests : IAsyncLifetime
     private static async Task VerifyReceiptShapeAsync(HttpClient client, SeedData seed, string orderId)
     {
         var response = await SendAsync(
-            client, HttpMethod.Get, $"/api/admin/course-orders/{orderId}/receipt", Token(seed.PurchasesViewAdmin));
+            client, HttpMethod.Get, $"/api/admin/orders/{orderId}/receipt", Token(seed.PurchasesViewAdmin));
         using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
         var root = body.RootElement;
 
@@ -353,7 +353,7 @@ public sealed class PhysicalDeliveryHttpPostgresTests : IAsyncLifetime
         }
 
         items.Sum(item => item.GetProperty("finalAmountInNoor").GetDecimal()).Should().Be(120m);
-        var book = items.Single(item => item.GetProperty("externalId").GetString() == "book");
+        var book = items.Single(item => item.GetProperty("externalItemId").GetString() == "book");
         book.GetProperty("quantity").GetInt32().Should().Be(2);
         book.GetProperty("physicalDeliveryStatus").GetString().Should().Be("Preparing");
         book.GetProperty("deliveryStatus").GetString().Should().Be("Pending");
@@ -427,23 +427,23 @@ public sealed class PhysicalDeliveryHttpPostgresTests : IAsyncLifetime
     private static async Task AssertOrderItemStatusAsync(
         HttpClient client, SeedData seed, string orderId, string expected)
     {
-        var mine = await SendAsync(client, HttpMethod.Get, "/api/me/course-orders", Token(seed.Buyer));
+        var mine = await SendAsync(client, HttpMethod.Get, "/api/me/orders", Token(seed.Buyer));
         mine.StatusCode.Should().Be(HttpStatusCode.OK);
         using var page = JsonDocument.Parse(await mine.Content.ReadAsStringAsync());
         page.RootElement.GetProperty("items").EnumerateArray()
             .Should().Contain(item => item.GetProperty("orderId").GetString() == orderId);
 
-        var details = await SendAsync(client, HttpMethod.Get, $"/api/me/course-orders/{orderId}", Token(seed.Buyer));
+        var details = await SendAsync(client, HttpMethod.Get, $"/api/me/orders/{orderId}", Token(seed.Buyer));
         using var detailsBody = JsonDocument.Parse(await details.Content.ReadAsStringAsync());
         detailsBody.RootElement.GetProperty("items").EnumerateArray()
-            .Single(item => item.GetProperty("externalCourseId").GetString() == "book")
+            .Single(item => item.GetProperty("externalItemId").GetString() == "book")
             .GetProperty("physicalDeliveryStatus").GetString().Should().Be(expected);
 
         var receipt = await SendAsync(
-            client, HttpMethod.Get, $"/api/me/course-orders/{orderId}/receipt", Token(seed.Buyer));
+            client, HttpMethod.Get, $"/api/me/orders/{orderId}/receipt", Token(seed.Buyer));
         using var receiptBody = JsonDocument.Parse(await receipt.Content.ReadAsStringAsync());
         receiptBody.RootElement.GetProperty("items").EnumerateArray()
-            .Single(item => item.GetProperty("externalId").GetString() == "book")
+            .Single(item => item.GetProperty("externalItemId").GetString() == "book")
             .GetProperty("physicalDeliveryStatus").GetString().Should().Be(expected);
     }
 

@@ -21,36 +21,36 @@
 | ماژول / کنترلر | متد | مسیر (Route) | سطح دسترسی / پالیسی | پرمیژن مورد نیاز |
 | :--- | :--- | :--- | :--- | :--- |
 | AdminAssistedTopUp | `POST` | `/api/admin/topups/assisted` | نیازمند پالیسی `RequireTopUpReview` | `TopUp.Review` |
-| AdminCourseOrders | `GET` | `/api/admin/course-orders/{orderId}` | نیازمند پالیسی `RequirePurchasesView` | `Purchases.View` |
-| AdminCourseOrders | `GET` | `/api/admin/course-orders` | نیازمند پالیسی `RequirePurchasesView` | `Purchases.View` |
-| AdminCourseOrders | `GET` | `/api/admin/course-orders/{orderId}/receipt` | نیازمند پالیسی `RequirePurchasesView` | `Purchases.View` |
-| AdminCourseOrderSettlements | `POST` | `/api/admin/course-order-settlements` | نیازمند پالیسی `RequirePurchasesSettle` | `Purchases.Settle` |
-| AdminCourseOrderSettlements | `GET` | `/api/admin/course-order-settlements` | نیازمند پالیسی `RequirePurchasesView` | `Purchases.View` |
-| AdminCourseOrderSettlements | `GET` | `/api/admin/course-order-settlements/{periodId:guid}/orders` | نیازمند پالیسی `RequirePurchasesView` | `Purchases.View` |
-| AdminCourseOrderSettlements | `GET` | `/api/admin/course-order-settlements/preview` | نیازمند پالیسی `RequirePurchasesView` | `Purchases.View` |
-| AdminCoursePurchases | `GET` | `/api/admin/course-purchases` | نیازمند پالیسی `RequirePurchasesView` | `Purchases.View` |
-| AdminCoursePurchases | `GET` | `/api/admin/course-purchases/{purchaseId:guid}` | نیازمند پالیسی `RequirePurchasesView` | `Purchases.View` |
 | AdminCourses | `POST` | `/api/admin/courses/purchase` | نیازمند پالیسی `RequireCoursesManage` | `Courses.Manage` |
 | AdminGatewayReview | `GET` | `/api/admin/topups/gateway-reviews/{clientReferenceCode}` | نیازمند پالیسی `RequireTopUpReview` | `TopUp.Review` |
 | AdminGatewayReview | `POST` | `/api/admin/topups/gateway-reviews/resolve` | نیازمند پالیسی `RequireTopUpReview` | `TopUp.Review` |
 | AdminGift | `POST` | `/api/admin/noor-gifts` | نیازمند پالیسی `RequireNoorGift` | `Noor.Gift` |
+| AdminOrders | `GET` | `/api/admin/orders/{orderId}` | نیازمند پالیسی `RequirePurchasesView` | `Purchases.View` |
+| AdminOrders | `GET` | `/api/admin/orders` | نیازمند پالیسی `RequirePurchasesView` | `Purchases.View` |
+| AdminOrders | `GET` | `/api/admin/orders/{orderId}/receipt` | نیازمند پالیسی `RequirePurchasesView` | `Purchases.View` |
+| AdminOrderSettlements | `POST` | `/api/admin/order-settlements` | نیازمند پالیسی `RequirePurchasesSettle` | `Purchases.Settle` |
+| AdminOrderSettlements | `GET` | `/api/admin/order-settlements` | نیازمند پالیسی `RequirePurchasesView` | `Purchases.View` |
+| AdminOrderSettlements | `GET` | `/api/admin/order-settlements/{periodId:guid}/orders` | نیازمند پالیسی `RequirePurchasesView` | `Purchases.View` |
+| AdminOrderSettlements | `GET` | `/api/admin/order-settlements/preview` | نیازمند پالیسی `RequirePurchasesView` | `Purchases.View` |
 | AdminPhysicalCancellations | `POST` | `/api/admin/physical-purchases/{purchaseId:guid}/cancel` | نیازمند پالیسی `RequireNoorInject` | `Noor.Inject` |
 | AdminPhysicalCancellations | `GET` | `/api/admin/physical-purchases/pending-restocks` | نیازمند پالیسی `RequireNoorInject` | `Noor.Inject` |
 | AdminPhysicalCancellations | `GET` | `/api/admin/physical-purchases/{purchaseId:guid}/cancellation-preview` | نیازمند پالیسی `RequireNoorInject` | `Noor.Inject` |
 | AdminPhysicalCancellations | `POST` | `/api/admin/physical-purchases/restocks/{operationId:guid}/resolve` | نیازمند پالیسی `RequireNoorInject` | `Noor.Inject` |
 | AdminPhysicalCancellations | `POST` | `/api/admin/physical-purchases/restocks/{operationId:guid}/retry` | نیازمند پالیسی `RequireNoorInject` | `Noor.Inject` |
 | AdminPhysicalPurchases | `PUT` | `/api/admin/physical-purchases/{purchaseId:guid}/delivery-status` | نیازمند پالیسی `RequireCoursesManage` | `Courses.Manage` |
+| AdminPurchases | `GET` | `/api/admin/purchases` | نیازمند پالیسی `RequirePurchasesView` | `Purchases.View` |
+| AdminPurchases | `GET` | `/api/admin/purchases/{purchaseId:guid}` | نیازمند پالیسی `RequirePurchasesView` | `Purchases.View` |
 | AdminTopUp | `POST` | `/api/admin/topups/{id:guid}/confirm` | نیازمند پالیسی `RequireTopUpReview` | `TopUp.Review` |
 | AdminTopUp | `GET` | `/api/admin/topups/by-reference/{clientReferenceCode}` | نیازمند پالیسی `RequireTopUpReview` | `TopUp.Review` |
 | AdminTopUp | `GET` | `/api/admin/topups/permissions` | احراز هویت شده (JWT) | — |
 | AdminTopUp | `POST` | `/api/admin/topups/{id:guid}/reject` | نیازمند پالیسی `RequireTopUpReview` | `TopUp.Review` |
 | AdminWallet | `POST` | `/api/admin/wallets/batch-balances` | نیازمند پالیسی `RequireWalletView` | `Wallet.View` |
 | Auth | `POST` | `/api/auth/sync` | احراز هویت شده (JWT) | — |
-| Carts | `POST` | `/api/course-carts/{cartId:guid}/cancel` | احراز هویت شده (JWT) | — |
-| Carts | `GET` | `/api/course-carts/{cartId:guid}` | احراز هویت شده (JWT) | — |
-| Carts | `POST` | `/api/course-carts/checkout` | احراز هویت شده (JWT) | — |
-| Carts | `POST` | `/api/course-carts/{cartId:guid}/purchase` | احراز هویت شده (JWT) | — |
-| Carts | `POST` | `/api/course-carts/{cartId:guid}/topup` | احراز هویت شده (JWT) | — |
+| Carts | `POST` | `/api/carts/{cartId:guid}/cancel` | احراز هویت شده (JWT) | — |
+| Carts | `GET` | `/api/carts/{cartId:guid}` | احراز هویت شده (JWT) | — |
+| Carts | `POST` | `/api/carts/checkout` | احراز هویت شده (JWT) | — |
+| Carts | `POST` | `/api/carts/{cartId:guid}/purchase` | احراز هویت شده (JWT) | — |
+| Carts | `POST` | `/api/carts/{cartId:guid}/topup` | احراز هویت شده (JWT) | — |
 | Courses | `GET` | `/api/courses/{externalCourseId}/checkout` | احراز هویت شده (JWT) | — |
 | Courses | `POST` | `/api/courses/purchase` | احراز هویت شده (JWT) | — |
 | GatewayTopUp | `POST` | `/api/integrations/topups/gateway-cancellations` | عمومی (Anonymous) | — |
@@ -60,13 +60,13 @@
 | GatewayTopUp | `POST` | `/api/integrations/topups/v1/gateway-reviews/open` | عمومی (Anonymous) | — |
 | GatewayTopUp | `POST` | `/api/integrations/topups/gateway-results` | عمومی (Anonymous) | — |
 | GatewayTopUp | `POST` | `/api/integrations/topups/v1/gateway-reviews/reopen` | عمومی (Anonymous) | — |
-| MyCourseOrders | `GET` | `/api/me/course-orders/{orderId}` | احراز هویت شده (JWT) | — |
-| MyCourseOrders | `GET` | `/api/me/course-orders` | احراز هویت شده (JWT) | — |
-| MyCourseOrders | `GET` | `/api/me/course-orders/{orderId}/receipt` | احراز هویت شده (JWT) | — |
-| MyCoursePurchases | `GET` | `/api/me/course-purchases` | احراز هویت شده (JWT) | — |
-| MyCoursePurchases | `GET` | `/api/me/course-purchases/{purchaseId:guid}` | احراز هویت شده (JWT) | — |
+| MyOrders | `GET` | `/api/me/orders/{orderId}` | احراز هویت شده (JWT) | — |
+| MyOrders | `GET` | `/api/me/orders` | احراز هویت شده (JWT) | — |
+| MyOrders | `GET` | `/api/me/orders/{orderId}/receipt` | احراز هویت شده (JWT) | — |
 | MyPhysicalOrders | `POST` | `/api/me/physical-orders/{cartId:guid}/cancel` | احراز هویت شده (JWT) | — |
 | MyPhysicalOrders | `GET` | `/api/me/physical-orders/{cartId:guid}/cancellation-preview` | احراز هویت شده (JWT) | — |
+| MyPurchases | `GET` | `/api/purchases` | احراز هویت شده (JWT) | — |
+| MyPurchases | `GET` | `/api/purchases/{purchaseId:guid}` | احراز هویت شده (JWT) | — |
 | Settings | `GET` | `/api/settings/conversion-rate` | عمومی (Public / بدون Authorize) | — |
 | TopUp | `POST` | `/api/topup/requests` | احراز هویت شده (JWT) | — |
 | TopUp | `GET` | `/api/topup/{topUpId:guid}/checkout` | احراز هویت شده (JWT) | — |

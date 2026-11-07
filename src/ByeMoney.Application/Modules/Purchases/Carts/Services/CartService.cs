@@ -99,25 +99,7 @@ public sealed class CartService(
 
         if (cart.Status == CartStatus.Preparing && cart.ExpiresAtUtc > DateTime.UtcNow)
         {
-            CartQuoteRequest quoteRequest;
-            if (items.Any(x => x.Type == ProductItemType.Product || x.Quantity > 1))
-            {
-                var requestItems = items.Select(x => new CartQuoteItemRequest(
-                    x.ExternalId,
-                    x.Type switch
-                    {
-                        ProductItemType.CourseChapter => "course_chapter",
-                        ProductItemType.Product => "product",
-                        _ => "course"
-                    },
-                    x.Quantity)).ToArray();
-                quoteRequest = new CartQuoteRequest(cart.ReservationId, user.ExternalUserId, null, cart.CouponCode, requestItems);
-            }
-            else
-            {
-                quoteRequest = new CartQuoteRequest(cart.ReservationId, user.ExternalUserId, cart.RequestedItemSignatures, cart.CouponCode);
-            }
-
+            var quoteRequest = new CartQuoteRequest(cart.ReservationId, user.ExternalUserId, cart.CouponCode, items);
             var quote = await pricing.PrepareAsync(quoteRequest, ct);
             if (quote.IsFailure)
             {
@@ -139,7 +121,7 @@ public sealed class CartService(
 
             var quoteProductIds = quote.Value.Items
                 .Where(x => x.Type != ProductItemType.Product)
-                .Select(x => x.ExternalCourseId)
+                .Select(x => x.ExternalItemId)
                 .ToArray();
             var quoteParentIds = quote.Value.Items
                 .Where(x => x.Type == ProductItemType.CourseChapter && !string.IsNullOrEmpty(x.ParentExternalId))
@@ -310,7 +292,7 @@ public sealed class CartService(
 
         var paid = cart.Status == CartStatus.Paid;
         var purchaseIds = paid
-            ? cart.Items.Select(x => CartPurchaseIds.For(id, x.ExternalCourseId).Value).ToArray()
+            ? cart.Items.Select(x => CartPurchaseIds.For(id, x.ExternalItemId).Value).ToArray()
             : null;
 
         var result = await pricing.TransitionAsync(
@@ -359,7 +341,7 @@ public sealed class CartService(
         var items = new List<CartItemResponse>();
         foreach (var item in cart.Items)
         {
-            var purchase = await purchases.GetByIdAsync(CartPurchaseIds.For(cart.Id, item.ExternalCourseId), ct);
+            var purchase = await purchases.GetByIdAsync(CartPurchaseIds.For(cart.Id, item.ExternalItemId), ct);
             var status = purchase?.Status == CoursePurchaseStatus.NotificationSent
                 ? "Completed"
                 : cart.Status == CartStatus.Paid
@@ -369,7 +351,7 @@ public sealed class CartService(
                         : "NotPurchased";
 
             items.Add(new(
-                item.ExternalCourseId,
+                item.ExternalItemId,
                 item.Title,
                 item.PriceInNoor,
                 status,

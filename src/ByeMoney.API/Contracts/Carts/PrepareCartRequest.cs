@@ -4,7 +4,5 @@ namespace ByeMoney.API.Contracts.Carts;
 
 public sealed record PrepareCartRequest(
     Guid CartId,
-    string[]? ExternalCourseIds = null,
-    string? CouponCode = null,
-    CartItemInput[]? Items = null);
-
+    CartItemInput[]? Items = null,
+    string? CouponCode = null);

@@ -54,11 +54,7 @@ public class ProductSnapshot
         if (priceNoor < 0 || (!isFree && priceNoor == 0))
             throw new DomainException(DomainErrors.CoursePurchase_InvalidPrice);
 
-        if (!Enum.IsDefined(itemType) ||
-            (itemType == ProductItemType.CourseChapter
-                ? string.IsNullOrWhiteSpace(externalParentId) || externalParentId.Length > 100 ||
-                  externalParentId == externalProductId
-                : externalParentId is not null))
+        if (!Enum.IsDefined(itemType) || !ProductParentRule.IsValid(externalProductId, externalParentId))
         {
             throw new DomainException(DomainErrors.ProductSnapshot_InvalidItemTypeOrParent);
         }

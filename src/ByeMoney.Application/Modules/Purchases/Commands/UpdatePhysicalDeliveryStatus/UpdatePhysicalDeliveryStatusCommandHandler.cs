@@ -17,13 +17,13 @@ public sealed class UpdatePhysicalDeliveryStatusCommandHandler(
         UpdatePhysicalDeliveryStatusCommand request, CancellationToken ct)
     {
         var owner = await deliveryStore.FindOwnerAsync(request.PurchaseId, ct)
-            ?? throw new NotFoundException(CourseOrderErrors.PhysicalPurchaseNotFound);
+            ?? throw new NotFoundException(OrderErrors.PhysicalPurchaseNotFound);
 
         // خواندن و ذخیره زیر قفل خریدار و سبد انجام می‌شود تا با لغو هم‌زمان ناسازگار نشود.
         return await deliveryStore.ExecuteLockedAsync(owner.BuyerId, owner.CartId, async () =>
         {
             var purchase = await repository.GetByIdAsync(new PhysicalProductPurchaseId(request.PurchaseId), ct)
-                ?? throw new NotFoundException(CourseOrderErrors.PhysicalPurchaseNotFound);
+                ?? throw new NotFoundException(OrderErrors.PhysicalPurchaseNotFound);
 
             if (request.Status == nameof(PhysicalDeliveryStatus.Shipped))
             {

@@ -37,7 +37,7 @@ public static class DependencyInjection
         services.AddScoped<IUserProvisioningService, UserProvisioningService>();
         services.AddScoped<ICoursePurchaseRepository, CoursePurchaseRepository>();
         services.AddScoped<ByeMoney.Application.Modules.Purchases.History.Interfaces.IPurchaseHistoryReader, PurchaseHistoryReader>();
-        services.AddScoped<ByeMoney.Application.Modules.Purchases.Orders.Interfaces.ICourseOrderReader, CourseOrderReader>();
+        services.AddScoped<ByeMoney.Application.Modules.Purchases.Orders.Interfaces.IOrderReader, OrderReader>();
         services.AddScoped<ISystemSettingRepository, SystemSettingRepository>();
         services.AddHostedService<CoursePurchaseNotificationRetryBackgroundService>();
         services.AddScoped<ByeMoney.Application.Modules.Purchases.Carts.Interfaces.ICartStore, CartStore>();

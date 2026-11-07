@@ -189,7 +189,7 @@ public sealed class CartStore(IServiceScopeFactory scopes) : ICartStore
 
                 var productIds = cart.Items
                     .Where(x => x.ItemType != ProductItemType.Product)
-                    .Select(x => x.ExternalCourseId)
+                    .Select(x => x.ExternalItemId)
                     .ToArray();
                 var parentIds = cart.Items
                     .Where(x => x.ItemType == ProductItemType.CourseChapter && !string.IsNullOrEmpty(x.ParentExternalId))

@@ -58,7 +58,7 @@ public sealed class CartRefreshTests
             .ReturnsAsync(Result.Success());
         var result = await Service().PrepareAsync(_buyer.Id.Value, cart.Id, ["course"], null, default);
         result.Value.PriceInNoor.Should().Be(105);
-        result.Value.Courses.Single().PriceInNoor.Should().Be(105);
+        result.Value.Items.Single().PriceInNoor.Should().Be(105);
         _pricing.Verify(x => x.PrepareAsync(It.IsAny<CartQuoteRequest>(), It.IsAny<CancellationToken>()), Times.Never);
     }
     [Fact]
@@ -90,7 +90,7 @@ public sealed class CartRefreshTests
 
         var response = (await Service().GetAsync(_buyer.Id.Value, cart.Id, default)).Value;
 
-        response.Courses.Select(x => x.PriceInNoor).Should().Equal(105m, 105m);
+        response.Items.Select(x => x.PriceInNoor).Should().Equal(105m, 105m);
         response.OriginalTotalInNoor.Should().Be(210);
         response.ItemDiscountInNoor.Should().Be(5);
         response.CouponDiscountInNoor.Should().Be(21);
@@ -99,7 +99,7 @@ public sealed class CartRefreshTests
 
         var json = System.Text.Json.JsonSerializer.SerializeToElement(response,
             new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web));
-        foreach (var course in json.GetProperty("courses").EnumerateArray())
+        foreach (var course in json.GetProperty("items").EnumerateArray())
         {
             course.TryGetProperty("basePriceInNoor", out _).Should().BeFalse();
             course.TryGetProperty("itemDiscountInNoor", out _).Should().BeFalse();

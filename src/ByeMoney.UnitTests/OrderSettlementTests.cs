@@ -17,7 +17,7 @@ namespace ByeMoney.UnitTests;
 
 public sealed class OrderSettlementTests
 {
-    private const string Paid = nameof(CourseOrderFinancialStatus.Paid);
+    private const string Paid = nameof(OrderFinancialStatus.Paid);
     private const string Product = nameof(ProductItemType.Product);
 
     [Fact]
@@ -25,19 +25,19 @@ public sealed class OrderSettlementTests
     {
         var order = Order(Paid, 100m, CourseItem());
 
-        CourseOrderSettlementRule.IsSettleable(order).Should().BeTrue();
+        OrderSettlementRule.IsSettleable(order).Should().BeTrue();
     }
 
     [Theory]
-    [InlineData(nameof(CourseOrderFinancialStatus.AwaitingPayment))]
-    [InlineData(nameof(CourseOrderFinancialStatus.Processing))]
-    [InlineData(nameof(CourseOrderFinancialStatus.RequiresReview))]
-    [InlineData(nameof(CourseOrderFinancialStatus.Failed))]
+    [InlineData(nameof(OrderFinancialStatus.AwaitingPayment))]
+    [InlineData(nameof(OrderFinancialStatus.Processing))]
+    [InlineData(nameof(OrderFinancialStatus.RequiresReview))]
+    [InlineData(nameof(OrderFinancialStatus.Failed))]
     public void UnpaidOrder_IsNotSettleable(string financialStatus)
     {
         var order = Order(financialStatus, 100m, CourseItem());
 
-        CourseOrderSettlementRule.IsSettleable(order).Should().BeFalse();
+        OrderSettlementRule.IsSettleable(order).Should().BeFalse();
     }
 
     [Fact]
@@ -45,7 +45,7 @@ public sealed class OrderSettlementTests
     {
         var order = Order(Paid, null, CourseItem());
 
-        CourseOrderSettlementRule.IsSettleable(order).Should().BeFalse();
+        OrderSettlementRule.IsSettleable(order).Should().BeFalse();
     }
 
     [Fact]
@@ -53,7 +53,7 @@ public sealed class OrderSettlementTests
     {
         var order = Order(Paid, 100m, CourseItem(), PhysicalItem(PhysicalDeliveryStatus.Preparing));
 
-        CourseOrderSettlementRule.IsSettleable(order).Should().BeFalse();
+        OrderSettlementRule.IsSettleable(order).Should().BeFalse();
     }
 
     [Fact]
@@ -63,7 +63,7 @@ public sealed class OrderSettlementTests
             PhysicalItem(PhysicalDeliveryStatus.Shipped, "book"),
             PhysicalItem(PhysicalDeliveryStatus.Preparing, "pen"));
 
-        CourseOrderSettlementRule.IsSettleable(order).Should().BeFalse();
+        OrderSettlementRule.IsSettleable(order).Should().BeFalse();
     }
 
     [Theory]
@@ -73,7 +73,7 @@ public sealed class OrderSettlementTests
     {
         var order = Order(Paid, 100m, CourseItem(), PhysicalItem(status));
 
-        CourseOrderSettlementRule.IsSettleable(order).Should().BeTrue();
+        OrderSettlementRule.IsSettleable(order).Should().BeTrue();
     }
 
     [Fact]
@@ -83,7 +83,7 @@ public sealed class OrderSettlementTests
             PhysicalItem(PhysicalDeliveryStatus.Shipped, "book"),
             PhysicalItem(PhysicalDeliveryStatus.Preparing, "pen", quantity: 2, cancelledQuantity: 2));
 
-        CourseOrderSettlementRule.IsSettleable(order).Should().BeTrue();
+        OrderSettlementRule.IsSettleable(order).Should().BeTrue();
     }
 
     [Fact]
@@ -94,8 +94,8 @@ public sealed class OrderSettlementTests
         var shipped = Order(Paid, 100m,
             PhysicalItem(PhysicalDeliveryStatus.Shipped, quantity: 3, cancelledQuantity: 1));
 
-        CourseOrderSettlementRule.IsSettleable(waiting).Should().BeFalse();
-        CourseOrderSettlementRule.IsSettleable(shipped).Should().BeTrue();
+        OrderSettlementRule.IsSettleable(waiting).Should().BeFalse();
+        OrderSettlementRule.IsSettleable(shipped).Should().BeTrue();
     }
 
     [Fact]
@@ -104,7 +104,7 @@ public sealed class OrderSettlementTests
         var order = Order(Paid, 100m,
             PhysicalItem(PhysicalDeliveryStatus.Preparing, quantity: 2, cancelledQuantity: 2));
 
-        CourseOrderSettlementRule.IsSettleable(order).Should().BeFalse();
+        OrderSettlementRule.IsSettleable(order).Should().BeFalse();
     }
 
     [Fact]
@@ -114,7 +114,7 @@ public sealed class OrderSettlementTests
             CourseItem(),
             PhysicalItem(PhysicalDeliveryStatus.Preparing, quantity: 1, cancelledQuantity: 1));
 
-        CourseOrderSettlementRule.IsSettleable(order).Should().BeTrue();
+        OrderSettlementRule.IsSettleable(order).Should().BeTrue();
     }
 
     [Fact]
@@ -122,8 +122,8 @@ public sealed class OrderSettlementTests
     {
         var order = Order(Paid, 110m, CourseItem());
 
-        CourseOrderSettlementRule.NetAmount(order, 30m).Should().Be(80m);
-        CourseOrderSettlementRule.NetAmount(order, 0m).Should().Be(110m);
+        OrderSettlementRule.NetAmount(order, 30m).Should().Be(80m);
+        OrderSettlementRule.NetAmount(order, 0m).Should().Be(110m);
     }
 
     [Fact]
@@ -270,20 +270,20 @@ public sealed class OrderSettlementTests
         OrderSettlementPreviewToken.Compute([x]).Should().NotBe(OrderSettlementPreviewToken.Compute([resplit]));
     }
 
-    private static CourseOrderDetails Order(string financialStatus, decimal? finalAmount, params CourseOrderItem[] items) =>
+    private static OrderDetails Order(string financialStatus, decimal? finalAmount, params OrderItem[] items) =>
         new(
-            "cart:" + Guid.NewGuid(), nameof(CourseOrderSourceType.Cart), Guid.NewGuid(),
-            DateTime.UtcNow, DateTime.UtcNow, financialStatus, nameof(CourseOrderDeliveryStatus.Pending),
+            "cart:" + Guid.NewGuid(), nameof(OrderSourceType.Cart), Guid.NewGuid(),
+            DateTime.UtcNow, DateTime.UtcNow, financialStatus, nameof(OrderDeliveryStatus.Pending),
             finalAmount, items.Length, null, null, null, null, items, [], null);
 
-    private static CourseOrderItem CourseItem() =>
+    private static OrderItem CourseItem() =>
         new("course", "Course", 100m, 100m, Guid.NewGuid(), Guid.NewGuid(), DateTime.UtcNow,
-            Paid, nameof(CourseOrderDeliveryStatus.Pending));
+            Paid, nameof(OrderDeliveryStatus.Pending));
 
-    private static CourseOrderItem PhysicalItem(
+    private static OrderItem PhysicalItem(
         PhysicalDeliveryStatus status, string externalId = "book", int quantity = 1, int cancelledQuantity = 0) =>
         new(externalId, externalId, 10m, 10m, Guid.NewGuid(), Guid.NewGuid(), DateTime.UtcNow,
-            Paid, nameof(CourseOrderDeliveryStatus.Pending), Product, null, quantity, status.ToString(),
+            Paid, nameof(OrderDeliveryStatus.Pending), Product, null, quantity, status.ToString(),
             cancelledQuantity);
 
     private sealed class HandlerFixture
@@ -292,15 +292,15 @@ public sealed class OrderSettlementTests
         private readonly List<Cart> _carts = [];
         private readonly List<PhysicalProductPurchase> _physicalPurchases = [];
         private readonly List<PhysicalProductCancellation> _cancellations = [];
-        private readonly CourseOrderBuyer _buyer = new(Guid.NewGuid(), "buyer-document", "Buyer");
+        private readonly OrderBuyer _buyer = new(Guid.NewGuid(), "buyer-document", "Buyer");
         private readonly OrderSettlementCandidateService _candidates;
 
         public HandlerFixture()
         {
-            var reader = new Mock<ICourseOrderReader>();
+            var reader = new Mock<IOrderReader>();
             reader
                 .Setup(x => x.ReadAsync(null, null, It.IsAny<CancellationToken>()))
-                .ReturnsAsync(() => new CourseOrderSnapshot(
+                .ReturnsAsync(() => new OrderSnapshot(
                     _carts, [], _purchases, [_buyer], _physicalPurchases, _cancellations));
 
             Store
