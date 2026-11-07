@@ -38,6 +38,15 @@ public interface IPhysicalCancellationStore
     /// <summary>کد خطا را ثبت و شمارندهٔ تلاش‌های ناموفق عملیات را یکی زیاد می‌کند.</summary>
     Task RecordStockReturnFailureAsync(Guid operationId, string? errorCode, CancellationToken ct);
 
+    /// <summary>فقط کد خطای آخرین تلاش را به‌روز می‌کند، بدون افزایش شمارنده (برای تلاش دستی ادمین).</summary>
+    Task RecordStockReturnErrorAsync(Guid operationId, string? errorCode, CancellationToken ct);
+
+    /// <summary>
+    /// برگشت موجودی را پس از اصلاح دستی توسط ادمین بسته‌شده ثبت می‌کند؛ تعداد سطرهای تغییرکرده را برمی‌گرداند
+    /// (صفر یعنی عملیاتی برای بستن نبود).
+    /// </summary>
+    Task<int> MarkStockResolvedManuallyAsync(Guid operationId, CancellationToken ct);
+
     /// <summary>سطرهای برگشت موجودی تأییدنشده (شامل رهاشده‌ها)، قدیمی‌ترین اول، برای فهرست ادمین.</summary>
     Task<IReadOnlyList<PendingRestockRow>> GetUnfinishedRestocksAsync(int limit, CancellationToken ct);
 

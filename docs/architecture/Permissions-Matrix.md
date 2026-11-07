@@ -31,6 +31,8 @@
 | AdminGift | `POST` | `/api/admin/noor-gifts` | نیازمند پالیسی `RequireNoorGift` | `Noor.Gift` |
 | AdminPhysicalCancellations | `POST` | `/api/admin/physical-purchases/{purchaseId:guid}/cancel` | نیازمند پالیسی `RequireNoorInject` | `Noor.Inject` |
 | AdminPhysicalCancellations | `GET` | `/api/admin/physical-purchases/pending-restocks` | نیازمند پالیسی `RequireNoorInject` | `Noor.Inject` |
+| AdminPhysicalCancellations | `POST` | `/api/admin/physical-purchases/restocks/{operationId}/retry` | نیازمند پالیسی `RequireNoorInject` | `Noor.Inject` |
+| AdminPhysicalCancellations | `POST` | `/api/admin/physical-purchases/restocks/{operationId}/resolve` | نیازمند پالیسی `RequireNoorInject` | `Noor.Inject` |
 | AdminPhysicalCancellations | `GET` | `/api/admin/physical-purchases/{purchaseId:guid}/cancellation-preview` | نیازمند پالیسی `RequireNoorInject` | `Noor.Inject` |
 | AdminPhysicalPurchases | `PUT` | `/api/admin/physical-purchases/{purchaseId:guid}/delivery-status` | نیازمند پالیسی `RequireCoursesManage` | `Courses.Manage` |
 | AdminTopUp | `POST` | `/api/admin/topups/{id:guid}/confirm` | نیازمند پالیسی `RequireTopUpReview` | `TopUp.Review` |

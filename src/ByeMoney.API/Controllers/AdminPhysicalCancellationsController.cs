@@ -1,5 +1,7 @@
 using ByeMoney.API.Contracts.Purchases;
 using ByeMoney.Application.Modules.Purchases.Commands.AdminCancelPhysicalPurchase;
+using ByeMoney.Application.Modules.Purchases.Commands.ResolvePhysicalRestock;
+using ByeMoney.Application.Modules.Purchases.Commands.RetryPhysicalRestock;
 using ByeMoney.Application.Modules.Purchases.PhysicalCancellations.DTOs;
 using ByeMoney.Application.Modules.Purchases.Queries.GetAdminPendingPhysicalRestocks;
 using ByeMoney.Application.Modules.Purchases.Queries.GetAdminPhysicalCancellationPreview;
@@ -34,6 +36,26 @@ public sealed class AdminPhysicalCancellationsController(ISender sender) : Contr
     public async Task<ActionResult<IReadOnlyList<PendingPhysicalRestockResponse>>> PendingRestocks(CancellationToken ct)
     {
         return Ok(await sender.Send(new GetAdminPendingPhysicalRestocksQuery(), ct));
+    }
+
+    /// <summary>تلاش فوری دوباره برای برگشت موجودی عملیاتی که به سقف تلاش رسیده است.</summary>
+    [HttpPost("restocks/{operationId:guid}/retry")]
+    [ProducesResponseType(typeof(PhysicalRestockActionResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(PhysicalCancellationErrorResponse), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> RetryRestock(Guid operationId, CancellationToken ct)
+    {
+        var result = await sender.Send(new RetryPhysicalRestockCommand(operationId), ct);
+        return PhysicalCancellationHttp.Respond(this, result);
+    }
+
+    /// <summary>بستن دستی برگشت موجودی، پس از آنکه ادمین موجودی کالا را در سایت اصلاح کرده است.</summary>
+    [HttpPost("restocks/{operationId:guid}/resolve")]
+    [ProducesResponseType(typeof(PhysicalRestockActionResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(PhysicalCancellationErrorResponse), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ResolveRestock(Guid operationId, CancellationToken ct)
+    {
+        var result = await sender.Send(new ResolvePhysicalRestockCommand(operationId), ct);
+        return PhysicalCancellationHttp.Respond(this, result);
     }
 
     [HttpPost("{purchaseId:guid}/cancel")]

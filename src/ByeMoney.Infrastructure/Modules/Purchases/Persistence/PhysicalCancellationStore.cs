@@ -120,6 +120,27 @@ public sealed class PhysicalCancellationStore(ApplicationDbContext db) : IPhysic
                 .SetProperty(x => x.UpdatedAt, now), ct);
     }
 
+    public Task RecordStockReturnErrorAsync(Guid operationId, string? errorCode, CancellationToken ct)
+    {
+        var now = DateTime.UtcNow;
+        return db.Set<PhysicalProductCancellation>()
+            .Where(x => x.OperationId == operationId && x.StockReturnedAtUtc == null)
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(x => x.StockReturnErrorCode, errorCode)
+                .SetProperty(x => x.UpdatedAt, now), ct);
+    }
+
+    public Task<int> MarkStockResolvedManuallyAsync(Guid operationId, CancellationToken ct)
+    {
+        var now = DateTime.UtcNow;
+        return db.Set<PhysicalProductCancellation>()
+            .Where(x => x.OperationId == operationId && x.StockReturnedAtUtc == null)
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(x => x.StockReturnedAtUtc, now)
+                .SetProperty(x => x.StockReturnErrorCode, PhysicalCancellationErrorCodes.RestockResolvedManually)
+                .SetProperty(x => x.UpdatedAt, now), ct);
+    }
+
     public async Task<IReadOnlyList<PendingRestockRow>> GetUnfinishedRestocksAsync(int limit, CancellationToken ct) =>
         await db.Set<PhysicalProductCancellation>()
             .AsNoTracking()

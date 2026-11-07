@@ -5,6 +5,7 @@
   <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
   <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
   <data name="NotFound" xml:space="preserve"><value>سفارش کالای فیزیکی یافت نشد.</value></data>
+  <data name="RestockOperationNotFound" xml:space="preserve"><value>برگشت موجودی ناتمامی برای این عملیات یافت نشد؛ ممکن است قبلاً بسته شده باشد.</value></data>
   <data name="NoPhysicalItems" xml:space="preserve"><value>این سبد کالای فیزیکی قابل لغو ندارد.</value></data>
   <data name="Conflict" xml:space="preserve"><value>این لغو با وضعیت فعلی سفارش یا با عملیات قبلی همین شناسه سازگار نیست.</value></data>
   <data name="AwaitingTopUp" xml:space="preserve"><value>نتیجهٔ پرداخت این سبد هنوز معلوم نیست؛ پس از مشخص شدن نتیجهٔ شارژ دوباره تلاش کنید.</value></data>

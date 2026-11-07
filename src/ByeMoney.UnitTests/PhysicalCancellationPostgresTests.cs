@@ -5,6 +5,8 @@ using ByeMoney.Application.Modules.Purchases.Carts.DTOs;
 using ByeMoney.Application.Modules.Purchases.Carts.Interfaces;
 using ByeMoney.Application.Modules.Purchases.Commands.AdminCancelPhysicalPurchase;
 using ByeMoney.Application.Modules.Purchases.Commands.CancelMyPhysicalOrder;
+using ByeMoney.Application.Modules.Purchases.Commands.ResolvePhysicalRestock;
+using ByeMoney.Application.Modules.Purchases.Commands.RetryPhysicalRestock;
 using ByeMoney.Application.Modules.Purchases.Commands.UpdatePhysicalDeliveryStatus;
 using ByeMoney.Domain.Common.Exceptions;
 using ByeMoney.Application.Modules.Purchases.PhysicalCancellations.Constants;
@@ -453,6 +455,71 @@ public sealed class PhysicalCancellationPostgresTests : IAsyncLifetime
         listed.LastErrorCode.Should().Be(CartErrorCodes.Conflict);
         listed.CartId.Should().Be(cart.Id);
         listed.Items.Should().BeEquivalentTo([new PhysicalRestockItem(book.Id.Value, 3)]);
+    }
+
+    [CartPostgresFact]
+    public async Task AdminRetry_ClearsAbandonedOperationWhenStockAccepts()
+    {
+        var cart = await PaidCartAsync([new Line("book", "کتاب فیزیکی", 40m, 20m, 3)], shipping: 0m, coupon: null);
+        StockClientReturns(Result.Conflict(CartErrors.Conflict, CartErrorCodes.Conflict));
+        var operationId = Guid.NewGuid();
+        await SendAsync(_buyer.Id.Value, new CancelMyPhysicalOrderCommand(cart.Id, operationId, Reason));
+        for (var i = 0; i < RestockMaxAttempts; i++)
+        {
+            await RetryPendingRestocksAsync();
+        }
+
+        StockClientReturns(Result.Success());
+        var result = await SendAsync(_admin.Id.Value, new RetryPhysicalRestockCommand(operationId));
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Pending.Should().BeFalse();
+        (await PendingRestocksForAdminAsync()).Should().BeEmpty();
+    }
+
+    [CartPostgresFact]
+    public async Task AdminRetry_WhenStockStillRejects_StaysAbandonedWithoutRequeue()
+    {
+        var cart = await PaidCartAsync([new Line("book", "کتاب فیزیکی", 40m, 20m, 3)], shipping: 0m, coupon: null);
+        StockClientReturns(Result.Conflict(CartErrors.Conflict, CartErrorCodes.Conflict));
+        var operationId = Guid.NewGuid();
+        await SendAsync(_buyer.Id.Value, new CancelMyPhysicalOrderCommand(cart.Id, operationId, Reason));
+        for (var i = 0; i < RestockMaxAttempts; i++)
+        {
+            await RetryPendingRestocksAsync();
+        }
+
+        var result = await SendAsync(_admin.Id.Value, new RetryPhysicalRestockCommand(operationId));
+
+        result.Value.Pending.Should().BeTrue();
+        result.Value.LastErrorCode.Should().Be(CartErrorCodes.Conflict);
+        var listed = (await PendingRestocksForAdminAsync()).Should().ContainSingle().Subject;
+        listed.Attempts.Should().Be(RestockMaxAttempts);
+        listed.Abandoned.Should().BeTrue();
+
+        // تلاش دستی ناموفق عملیات را به صف تلاش خودکار برنمی‌گرداند.
+        var callsBefore = _restocks.Count(x => x.OperationId == operationId);
+        await RetryPendingRestocksAsync();
+        _restocks.Count(x => x.OperationId == operationId).Should().Be(callsBefore);
+    }
+
+    [CartPostgresFact]
+    public async Task AdminResolve_ClosesOperationWithManualMarker_AndSecondCallIsNotFound()
+    {
+        var cart = await PaidCartAsync([new Line("book", "کتاب فیزیکی", 40m, 20m, 3)], shipping: 0m, coupon: null);
+        StockClientReturns(Result.Conflict(CartErrors.Conflict, CartErrorCodes.Conflict));
+        var operationId = Guid.NewGuid();
+        await SendAsync(_buyer.Id.Value, new CancelMyPhysicalOrderCommand(cart.Id, operationId, Reason));
+
+        var first = await SendAsync(_admin.Id.Value, new ResolvePhysicalRestockCommand(operationId));
+        var second = await SendAsync(_admin.Id.Value, new ResolvePhysicalRestockCommand(operationId));
+
+        first.IsSuccess.Should().BeTrue();
+        (await PendingRestocksForAdminAsync()).Should().BeEmpty();
+        var state = await StockReturnStateAsync(operationId);
+        state.ReturnedAtUtc.Should().NotBeNull();
+        state.ErrorCode.Should().Be(PhysicalCancellationErrorCodes.RestockResolvedManually);
+        second.Status.Should().Be(ResultStatus.NotFound);
     }
 
     [CartPostgresFact]

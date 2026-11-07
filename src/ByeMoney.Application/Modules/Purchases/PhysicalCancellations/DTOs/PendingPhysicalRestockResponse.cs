@@ -12,6 +12,12 @@ public sealed record PendingRestockRow(
     DateTime? LastAttemptAtUtc);
 
 /// <summary>
+/// نتیجهٔ «تلاش دوباره» یا «بستن دستی»؛ <c>Pending</c> یعنی برگشت موجودی هنوز ناتمام است و
+/// <c>LastErrorCode</c> علت شکست همین تلاش را می‌گوید.
+/// </summary>
+public sealed record PhysicalRestockActionResponse(Guid OperationId, bool Pending, string? LastErrorCode);
+
+/// <summary>
 /// عملیات لغو با برگشت موجودی ناتمام. <c>Abandoned</c> یعنی تلاش‌ها به سقف رسیده و سرویس پس‌زمینه دیگر تلاش نمی‌کند.
 /// </summary>
 public sealed record PendingPhysicalRestockResponse(

@@ -8,6 +8,7 @@ public static class PhysicalCancellationErrors
         "ByeMoney.Application.Resources.PhysicalCancellationErrors", typeof(PhysicalCancellationErrors).Assembly);
 
     public static string NotFound => Get(nameof(NotFound));
+    public static string RestockOperationNotFound => Get(nameof(RestockOperationNotFound));
     public static string NoPhysicalItems => Get(nameof(NoPhysicalItems));
     public static string Conflict => Get(nameof(Conflict));
     public static string AwaitingTopUp => Get(nameof(AwaitingTopUp));
