@@ -94,6 +94,12 @@ public static class DependencyInjection
                 policy.Requirements.Add(new PermissionRequirement(Permissions.Purchases.View));
             });
 
+            options.AddPolicy(PolicyNames.RequirePurchasesSettle, policy =>
+            {
+                policy.RequireAuthenticatedUser();
+                policy.Requirements.Add(new PermissionRequirement(Permissions.Purchases.Settle));
+            });
+
             options.AddPolicy(PolicyNames.RequireNoorInject, policy =>
                 policy.Requirements.Add(new PermissionRequirement(Permissions.Noor.Inject)));
 

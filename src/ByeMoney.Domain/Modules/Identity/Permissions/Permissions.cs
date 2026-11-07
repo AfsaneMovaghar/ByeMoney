@@ -5,6 +5,7 @@ public static class Permissions
     public static class Purchases
     {
         public const string View = "Purchases.View";
+        public const string Settle = "Purchases.Settle";
     }
 
     public static class Noor

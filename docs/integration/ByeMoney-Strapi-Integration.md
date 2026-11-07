@@ -521,7 +521,7 @@ Paid و دادهٔ لازم برای ارسال در همان تراکنش مح�
 
 فیلد اختیاری `order.currency` در Strapi دارای مقادیر `toman` (تومان) و `noor` (نور)، بدون مقدار پیش‌فرض است. مقدار خالی سفارش قدیمی یعنی تومان قدیمی و backfill ندارد. در اصلاح محلی ۲۰۲۶-۱۰-۲۱، ساخت سفارش جدید از checkout، API مستقیم، سفارش دستی سایت و Content Manager و نیز تکثیر سفارش، در سمت سرور `noor` می‌گیرد؛ ویرایش یا انتشار مجدد سابقه واحد آن را تغییر نمی‌دهد. سفارش معلق قدیمی برای checkout تازه نور بازاستفاده نمی‌شود. این تغییر هیچ تبدیل مبلغ یا اصلاح قیمت‌گذاری سفارش دستی انجام نمی‌دهد و پذیرش واحد پول به معنی پذیرش صحت قیمت همه مسیرهای قدیمی نیست.
 
-تگ تسویه/بستن دوره فقط گزارش است، بدون عملیات Ledger. خروج نور API/مجوز مستقل لازم دارد؛ URL آن در بررسی موجود اثبات نشده و این سند endpoint آماده جعل نمی‌کند. اجرای خروج تابع D09 و Q06، با علت/پیگیری و کنترل تکرار است.
+تگ تسویه/بستن دوره فقط گزارش است، بدون عملیات Ledger؛ قرارداد تسویهٔ سفارش‌های بای‌مانی در I11-S است. خروج نور API/مجوز مستقل لازم دارد؛ URL آن در بررسی موجود اثبات نشده و این سند endpoint آماده جعل نمی‌کند. اجرای خروج تابع D09 و Q06، با علت/پیگیری و کنترل تکرار است.
 
 Legacy فقط گزارش: `GET /api/integrations/byemoney/v1/legacy-sales` در سند قبلی برنامه‌ریزی شده بود؛ نیاز pagination، فیلتر تاریخ/update، شناسه پایدار سفارش و وضعیت دارد. این endpoint پیاده‌شده ادعا نمی‌شود. داده Legacy به Reporting View می‌رود، نه Ledger نور.
 
@@ -679,6 +679,22 @@ Legacy فقط گزارش: `GET /api/integrations/byemoney/v1/legacy-sales` در 
   - ردیف‌های بای‌مانی: ردیف‌های بای‌مانی فقط‌مشاهده‌اند (مشاهدهٔ اقلام، رسید و خط زمانی، بدون انتخاب گروهی یا تغییر وضعیت مالی)، به‌جز ثبت و تغییر وضعیت تحویل کالای فیزیکی (Preparing→Shipped→Delivered) توسط ادمین دارای Courses.Manage از طریق route سروری Next.js.
 - **نتیجه پرداخت (`/checkout/result`):** رسید همهٔ خریدهای آن سبد را نشان می‌دهد.
 - **رسید کل سفارش:** رسید کامل سفارش از طریق `GET /api/me/course-orders/{orderId}/receipt` (برای کاربر در جزئیات سفارش پروفایل) و `GET /api/admin/course-orders/{orderId}/receipt` (برای ادمین دارای `Purchases.View` در پنل پیگیری) مصرف می‌شود و شامل اقلام دوره/فصل/کالا، تعداد (`quantity`)، وضعیت ارسال کالا (`physicalDeliveryStatus`)، هزینهٔ ارسال (`shippingAmountInNoor`)، تخفیف‌ها و شناسهٔ تراکنش است.
+
+### I11-S — دورهٔ تسویهٔ سفارش‌های بای‌مانی — پیاده‌سازی ۲۰۲۶-۱۱-۰۷
+
+قاعدهٔ کسب‌وکار در D10 است. تسویه فقط تگ گزارشی است: هیچ ثبت Ledger یا تغییر مانده‌ای ندارد و تسویهٔ سفارش‌های استرپی (صفحهٔ legacy) جدا می‌ماند. واحد تسویه همان `orderId` سفارش ادمین (I11-T) است. همهٔ مسیرها JWT ادمین دارند؛ فرانت فقط از route سروری Next صدا می‌زند (BND-07). مبالغ به نور و `decimal` هستند و تاریخ‌ها UTC.
+
+| مسیر | مجوز | ورودی | پاسخ |
+|---|---|---|---|
+| `GET /api/admin/course-order-settlements/preview` | `Purchases.View` | `page` (پیش‌فرض ۱)، `pageSize` (۱ تا ۱۰۰، پیش‌فرض ۲۰) | `{orderCount,totalNetAmountInNoor,previewToken,orders:{items[],page,pageSize,totalCount}}`. سفارش‌های قابل تسویهٔ تسویه‌نشده، قدیمی‌ترین اول. `orderCount`، `totalNetAmountInNoor` و `previewToken` روی کل فهرست‌اند، نه فقط همین صفحه. `previewToken` رشتهٔ ۶۴ نویسه‌ای hex و اثر انگشت شناسه و مبلغ خالص همهٔ سفارش‌هاست؛ فرانت آن را تفسیر نمی‌کند |
+| `POST /api/admin/course-order-settlements` | `Purchases.Settle` | `{title?,note?,previewToken}`. عنوان حداکثر ۲۰۰ و یادداشت حداکثر ۱۰۰۰ نویسه است؛ `previewToken` همان مقدار پیش‌نمایشی است که ادمین تأیید کرده | `201` با DTO دوره. خطاهای `409` به شکل `{code,error}`: `SETTLEMENT_EMPTY` (سفارش قابل تسویه‌ای نیست)، `SETTLEMENT_PREVIEW_CHANGED` (فهرست لحظهٔ بستن با پیش‌نمایش یکی نیست، حتی اگر تعداد و جمع یکی باشد)، `SETTLEMENT_ALREADY_SETTLED` (بستن هم‌زمان ادمین دیگر). در هر سه حالت فرانت باید پیش‌نمایش را دوباره بگیرد. ورودی نامعتبر `400` است |
+| `GET /api/admin/course-order-settlements` | `Purchases.View` | `page`، `pageSize` | `{items[],page,pageSize,totalCount}` با جدیدترین دوره اول |
+| `GET /api/admin/course-order-settlements/{periodId}/orders` | `Purchases.View` | `page`، `pageSize` | `{items[],page,pageSize,totalCount}` با Snapshot لحظهٔ بستن. دورهٔ ناموجود `404` است |
+
+- **DTO دوره:** `periodId,title,note,orderCount,totalNetAmountInNoor,closedByExternalUserId,closedAtUtc`. `closedByExternalUserId` همان `documentId` ادمین بستن‌کننده (I02) است.
+- **DTO سفارش (پیش‌نمایش و دوره):** `orderId,sourceType,buyerExternalUserId,orderCreatedAtUtc,netAmountInNoor`. جزئیات زندهٔ سفارش از `GET /api/admin/course-orders/{orderId}` خوانده می‌شود.
+- **مبلغ خالص:** `finalAmountInNoor` منهای `refundedAmountInNoor` (همان تعریف I11-T).
+- **یکتایی:** هر `orderId` کلید اصلی جدول سفارش‌های تسویه‌شده است. بستن هم‌زمان دو ادمین فقط یک دوره می‌سازد و درخواست دوم بدون ثبت هیچ ردیفی `409` می‌گیرد. دورهٔ بسته‌شده ویرایش یا حذف نمی‌شود.
 
 ## I12 — انتقال و مسیرهای ممنوع
 

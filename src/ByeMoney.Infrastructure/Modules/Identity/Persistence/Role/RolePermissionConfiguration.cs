@@ -73,6 +73,12 @@ public class RolePermissionConfiguration : IEntityTypeConfiguration<RolePermissi
                 RoleId = RoleConfiguration.AdminRoleId,
                 PermissionId = PermissionConfiguration.WalletViewPermissionId,
                 CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc)
+            },
+            new
+            {
+                RoleId = RoleConfiguration.AdminRoleId,
+                PermissionId = PermissionConfiguration.PurchasesSettlePermissionId,
+                CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc)
             });
     }
 }

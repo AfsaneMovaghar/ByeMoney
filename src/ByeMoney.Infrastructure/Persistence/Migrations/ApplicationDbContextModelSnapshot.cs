@@ -91,6 +91,13 @@ namespace ByeMoney.Infrastructure.Migrations
                             Code = "Wallet.View",
                             CreatedAtUtc = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             Description = "Permission to view batch wallet balances"
+                        },
+                        new
+                        {
+                            Id = new Guid("99999999-9999-9999-9999-999999999999"),
+                            Code = "Purchases.Settle",
+                            CreatedAtUtc = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Description = "Permission to close settlement periods of ByeMoney orders"
                         });
                 });
 
@@ -178,6 +185,12 @@ namespace ByeMoney.Infrastructure.Migrations
                         {
                             RoleId = new Guid("11111111-1111-1111-1111-111111111111"),
                             PermissionId = new Guid("55555555-5555-5555-5555-555555555555"),
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            RoleId = new Guid("11111111-1111-1111-1111-111111111111"),
+                            PermissionId = new Guid("99999999-9999-9999-9999-999999999999"),
                             CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
                         });
                 });
@@ -417,6 +430,86 @@ namespace ByeMoney.Infrastructure.Migrations
                             t.HasCheckConstraint("CK_CoursePurchases_PaymentShares", "(\"RegularAmountInNoor\" IS NULL AND \"GiftAmountInNoor\" IS NULL) OR (\"RegularAmountInNoor\" >= 0 AND \"GiftAmountInNoor\" >= 0 AND \"RegularAmountInNoor\" + \"GiftAmountInNoor\" = \"PriceInNoorAtPurchaseTime\")");
 
                             t.HasCheckConstraint("CK_CoursePurchases_Status", "\"Status\" IN ('Pending', 'Debited', 'NotificationSent', 'NotificationFailed')");
+                        });
+                });
+
+            modelBuilder.Entity("ByeMoney.Domain.Modules.Purchases.OrderSettlementItem", b =>
+                {
+                    b.Property<string>("OrderId")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("BuyerExternalUserId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<decimal>("NetAmountInNoor")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)");
+
+                    b.Property<DateTime>("OrderCreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("PeriodId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("SourceType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.HasKey("OrderId")
+                        .HasName("PK_OrderSettlementItems");
+
+                    b.HasIndex("PeriodId", "OrderCreatedAtUtc");
+
+                    b.ToTable("OrderSettlementItems", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_OrderSettlementItems_NetAmount", "\"NetAmountInNoor\" >= 0");
+                        });
+                });
+
+            modelBuilder.Entity("ByeMoney.Domain.Modules.Purchases.OrderSettlementPeriod", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ClosedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<int>("OrderCount")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Title")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<decimal>("TotalNetAmountInNoor")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ClosedByUserId");
+
+                    b.HasIndex("CreatedAtUtc");
+
+                    b.ToTable("OrderSettlementPeriods", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_OrderSettlementPeriods_OrderCount", "\"OrderCount\" >= 1");
+
+                            t.HasCheckConstraint("CK_OrderSettlementPeriods_TotalNetAmount", "\"TotalNetAmountInNoor\" >= 0");
                         });
                 });
 
@@ -1349,6 +1442,24 @@ namespace ByeMoney.Infrastructure.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("ByeMoney.Domain.Modules.Purchases.OrderSettlementItem", b =>
+                {
+                    b.HasOne("ByeMoney.Domain.Modules.Purchases.OrderSettlementPeriod", null)
+                        .WithMany("Items")
+                        .HasForeignKey("PeriodId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("ByeMoney.Domain.Modules.Purchases.OrderSettlementPeriod", b =>
+                {
+                    b.HasOne("ByeMoney.Domain.Modules.Identity.Users.User", null)
+                        .WithMany()
+                        .HasForeignKey("ClosedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("ByeMoney.Domain.Modules.Purchases.PhysicalProductCancellation", b =>
                 {
                     b.HasOne("ByeMoney.Domain.Modules.Purchases.Cart", null)
@@ -1441,6 +1552,11 @@ namespace ByeMoney.Infrastructure.Migrations
             modelBuilder.Entity("ByeMoney.Domain.Modules.Identity.Roles.Role", b =>
                 {
                     b.Navigation("RolePermissions");
+                });
+
+            modelBuilder.Entity("ByeMoney.Domain.Modules.Purchases.OrderSettlementPeriod", b =>
+                {
+                    b.Navigation("Items");
                 });
 
             modelBuilder.Entity("ByeMoney.Domain.Modules.Wallet.Gifts.GiftGrantBatch", b =>

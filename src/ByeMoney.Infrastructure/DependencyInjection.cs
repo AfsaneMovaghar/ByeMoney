@@ -44,6 +44,7 @@ public static class DependencyInjection
         services.AddHostedService<CartRecoveryBackgroundService>();
         services.AddScoped<ByeMoney.Application.Modules.Purchases.PhysicalCancellations.Interfaces.IPhysicalCancellationStore, PhysicalCancellationStore>();
         services.AddScoped<ByeMoney.Application.Modules.Purchases.Orders.Interfaces.IPhysicalDeliveryStore, PhysicalDeliveryStore>();
+        services.AddScoped<ByeMoney.Application.Modules.Purchases.Settlements.Interfaces.IOrderSettlementStore, OrderSettlementStore>();
         services.AddSingleton(
             configuration.GetSection(PhysicalRestockSettings.SectionName).Get<PhysicalRestockSettings>()
             ?? new PhysicalRestockSettings());

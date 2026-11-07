@@ -12,6 +12,7 @@
 | `Courses.Manage` | `RequireCoursesManage` | مجوز ثبت و مدیریت خرید دوره به‌نیابت از کاربر |
 | `Wallet.View` | `RequireWalletView` | مجوز استعلام دسته‌جمعی مانده کیف‌پول‌ها |
 | `Purchases.View` | `RequirePurchasesView` | مجوز خواندن فهرست خریدهای دوره |
+| `Purchases.Settle` | `RequirePurchasesSettle` | مجوز بستن دورهٔ تسویهٔ سفارش‌های بای‌مانی (تگ گزارشی، بدون Ledger) |
 
 ## ۲. ماتریس احراز هویت و دسترسی اندپوینت‌ها (Endpoint Authorization Matrix)
 
@@ -23,6 +24,10 @@
 | AdminCourseOrders | `GET` | `/api/admin/course-orders/{orderId}` | نیازمند پالیسی `RequirePurchasesView` | `Purchases.View` |
 | AdminCourseOrders | `GET` | `/api/admin/course-orders` | نیازمند پالیسی `RequirePurchasesView` | `Purchases.View` |
 | AdminCourseOrders | `GET` | `/api/admin/course-orders/{orderId}/receipt` | نیازمند پالیسی `RequirePurchasesView` | `Purchases.View` |
+| AdminCourseOrderSettlements | `POST` | `/api/admin/course-order-settlements` | نیازمند پالیسی `RequirePurchasesSettle` | `Purchases.Settle` |
+| AdminCourseOrderSettlements | `GET` | `/api/admin/course-order-settlements` | نیازمند پالیسی `RequirePurchasesView` | `Purchases.View` |
+| AdminCourseOrderSettlements | `GET` | `/api/admin/course-order-settlements/{periodId:guid}/orders` | نیازمند پالیسی `RequirePurchasesView` | `Purchases.View` |
+| AdminCourseOrderSettlements | `GET` | `/api/admin/course-order-settlements/preview` | نیازمند پالیسی `RequirePurchasesView` | `Purchases.View` |
 | AdminCoursePurchases | `GET` | `/api/admin/course-purchases` | نیازمند پالیسی `RequirePurchasesView` | `Purchases.View` |
 | AdminCoursePurchases | `GET` | `/api/admin/course-purchases/{purchaseId:guid}` | نیازمند پالیسی `RequirePurchasesView` | `Purchases.View` |
 | AdminCourses | `POST` | `/api/admin/courses/purchase` | نیازمند پالیسی `RequireCoursesManage` | `Courses.Manage` |
@@ -31,9 +36,9 @@
 | AdminGift | `POST` | `/api/admin/noor-gifts` | نیازمند پالیسی `RequireNoorGift` | `Noor.Gift` |
 | AdminPhysicalCancellations | `POST` | `/api/admin/physical-purchases/{purchaseId:guid}/cancel` | نیازمند پالیسی `RequireNoorInject` | `Noor.Inject` |
 | AdminPhysicalCancellations | `GET` | `/api/admin/physical-purchases/pending-restocks` | نیازمند پالیسی `RequireNoorInject` | `Noor.Inject` |
-| AdminPhysicalCancellations | `POST` | `/api/admin/physical-purchases/restocks/{operationId}/retry` | نیازمند پالیسی `RequireNoorInject` | `Noor.Inject` |
-| AdminPhysicalCancellations | `POST` | `/api/admin/physical-purchases/restocks/{operationId}/resolve` | نیازمند پالیسی `RequireNoorInject` | `Noor.Inject` |
 | AdminPhysicalCancellations | `GET` | `/api/admin/physical-purchases/{purchaseId:guid}/cancellation-preview` | نیازمند پالیسی `RequireNoorInject` | `Noor.Inject` |
+| AdminPhysicalCancellations | `POST` | `/api/admin/physical-purchases/restocks/{operationId:guid}/resolve` | نیازمند پالیسی `RequireNoorInject` | `Noor.Inject` |
+| AdminPhysicalCancellations | `POST` | `/api/admin/physical-purchases/restocks/{operationId:guid}/retry` | نیازمند پالیسی `RequireNoorInject` | `Noor.Inject` |
 | AdminPhysicalPurchases | `PUT` | `/api/admin/physical-purchases/{purchaseId:guid}/delivery-status` | نیازمند پالیسی `RequireCoursesManage` | `Courses.Manage` |
 | AdminTopUp | `POST` | `/api/admin/topups/{id:guid}/confirm` | نیازمند پالیسی `RequireTopUpReview` | `TopUp.Review` |
 | AdminTopUp | `GET` | `/api/admin/topups/by-reference/{clientReferenceCode}` | نیازمند پالیسی `RequireTopUpReview` | `TopUp.Review` |

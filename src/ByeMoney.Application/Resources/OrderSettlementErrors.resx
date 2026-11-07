@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <data name="Empty" xml:space="preserve"><value>سفارش قابل تسویه‌ای برای بستن دوره وجود ندارد.</value></data>
+  <data name="PreviewChanged" xml:space="preserve"><value>فهرست سفارش‌های قابل تسویه از زمان پیش‌نمایش تغییر کرده است؛ دوباره پیش‌نمایش بگیرید.</value></data>
+  <data name="AlreadySettled" xml:space="preserve"><value>برخی سفارش‌ها هم‌زمان در دورهٔ دیگری تسویه شدند؛ دوباره پیش‌نمایش بگیرید.</value></data>
+  <data name="PeriodNotFound" xml:space="preserve"><value>دورهٔ تسویه یافت نشد.</value></data>
+  <data name="InvalidPeriodId" xml:space="preserve"><value>شناسهٔ دورهٔ تسویه معتبر نیست.</value></data>
+  <data name="InvalidTitle" xml:space="preserve"><value>عنوان دوره حداکثر ۲۰۰ نویسه است.</value></data>
+  <data name="InvalidNote" xml:space="preserve"><value>یادداشت دوره حداکثر ۱۰۰۰ نویسه است.</value></data>
+  <data name="InvalidPreviewToken" xml:space="preserve"><value>شناسهٔ پیش‌نمایش تسویه معتبر نیست؛ دوباره پیش‌نمایش بگیرید.</value></data>
+</root>

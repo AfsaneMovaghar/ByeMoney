@@ -21,6 +21,7 @@ public static class DependencyInjection
         services.AddScoped<ByeMoney.Application.Modules.Purchases.Carts.Services.CartService>();
         services.AddScoped<ByeMoney.Application.Modules.Purchases.PhysicalCancellations.Services.PhysicalCancellationService>();
         services.AddScoped<ByeMoney.Application.Modules.Purchases.PhysicalCancellations.Services.PhysicalRestockService>();
+        services.AddScoped<ByeMoney.Application.Modules.Purchases.Settlements.Services.OrderSettlementCandidateService>();
         ValidatorOptions.Global.DefaultRuleLevelCascadeMode = CascadeMode.Stop;
         ValidatorOptions.Global.DefaultClassLevelCascadeMode = CascadeMode.Stop;
 
