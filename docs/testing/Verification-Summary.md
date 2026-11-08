@@ -15,7 +15,8 @@
 
 - بررسی: فرانت و استرپی هیچ فراخواننده‌ای برای `gateway-confirmations` و `gateway-cancellations` نداشتند (فرانت از `gateway-results` و استرپی با `GatewayResultKeyFilter` کار می‌کنند).
 - تغییر: دو مسیر، `ServiceKeyFilter`، چهار DTO مربوط و آزمون کنترلر حذف شد؛ مسیرهای `GatewayResultKeyFilter` دست نخورد.
-- آزمون: `dotnet test ByeMoney.UnitTests` (خروجی جدا چون API در حال اجرا فایل‌ها را قفل کرده بود) ۶۲۴ موفق، ۰ شکست. آزمون HTTP برای ۴۰۴ مسیرهای حذف‌شده نوشته نشد؛ حذف اکشن‌ها کافی است.
+- پاک‌سازی تکمیلی: handler و validator فرمان Confirm و کل فرمان Cancel (handler، validator و `CancelAsync` سرویس) با آزمون‌هایشان حذف شد؛ `ConfirmAsync` برای ثبت نتیجهٔ درگاه ماند. کلید resx `TopUpRequest_GatewayCancelled` و متد دامنه `CancelGateway` (در آزمون‌ها مصرف می‌شود) ماندند.
+- آزمون: `dotnet test ByeMoney.UnitTests` (خروجی جدا چون API در حال اجرا فایل‌ها را قفل کرده بود) ۶۰۸ موفق، ۰ شکست (۱۶ آزمون کد حذف‌شده برداشته شد). آزمون HTTP برای ۴۰۴ مسیرهای حذف‌شده نوشته نشد؛ حذف اکشن‌ها کافی است.
 
 ## کالا در مسیر قدیمی TopUpCheckout — ۸ نوامبر ۲۰۲۶
 

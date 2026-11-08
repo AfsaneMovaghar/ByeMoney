@@ -1,7 +1,6 @@
 using ByeMoney.Application.Modules.Wallet.DTOs;
 using ByeMoney.Domain.Common.Generic;
 using ByeMoney.Application.Common.Interfaces;
-using ByeMoney.Application.Modules.Wallet.Commands.CancelGatewayTopUp;
 using ByeMoney.Application.Modules.Wallet.Commands.ConfirmGatewayTopUp;
 using ByeMoney.Application.Modules.Wallet.Commands.RecordGatewayResult;
 using ByeMoney.Application.Modules.Wallet.Constants;
@@ -414,44 +413,6 @@ public sealed class GatewayTopUpService(
         }
     }
 
-    public async Task<Result> CancelAsync(CancelGatewayTopUpCommand command, CancellationToken ct = default)
-    {
-        var topUp = await topUpRequestRepository.GetByClientReferenceCodeAsync(command.ClientReferenceCode, ct);
-        if (topUp is null)
-            return Result.NotFound(string.Format(ApplicationErrors.TopUpRequest_NotFound,
-                command.ClientReferenceCode), GatewayTopUpErrorCodes.TopUpNotFound);
-
-        if (topUp.PaymentMethod != PaymentMethod.Gateway)
-            return Result.Conflict(ApplicationErrors.TopUpRequest_PaymentMethodInvalid,
-                GatewayTopUpErrorCodes.InvalidVerificationData);
-
-        if (topUp.Status == TopUpStatus.Rejected)
-            return topUp.GatewayName == command.Gateway
-                ? Result.Success()
-                : Result.Conflict(ApplicationErrors.TopUpRequest_CannotCancelRejected,
-                    GatewayTopUpErrorCodes.TopUpRequiresReview);
-
-        if (topUp.Status == TopUpStatus.Confirmed)
-            return Result.Conflict(string.Format(DomainErrors.TopUpRequest_CannotRejectStatus, topUp.Status),
-                GatewayTopUpErrorCodes.TopUpAlreadyConfirmed);
-
-        if (topUp.Status is TopUpStatus.Unresolved or TopUpStatus.ManuallyRefunded)
-            return Result.Conflict(DomainErrors.TopUpRequest_ReviewStateMismatch,
-                GatewayTopUpErrorCodes.TopUpRequiresReview);
-
-        try
-        {
-            topUp.CancelGateway(command.Gateway, ApplicationErrors.TopUpRequest_GatewayCancelled);
-            topUpRequestRepository.Update(topUp);
-            await unitOfWork.SaveChangesAsync(ct);
-            return Result.Success();
-        }
-        catch (DbUpdateConcurrencyException)
-        {
-            return await HandleCancellationConcurrencyAsync(command, ct);
-        }
-    }
-
     private async Task<GatewayConfirmationOutcome> HandleConfirmationConcurrencyAsync(
         ConfirmGatewayTopUpCommand command, CancellationToken ct)
     {
@@ -470,27 +431,5 @@ public sealed class GatewayTopUpService(
         return new GatewayConfirmationOutcome(Result.Conflict(
             ApplicationErrors.TopUpRequest_IdempotencyConflict,
             GatewayTopUpErrorCodes.TopUpConcurrentConfirmation));
-    }
-
-    private async Task<Result> HandleCancellationConcurrencyAsync(
-        CancelGatewayTopUpCommand command, CancellationToken ct)
-    {
-        using var scope = scopeFactory.CreateScope();
-        var fresh = await scope.ServiceProvider.GetRequiredService<ITopUpRequestRepository>()
-            .GetByClientReferenceCodeAsync(command.ClientReferenceCode, ct);
-
-        return fresh?.Status switch
-        {
-            TopUpStatus.Rejected when fresh.GatewayName == command.Gateway => Result.Success(),
-            TopUpStatus.Rejected => Result.Conflict(ApplicationErrors.TopUpRequest_CannotCancelRejected,
-                GatewayTopUpErrorCodes.TopUpRequiresReview),
-            TopUpStatus.Confirmed => Result.Conflict(
-                string.Format(DomainErrors.TopUpRequest_CannotRejectStatus, TopUpStatus.Confirmed),
-                GatewayTopUpErrorCodes.TopUpAlreadyConfirmed),
-            null => Result.NotFound(string.Format(ApplicationErrors.TopUpRequest_NotFound,
-                command.ClientReferenceCode), GatewayTopUpErrorCodes.TopUpNotFound),
-            _ => Result.Conflict(ApplicationErrors.TopUpRequest_IdempotencyConflict,
-                GatewayTopUpErrorCodes.TopUpConcurrentConfirmation)
-        };
     }
 }

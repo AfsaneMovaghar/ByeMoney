@@ -1,6 +1,5 @@
 using ByeMoney.Application.Modules.Wallet.DTOs;
 using ByeMoney.Domain.Common.Generic;
-using ByeMoney.Application.Modules.Wallet.Commands.CancelGatewayTopUp;
 using ByeMoney.Application.Modules.Wallet.Commands.ConfirmGatewayTopUp;
 using ByeMoney.Application.Modules.Wallet.Commands.RecordGatewayResult;
 using ByeMoney.Domain.Common;
@@ -18,6 +17,5 @@ public interface IGatewayTopUpService
     Task<Result<GatewayReviewState>> ReopenReviewAsync(string clientReferenceCode, string caseId,
         string evidenceId, string? note, CancellationToken ct = default);
     Task<GatewayConfirmationOutcome> ConfirmAsync(ConfirmGatewayTopUpCommand command, CancellationToken ct = default);
-    Task<Result> CancelAsync(CancelGatewayTopUpCommand command, CancellationToken ct = default);
     Task<Result> RecordResultAsync(RecordGatewayResultCommand command, CancellationToken ct = default);
 }
