@@ -60,8 +60,6 @@
 | Carts | `POST` | `/api/carts/{cartId:guid}/topup` | احراز هویت شده (JWT) | — |
 | Courses | `GET` | `/api/courses/{externalCourseId}/checkout` | احراز هویت شده (JWT) | — |
 | Courses | `POST` | `/api/courses/purchase` | احراز هویت شده (JWT) | — |
-| GatewayTopUp | `POST` | `/api/integrations/topups/gateway-cancellations` | عمومی (Anonymous) | — |
-| GatewayTopUp | `POST` | `/api/integrations/topups/gateway-confirmations` | عمومی (Anonymous) | — |
 | GatewayTopUp | `GET` | `/api/integrations/topups/by-reference/{clientReferenceCode}/confirmation` | عمومی (Anonymous) | — |
 | GatewayTopUp | `GET` | `/api/integrations/topups/v1/gateway-reviews/{clientReferenceCode}` | عمومی (Anonymous) | — |
 | GatewayTopUp | `POST` | `/api/integrations/topups/v1/gateway-reviews/open` | عمومی (Anonymous) | — |

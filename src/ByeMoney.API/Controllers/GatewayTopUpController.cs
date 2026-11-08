@@ -2,8 +2,6 @@ using ByeMoney.Application.Modules.Wallet.DTOs;
 using ByeMoney.API.Authentication;
 using ByeMoney.API.Contracts.TopUp;
 using ByeMoney.API.Resources;
-using ByeMoney.Application.Modules.Wallet.Commands.CancelGatewayTopUp;
-using ByeMoney.Application.Modules.Wallet.Commands.ConfirmGatewayTopUp;
 using ByeMoney.Application.Modules.Wallet.Commands.RecordGatewayResult;
 using ByeMoney.Application.Modules.Wallet.Commands.OpenGatewayReview;
 using ByeMoney.Application.Modules.Wallet.Commands.ReopenGatewayReview;
@@ -19,10 +17,8 @@ namespace ByeMoney.API.Controllers;
 [ApiController]
 [AllowAnonymous]
 [Route("api/integrations/topups")]
-public sealed class GatewayTopUpController(ISender sender, ILogger<GatewayTopUpController> logger) : ControllerBase
+public sealed class GatewayTopUpController(ISender sender) : ControllerBase
 {
-    private const string SupportedGateway = "SEP";
-
     [HttpPost("v1/gateway-reviews/open")]
     [ServiceFilter(typeof(GatewayResultKeyFilter))]
     [ProducesResponseType(typeof(GatewayReviewResponse), StatusCodes.Status200OK)]
@@ -90,52 +86,6 @@ public sealed class GatewayTopUpController(ISender sender, ILogger<GatewayTopUpC
             topUp.TopUpRequestId, topUp.ClientReferenceCode, topUp.AmountRial,
             topUp.Status, topUp.PaymentMethod, topUp.ExternalTransactionId,
             topUp.BankReferenceNumber, topUp.GatewayName, topUp.HasManualRefund));
-    }
-
-    [HttpPost("gateway-confirmations")]
-    [ServiceFilter(typeof(ServiceKeyFilter))]
-    [ProducesResponseType(typeof(GatewayConfirmationResponse), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(GatewayErrorResponse), StatusCodes.Status409Conflict)]
-    [ProducesResponseType(typeof(GatewayErrorResponse), StatusCodes.Status422UnprocessableEntity)]
-    public async Task<IActionResult> Confirm(GatewayConfirmationRequest request, CancellationToken ct)
-    {
-        if (request.Gateway != SupportedGateway)
-            return BadRequest(new GatewayErrorResponse(GatewayErrorCodes.InvalidVerificationData,
-                ApiErrors.Middleware_ValidationErrorTitle));
-
-        var outcome = await sender.Send(new ConfirmGatewayTopUpCommand(
-            request.ClientReferenceCode, request.Gateway, request.ExternalTransactionId,
-            request.BankReferenceNumber, request.OriginalAmountRial,
-            request.AffectiveAmountRial), ct);
-
-        logger.LogInformation(
-            "Gateway TopUp confirmation: {ClientReferenceCode} {Gateway} {ExternalTransactionId} {BankReferenceNumber} {Status}",
-            request.ClientReferenceCode, request.Gateway, request.ExternalTransactionId,
-            request.BankReferenceNumber, outcome.Result.Status);
-
-        return outcome.Result.IsSuccess
-            ? Ok(new GatewayConfirmationResponse("confirmed", request.ClientReferenceCode,
-                outcome.Idempotent ? true : null))
-            : ToErrorResult(outcome.Result);
-    }
-
-    /// <summary>
-    /// ثبت انصراف قطعی از پرداخت پس از اطمینان سرویس درگاه از انجام‌نشدن پرداخت.
-    /// </summary>
-    [HttpPost("gateway-cancellations")]
-    [ServiceFilter(typeof(ServiceKeyFilter))]
-    [ProducesResponseType(typeof(GatewayCancellationResponse), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(GatewayErrorResponse), StatusCodes.Status409Conflict)]
-    public async Task<IActionResult> Cancel(GatewayCancellationRequest request, CancellationToken ct)
-    {
-        if (request.Gateway != SupportedGateway)
-            return BadRequest(new GatewayErrorResponse(GatewayErrorCodes.InvalidVerificationData,
-                ApiErrors.Middleware_ValidationErrorTitle));
-
-        var result = await sender.Send(new CancelGatewayTopUpCommand(request.ClientReferenceCode, request.Gateway), ct);
-        return result.IsSuccess
-            ? Ok(new GatewayCancellationResponse("rejected", request.ClientReferenceCode))
-            : ToErrorResult(result);
     }
 
     private IActionResult ToErrorResult(Result result)

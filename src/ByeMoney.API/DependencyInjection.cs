@@ -80,7 +80,6 @@ public static class DependencyInjection
             });
 
         services.AddHttpContextAccessor();
-        services.AddScoped<ServiceKeyFilter>();
         services.AddScoped<GatewayResultKeyFilter>();
         services.AddScoped<ICurrentUserService, CurrentUserService>();
         services.AddScoped<IClaimsTransformation, RbacClaimsTransformation>();
