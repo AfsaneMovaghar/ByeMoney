@@ -13,6 +13,7 @@ public class PermissionConfiguration : IEntityTypeConfiguration<Domain.Modules.I
     public static readonly PermissionId CoursesManagePermissionId = new(Guid.Parse("44444444-4444-4444-4444-444444444444"));
     public static readonly PermissionId WalletViewPermissionId = new(Guid.Parse("55555555-5555-5555-5555-555555555555"));
     public static readonly PermissionId PurchasesSettlePermissionId = new(Guid.Parse("99999999-9999-9999-9999-999999999999"));
+    public static readonly PermissionId NoorWithdrawPermissionId = new(Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"));
 
     public void Configure(EntityTypeBuilder<Domain.Modules.Identity.Permissions.Permission> builder)
     {
@@ -92,6 +93,14 @@ public class PermissionConfiguration : IEntityTypeConfiguration<Domain.Modules.I
                 Id = PurchasesSettlePermissionId,
                 Code = Permissions.Purchases.Settle,
                 Description = "Permission to close settlement periods of ByeMoney orders",
+                CreatedAtUtc = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+                UpdatedAt = (DateTime?)null
+            },
+            new
+            {
+                Id = NoorWithdrawPermissionId,
+                Code = Permissions.Noor.Withdraw,
+                Description = "Permission to withdraw regular Noor and record the manual bank payment",
                 CreatedAtUtc = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc),
                 UpdatedAt = (DateTime?)null
             });

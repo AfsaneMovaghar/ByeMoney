@@ -106,6 +106,12 @@ public static class DependencyInjection
             options.AddPolicy(PolicyNames.RequireNoorGift, policy =>
                 policy.Requirements.Add(new PermissionRequirement(Permissions.Noor.Gift)));
 
+            options.AddPolicy(PolicyNames.RequireNoorWithdraw, policy =>
+            {
+                policy.RequireAuthenticatedUser();
+                policy.Requirements.Add(new PermissionRequirement(Permissions.Noor.Withdraw));
+            });
+
             options.AddPolicy(PolicyNames.RequireTopUpReview, policy =>
                 policy.Requirements.Add(new PermissionRequirement(Permissions.TopUp.Review)));
 

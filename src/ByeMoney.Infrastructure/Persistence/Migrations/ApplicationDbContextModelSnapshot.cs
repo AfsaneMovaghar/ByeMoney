@@ -98,6 +98,13 @@ namespace ByeMoney.Infrastructure.Migrations
                             Code = "Purchases.Settle",
                             CreatedAtUtc = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             Description = "Permission to close settlement periods of ByeMoney orders"
+                        },
+                        new
+                        {
+                            Id = new Guid("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
+                            Code = "Noor.Withdraw",
+                            CreatedAtUtc = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Description = "Permission to withdraw regular Noor and record the manual bank payment"
                         });
                 });
 
@@ -191,6 +198,12 @@ namespace ByeMoney.Infrastructure.Migrations
                         {
                             RoleId = new Guid("11111111-1111-1111-1111-111111111111"),
                             PermissionId = new Guid("99999999-9999-9999-9999-999999999999"),
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            RoleId = new Guid("11111111-1111-1111-1111-111111111111"),
+                            PermissionId = new Guid("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
                             CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
                         });
                 });
@@ -1029,7 +1042,7 @@ namespace ByeMoney.Infrastructure.Migrations
 
                             t.HasCheckConstraint("CK_LedgerEntries_BalanceType", "\"BalanceType\" IN ('Regular', 'Gift')");
 
-                            t.HasCheckConstraint("CK_LedgerEntries_ReferenceType", "\"ReferenceType\" IN ('TopUp', 'Purchase', 'Refund', 'AdminGrant', 'WelcomeGift')");
+                            t.HasCheckConstraint("CK_LedgerEntries_ReferenceType", "\"ReferenceType\" IN ('TopUp', 'Purchase', 'Refund', 'AdminGrant', 'WelcomeGift', 'Withdrawal', 'WithdrawalReversal')");
                         });
                 });
 
@@ -1258,6 +1271,135 @@ namespace ByeMoney.Infrastructure.Migrations
                             t.HasCheckConstraint("CK_Wallets_Balance_NonNegative", "\"Balance\" >= 0");
 
                             t.HasCheckConstraint("CK_Wallets_GiftBalance_NonNegative", "\"GiftBalance\" >= 0");
+                        });
+                });
+
+            modelBuilder.Entity("ByeMoney.Domain.Modules.Wallet.Withdrawals.NoorWithdrawal", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("AmountNoor")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)");
+
+                    b.Property<decimal>("AmountRial")
+                        .HasPrecision(18)
+                        .HasColumnType("numeric(18,0)");
+
+                    b.Property<string>("BeneficiaryCardNumber")
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<string>("BeneficiaryIban")
+                        .HasMaxLength(26)
+                        .HasColumnType("character varying(26)");
+
+                    b.Property<string>("BeneficiaryName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("CreatedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<Guid>("LedgerTransactionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("OperationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("PaidAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("PaidByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("PaymentReference")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("ReceiptId")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<Guid?>("RelatedTopUpId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ReversalReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<Guid?>("ReversalTransactionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("ReversedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("ReversedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Status")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedByUserId");
+
+                    b.HasIndex("OperationId")
+                        .IsUnique();
+
+                    b.HasIndex("PaidByUserId");
+
+                    b.HasIndex("ReceiptId");
+
+                    b.HasIndex("RelatedTopUpId")
+                        .IsUnique()
+                        .HasFilter("\"RelatedTopUpId\" IS NOT NULL AND \"Status\" <> 'Reversed'");
+
+                    b.HasIndex("ReversedByUserId");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("Status", "CreatedAtUtc");
+
+                    b.ToTable("NoorWithdrawals", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_NoorWithdrawals_Amounts_Positive", "\"AmountNoor\" > 0 AND \"AmountRial\" > 0");
+
+                            t.HasCheckConstraint("CK_NoorWithdrawals_BeneficiaryAccount", "\"BeneficiaryCardNumber\" IS NOT NULL OR \"BeneficiaryIban\" IS NOT NULL");
+
+                            t.HasCheckConstraint("CK_NoorWithdrawals_Kind", "\"Kind\" IN ('AdminDiscretionary', 'DuplicatePaymentRefund')");
+
+                            t.HasCheckConstraint("CK_NoorWithdrawals_PaidEvidence", "\"Status\" <> 'Paid' OR (\"PaymentReference\" IS NOT NULL AND \"ReceiptId\" IS NOT NULL AND \"PaidByUserId\" IS NOT NULL AND \"PaidAtUtc\" IS NOT NULL)");
+
+                            t.HasCheckConstraint("CK_NoorWithdrawals_RelatedTopUp", "(\"Kind\" = 'DuplicatePaymentRefund') = (\"RelatedTopUpId\" IS NOT NULL)");
+
+                            t.HasCheckConstraint("CK_NoorWithdrawals_ReversalEvidence", "\"Status\" <> 'Reversed' OR (\"ReversalReason\" IS NOT NULL AND \"ReversalTransactionId\" IS NOT NULL AND \"ReversedByUserId\" IS NOT NULL AND \"ReversedAtUtc\" IS NOT NULL)");
+
+                            t.HasCheckConstraint("CK_NoorWithdrawals_Status", "\"Status\" IN ('PendingPayment', 'Paid', 'Reversed')");
                         });
                 });
 
@@ -1557,6 +1699,36 @@ namespace ByeMoney.Infrastructure.Migrations
                         .HasForeignKey("AccountId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.HasOne("ByeMoney.Domain.Modules.Identity.Users.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("ByeMoney.Domain.Modules.Wallet.Withdrawals.NoorWithdrawal", b =>
+                {
+                    b.HasOne("ByeMoney.Domain.Modules.Identity.Users.User", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ByeMoney.Domain.Modules.Identity.Users.User", null)
+                        .WithMany()
+                        .HasForeignKey("PaidByUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("ByeMoney.Domain.Modules.Wallet.TopUps.TopUpRequest", null)
+                        .WithMany()
+                        .HasForeignKey("RelatedTopUpId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("ByeMoney.Domain.Modules.Identity.Users.User", null)
+                        .WithMany()
+                        .HasForeignKey("ReversedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("ByeMoney.Domain.Modules.Identity.Users.User", null)
                         .WithMany()

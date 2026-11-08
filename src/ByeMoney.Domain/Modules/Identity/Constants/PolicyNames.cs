@@ -6,6 +6,7 @@ public static class PolicyNames
     public const string RequirePurchasesSettle = "RequirePurchasesSettle";
     public const string RequireNoorInject = "RequireNoorInject";
     public const string RequireNoorGift = "RequireNoorGift";
+    public const string RequireNoorWithdraw = "RequireNoorWithdraw";
     public const string RequireTopUpReview = "RequireTopUpReview";
     public const string RequireCoursesManage = "RequireCoursesManage";
     public const string RequireWalletView = "RequireWalletView";

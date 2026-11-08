@@ -26,6 +26,7 @@ public class PermissionMatrixReflectionTests
         [PolicyNames.RequirePurchasesSettle] = Permissions.Purchases.Settle,
         [PolicyNames.RequireNoorInject] = Permissions.Noor.Inject,
         [PolicyNames.RequireNoorGift] = Permissions.Noor.Gift,
+        [PolicyNames.RequireNoorWithdraw] = Permissions.Noor.Withdraw,
         [PolicyNames.RequireTopUpReview] = Permissions.TopUp.Review,
         [PolicyNames.RequireCoursesManage] = Permissions.Courses.Manage,
         [PolicyNames.RequireWalletView] = Permissions.Wallet.View

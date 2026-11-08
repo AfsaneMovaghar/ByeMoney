@@ -92,7 +92,7 @@
 
 ```json
 {
-  "permissions": ["Courses.Manage", "Noor.Inject", "Wallet.View", "TopUp.Review"],
+  "permissions": ["Courses.Manage", "Noor.Inject", "Noor.Withdraw", "Wallet.View", "TopUp.Review"],
   "roles": ["Admin"],
   "canReviewTopUps": true,
   "canAssistTopUp": true
@@ -454,7 +454,7 @@ Paid و دادهٔ لازم برای ارسال در همان تراکنش مح�
 
 ### I09-PH — قرارداد هدف سبد مختلط؛ مرحلهٔ اول استرپی، ۲۲ اکتبر ۲۰۲۶
 
-**وضعیت: پیاده‌سازی مرحلهٔ اول و پذیرش محلی انجام شد؛ پذیرش محیط مقصد و اتصال مالی در تسک‌های جداگانه است.** شاخهٔ بک‌اند `feature/physical-product-cart-purchase` از `byeMoney/8077376` ساخته شد؛ همین commit سر شاخهٔ اسلایس فصل است. این مرحله فقط کد بک‌اند استرپی را شامل می‌شود؛ بای‌مانی فقط اسناد و فرانت هیچ تغییری ندارد. قرارداد زیر هدف است، نه API آماده یا پشتیبانی مالی کالا در بای‌مانی. قرارداد فعلی دوره/فصل برای مصرف‌کنندگان موجود حفظ شود.
+**وضعیت: پیاده‌سازی مرحلهٔ اول و پذیرش محلی انجام شد؛ پذیرش محیط مقصد و اتصال مالی در تسک‌های جداگانه است.** شاخهٔ بک‌اند `feature/physical-product-cart-purchase` از `byeMoney/8077376` ساخته شد؛ همین commit سر شاخهٔ اسلایس فصل است. این مرحله فقط کد بک‌اند استرپی را شامل می‌شود؛ بای‌مانی فقط اسناد و فرانت هیچ تغییری ندارد. پشتیبانی مالی بای‌مانی پیاده شد (CartPayment، I09-PC). قرارداد فعلی دوره/فصل برای مصرف‌کنندگان موجود حفظ شود.
 
 یک سبد یک سفارش است. نامعتبر بودن هر قلم کل خرید را متوقف می‌کند؛ حذف قلم فقط با اقدام کاربر است. انتخاب مختلط `items[]` با `externalId,type,quantity` تعریف می‌شود: نوع `course|course_chapter|product`، هویت دوره `course.documentId`، فصل `chapter.integrationId` و کالا `product.documentId` است. والد فصل فقط از سرور تعیین می‌شود. تعداد دوره/فصل دقیقاً یک و تعداد کالا عدد صحیح مثبت است.
 
@@ -525,7 +525,7 @@ Paid و دادهٔ لازم برای ارسال در همان تراکنش مح�
 
 فیلد اختیاری `order.currency` در Strapi دارای مقادیر `toman` (تومان) و `noor` (نور)، بدون مقدار پیش‌فرض است. مقدار خالی سفارش قدیمی یعنی تومان قدیمی و backfill ندارد. در اصلاح محلی ۲۰۲۶-۱۰-۲۱، ساخت سفارش جدید از checkout، API مستقیم، سفارش دستی سایت و Content Manager و نیز تکثیر سفارش، در سمت سرور `noor` می‌گیرد؛ ویرایش یا انتشار مجدد سابقه واحد آن را تغییر نمی‌دهد. سفارش معلق قدیمی برای checkout تازه نور بازاستفاده نمی‌شود. این تغییر هیچ تبدیل مبلغ یا اصلاح قیمت‌گذاری سفارش دستی انجام نمی‌دهد و پذیرش واحد پول به معنی پذیرش صحت قیمت همه مسیرهای قدیمی نیست.
 
-تگ تسویه/بستن دوره فقط گزارش است، بدون عملیات Ledger؛ قرارداد تسویهٔ سفارش‌های بای‌مانی در I11-S است. خروج نور API/مجوز مستقل لازم دارد؛ URL آن در بررسی موجود اثبات نشده و این سند endpoint آماده جعل نمی‌کند. اجرای خروج تابع D09 و Q06، با علت/پیگیری و کنترل تکرار است.
+تگ تسویه/بستن دوره فقط گزارش است، بدون عملیات Ledger؛ قرارداد تسویهٔ سفارش‌های بای‌مانی در I11-S است. قرارداد خروج نور توسط ادمین در I11-W است.
 
 Legacy فقط گزارش: `GET /api/integrations/byemoney/v1/legacy-sales` در سند قبلی برنامه‌ریزی شده بود؛ نیاز pagination، فیلتر تاریخ/update، شناسه پایدار سفارش و وضعیت دارد. این endpoint پیاده‌شده ادعا نمی‌شود. داده Legacy به Reporting View می‌رود، نه Ledger نور.
 
@@ -699,6 +699,26 @@ Legacy فقط گزارش: `GET /api/integrations/byemoney/v1/legacy-sales` در 
 - **DTO سفارش (پیش‌نمایش و دوره):** `orderId,sourceType,buyerExternalUserId,orderCreatedAtUtc,regularNetAmountInNoor,giftNetAmountInNoor,netAmountInNoor`. جزئیات زندهٔ سفارش از `GET /api/admin/orders/{orderId}` خوانده می‌شود.
 - **مبلغ خالص:** `netAmountInNoor` (جمع کل) برابر `finalAmountInNoor` منهای `refundedAmountInNoor` (همان تعریف I11-T) و همیشه برابر `regularNetAmountInNoor + giftNetAmountInNoor` است. نور هدیه پشتوانهٔ ریالی ندارد؛ کدام عدد مبنای انتقال دستی باشد با ادمین است (D10).
 - **یکتایی:** هر `orderId` کلید اصلی جدول سفارش‌های تسویه‌شده است. بستن هم‌زمان دو ادمین فقط یک دوره می‌سازد و درخواست دوم بدون ثبت هیچ ردیفی `409` می‌گیرد. دورهٔ بسته‌شده ویرایش یا حذف نمی‌شود.
+
+### I11-W — خروج نور توسط ادمین — پیاده‌سازی ۲۰۲۶-۱۱-۰۸
+
+قاعدهٔ کسب‌وکار در D09 است. همهٔ مسیرها مجوز `Noor.Withdraw` دارند (جدا از `Noor.Inject`) و فرانت فقط از route سروری Next صدا می‌زند (BND-07). مسیر کاربری برای خروج وجود ندارد. شناسهٔ کاربر همان `documentId` استرپی (I02) است. خطاهای کسب‌وکاری به شکل `{code,error}` هستند. خطای اعتبارسنجی ورودی `400` با شکل عمومی اعتبارسنجی پروژه است، نه `{code,error}`.
+
+| مسیر | ورودی | پاسخ و خطا |
+|---|---|---|
+| `POST /api/admin/noor-withdrawals` | `multipart/form-data`: `operationId` (UUID، ثابت در تلاش مجدد)، `userExternalId`، `kind` (`AdminDiscretionary` یا `DuplicatePaymentRefund`)، `relatedTopUpId` (فقط و الزاماً برای استرداد پرداخت تکراری)، `amountRial` (عدد صحیح مثبت؛ مبلغ واقعی واریز؛ `amountNoor` ورودی نیست و سرور حساب می‌کند)، `beneficiaryName` (۱ تا ۲۰۰)، `beneficiaryCardNumber` (۱۶ رقم) و/یا `beneficiaryIban` (`IR` + ۲۴ رقم؛ دست‌کم یکی)، `description` (۱ تا ۱۰۰۰)، اختیاری با هم: `paymentReference` (۱ تا ۱۰۰) و `receipt` (تصویر png/jpg/webp تا ۱۰ مگابایت) | DTO خروج. بدون اطلاعات واریز، وضعیت `PendingPayment` است؛ با آن، رکورد یک‌جا `Paid` ثبت می‌شود. کاربر ناموجود `404 NOOR_WITHDRAWAL_USER_NOT_FOUND`. نور عادی ناکافی `400 NOOR_WITHDRAWAL_INSUFFICIENT_BALANCE` (نور هدیه شمرده نمی‌شود). شارژ نامعتبر (یا بدون نرخ ثبت‌شده) `400 NOOR_WITHDRAWAL_TOPUP_INVALID`، ریال بیش از ریال شارژ `400 NOOR_WITHDRAWAL_AMOUNT_EXCEEDS_TOPUP`، ریالی که نورش صفر می‌شود `400 NOOR_WITHDRAWAL_AMOUNT_TOO_SMALL`، استرداد فعال قبلی همان شارژ `409 NOOR_WITHDRAWAL_TOPUP_ALREADY_REFUNDED`. همان `operationId` با همان محتوا همان پاسخ را می‌دهد و با محتوای دیگر `409 NOOR_WITHDRAWAL_IDEMPOTENCY_CONFLICT` |
+| `POST /api/admin/noor-withdrawals/{id}/payment` | `multipart/form-data`: `paymentReference` و `receipt` هر دو الزامی | DTO با وضعیت `Paid`. تکرار با همان مرجع و همان فایل همان پاسخ را می‌دهد. خروج غیرِ در انتظار `409 NOOR_WITHDRAWAL_NOT_PENDING` |
+| `POST /api/admin/noor-withdrawals/{id}/reverse` | JSON `{reason}` (۱ تا ۵۰۰) | DTO با وضعیت `Reversed`. نور با یک ثبت جبرانی به نور عادی برمی‌گردد. تکرار، برگشت دوم نمی‌سازد. خروج پرداخت‌شده `409 NOOR_WITHDRAWAL_NOT_PENDING` |
+| `GET /api/admin/noor-withdrawals` | `status?` (`PendingPayment`، `Paid` یا `Reversed`)، `userExternalId?`، `limit` (۱ تا ۲۰۰، پیش‌فرض ۵۰) | آرایهٔ DTO، جدیدترین اول |
+| `GET /api/admin/noor-withdrawals/refundable-topups` | `userExternalId` | آرایهٔ حداکثر ۵۰ شارژ `Confirmed` همان کاربر که نرخ ثبت‌شده دارند، جدیدترین اول: `id,clientReferenceCode,amountNoor,amountRial,rialPerNoor,confirmedAtUtc,hasActiveRefund`. برای انتخاب در فرم استرداد |
+| `GET /api/admin/noor-withdrawals/{id}` | — | DTO؛ ناموجود `404 NOOR_WITHDRAWAL_NOT_FOUND` |
+| `GET /api/admin/noor-withdrawals/{id}/receipt` | — | فایل تصویر فیش؛ نبود فیش `404` |
+
+- **DTO خروج:** `id,operationId,userExternalId,kind,status,relatedTopUpId,amountNoor,amountRial,beneficiaryName,beneficiaryCardNumber,beneficiaryIban,description,createdByExternalUserId,createdAtUtc,paymentReference,hasReceipt,paidByExternalUserId,paidAtUtc,reversalReason,reversedByExternalUserId,reversedAtUtc`.
+- **Ledger:** ثبت خروج یک جفت متوازن از نوع `Withdrawal` می‌سازد (کاربر منفی، حساب سیستم مثبت، فقط `Regular`). ثبت واریز اثر Ledger ندارد. «پرداخت نشد» یک جفت `WithdrawalReversal` می‌سازد. مرجع هر دو، شناسهٔ خروج است.
+- **هم‌زمانی:** خروج زیر همان قفل خریدارِ مسیر خرید انجام می‌شود. ثبت واریز و «پرداخت نشد» هم‌زمان فقط یک نتیجه دارند و طرف دوم `409` می‌گیرد.
+- **محاسبهٔ نور:** `amountNoor` پاسخ = `amountRial ÷ نرخ`، گردشده تا ۴ رقم اعشار. نرخ در «صلاحدید ادمین» نرخ فعلی سیستم (`GET /api/settings/conversion-rate`) و در استرداد، نرخ ثبت‌شدهٔ خود شارژ است. تکرار همان `operationId` فقط ریال را مقایسه می‌کند و با تغییر نرخ، همان خروج قبلی را برمی‌گرداند.
+- **استرداد پرداخت تکراری:** فقط برای شارژ `Confirmed` همان کاربر مجاز است. پرداختی که به نور تبدیل نشده، از مسیر رسیدگی درگاه (`ManuallyRefunded`) بسته می‌شود، نه از این مسیر. هر شارژ فقط یک استرداد برنگشته دارد؛ پس از «پرداخت نشد» می‌توان دوباره استرداد ثبت کرد.
 
 ## I12 — انتقال و مسیرهای ممنوع
 

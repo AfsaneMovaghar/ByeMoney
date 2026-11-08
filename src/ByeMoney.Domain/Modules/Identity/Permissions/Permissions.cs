@@ -12,6 +12,7 @@ public static class Permissions
     {
         public const string Inject = "Noor.Inject";
         public const string Gift = "Noor.Gift";
+        public const string Withdraw = "Noor.Withdraw";
     }
 
     public static class TopUp

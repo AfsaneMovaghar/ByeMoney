@@ -25,6 +25,13 @@
 | AdminGatewayReview | `GET` | `/api/admin/topups/gateway-reviews/{clientReferenceCode}` | نیازمند پالیسی `RequireTopUpReview` | `TopUp.Review` |
 | AdminGatewayReview | `POST` | `/api/admin/topups/gateway-reviews/resolve` | نیازمند پالیسی `RequireTopUpReview` | `TopUp.Review` |
 | AdminGift | `POST` | `/api/admin/noor-gifts` | نیازمند پالیسی `RequireNoorGift` | `Noor.Gift` |
+| AdminNoorWithdrawals | `POST` | `/api/admin/noor-withdrawals` | نیازمند پالیسی `RequireNoorWithdraw` | `Noor.Withdraw` |
+| AdminNoorWithdrawals | `GET` | `/api/admin/noor-withdrawals/{withdrawalId:guid}` | نیازمند پالیسی `RequireNoorWithdraw` | `Noor.Withdraw` |
+| AdminNoorWithdrawals | `GET` | `/api/admin/noor-withdrawals` | نیازمند پالیسی `RequireNoorWithdraw` | `Noor.Withdraw` |
+| AdminNoorWithdrawals | `POST` | `/api/admin/noor-withdrawals/{withdrawalId:guid}/payment` | نیازمند پالیسی `RequireNoorWithdraw` | `Noor.Withdraw` |
+| AdminNoorWithdrawals | `GET` | `/api/admin/noor-withdrawals/{withdrawalId:guid}/receipt` | نیازمند پالیسی `RequireNoorWithdraw` | `Noor.Withdraw` |
+| AdminNoorWithdrawals | `GET` | `/api/admin/noor-withdrawals/refundable-topups` | نیازمند پالیسی `RequireNoorWithdraw` | `Noor.Withdraw` |
+| AdminNoorWithdrawals | `POST` | `/api/admin/noor-withdrawals/{withdrawalId:guid}/reverse` | نیازمند پالیسی `RequireNoorWithdraw` | `Noor.Withdraw` |
 | AdminOrders | `GET` | `/api/admin/orders/{orderId}` | نیازمند پالیسی `RequirePurchasesView` | `Purchases.View` |
 | AdminOrders | `GET` | `/api/admin/orders` | نیازمند پالیسی `RequirePurchasesView` | `Purchases.View` |
 | AdminOrders | `GET` | `/api/admin/orders/{orderId}/receipt` | نیازمند پالیسی `RequirePurchasesView` | `Purchases.View` |

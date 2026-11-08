@@ -45,6 +45,9 @@ public static class DependencyInjection
         services.AddScoped<ByeMoney.Application.Modules.Purchases.PhysicalCancellations.Interfaces.IPhysicalCancellationStore, PhysicalCancellationStore>();
         services.AddScoped<ByeMoney.Application.Modules.Purchases.Orders.Interfaces.IPhysicalDeliveryStore, PhysicalDeliveryStore>();
         services.AddScoped<ByeMoney.Application.Modules.Purchases.Settlements.Interfaces.IOrderSettlementStore, OrderSettlementStore>();
+        services.AddScoped<
+            ByeMoney.Application.Modules.Wallet.Withdrawals.Interfaces.INoorWithdrawalStore,
+            ByeMoney.Infrastructure.Modules.Wallet.Persistence.Withdrawals.NoorWithdrawalStore>();
         services.AddSingleton(
             configuration.GetSection(PhysicalRestockSettings.SectionName).Get<PhysicalRestockSettings>()
             ?? new PhysicalRestockSettings());

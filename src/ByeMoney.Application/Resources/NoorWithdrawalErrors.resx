@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <data name="NotFound" xml:space="preserve"><value>خروج نور یافت نشد.</value></data>
+  <data name="UserNotFound" xml:space="preserve"><value>کاربر در بای‌مانی یافت نشد.</value></data>
+  <data name="InsufficientBalance" xml:space="preserve"><value>نور عادی کاربر برای این خروج کافی نیست؛ نور هدیه قابل خروج نیست.</value></data>
+  <data name="TopUpInvalid" xml:space="preserve"><value>شارژ انتخاب‌شده متعلق به این کاربر نیست یا تأییدشده نیست.</value></data>
+  <data name="AmountExceedsTopUp" xml:space="preserve"><value>مبلغ استرداد از مبلغ ریالی همان شارژ بیشتر است.</value></data>
+  <data name="TopUpAlreadyRefunded" xml:space="preserve"><value>برای این شارژ پیش‌تر استرداد ثبت شده است.</value></data>
+  <data name="NotPending" xml:space="preserve"><value>این خروج دیگر در انتظار پرداخت نیست.</value></data>
+  <data name="IdempotencyConflict" xml:space="preserve"><value>این شناسهٔ عملیات پیش‌تر با اطلاعات دیگری ثبت شده است.</value></data>
+  <data name="Conflict" xml:space="preserve"><value>وضعیت کیف پول یا خروج هم‌زمان تغییر کرد؛ دوباره بررسی کنید.</value></data>
+  <data name="InvalidOperationId" xml:space="preserve"><value>شناسهٔ عملیات معتبر نیست.</value></data>
+  <data name="InvalidWithdrawalId" xml:space="preserve"><value>شناسهٔ خروج نور معتبر نیست.</value></data>
+  <data name="InvalidUser" xml:space="preserve"><value>شناسهٔ کاربر الزامی است.</value></data>
+  <data name="InvalidKind" xml:space="preserve"><value>نوع خروج نور معتبر نیست.</value></data>
+  <data name="TopUpRequired" xml:space="preserve"><value>برای استرداد پرداخت تکراری، شارژ مربوط الزامی است.</value></data>
+  <data name="TopUpNotAllowed" xml:space="preserve"><value>شارژ مرتبط فقط برای استرداد پرداخت تکراری ثبت می‌شود.</value></data>
+  <data name="RateUnavailable" xml:space="preserve"><value>نرخ تبدیل نور تنظیم نشده است؛ خروج نور ثبت نشد.</value></data>
+  <data name="AmountTooSmall" xml:space="preserve"><value>مبلغ ریالی آن‌قدر کم است که معادل نور آن صفر می‌شود.</value></data>
+  <data name="InvalidAmountRial" xml:space="preserve"><value>مبلغ ریالی باید عدد صحیح مثبت باشد.</value></data>
+  <data name="InvalidBeneficiaryName" xml:space="preserve"><value>نام صاحب حساب الزامی است و حداکثر ۲۰۰ نویسه دارد.</value></data>
+  <data name="InvalidCardNumber" xml:space="preserve"><value>شمارهٔ کارت باید ۱۶ رقم باشد.</value></data>
+  <data name="InvalidIban" xml:space="preserve"><value>شبا باید با IR و ۲۴ رقم باشد.</value></data>
+  <data name="BeneficiaryAccountRequired" xml:space="preserve"><value>شمارهٔ کارت یا شبای ذی‌نفع الزامی است.</value></data>
+  <data name="InvalidDescription" xml:space="preserve"><value>توضیحات الزامی است و حداکثر ۱۰۰۰ نویسه دارد.</value></data>
+  <data name="InvalidPaymentReference" xml:space="preserve"><value>شناسهٔ پرداخت الزامی است و حداکثر ۱۰۰ نویسه دارد.</value></data>
+  <data name="ReceiptRequired" xml:space="preserve"><value>فیش واریز الزامی است.</value></data>
+  <data name="PaymentWithoutReference" xml:space="preserve"><value>فیش واریز و شناسهٔ پرداخت باید با هم ثبت شوند.</value></data>
+  <data name="InvalidReversalReason" xml:space="preserve"><value>علت انجام‌نشدن پرداخت الزامی است و حداکثر ۵۰۰ نویسه دارد.</value></data>
+  <data name="InvalidStatus" xml:space="preserve"><value>وضعیت خروج نور معتبر نیست.</value></data>
+  <data name="InvalidLimit" xml:space="preserve"><value>تعداد ردیف‌ها باید بین ۱ و ۲۰۰ باشد.</value></data>
+  <data name="InvalidReceipt" xml:space="preserve"><value>فایل فیش واریز معتبر نیست؛ فقط تصویر png، jpg یا webp تا ۱۰ مگابایت.</value></data>
+</root>
