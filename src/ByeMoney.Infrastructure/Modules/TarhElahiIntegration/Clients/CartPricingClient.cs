@@ -111,6 +111,13 @@ public sealed class CartPricingClient(HttpClient http) : ICartPricingClient
                 x.Quantity))
             .ToArray();
 
+        var hasProduct = items.Any(x => x.Type == ProductItemType.Product);
+        var address = hasProduct ? ToAddress(wire) : null;
+        if (hasProduct && address is null)
+        {
+            return null;
+        }
+
         return new CartQuote(
             wire.CartId,
             wire.BuyerExternalUserId,
@@ -121,7 +128,32 @@ public sealed class CartPricingClient(HttpClient http) : ICartPricingClient
             wire.CouponDiscountInNoor,
             wire.ShippingAmountInNoor,
             wire.ShippingRuleLabel,
-            wire.PriceInNoor);
+            wire.PriceInNoor,
+            address);
+    }
+
+    /// <summary>
+    /// سبد دارای کالا باید آدرس کامل و نسخهٔ معتبر داشته باشد؛ در غیر این صورت پاسخ نامعتبر است.
+    /// نبود <c>postalCode</c> مجاز است.
+    /// </summary>
+    private static ShippingAddress? ToAddress(TarhElahiCartPrepareResponse wire)
+    {
+        var snapshot = wire.AddressSnapshot;
+        if (snapshot is null)
+        {
+            return null;
+        }
+
+        var postalCode = string.IsNullOrWhiteSpace(snapshot.PostalCode) ? null : snapshot.PostalCode.Trim();
+        var address = new ShippingAddress(
+            wire.AddressVersion?.Trim() ?? string.Empty,
+            snapshot.Province?.Trim() ?? string.Empty,
+            snapshot.City?.Trim() ?? string.Empty,
+            postalCode,
+            snapshot.FullAddress?.Trim() ?? string.Empty,
+            snapshot.RecipientName?.Trim() ?? string.Empty,
+            snapshot.RecipientPhone?.Trim() ?? string.Empty);
+        return address.IsValid() ? address : null;
     }
 
     /// <summary>

@@ -837,7 +837,7 @@ public sealed class PhysicalCancellationPostgresTests : IAsyncLifetime
                 x.Quantity))
             .ToArray();
 
-        return await Store.SetQuoteAsync(cart.Id, _buyer.Id.Value, quote, shipping, null, cart.ReservationId, default);
+        return await Store.SetQuoteAsync(cart.Id, _buyer.Id.Value, quote, shipping, null, null, cart.ReservationId, default);
     }
 
     private async Task<Cart> PaidCartAsync(Line[] lines, decimal shipping, string? coupon)

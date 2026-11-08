@@ -53,6 +53,9 @@ public sealed class PhysicalDeliveryHttpPostgresTests : IAsyncLifetime
     private const string JwtAudience = "bye-money-tests-audience";
     private const string CancellationReason = "انصراف خریدار پیش از ارسال";
 
+    private static readonly ShippingAddress Address = new(
+        "version-1", "ProvinceX", "CityX", null, "StreetX 12", "RecipientX", "09120000000");
+
     private static readonly string[] ReceiptKeys =
     [
         "orderId", "sourceType", "cartId", "transactionId", "purchasedAtUtc", "couponCode",
@@ -139,9 +142,46 @@ public sealed class PhysicalDeliveryHttpPostgresTests : IAsyncLifetime
 
         await VerifyReceiptAccessAsync(client, seed, orderId);
         await VerifyReceiptShapeAsync(client, seed, orderId);
+        await VerifyShippingAddressVisibilityAsync(client, seed, orderId);
         await VerifyDeliveryAuthorizationAsync(client, seed);
         await VerifyDeliveryTransitionsAsync(client, seed, orderId);
         await VerifyMoneyUntouchedAsync(seed);
+    }
+
+    private static async Task VerifyShippingAddressVisibilityAsync(HttpClient client, SeedData seed, string orderId)
+    {
+        var admin = await SendAsync(client, HttpMethod.Get, $"/api/admin/orders/{orderId}", Token(seed.PurchasesViewAdmin));
+        admin.StatusCode.Should().Be(HttpStatusCode.OK);
+        using var adminBody = JsonDocument.Parse(await admin.Content.ReadAsStringAsync());
+        var address = adminBody.RootElement.GetProperty("shippingAddress");
+        address.GetProperty("province").GetString().Should().Be(Address.Province);
+        address.GetProperty("city").GetString().Should().Be(Address.City);
+        address.GetProperty("fullAddress").GetString().Should().Be(Address.FullAddress);
+        address.GetProperty("recipientName").GetString().Should().Be(Address.RecipientName);
+        address.GetProperty("recipientPhone").GetString().Should().Be(Address.RecipientPhone);
+        address.GetProperty("version").GetString().Should().Be(Address.Version);
+
+        var buyerUrls = new[] { "/api/me/orders", $"/api/me/orders/{orderId}", $"/api/me/orders/{orderId}/receipt" };
+        var adminUrls = new[] { "/api/admin/orders", $"/api/admin/orders/{orderId}/receipt" };
+        foreach (var url in buyerUrls)
+        {
+            await AssertNoAddressAsync(client, url, Token(seed.Buyer));
+        }
+
+        foreach (var url in adminUrls)
+        {
+            await AssertNoAddressAsync(client, url, Token(seed.PurchasesViewAdmin));
+        }
+    }
+
+    private static async Task AssertNoAddressAsync(HttpClient client, string url, string token)
+    {
+        var response = await SendAsync(client, HttpMethod.Get, url, token);
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var body = await response.Content.ReadAsStringAsync();
+        body.Should().NotContainEquivalentOf("shippingAddress");
+        body.Should().NotContain(Address.FullAddress);
+        body.Should().NotContain(Address.RecipientPhone);
     }
 
     [CartPostgresFact]
@@ -298,7 +338,7 @@ public sealed class PhysicalDeliveryHttpPostgresTests : IAsyncLifetime
         (await carts.CreateAsync(cart, default)).IsSuccess.Should().BeTrue();
         var quote = new CartQuoteItem(
             externalId, externalId, unitPrice, 0, 0, unitPrice * quantity, ProductItemType.Product, null, quantity);
-        await carts.SetQuoteAsync(cart.Id, buyer.Id.Value, [quote], 0m, null, cart.ReservationId, default);
+        await carts.SetQuoteAsync(cart.Id, buyer.Id.Value, [quote], 0m, null, null, cart.ReservationId, default);
         (await carts.PayAsync(cart.Id, buyer.Id.Value, cart.ReservationId, default)).IsSuccess.Should().BeTrue();
         return cart;
     }
@@ -517,7 +557,7 @@ public sealed class PhysicalDeliveryHttpPostgresTests : IAsyncLifetime
         cart.SetQuote([
             new CartQuoteItem("book", "Book", 50, 0, 0, 100, ProductItemType.Product, null, 2),
             new CartQuoteItem("pen", "Pen", 20, 0, 0, 20, ProductItemType.Product, null, 1)
-        ], shippingAmountInNoor: 10);
+        ], shippingAmountInNoor: 10, shippingAddress: Address);
         cart.MarkPaid();
         var book = PhysicalProductPurchase.Create(
             PhysicalProductPurchaseId.New(), cart.Id, buyer.Id, "book", "Book", 2, 50, 100);

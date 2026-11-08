@@ -293,7 +293,7 @@ public sealed class OrderSettlementPostgresTests : IAsyncLifetime
         ], null);
         (await carts.CreateAsync(cart, default)).IsSuccess.Should().BeTrue();
         var quote = new CartQuoteItem("book", "Book", 50, 0, 0, 100, ProductItemType.Product, null, 2);
-        await carts.SetQuoteAsync(cart.Id, buyer.Id.Value, [quote], 10m, null, cart.ReservationId, default);
+        await carts.SetQuoteAsync(cart.Id, buyer.Id.Value, [quote], 10m, null, null, cart.ReservationId, default);
         (await carts.PayAsync(cart.Id, buyer.Id.Value, cart.ReservationId, default)).IsSuccess.Should().BeTrue();
         var bookId = await db.Set<PhysicalProductPurchase>()
             .Where(item => item.CartId == cart.Id)

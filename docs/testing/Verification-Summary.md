@@ -11,6 +11,12 @@
 - **آزمون‌های مشروط:** آزمون‌های Wallet بدون `BYEMONEY_TEST_CONNECTION_STRING` و آزمون‌های سبد بدون `BYEMONEY_CART_PG_TESTS=1` اجرا نمی‌شوند؛ Skip، قبولی نیست. اجرای یک‌جای همهٔ آزمون‌های دیتابیسی به سقف `max_connections` می‌خورد؛ مجموعه‌ها جدا اجرا شوند.
 - **ظرفیت:** فهرست ادمین I11-T بدون فیلتر خریدار برای حجم زیاد اندازه‌گیری نشده است.
 
+## BND-11 (سمت بای‌مانی) — نسخهٔ ثابت آدرس تحویل روی سبد — ۸ نوامبر ۲۰۲۶
+
+- تغییر: ستون‌های nullable `ShippingAddress_*` روی `Carts` (migration افزودنی `AddCartShippingAddress`)؛ آداپتور استرپی برای سبد دارای کالا بدون آدرس کامل یا `addressVersion` معتبر پاسخ را نامعتبر (`CART_INVALID`، سبد `Failed`) می‌کند؛ بازگشایی سبد آدرس را پاک و prepare تازه جایگزین می‌کند؛ سبد `Paid` تغییر نمی‌کند؛ `shippingAddress` فقط در `GET /api/admin/orders/{orderId}`.
+- آزمون: `dotnet test ByeMoney.UnitTests` با `BYEMONEY_CART_PG_TESTS=1` و PostgreSQL محلی ۶۲۰ موفق، ۰ شکست (خروجی جدا چون API در حال اجرا فایل‌ها را قفل کرده بود). پوشش جدید: ذخیره و جایگزینی در بازگشایی (PostgreSQL)، رد پاسخ ناقص (۵ حالت)، سبد دوره بدون آدرس، سبد `Paid` ثابت، و نبود آدرس در جزئیات/رسید/فهرست خریدار و فهرست/رسید ادمین روی HTTP واقعی با JWT.
+- فرانت و استرپی (بازبینی ۲۰۲۶-۱۱-۰۸): پنل ارسال ادمین آدرس را از `shippingAddress` جزئیات ادمین بای‌مانی می‌خواند و `fetchCartAddress`، هشدارهای استرپی و نمایش آدرس در سفارش خریدار حذف شد؛ `GET /api/byemoney-carts/:cartId/address` و مجوزش از استرپی حذف شد. آزمون: backend `npx jest --runInBand tests/api tests/services tests/config` ۲۱۸ موفق؛ فرانت (`src/lib/admin`، `src/app/api/orders`، `src/app/profile/orders`) ۱۵۹ موفق. آدرس سفارش جدید بدون وابستگی به استرپی خوانده می‌شود (پوشش آزمون خودکار؛ پذیرش دستی با JWT واقعی انجام نشده).
+
 ## BND-10 — حذف دو endpoint بی‌استفادهٔ نتیجهٔ درگاه — ۸ نوامبر ۲۰۲۶
 
 - بررسی: فرانت و استرپی هیچ فراخواننده‌ای برای `gateway-confirmations` و `gateway-cancellations` نداشتند (فرانت از `gateway-results` و استرپی با `GatewayResultKeyFilter` کار می‌کنند).

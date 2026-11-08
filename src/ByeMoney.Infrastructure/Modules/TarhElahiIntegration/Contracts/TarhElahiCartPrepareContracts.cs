@@ -31,7 +31,20 @@ internal sealed record TarhElahiCartPrepareResponse(
     decimal CouponDiscountInNoor = 0m,
     decimal ShippingAmountInNoor = 0m,
     string? ShippingRuleLabel = null,
-    decimal PriceInNoor = 0m);
+    decimal PriceInNoor = 0m,
+    TarhElahiCartAddressSnapshot? AddressSnapshot = null,
+    string? AddressVersion = null);
+
+/// <summary>
+/// شش فیلد آدرس تحویل در پاسخ prepare (I09-PH)؛ <c>postalCode</c> اختیاری است.
+/// </summary>
+internal sealed record TarhElahiCartAddressSnapshot(
+    string? Province,
+    string? City,
+    string? PostalCode,
+    string? FullAddress,
+    string? RecipientName,
+    string? RecipientPhone);
 
 /// <summary>
 /// بدنهٔ خطای سبد طرح الهی؛ <c>lineError</c> فقط وقتی می‌آید که یک قلم مشخص قابل فروش نباشد.

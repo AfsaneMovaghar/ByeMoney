@@ -1503,7 +1503,56 @@ namespace ByeMoney.Infrastructure.Migrations
                                 .HasForeignKey("CartId");
                         });
 
+                    b.OwnsOne("ByeMoney.Domain.Modules.Purchases.ShippingAddress", "ShippingAddress", b1 =>
+                        {
+                            b1.Property<Guid>("CartId")
+                                .HasColumnType("uuid");
+
+                            b1.Property<string>("City")
+                                .IsRequired()
+                                .HasMaxLength(100)
+                                .HasColumnType("character varying(100)");
+
+                            b1.Property<string>("FullAddress")
+                                .IsRequired()
+                                .HasMaxLength(1000)
+                                .HasColumnType("character varying(1000)");
+
+                            b1.Property<string>("PostalCode")
+                                .HasMaxLength(20)
+                                .HasColumnType("character varying(20)");
+
+                            b1.Property<string>("Province")
+                                .IsRequired()
+                                .HasMaxLength(100)
+                                .HasColumnType("character varying(100)");
+
+                            b1.Property<string>("RecipientName")
+                                .IsRequired()
+                                .HasMaxLength(200)
+                                .HasColumnType("character varying(200)");
+
+                            b1.Property<string>("RecipientPhone")
+                                .IsRequired()
+                                .HasMaxLength(20)
+                                .HasColumnType("character varying(20)");
+
+                            b1.Property<string>("Version")
+                                .IsRequired()
+                                .HasMaxLength(64)
+                                .HasColumnType("character varying(64)");
+
+                            b1.HasKey("CartId");
+
+                            b1.ToTable("Carts");
+
+                            b1.WithOwner()
+                                .HasForeignKey("CartId");
+                        });
+
                     b.Navigation("Items");
+
+                    b.Navigation("ShippingAddress");
                 });
 
             modelBuilder.Entity("ByeMoney.Domain.Modules.Purchases.CoursePurchase", b =>

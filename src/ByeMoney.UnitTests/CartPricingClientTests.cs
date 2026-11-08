@@ -37,7 +37,7 @@ public sealed class CartPricingClientTests
     [Fact]
     public async Task ProductCartUsesTypedItemsShape()
     {
-        var handler = new CapturingHandler(QuoteJson("""{"externalCourseId":"p","type":"product","title":"کالا","basePriceInNoor":10,"itemDiscountInNoor":0,"couponDiscountInNoor":0,"priceInNoor":30,"quantity":3}"""));
+        var handler = new CapturingHandler(QuoteJson("""{"externalCourseId":"p","type":"product","title":"کالا","basePriceInNoor":10,"itemDiscountInNoor":0,"couponDiscountInNoor":0,"priceInNoor":30,"quantity":3}""", FullAddressJson));
         var client = Client(handler);
 
         var result = await client.PrepareAsync(new CartQuoteRequest(CartId, "buyer", null,
@@ -68,6 +68,51 @@ public sealed class CartPricingClientTests
 
         result.IsFailure.Should().BeTrue();
         result.ErrorCode.Should().Be(CartErrorCodes.Invalid);
+    }
+
+    private const string ProductItemJson = """{"externalCourseId":"p","type":"product","title":"Book","basePriceInNoor":10,"itemDiscountInNoor":0,"couponDiscountInNoor":0,"priceInNoor":10}""";
+    private const string FullAddressJson = """ "addressSnapshot":{"province":"P","city":"C","postalCode":null,"fullAddress":"Street 1","recipientName":"R","recipientPhone":"09120000000"},"addressVersion":"abc123" """;
+
+    [Fact]
+    public async Task ProductQuoteCarriesAddressSnapshotAndVersion()
+    {
+        var client = Client(new CapturingHandler(QuoteJson(ProductItemJson, FullAddressJson)));
+
+        var result = await client.PrepareAsync(
+            new CartQuoteRequest(CartId, "buyer", null, [new CartItemInput("p", ProductItemType.Product, 1)]), default);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.ShippingAddress.Should().Be(
+            new ShippingAddress("abc123", "P", "C", null, "Street 1", "R", "09120000000"));
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData(""" "addressSnapshot":null,"addressVersion":null """)]
+    [InlineData(""" "addressSnapshot":{"province":"P","city":"C","fullAddress":"Street 1","recipientName":"R","recipientPhone":"09120000000"},"addressVersion":null """)]
+    [InlineData(""" "addressSnapshot":{"province":"P","city":" ","fullAddress":"Street 1","recipientName":"R","recipientPhone":"09120000000"},"addressVersion":"abc123" """)]
+    [InlineData(""" "addressSnapshot":{"province":"P","city":"C","fullAddress":"Street 1","recipientName":"R"},"addressVersion":"abc123" """)]
+    public async Task ProductQuoteWithoutCompleteAddressAndVersionIsInvalid(string addressJson)
+    {
+        var client = Client(new CapturingHandler(QuoteJson(ProductItemJson, addressJson)));
+
+        var result = await client.PrepareAsync(
+            new CartQuoteRequest(CartId, "buyer", null, [new CartItemInput("p", ProductItemType.Product, 1)]), default);
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be(CartErrorCodes.Invalid);
+    }
+
+    [Fact]
+    public async Task CourseOnlyQuoteIgnoresAddressSnapshot()
+    {
+        const string courseJson = """{"externalCourseId":"c","type":"course","title":"Course","basePriceInNoor":10,"itemDiscountInNoor":0,"couponDiscountInNoor":0,"priceInNoor":10}""";
+        var client = Client(new CapturingHandler(QuoteJson(courseJson, FullAddressJson)));
+
+        var result = await client.PrepareAsync(new CartQuoteRequest(CartId, "buyer", null, [new CartItemInput("c")]), default);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.ShippingAddress.Should().BeNull();
     }
 
     [Fact]
@@ -132,8 +177,11 @@ public sealed class CartPricingClientTests
     private static CartPricingClient Client(HttpMessageHandler handler) =>
         new(new HttpClient(handler) { BaseAddress = new Uri("https://strapi.test/") });
 
-    private static string QuoteJson(string itemJson) =>
-        $$"""{"cartId":"{{CartId}}","buyerExternalUserId":"buyer","couponCode":null,"items":[{{itemJson}}]}""";
+    private static string QuoteJson(string itemJson, string extraJson = "")
+    {
+        var extra = string.IsNullOrEmpty(extraJson) ? string.Empty : "," + extraJson;
+        return $$"""{"cartId":"{{CartId}}","buyerExternalUserId":"buyer","couponCode":null,"items":[{{itemJson}}]""" + extra + "}";
+    }
 
     private sealed class CapturingHandler(string responseJson, HttpStatusCode status = HttpStatusCode.OK) : HttpMessageHandler
     {

@@ -29,6 +29,11 @@ public sealed class Cart
     public decimal CouponDiscountInNoor { get; private set; }
     public decimal ShippingAmountInNoor { get; private set; }
     public string? ShippingRuleLabel { get; private set; }
+
+    /// <summary>
+    /// آدرس تحویل ثابت‌شدهٔ همین قیمت‌گذاری؛ فقط برای سبد دارای کالا پر می‌شود و با بازگشایی سبد پاک می‌شود.
+    /// </summary>
+    public ShippingAddress? ShippingAddress { get; private set; }
     public CartStatus Status { get; private set; }
     public Guid? TopUpRequestId { get; private set; }
     public Guid ReservationId { get; private set; }
@@ -81,7 +86,8 @@ public sealed class Cart
     public void SetQuote(
         IReadOnlyList<CartQuoteItem> items,
         decimal shippingAmountInNoor = 0m,
-        string? shippingRuleLabel = null)
+        string? shippingRuleLabel = null,
+        ShippingAddress? shippingAddress = null)
     {
         if (Status != CartStatus.Preparing)
         {
@@ -114,6 +120,7 @@ public sealed class Cart
         CouponDiscountInNoor = items.Sum(x => x.CouponDiscountInNoor);
         ShippingAmountInNoor = shippingAmountInNoor;
         ShippingRuleLabel = string.IsNullOrWhiteSpace(shippingRuleLabel) ? null : shippingRuleLabel.Trim();
+        ShippingAddress = items.Any(x => x.Type == ProductItemType.Product) ? shippingAddress : null;
 
         if (_items.Sum(x => x.AllocatedAmountInNoor) + ShippingAmountInNoor != Total)
         {
@@ -160,6 +167,7 @@ public sealed class Cart
         ItemDiscountInNoor = 0;
         CouponDiscountInNoor = 0;
         ShippingAmountInNoor = 0;
+        ShippingAddress = null;
         Status = CartStatus.Preparing;
         Synchronized = false;
         LastSyncErrorCode = null;

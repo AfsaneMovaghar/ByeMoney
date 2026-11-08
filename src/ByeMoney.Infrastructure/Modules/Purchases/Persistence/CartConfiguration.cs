@@ -21,6 +21,16 @@ public sealed class CartConfiguration : IEntityTypeConfiguration<Cart>
         b.Property(x => x.RequestedItemSignatures).HasColumnType("text[]");
         b.Property(x => x.ShippingAmountInNoor).HasPrecision(18, 4).HasDefaultValue(0m);
         b.Property(x => x.ShippingRuleLabel).HasMaxLength(200);
+        b.OwnsOne(x => x.ShippingAddress, address =>
+        {
+            address.Property(x => x.Version).HasMaxLength(ShippingAddress.VersionMaxLength);
+            address.Property(x => x.Province).HasMaxLength(ShippingAddress.ProvinceMaxLength);
+            address.Property(x => x.City).HasMaxLength(ShippingAddress.CityMaxLength);
+            address.Property(x => x.PostalCode).HasMaxLength(ShippingAddress.PostalCodeMaxLength);
+            address.Property(x => x.FullAddress).HasMaxLength(ShippingAddress.FullAddressMaxLength);
+            address.Property(x => x.RecipientName).HasMaxLength(ShippingAddress.RecipientNameMaxLength);
+            address.Property(x => x.RecipientPhone).HasMaxLength(ShippingAddress.RecipientPhoneMaxLength);
+        });
         b.OwnsMany(x => x.Items, items =>
         {
             items.ToTable("CartItems", table =>

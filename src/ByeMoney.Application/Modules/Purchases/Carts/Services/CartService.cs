@@ -138,7 +138,7 @@ public sealed class CartService(
 
             try
             {
-                cart = await store.SetQuoteAsync(id, buyerId, quote.Value.Items, quote.Value.ShippingAmountInNoor, quote.Value.ShippingRuleLabel, cart.ReservationId, ct);
+                cart = await store.SetQuoteAsync(id, buyerId, quote.Value.Items, quote.Value.ShippingAmountInNoor, quote.Value.ShippingRuleLabel, quote.Value.ShippingAddress, cart.ReservationId, ct);
             }
             catch (ArgumentException)
             {

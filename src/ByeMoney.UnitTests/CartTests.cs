@@ -35,6 +35,54 @@ public sealed class CartTests
         Action act = () => cart.SetQuote([new("a", "الف", 105, itemDiscount, couponDiscount, final), Items()[1]]);
         act.Should().Throw<ArgumentException>();
     }
+    private static readonly ShippingAddress Address = new("v1", "P", "C", null, "Street 1", "R", "09120000000");
+
+    private static Cart CreateProductCart() =>
+        Cart.Create(Guid.NewGuid(), Guid.NewGuid(), "user", [new CartItemInput("book", ProductItemType.Product, 1)], null);
+
+    private static CartQuoteItem[] BookQuote() =>
+        [new("book", "Book", 50, 0, 0, 50, ProductItemType.Product, null, 1)];
+
+    [Fact]
+    public void ProductCartKeepsAddressAndCourseCartDoesNot()
+    {
+        var productCart = CreateProductCart();
+        productCart.SetQuote(BookQuote(), shippingAddress: Address);
+        var courseCart = CreateCart();
+        courseCart.SetQuote(Items(), shippingAddress: Address);
+
+        productCart.ShippingAddress.Should().Be(Address);
+        courseCart.ShippingAddress.Should().BeNull();
+    }
+
+    [Fact]
+    public void PaidCartAddressIsNotReplaced()
+    {
+        var cart = CreateProductCart();
+        cart.SetQuote(BookQuote(), shippingAddress: Address);
+        cart.MarkPaid();
+
+        cart.SetQuote(BookQuote(), shippingAddress: Address with { Version = "v2", City = "Other" });
+
+        cart.ShippingAddress.Should().Be(Address);
+    }
+
+    [Fact]
+    public void ReopenClearsAddressUntilNewQuote()
+    {
+        var cart = CreateProductCart();
+        cart.SetQuote(BookQuote(), shippingAddress: Address);
+        cart.Fail();
+        cart.RecordSynchronization(true, null);
+        var fresh = Address with { Version = "v2", City = "Other" };
+
+        cart.Reopen();
+        cart.ShippingAddress.Should().BeNull();
+        cart.SetQuote(BookQuote(), shippingAddress: fresh);
+
+        cart.ShippingAddress.Should().Be(fresh);
+    }
+
     [Fact]
     public void SnapshotCannotChangeAfterPreparationOrPayment()
     {

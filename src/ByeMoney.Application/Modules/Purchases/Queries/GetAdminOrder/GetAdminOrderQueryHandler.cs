@@ -1,4 +1,5 @@
 using ByeMoney.Application.Common.Interfaces;
+using ByeMoney.Application.Modules.Purchases.Orders.Constants;
 using ByeMoney.Application.Modules.Purchases.Orders.DTOs;
 using ByeMoney.Application.Modules.Purchases.Orders.Interfaces;
 using ByeMoney.Application.Modules.Purchases.Orders.Services;
@@ -25,6 +26,27 @@ public sealed class GetAdminOrderQueryHandler(IOrderReader reader, ICurrentUserS
         return new AdminOrderDetails(
             buyer.ExternalUserId,
             string.IsNullOrWhiteSpace(buyer.DisplayName) ? null : buyer.DisplayName,
-            row.Details);
+            row.Details,
+            FindShippingAddress(snapshot, row.Details));
+    }
+
+    private static OrderShippingAddress? FindShippingAddress(OrderSnapshot snapshot, OrderDetails details)
+    {
+        if (details.SourceType != OrderSourceType.Cart.ToString() || details.CartId is null)
+        {
+            return null;
+        }
+
+        var address = snapshot.Carts.SingleOrDefault(cart => cart.Id == details.CartId)?.ShippingAddress;
+        return address is null
+            ? null
+            : new OrderShippingAddress(
+                address.Version,
+                address.Province,
+                address.City,
+                address.PostalCode,
+                address.FullAddress,
+                address.RecipientName,
+                address.RecipientPhone);
     }
 }

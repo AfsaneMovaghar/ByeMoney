@@ -403,6 +403,41 @@ public sealed class CartPostgresTests : IAsyncLifetime
     }
 
     [CartPostgresFact]
+    public async Task ShippingAddressIsPersistedWithProductQuoteAndReplacedOnReopen()
+    {
+        var first = new ShippingAddress("v1", "ProvinceA", "CityA", null, "StreetA 1", "RecipientA", "09120000001");
+        var second = new ShippingAddress("v2", "ProvinceB", "CityB", "1234567890", "StreetB 2", "RecipientB", "09120000002");
+        var cart = Cart.Create(Guid.NewGuid(), _buyer.Id.Value, _buyer.ExternalUserId,
+            [new CartItemInput("book", ProductItemType.Product, 1)], null);
+        (await Store.CreateAsync(cart, default)).IsSuccess.Should().BeTrue();
+        CartQuoteItem[] quote = [new("book", "Book", 50, 0, 0, 50, ProductItemType.Product, null, 1)];
+
+        await Store.SetQuoteAsync(cart.Id, _buyer.Id.Value, quote, 0m, null, first, cart.ReservationId, default);
+        (await Store.FindAsync(cart.Id, _buyer.Id.Value, default))!.ShippingAddress.Should().Be(first);
+
+        await Store.FailAsync(cart.Id, _buyer.Id.Value, false, cart.ReservationId, default);
+        await Store.RecordSynchronizationAsync(cart.Id, _buyer.Id.Value, true, null, cart.ReservationId, default);
+        var reopened = (await Store.ReopenAsync(cart.Id, _buyer.Id.Value, cart.ReservationId, default)).Value;
+        (await Store.FindAsync(cart.Id, _buyer.Id.Value, default))!.ShippingAddress.Should().BeNull();
+
+        await Store.SetQuoteAsync(cart.Id, _buyer.Id.Value, quote, 0m, null, second, reopened.ReservationId, default);
+        (await Store.FindAsync(cart.Id, _buyer.Id.Value, default))!.ShippingAddress.Should().Be(second);
+    }
+
+    [CartPostgresFact]
+    public async Task CourseOnlyQuoteStoresNoShippingAddress()
+    {
+        var address = new ShippingAddress("v1", "ProvinceA", "CityA", null, "StreetA 1", "RecipientA", "09120000001");
+        var cart = Cart.Create(Guid.NewGuid(), _buyer.Id.Value, _buyer.ExternalUserId, ["course"], null);
+        (await Store.CreateAsync(cart, default)).IsSuccess.Should().BeTrue();
+
+        await Store.SetQuoteAsync(cart.Id, _buyer.Id.Value, [new("course", "Course", 10, 0, 0, 10)], 0m, null, address,
+            cart.ReservationId, default);
+
+        (await Store.FindAsync(cart.Id, _buyer.Id.Value, default))!.ShippingAddress.Should().BeNull();
+    }
+
+    [CartPostgresFact]
     public async Task DatabaseRejectsInvalidAmountsDuplicateCoursesAndMissingCart()
     {
         var cart = await Ready();
