@@ -77,25 +77,5 @@ public sealed class CartsController(ISender sender) : ControllerBase
         return Respond(result);
     }
 
-    private IActionResult Respond<T>(Result<T> result)
-    {
-        if (result.IsSuccess)
-        {
-            return Ok(result.Value);
-        }
-
-        var statusCode = result.ErrorCode == CartErrorCodes.Unavailable
-            ? StatusCodes.Status503ServiceUnavailable
-            : result.Status switch
-            {
-                ResultStatus.NotFound => StatusCodes.Status404NotFound,
-                ResultStatus.Conflict => StatusCodes.Status409Conflict,
-                _ => StatusCodes.Status400BadRequest
-            };
-
-        return StatusCode(statusCode, new CartErrorResponse(
-            result.ErrorCode ?? CartErrorCodes.Invalid,
-            result.ErrorMessage!,
-            (result as ICartStockFailure)?.LineError));
-    }
+    private static IActionResult Respond<T>(Result<T> result) => CartHttpResults.From(result);
 }

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <data name="ItemTypeNotAllowed" xml:space="preserve"><value>سفارش دستی ادمین فقط دوره و فصل را می‌پذیرد.</value></data>
+  <data name="FreeReasonRequired" xml:space="preserve"><value>برای ثبت رایگان، علت الزامی است.</value></data>
+  <data name="FreeReasonNotAllowed" xml:space="preserve"><value>علت رایگان فقط در ثبت رایگان پذیرفته می‌شود.</value></data>
+  <data name="InsufficientNoorBalance" xml:space="preserve"><value>موجودی نور کاربر برای این سفارش کافی نیست؛ ابتدا کیف کاربر را شارژ کنید.</value></data>
+</root>

@@ -21,6 +21,8 @@ public sealed class CartConfiguration : IEntityTypeConfiguration<Cart>
         b.Property(x => x.RequestedItemSignatures).HasColumnType("text[]");
         b.Property(x => x.ShippingAmountInNoor).HasPrecision(18, 4).HasDefaultValue(0m);
         b.Property(x => x.ShippingRuleLabel).HasMaxLength(200);
+        b.Property(x => x.AdminFreeReason).HasMaxLength(Cart.AdminFreeReasonMaxLength);
+        b.Ignore(x => x.IsAdminFree);
         b.OwnsOne(x => x.ShippingAddress, address =>
         {
             address.Property(x => x.Version).HasMaxLength(ShippingAddress.VersionMaxLength);

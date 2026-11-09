@@ -1,6 +1,7 @@
 using ByeMoney.Application.Modules.Identity.Users.Interfaces;
 using ByeMoney.Application.Common.Interfaces;
 using ByeMoney.Application.Modules.Identity.Users.Commands.SyncUserFromStrapi;
+using ByeMoney.Application.Modules.Identity.Users.Services;
 using ByeMoney.Application.Modules.TarhElahiIntegration.DTOs;
 using ByeMoney.Application.Modules.TarhElahiIntegration.Interfaces;
 using ByeMoney.Domain.Modules.Identity.Users;
@@ -124,7 +125,7 @@ public class SyncUserFromStrapiTests
             .Setup(p => p.EnsureUserFromExternalAsync("user-42", It.IsAny<CancellationToken>()))
             .ReturnsAsync(new UserProvisioningResult(existingUser, Created: false));
 
-        var handler = new SyncUserFromStrapiCommandHandler(
+        var handler = CreateHandler(
             provisioningMock.Object,
             tarhElahiClientMock.Object,
             userRepositoryMock.Object,
@@ -170,7 +171,7 @@ public class SyncUserFromStrapiTests
             .Setup(c => c.GetUserAsync("user-42", It.IsAny<CancellationToken>()))
             .ReturnsAsync(strapiDto);
 
-        var handler = new SyncUserFromStrapiCommandHandler(
+        var handler = CreateHandler(
             provisioningMock.Object,
             tarhElahiClientMock.Object,
             userRepositoryMock.Object,
@@ -217,7 +218,7 @@ public class SyncUserFromStrapiTests
             .Setup(c => c.GetUserAsync("user-42", It.IsAny<CancellationToken>()))
             .ReturnsAsync(strapiDto);
 
-        var handler = new SyncUserFromStrapiCommandHandler(
+        var handler = CreateHandler(
             provisioningMock.Object,
             tarhElahiClientMock.Object,
             userRepositoryMock.Object,
@@ -256,7 +257,7 @@ public class SyncUserFromStrapiTests
             .Setup(p => p.EnsureUserFromExternalAsync("user-99", It.IsAny<CancellationToken>()))
             .ReturnsAsync(new UserProvisioningResult(createdUser, Created: true));
 
-        var handler = new SyncUserFromStrapiCommandHandler(
+        var handler = CreateHandler(
             provisioningMock.Object,
             tarhElahiClientMock.Object,
             userRepositoryMock.Object,
@@ -277,5 +278,21 @@ public class SyncUserFromStrapiTests
         userRepositoryMock.Verify(r => r.Update(It.IsAny<User>()), Times.Never);
         unitOfWorkMock.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
     }
-}
 
+
+    private static SyncUserFromStrapiCommandHandler CreateHandler(
+        IUserProvisioningService provisioningService,
+        ITarhElahiIntegrationClient tarhElahiClient,
+        IUserRepository userRepository,
+        IUnitOfWork unitOfWork,
+        ILogger<SyncUserFromStrapiCommandHandler> _)
+    {
+        var service = new UserProfileSyncService(
+            provisioningService,
+            tarhElahiClient,
+            userRepository,
+            unitOfWork,
+            Mock.Of<ILogger<UserProfileSyncService>>());
+        return new SyncUserFromStrapiCommandHandler(service);
+    }
+}

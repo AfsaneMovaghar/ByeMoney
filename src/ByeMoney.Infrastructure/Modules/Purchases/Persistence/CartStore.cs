@@ -49,7 +49,9 @@ public sealed class CartStore(IServiceScopeFactory scopes) : ICartStore
         var existing = await db.Set<Cart>().FindAsync([cart.Id], ct);
         if (existing is not null)
         {
-            return existing.BuyerId == cart.BuyerId && existing.Matches(cart.RequestedItemSignatures, cart.CouponCode)
+            return existing.BuyerId == cart.BuyerId &&
+                   existing.Matches(cart.RequestedItemSignatures, cart.CouponCode) &&
+                   existing.HasSameAdminOrder(cart)
                 ? Result<Cart>.Success(existing)
                 : Result<Cart>.Conflict(CartErrors.Conflict, CartErrorCodes.Conflict);
         }

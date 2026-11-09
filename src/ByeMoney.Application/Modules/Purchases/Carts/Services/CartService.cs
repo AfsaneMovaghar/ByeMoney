@@ -32,11 +32,83 @@ public sealed class CartService(
         CancellationToken ct) =>
         PrepareAsync(buyerId, id, ids.Select(x => new CartItemInput(x, ProductItemType.Course, 1)).ToArray(), code, ct);
 
-    public async Task<Result<CartResponse>> PrepareAsync(
+    public Task<Result<CartResponse>> PrepareAsync(
         Guid buyerId,
         Guid id,
         CartItemInput[] items,
         string? code,
+        CancellationToken ct) =>
+        PrepareCoreAsync(
+            buyerId,
+            id,
+            items,
+            user => Cart.Create(id, buyerId, user.ExternalUserId, items, code),
+            ct);
+
+    /// <summary>
+    /// آماده‌سازی سبد سفارش دستی ادمین به‌نام خریدار؛ همان quote، قاعدهٔ فصل/والد و رزرو سبد عادی، بدون کوپن.
+    /// </summary>
+    public async Task<Result<CartResponse>> PrepareAdminOrderAsync(
+        Guid buyerId,
+        Guid id,
+        CartItemInput[] items,
+        Guid adminUserId,
+        string? freeReason,
+        CancellationToken ct)
+    {
+        // تکرار درخواست پس از پرداخت باید همان سبد را برگرداند؛ پیش‌چک «خریده‌شده» در آماده‌سازی،
+        // اقلام همین سبد را خرید قبلی می‌شمارد و تکرار را به‌اشتباه رد می‌کند.
+        var paid = await FindPaidAdminOrderAsync(buyerId, id, items, adminUserId, freeReason, ct);
+        if (paid is not null)
+        {
+            return paid;
+        }
+
+        var prepared = await PrepareCoreAsync(
+            buyerId,
+            id,
+            items,
+            user => Cart.CreateAdminOrder(id, buyerId, user.ExternalUserId, items, adminUserId, freeReason),
+            ct);
+
+        // درخواست هم‌زمان یکسان ممکن است میان دو چک همین سبد را پرداخت کرده باشد؛ آن را تکرار موفق بدان.
+        if (prepared.ErrorCode == CartErrorCodes.Conflict)
+        {
+            return await FindPaidAdminOrderAsync(buyerId, id, items, adminUserId, freeReason, ct) ?? prepared;
+        }
+
+        return prepared;
+    }
+
+    private async Task<Result<CartResponse>?> FindPaidAdminOrderAsync(
+        Guid buyerId,
+        Guid id,
+        CartItemInput[] items,
+        Guid adminUserId,
+        string? freeReason,
+        CancellationToken ct)
+    {
+        var existing = await store.FindAsync(id, buyerId, ct);
+        if (existing is not { Status: CartStatus.Paid })
+        {
+            return null;
+        }
+
+        var requested = Cart.CreateAdminOrder(id, buyerId, existing.BuyerExternalUserId, items, adminUserId, freeReason);
+        if (!existing.Matches(requested.RequestedItemSignatures, requested.CouponCode) ||
+            !existing.HasSameAdminOrder(requested))
+        {
+            return Result<CartResponse>.Conflict(CartErrors.Conflict, CartErrorCodes.Conflict);
+        }
+
+        return Result<CartResponse>.Success(await ResponseAsync(existing, ct));
+    }
+
+    private async Task<Result<CartResponse>> PrepareCoreAsync(
+        Guid buyerId,
+        Guid id,
+        CartItemInput[] items,
+        Func<User, Cart> createCart,
         CancellationToken ct)
     {
         var user = await users.GetByIdAsync(new UserId(buyerId), ct);
@@ -56,7 +128,7 @@ public sealed class CartService(
             return Result<CartResponse>.Conflict(CartErrors.Conflict, CartErrorCodes.Conflict);
         }
 
-        var created = await store.CreateAsync(Cart.Create(id, buyerId, user.ExternalUserId, items, code), ct);
+        var created = await store.CreateAsync(createCart(user), ct);
         if (created.IsFailure)
         {
             return Copy<CartResponse, Cart>(created);

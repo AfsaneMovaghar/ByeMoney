@@ -108,6 +108,7 @@ public static class CartPayment
                     cart.BuyerId,
                     snapshot,
                     amount == 0,
+                    freeReason: amount == 0 ? cart.AdminFreeReason : null,
                     purchaseId: new CoursePurchaseId(purchaseIdGuid));
 
                 purchase.AttachToCart(cart.Id);

@@ -44,10 +44,30 @@ public sealed class Cart
     public DateTime CreatedAtUtc { get; private set; }
     public DateTime ExpiresAtUtc { get; private set; }
     public DateTime UpdatedAtUtc { get; private set; }
-    public decimal Total => Items.Sum(x => x.LineTotalInNoor) - ItemDiscountInNoor - CouponDiscountInNoor + ShippingAmountInNoor;
+
+    /// <summary>
+    /// شناسهٔ کاربر ادمینی که این سبد را به‌نام خریدار ثبت کرده است؛ برای سبد عادی خریدار خالی است.
+    /// </summary>
+    public Guid? CreatedByAdminUserId { get; private set; }
+
+    /// <summary>
+    /// علت ثبت رایگان ادمین. وقتی پر است، قیمت quote فقط نمایشی است و تخصیص همهٔ اقلام، ارسال و جمع سبد صفرند.
+    /// </summary>
+    public string? AdminFreeReason { get; private set; }
+
+    public bool IsAdminFree => AdminFreeReason is not null;
+
+    public decimal Total => IsAdminFree
+        ? 0m
+        : Items.Sum(x => x.LineTotalInNoor) - ItemDiscountInNoor - CouponDiscountInNoor + ShippingAmountInNoor;
     public decimal OriginalTotal => Items.Sum(x => x.LineTotalInNoor);
 
     private const decimal MaximumOriginalTotalInNoor = 99999999999999m;
+
+    /// <summary>
+    /// هم‌اندازهٔ علت رایگان خرید دوره، چون همین متن روی خرید هر قلم رایگان هم ثبت می‌شود.
+    /// </summary>
+    public const int AdminFreeReasonMaxLength = 1000;
 
     private Cart()
     {
@@ -69,6 +89,39 @@ public sealed class Cart
         UpdatedAtUtc = DateTime.UtcNow,
         ExpiresAtUtc = DateTime.UtcNow.AddMinutes(30)
     };
+
+    /// <summary>
+    /// سبد سفارش دستی ادمین. نشانه‌های ادمین فقط هنگام ساخت ثبت می‌شوند تا تکرار همان شناسهٔ سبد
+    /// با حالت متفاوت به سبد موجود نچسبد. سفارش ادمین کوپن نمی‌پذیرد.
+    /// </summary>
+    public static Cart CreateAdminOrder(
+        Guid id,
+        Guid buyerId,
+        string externalUserId,
+        CartItemInput[] items,
+        Guid adminUserId,
+        string? freeReason)
+    {
+        if (adminUserId == Guid.Empty)
+        {
+            throw new ArgumentException("Admin user id is required.", nameof(adminUserId));
+        }
+
+        if (freeReason is not null &&
+            (string.IsNullOrWhiteSpace(freeReason) || freeReason.Trim().Length > AdminFreeReasonMaxLength))
+        {
+            throw new ArgumentException("Free reason must be non-blank and within the allowed length.", nameof(freeReason));
+        }
+
+        var cart = Create(id, buyerId, externalUserId, items, couponCode: null);
+        cart.CreatedByAdminUserId = adminUserId;
+        cart.AdminFreeReason = freeReason?.Trim();
+        return cart;
+    }
+
+    public bool HasSameAdminOrder(Cart other) =>
+        CreatedByAdminUserId == other.CreatedByAdminUserId &&
+        AdminFreeReason == other.AdminFreeReason;
 
     public static Cart Create(Guid id, Guid buyerId, string externalUserId, string[] ids, string? couponCode) =>
         Create(id, buyerId, externalUserId, ids.Select(x => new CartItemInput(x, ProductItemType.Course, 1)).ToArray(), couponCode);
@@ -115,10 +168,16 @@ public sealed class Cart
 
         _items.Clear();
         _items.AddRange(items.Select(x => new CartItem(
-            x.ExternalItemId, x.Title, x.BasePriceInNoor, x.PriceInNoor, x.Type, x.ParentExternalId, x.Quantity)));
+            x.ExternalItemId,
+            x.Title,
+            x.BasePriceInNoor,
+            IsAdminFree ? 0m : x.PriceInNoor,
+            x.Type,
+            x.ParentExternalId,
+            x.Quantity)));
         ItemDiscountInNoor = items.Sum(x => x.ItemDiscountInNoor);
         CouponDiscountInNoor = items.Sum(x => x.CouponDiscountInNoor);
-        ShippingAmountInNoor = shippingAmountInNoor;
+        ShippingAmountInNoor = IsAdminFree ? 0m : shippingAmountInNoor;
         ShippingRuleLabel = string.IsNullOrWhiteSpace(shippingRuleLabel) ? null : shippingRuleLabel.Trim();
         ShippingAddress = items.Any(x => x.Type == ProductItemType.Product) ? shippingAddress : null;
 

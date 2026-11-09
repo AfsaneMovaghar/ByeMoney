@@ -289,6 +289,10 @@ namespace ByeMoney.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<string>("AdminFreeReason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
                     b.Property<string>("BuyerExternalUserId")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -307,6 +311,9 @@ namespace ByeMoney.Infrastructure.Migrations
 
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("CreatedByAdminUserId")
+                        .HasColumnType("uuid");
 
                     b.Property<DateTime>("ExpiresAtUtc")
                         .HasColumnType("timestamp with time zone");
