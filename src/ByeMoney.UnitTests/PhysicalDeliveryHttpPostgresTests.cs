@@ -161,7 +161,9 @@ public sealed class PhysicalDeliveryHttpPostgresTests : IAsyncLifetime
         address.GetProperty("recipientPhone").GetString().Should().Be(Address.RecipientPhone);
         address.GetProperty("version").GetString().Should().Be(Address.Version);
 
-        var buyerUrls = new[] { "/api/me/orders", $"/api/me/orders/{orderId}", $"/api/me/orders/{orderId}/receipt" };
+        await VerifyBuyerAddressAsync(client, seed, orderId);
+
+        var buyerUrls = new[] { "/api/me/orders", $"/api/me/orders/{orderId}/receipt" };
         var adminUrls = new[] { "/api/admin/orders", $"/api/admin/orders/{orderId}/receipt" };
         foreach (var url in buyerUrls)
         {
@@ -172,6 +174,35 @@ public sealed class PhysicalDeliveryHttpPostgresTests : IAsyncLifetime
         {
             await AssertNoAddressAsync(client, url, Token(seed.PurchasesViewAdmin));
         }
+    }
+
+    private static async Task VerifyBuyerAddressAsync(HttpClient client, SeedData seed, string orderId)
+    {
+        var own = await SendAsync(client, HttpMethod.Get, $"/api/me/orders/{orderId}", Token(seed.Buyer));
+        own.StatusCode.Should().Be(HttpStatusCode.OK);
+        using var ownBody = JsonDocument.Parse(await own.Content.ReadAsStringAsync());
+        var address = ownBody.RootElement.GetProperty("shippingAddress");
+        PropertyNames(address).Should().BeEquivalentTo(
+            ["recipientName", "recipientPhone", "province", "city", "fullAddress", "postalCode"]);
+        address.GetProperty("recipientName").GetString().Should().Be(Address.RecipientName);
+        address.GetProperty("recipientPhone").GetString().Should().Be(Address.RecipientPhone);
+        address.GetProperty("province").GetString().Should().Be(Address.Province);
+        address.GetProperty("city").GetString().Should().Be(Address.City);
+        address.GetProperty("fullAddress").GetString().Should().Be(Address.FullAddress);
+        address.GetProperty("postalCode").ValueKind.Should().Be(JsonValueKind.Null);
+        (await own.Content.ReadAsStringAsync()).Should().NotContain(Address.Version);
+
+        var unpaidUrl = $"/api/me/orders/cart:{seed.UnpaidCartId:D}";
+        var unpaid = await SendAsync(client, HttpMethod.Get, unpaidUrl, Token(seed.Buyer));
+        unpaid.StatusCode.Should().Be(HttpStatusCode.OK);
+        using var unpaidBody = JsonDocument.Parse(await unpaid.Content.ReadAsStringAsync());
+        var unpaidAddress = unpaidBody.RootElement.TryGetProperty("shippingAddress", out var value)
+            ? value.ValueKind
+            : JsonValueKind.Null;
+        unpaidAddress.Should().Be(JsonValueKind.Null);
+
+        var foreign = await SendAsync(client, HttpMethod.Get, $"/api/me/orders/{orderId}", Token(seed.PlainUser));
+        foreign.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
 
     private static async Task AssertNoAddressAsync(HttpClient client, string url, string token)
@@ -565,8 +596,12 @@ public sealed class PhysicalDeliveryHttpPostgresTests : IAsyncLifetime
         var pen = PhysicalProductPurchase.Create(
             PhysicalProductPurchaseId.New(), cart.Id, buyer.Id, "pen", "Pen", 1, 20, 20);
         pen.MarkDebited(cart.Id);
-        var unpaid = Cart.Create(Guid.NewGuid(), buyer.Id.Value, buyer.ExternalUserId, ["unpaid"], null);
-        unpaid.SetQuote([new CartQuoteItem("unpaid", "Unpaid", 10, 0, 0, 10)]);
+        var unpaid = Cart.Create(Guid.NewGuid(), buyer.Id.Value, buyer.ExternalUserId, [
+            new CartItemInput("unpaid", ProductItemType.Product, 1)
+        ], null);
+        unpaid.SetQuote([
+            new CartQuoteItem("unpaid", "Unpaid", 10, 0, 0, 10, ProductItemType.Product, null, 1)
+        ], shippingAmountInNoor: 10, shippingAddress: Address with { });
 
         var account = Account.CreateUserAccount(buyer.Id);
         var wallet = Wallet.Create(account.Id, buyer.Id);

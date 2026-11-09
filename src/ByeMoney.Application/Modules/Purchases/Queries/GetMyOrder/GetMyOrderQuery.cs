@@ -3,4 +3,4 @@ using MediatR;
 
 namespace ByeMoney.Application.Modules.Purchases.Queries.GetMyOrder;
 
-public sealed record GetMyOrderQuery(string OrderId) : IRequest<OrderDetails>;
+public sealed record GetMyOrderQuery(string OrderId) : IRequest<MyOrderDetails>;

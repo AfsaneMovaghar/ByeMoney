@@ -23,9 +23,9 @@ public sealed class MyOrdersController(ISender sender) : ControllerBase
     }
 
     [HttpGet("{orderId}")]
-    [ProducesResponseType(typeof(OrderDetails), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(MyOrderDetails), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<OrderDetails>> Details(string orderId, CancellationToken ct)
+    public async Task<ActionResult<MyOrderDetails>> Details(string orderId, CancellationToken ct)
     {
         return Ok(await sender.Send(new GetMyOrderQuery(orderId), ct));
     }

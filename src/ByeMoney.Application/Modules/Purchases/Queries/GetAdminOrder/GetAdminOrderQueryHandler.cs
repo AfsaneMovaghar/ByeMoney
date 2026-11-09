@@ -32,12 +32,7 @@ public sealed class GetAdminOrderQueryHandler(IOrderReader reader, ICurrentUserS
 
     private static OrderShippingAddress? FindShippingAddress(OrderSnapshot snapshot, OrderDetails details)
     {
-        if (details.SourceType != OrderSourceType.Cart.ToString() || details.CartId is null)
-        {
-            return null;
-        }
-
-        var address = snapshot.Carts.SingleOrDefault(cart => cart.Id == details.CartId)?.ShippingAddress;
+        var address = OrderShippingAddressFinder.FindCart(snapshot, details)?.ShippingAddress;
         return address is null
             ? null
             : new OrderShippingAddress(

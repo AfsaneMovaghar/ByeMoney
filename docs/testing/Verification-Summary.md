@@ -11,6 +11,12 @@
 - **آزمون‌های مشروط:** آزمون‌های Wallet بدون `BYEMONEY_TEST_CONNECTION_STRING` و آزمون‌های سبد بدون `BYEMONEY_CART_PG_TESTS=1` اجرا نمی‌شوند؛ Skip، قبولی نیست. اجرای یک‌جای همهٔ آزمون‌های دیتابیسی به سقف `max_connections` می‌خورد؛ مجموعه‌ها جدا اجرا شوند.
 - **ظرفیت:** فهرست ادمین I11-T بدون فیلتر خریدار برای حجم زیاد اندازه‌گیری نشده است.
 
+## BND-11b — آدرس تحویل در جزئیات سفارش خریدار (سمت بای‌مانی) — ۸ نوامبر ۲۰۲۶
+
+- تغییر: فیلد افزودنی nullable `shippingAddress` (بدون `version`) در `GET /api/me/orders/{orderId}` فقط برای سبد `Paid` دارای کالا؛ بدون مهاجرت و بدون تغییر منطق مالی؛ جزئیات ادمین، رسید و فهرست‌ها دست نخوردند.
+- آزمون: `dotnet test` با `BYEMONEY_CART_PG_TESTS=1` و PostgreSQL محلی ۶۲۰ موفق، ۰ شکست. HTTP واقعی با JWT: وجود آدرس (۶ فیلد، بدون version) در سفارش پرداخت‌شدهٔ خریدار، نبودن در سبد پرداخت‌نشدهٔ دارای کالا و آدرس، `404` برای کاربر دیگر. سفارش بدون کالا روی HTTP جدا آزمون نشد (دامنه برای سبد بدون کالا آدرس نگه نمی‌دارد).
+- فرانت (۸ نوامبر ۲۰۲۶): `route.js` فقط شش فیلد نمایشی `shippingAddress` را از پاسخ بای‌مانی عبور می‌دهد و `ByeMoneyOrderView` آن را در کارت «ارسال کالا» نشان می‌دهد؛ بدون اتصال به استرپی. Jest: `src/app/api/orders`، `src/app/profile/orders`، `src/components/profile` موفق؛ `src/lib/__tests__/supersededPayment.test.js` (callback پرداخت SEP) بررسی شد: ۲ شکست نامرتبط با BND-11b بود. (الف) جست‌وجوی `findAttempt` (تلاش شارژ درگاه) اولین `fetch` را می‌گیرد و mock آزمون عقب مانده بود؛ در آزمون اصلاح شد و ۶ از ۷ موفق است. (ب) حالت `OK` با مبلغ مغایر: رفتار کد درست تأیید شد (برگشت وجه از طریق `ReverseTransaction` سپ به کارت/حساب بانکی پرداخت‌کننده، نه کیف پول؛ و سفارش `canceled` + `failed`). آزمون اصلاح شد: این حالت از جدول «سفارش باز می‌ماند» جدا و با آزمون مستقل نوشته شد. نتیجه: `supersededPayment.test.js` ۷ از ۷؛ Jest کامل `src/app/api`، `src/app/profile`، `src/components/profile`، `src/lib` ۶۷ مجموعه و ۸۵۵ آزمون موفق.
+
 ## BND-11 (سمت بای‌مانی) — نسخهٔ ثابت آدرس تحویل روی سبد — ۸ نوامبر ۲۰۲۶
 
 - تغییر: ستون‌های nullable `ShippingAddress_*` روی `Carts` (migration افزودنی `AddCartShippingAddress`)؛ آداپتور استرپی برای سبد دارای کالا بدون آدرس کامل یا `addressVersion` معتبر پاسخ را نامعتبر (`CART_INVALID`، سبد `Failed`) می‌کند؛ بازگشایی سبد آدرس را پاک و prepare تازه جایگزین می‌کند؛ سبد `Paid` تغییر نمی‌کند؛ `shippingAddress` فقط در `GET /api/admin/orders/{orderId}`.
