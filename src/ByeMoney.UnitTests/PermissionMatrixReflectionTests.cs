@@ -177,8 +177,10 @@ public class PermissionMatrixReflectionTests
         sb.AppendLine();
         sb.AppendLine("| کد پرمیژن (Domain) | شناسه پالیسی در API (Policy) | توضیح و حوزه عملکرد |");
         sb.AppendLine("| :--- | :--- | :--- |");
-        sb.AppendLine($"| `{Permissions.Noor.Inject}` | `{PolicyNames.RequireNoorInject}` | مجوز تزریق یا صدور مستقیم نور |");
-        sb.AppendLine($"| `{Permissions.TopUp.Review}` | `{PolicyNames.RequireTopUpReview}` | مجوز بررسی، تأیید یا رد درخواست‌های شارژ حساب |");
+        sb.AppendLine($"| `{Permissions.Noor.Inject}` | `{PolicyNames.RequireNoorInject}` | مجوز لغو خرید کالای فیزیکی و برگشت نور و موجودی (پیش‌نمایش، لغو و رسیدگی به restock)؛ endpoint تزریق مستقیم نور ندارد |");
+        sb.AppendLine($"| `{Permissions.Noor.Gift}` | `{PolicyNames.RequireNoorGift}` | مجوز ثبت هدیهٔ نور (نور هدیه از مسیر خروج قابل برداشت نیست) |");
+        sb.AppendLine($"| `{Permissions.Noor.Withdraw}` | `{PolicyNames.RequireNoorWithdraw}` | مجوز خروج نور و ثبت وجه ریالی پرداخت‌شده (جدا از `Noor.Inject`) |");
+        sb.AppendLine($"| `{Permissions.TopUp.Review}` | `{PolicyNames.RequireTopUpReview}` | مجوز تأیید یا رد شارژ، ثبت شارژ به‌نیابت کاربر (کارت‌به‌کارت مستقیم Confirmed، رسید اختیاری)، جست‌وجوی شارژ با کد مرجع و بازبینی پرونده‌های درگاه؛ هم تأیید و هم ساخت اعتبار را پوشش می‌دهد |");
         sb.AppendLine($"| `{Permissions.Courses.Manage}` | `{PolicyNames.RequireCoursesManage}` | مجوز ثبت و مدیریت خرید دوره به‌نیابت از کاربر |");
         sb.AppendLine($"| `{Permissions.Wallet.View}` | `{PolicyNames.RequireWalletView}` | مجوز استعلام دسته‌جمعی مانده کیف‌پول‌ها |");
         sb.AppendLine($"| `{Permissions.Purchases.View}` | `{PolicyNames.RequirePurchasesView}` | مجوز خواندن فهرست خریدهای دوره |");

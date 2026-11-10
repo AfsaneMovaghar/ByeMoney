@@ -7,8 +7,10 @@
 
 | کد پرمیژن (Domain) | شناسه پالیسی در API (Policy) | توضیح و حوزه عملکرد |
 | :--- | :--- | :--- |
-| `Noor.Inject` | `RequireNoorInject` | مجوز تزریق یا صدور مستقیم نور |
-| `TopUp.Review` | `RequireTopUpReview` | مجوز بررسی، تأیید یا رد درخواست‌های شارژ حساب |
+| `Noor.Inject` | `RequireNoorInject` | مجوز لغو خرید کالای فیزیکی و برگشت نور و موجودی (پیش‌نمایش، لغو و رسیدگی به restock)؛ endpoint تزریق مستقیم نور ندارد |
+| `Noor.Gift` | `RequireNoorGift` | مجوز ثبت هدیهٔ نور (نور هدیه از مسیر خروج قابل برداشت نیست) |
+| `Noor.Withdraw` | `RequireNoorWithdraw` | مجوز خروج نور و ثبت وجه ریالی پرداخت‌شده (جدا از `Noor.Inject`) |
+| `TopUp.Review` | `RequireTopUpReview` | مجوز تأیید یا رد شارژ، ثبت شارژ به‌نیابت کاربر (کارت‌به‌کارت مستقیم Confirmed، رسید اختیاری)، جست‌وجوی شارژ با کد مرجع و بازبینی پرونده‌های درگاه؛ هم تأیید و هم ساخت اعتبار را پوشش می‌دهد |
 | `Courses.Manage` | `RequireCoursesManage` | مجوز ثبت و مدیریت خرید دوره به‌نیابت از کاربر |
 | `Wallet.View` | `RequireWalletView` | مجوز استعلام دسته‌جمعی مانده کیف‌پول‌ها |
 | `Purchases.View` | `RequirePurchasesView` | مجوز خواندن فهرست خریدهای دوره |
