@@ -19,6 +19,9 @@ public static class WalletModule
         services.AddScoped<IGiftCampaignSettingRepository, GiftCampaignSettingRepository>();
         services.AddScoped<IGatewayTopUpService, GatewayTopUpService>();
         services.AddScoped<ITopUpRejectionService, TopUpRejectionService>();
+        services.AddScoped<
+            ByeMoney.Application.Modules.Wallet.Transactions.Interfaces.IWalletTransactionReader,
+            Ledger.WalletTransactionReader>();
         return services;
     }
 }

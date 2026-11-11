@@ -127,6 +127,9 @@
   <data name="Wallet_UserNotAuthenticated" xml:space="preserve">
     <value>کاربر احراز هویت نشده است یا شناسه کاربر وجود ندارد.</value>
   </data>
+  <data name="Wallet_InvalidTransactionPage" xml:space="preserve">
+    <value>شماره صفحه باید مثبت و اندازه صفحه بین ۱ تا ۱۰۰ باشد.</value>
+  </data>
   <data name="User_NotFoundInTarhElahi" xml:space="preserve">
     <value>کاربر با شناسه خارجی «{0}» در سامانه طرح الهی یافت نشد.</value>
   </data>

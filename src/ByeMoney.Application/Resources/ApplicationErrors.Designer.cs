@@ -272,6 +272,15 @@ namespace ByeMoney.Application.Resources {
         }
 
         /// <summary>
+        ///   Looks up a localized string similar to شماره صفحه باید مثبت و اندازه صفحه بین ۱ تا ۱۰۰ باشد..
+        /// </summary>
+        public static string Wallet_InvalidTransactionPage {
+            get {
+                return ResourceManager.GetString("Wallet_InvalidTransactionPage", resourceCulture);
+            }
+        }
+
+        /// <summary>
         ///   Looks up a localized string similar to کاربر با شناسه خارجی «{0}» در سامانه طرح الهی یافت نشد..
         /// </summary>
         public static string User_NotFoundInTarhElahi {

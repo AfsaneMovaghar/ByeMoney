@@ -180,6 +180,15 @@ source/type قرارداد فعلی‌اند؛ slug برای مسیر نمایش
 
 پاسخ موفق به شکل `{"success":true,"balances":{"user-document-id-1":150,"user-document-id-2":0}}` است. مقدار هر کلید موجودی نور از Wallet.Balance است؛ برای کاربر ناشناخته یا فاقد کیف‌پول مقدار صفر برگردانده می‌شود. این مسیر فقط خواندنی است و کیف‌پول ایجاد نمی‌کند. اتصال Users و Wallets در یک کوئری انجام می‌شود.
 
+### I04-W — موجودی و گردش کیف پول کاربر جاری (WALLET-HISTORY، ۲۰۲۶-۱۱-۱۰)
+
+هر دو مسیر با JWT کاربر و بدون مجوز ادمین؛ هویت فقط از توکن خوانده می‌شود و پارامتر کاربر ندارند. فقط‌خواندنی‌اند و کیف پول نمی‌سازند.
+
+- `GET /api/wallet/balance` → `{"balance":80,"currency":"Noor","giftBalance":0}`. `balance` کل موجودی (عادی + هدیه) و `giftBalance` سهم هدیهٔ غیرقابل‌خروج از همان کل است (فیلد `giftBalance` در این تاریخ اضافه شد).
+- `GET /api/wallet/transactions?page=1&pageSize=20` (`pageSize` بین ۱ تا ۱۰۰، وگرنه ۴۰۰) → `{"items":[…],"page":1,"pageSize":20,"totalCount":3}`؛ جدیدترین اول. هر قلم یک تراکنش Ledger روی حساب همان کاربر است و ردیف‌های عادی و هدیهٔ آن جمع شده‌اند:
+  `{"transactionId":"guid","type":"Purchase","amountNoor":-50,"giftAmountNoor":-30,"createdAtUtc":"…","orderId":"cart:guid"|null,"topUpId":"guid"|null}`.
+  `type` یکی از `TopUp|Purchase|Refund|AdminGrant|WelcomeGift|Withdrawal|WithdrawalReversal` است. `amountNoor` با علامت (مثبت واریز، منفی برداشت) و `giftAmountNoor` سهم هدیه از همان مبلغ است. `orderId` با قالب I11-T فقط برای خرید سبد و برگشت لغو فیزیکی پر می‌شود و `topUpId` فقط برای شارژ. جمع `amountNoor` همهٔ صفحات برابر `balance` و جمع `giftAmountNoor` برابر `giftBalance` است.
+
 ## I05 — قیمت، نرخ، تخفیف و ارسال
 
 قواعد تجاری در D06–D08 مرجع‌اند. کاتالوگ قیمت را از ابتدا به نور می‌فرستد و ByeMoney همان مقدار را برای خرید و برداشت Wallet به کار می‌برد. نرخ پویا فقط برای شارژ بانکی است: نرخ = ریال صحیح به ازای یک نور؛ مبلغ ریالی شارژ = نور × نرخ. `GET /api/settings/conversion-rate` منبع نرخ شارژ است. تمام قیمت‌های فروش، سبد خرید، مانده و گردش سایت به نور نمایش داده می‌شوند؛ ریال فقط در تسویهٔ بانکی و Snapshot شارژ کاربرد دارد.

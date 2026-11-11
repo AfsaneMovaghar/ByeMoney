@@ -33,7 +33,7 @@ public class GetWalletBalanceQueryHandler : IRequestHandler<GetWalletBalanceQuer
             return new WalletBalanceResponse(0m);
         }
 
-        return new WalletBalanceResponse(wallet.TotalBalance);
+        return new WalletBalanceResponse(wallet.TotalBalance, GiftBalance: wallet.GiftBalance);
     }
 }
 

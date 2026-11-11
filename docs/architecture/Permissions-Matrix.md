@@ -80,6 +80,7 @@
 | TopUp | `GET` | `/api/topup/{topUpId:guid}/checkout` | احراز هویت شده (JWT) | — |
 | TopUpReceipt | `GET` | `/api/topup/requests/{topUpId:guid}/receipt` | احراز هویت شده (JWT) | — |
 | Wallet | `GET` | `/api/wallet/balance` | احراز هویت شده (JWT) | — |
+| Wallet | `GET` | `/api/wallet/transactions` | احراز هویت شده (JWT) | — |
 
 ## ۳. اصول معماری و قواعد RBAC در ByeMoney
 
