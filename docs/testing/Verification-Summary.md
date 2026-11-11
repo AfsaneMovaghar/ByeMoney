@@ -11,13 +11,22 @@
 - **آزمون‌های مشروط:** آزمون‌های Wallet بدون `BYEMONEY_TEST_CONNECTION_STRING` و آزمون‌های سبد بدون `BYEMONEY_CART_PG_TESTS=1` اجرا نمی‌شوند؛ Skip، قبولی نیست. اجرای یک‌جای همهٔ آزمون‌های دیتابیسی به سقف `max_connections` می‌خورد؛ مجموعه‌ها جدا اجرا شوند.
 - **ظرفیت:** فهرست ادمین I11-T بدون فیلتر خریدار برای حجم زیاد اندازه‌گیری نشده است.
 
+## P2-LEGACY-ORDER-CLOSE — بستن ساخت سفارش Legacy استرپی — ۱۰ نوامبر ۲۰۲۶
+
+- تغییر front-end: `/checkout` برای هر سبد به `/cart` می‌رود؛ `ShippingStep`، `executeOnlinePayment` و شاخهٔ legacy سبد حذف شد؛ `POST /api/orders` و `payment/request` با `orderId` استرپی ۴۱۰ می‌دهند؛ `GET /api/orders` و `payment/verify` دست‌نخورده‌اند. Jest کامل ۱۱۱ مجموعه و ۱۱۴۲ آزمون موفق (ESLint اجرا نشد: نبود `eslint.config.*`).
+- تغییر backend: `POST /orders/checkout` با کد `ORDER_CHECKOUT_CLOSED` ۴۱۰ می‌دهد و ذخیره نمی‌کند؛ route با احراز api-token ماند؛ `checkout-pricing` ماند (مصرف `discountedPrice` در سبد بای‌مانی). `node --test` (۸۵ از ۸۵) و Jest `tests/api tests/services tests/config` (۳۱ مجموعه، ۲۴۴ آزمون) موفق؛ آزمون‌های `*.pg` اجرا نشدند (نیاز به PostgreSQL آزمایشی). جز route و آزمونش، هیچ فراخوان `orders/checkout` در سه پروژه نیست.
+- تصمیم: سفارش‌های pending آنلاین قدیمی حدود روزی یکی‌اند؛ در روز انتشار شمرده و دستی تعیین تکلیف شوند (DEPLOY-05)، بدون سازوکار انقضا.
+- باقی: شمارش قبل/بعد رکوردهای orders استرپی در محیط محلی/مقصد با خرید دوره، فصل، کالا و مختلط.
+
 ## WALLET-HISTORY — گردش کیف پول کاربر — ۱۰ نوامبر ۲۰۲۶
 
 - تغییر ByeMoney: `GET /api/wallet/transactions` صفحه‌بندی‌شده از Ledger حساب همان کاربر (یک ردیف برای هر تراکنش با سهم هدیه، `orderId` برای خرید سبد و برگشت لغو، `topUpId` برای شارژ) و فیلد `giftBalance` در `GET /api/wallet/balance` (قرارداد I04-W). بدون migration. backend تغییر نکرد.
 - تغییر front-end: صفحهٔ `/profile/wallet` (موجودی کل، نور هدیهٔ جدا، گردش با علامت، لینک سفارش و صفحه‌بندی) و پیوند «کیف پول» در منوی پروفایل.
 - آزمون ByeMoney با PostgreSQL (`BYEMONEY_TEST_CONNECTION_STRING`): `WalletTransactionsPostgresTests` (۷ آزمون). موارد: برابری جمع گردش با موجودی و جمع سهم هدیه با `giftBalance`، یکی‌شدن ردیف هدیه و عادی خرید (−۵۰ با −۳۰ هدیه)، نبود Ledger کاربر دیگر، صفحهٔ خالی برای کاربر بدون کیف پول، صفحه‌بندی بدون هم‌پوشانی و رد صفحه‌بندی نامعتبر. کل مجموعه ۶۳۹ از ۶۳۹ موفق. چون ByeMoney.API در حال اجرا بود، build با `OutDir=.artifacts/wallet-tx-test` اجرا شد.
 - آزمون Jest فرانت: `src/components/profile`، `walletTransactionsApi.test.js`، `useLightStore` و `src/app/cart` (۸ مجموعه، ۵۵ آزمون) موفق. ESLint اجرا نشد چون پروژه پیکربندی `eslint.config.*` ندارد.
-- باقی‌مانده: پذیرش دستی در مرورگر با JWT واقعی استرپی؛ لینک `orderId` برای خریدهای قدیمی خارج از سبد خالی است.
+- بازطراحی ظاهر (۲۰۲۶-۱۱-۱۰): برچسب `AdminGrant` فقط وقتی کل مبلغ هدیه است «نور هدیه» می‌شود، خطای موجودی پیام دارد و صفحه‌بندی «نمایش بیشتر» است؛ ۸ آزمون Jest کامپوننت پس از آخرین ویرایش ظاهر هم سبز است.
+- پذیرش دستی (۲۰۲۶-۱۱-۱۰، گزارش کاربر): انجام و تأیید شد؛ جزئیات سناریو ثبت نشده.
+- محدودیت: لینک `orderId` برای خریدهای قدیمی خارج از سبد خالی است.
 
 ## D2 — سفارش دستی ادمین روی سبد (دوره و فصل؛ بخش بای‌مانی) — ۸ نوامبر ۲۰۲۶
 
