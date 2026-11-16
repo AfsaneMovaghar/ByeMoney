@@ -13,6 +13,13 @@ public static class OrderErrors
     public static string PhysicalPurchaseNotFound => Get(nameof(PhysicalPurchaseNotFound));
     public static string InvalidPurchaseId => Get(nameof(InvalidPurchaseId));
     public static string InvalidDeliveryStatus => Get(nameof(InvalidDeliveryStatus));
+    public static string InvalidTrackingCode => Get(nameof(InvalidTrackingCode));
+    public static string InvalidTrackingProvider => Get(nameof(InvalidTrackingProvider));
+    public static string InvalidProviderParcelId => Get(nameof(InvalidProviderParcelId));
+    public static string ShipmentProviderUnavailable => Get(nameof(ShipmentProviderUnavailable));
+    public static string ShipmentAddressRequired => Get(nameof(ShipmentAddressRequired));
+    public static string ShipmentNotAllowed => Get(nameof(ShipmentNotAllowed));
+    public static string ShipmentCreateFailed => Get(nameof(ShipmentCreateFailed));
 
     private static string Get(string name) => Resources.GetString(name)
         ?? throw new MissingManifestResourceException(name);

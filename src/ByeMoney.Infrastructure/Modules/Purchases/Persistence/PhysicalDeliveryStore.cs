@@ -15,6 +15,50 @@ public sealed class PhysicalDeliveryStore(ApplicationDbContext db) : IPhysicalDe
             .Select(x => new PhysicalPurchaseOwner(x.BuyerId.Value, x.CartId))
             .SingleOrDefaultAsync(ct);
 
+    public Task<PhysicalPurchaseOwner?> FindCartOwnerAsync(Guid cartId, CancellationToken ct) =>
+        db.Set<Cart>()
+            .AsNoTracking()
+            .Where(x => x.Id == cartId)
+            .Select(x => new PhysicalPurchaseOwner(x.BuyerId.Value, x.Id))
+            .SingleOrDefaultAsync(ct);
+
+    public async Task<IReadOnlyList<PhysicalProductPurchase>> GetPurchasesAsync(Guid cartId, CancellationToken ct) =>
+        await db.Set<PhysicalProductPurchase>()
+            .Where(x => x.CartId == cartId)
+            .OrderBy(x => x.Id)
+            .ToListAsync(ct);
+
+    public async Task<ShippingAddress?> GetCartShippingAddressAsync(Guid cartId, CancellationToken ct)
+    {
+        var cart = await db.Set<Cart>()
+            .AsNoTracking()
+            .SingleOrDefaultAsync(x => x.Id == cartId, ct);
+        return cart?.ShippingAddress;
+    }
+
+    public async Task<IReadOnlyList<PhysicalDeliveryCandidate>> GetShippedAsync(
+        DateTime shippedAtOrBeforeUtc, IReadOnlyCollection<string> providers, int limit, CancellationToken ct)
+    {
+        var providerKeys = providers.ToArray();
+        var query = db.Set<PhysicalProductPurchase>()
+            .AsNoTracking()
+            .Where(x => x.DeliveryStatus == PhysicalDeliveryStatus.Shipped &&
+                x.ShippedAtUtc != null && x.ShippedAtUtc <= shippedAtOrBeforeUtc);
+
+        if (providerKeys.Length > 0)
+        {
+            query = query.Where(x => x.TrackingProvider != null && providerKeys.Contains(x.TrackingProvider));
+        }
+
+        return await query
+            .OrderBy(x => x.ShippedAtUtc)
+            .Take(limit)
+            .Select(x => new PhysicalDeliveryCandidate(
+                x.Id.Value, x.BuyerId.Value, x.CartId,
+                x.TrackingCode, x.TrackingProvider, x.ProviderParcelId, x.ShippedAtUtc))
+            .ToListAsync(ct);
+    }
+
     public async Task<T> ExecuteLockedAsync<T>(Guid buyerId, Guid cartId, Func<Task<T>> work, CancellationToken ct)
     {
         // ترتیب قفل‌ها (خریدار، سپس سبد) همان ترتیب لغو است؛ استثنای کار بدون commit تراکنش را برمی‌گرداند.

@@ -25,6 +25,24 @@ public class PhysicalProductPurchase : BaseEntity<PhysicalProductPurchaseId>
     public DateTime? ShippedAtUtc { get; private set; }
     public DateTime? DeliveredAtUtc { get; private set; }
 
+    /// <summary>کد رهگیری مرسوله که به خریدار نشان داده می‌شود؛ تا پیش از «تحویل‌شده» قابل اصلاح است.</summary>
+    public string? TrackingCode { get; private set; }
+
+    /// <summary>منبع کد رهگیری: <c>PostEx</c> برای استعلام خودکار وضعیت، <c>Manual</c> برای ثبت دستی ادمین.</summary>
+    public string? TrackingProvider { get; private set; }
+
+    /// <summary>شناسهٔ ارجاع مرسوله نزد واسط پستی برای استعلام وضعیت؛ فقط برای منابع خودکار پر می‌شود.</summary>
+    public string? ProviderParcelId { get; private set; }
+
+    public const int TrackingCodeMaxLength = 50;
+    public const int TrackingProviderMaxLength = 20;
+    public const int ProviderParcelIdMaxLength = 50;
+    public const string PostexProvider = "PostEx";
+    public const string ManualProvider = "Manual";
+
+    /// <summary>تنها فهرست منابع مجاز کد رهگیری؛ دامنه، اعتبارسنج و قید دیتابیس از همین می‌خوانند.</summary>
+    public static IReadOnlyList<string> AllowedTrackingProviders { get; } = [PostexProvider, ManualProvider];
+
     /// <summary>جمع تعداد لغوشدهٔ این قلم در همهٔ عملیات لغو.</summary>
     public int CancelledQuantity { get; private set; }
 
@@ -108,10 +126,27 @@ public class PhysicalProductPurchase : BaseEntity<PhysicalProductPurchaseId>
         UpdatedAt = DateTime.UtcNow;
     }
 
-    public void MarkShipped()
+    public void MarkShipped(
+        string? trackingCode = null, string? trackingProvider = null, string? providerParcelId = null)
     {
+        if (DeliveryStatus == PhysicalDeliveryStatus.Delivered)
+        {
+            // پس از تحویل، کد رهگیری و وضعیت قفل است.
+            throw InvalidDeliveryTransition(PhysicalDeliveryStatus.Shipped);
+        }
+
+        var code = NormalizeTrackingCode(trackingCode);
+        var provider = NormalizeTrackingProvider(trackingProvider);
+
         if (DeliveryStatus == PhysicalDeliveryStatus.Shipped)
         {
+            // ارسال دوبارهٔ Shipped فقط کد و منبع را اصلاح می‌کند؛ زمان ارسال و بقیهٔ داده دست نمی‌خورد.
+            TrackingCode = trackingCode is null ? TrackingCode : code;
+            TrackingProvider = trackingProvider is null ? TrackingProvider : provider;
+            ProviderParcelId = provider is null
+                ? ProviderParcelId
+                : NormalizeProviderParcelId(provider, providerParcelId);
+            UpdatedAt = DateTime.UtcNow;
             return;
         }
 
@@ -124,6 +159,9 @@ public class PhysicalProductPurchase : BaseEntity<PhysicalProductPurchaseId>
         var now = DateTime.UtcNow;
         DeliveryStatus = PhysicalDeliveryStatus.Shipped;
         ShippedAtUtc = now;
+        TrackingCode = code;
+        TrackingProvider = provider;
+        ProviderParcelId = NormalizeProviderParcelId(provider, providerParcelId);
         UpdatedAt = now;
     }
 
@@ -169,6 +207,75 @@ public class PhysicalProductPurchase : BaseEntity<PhysicalProductPurchaseId>
         RefundedGiftInNoor += refund.GiftInNoor;
         UpdatedAt = DateTime.UtcNow;
     }
+
+    private static string? NormalizeTrackingCode(string? trackingCode)
+    {
+        if (trackingCode is null)
+        {
+            return null;
+        }
+
+        var trimmed = trackingCode.Trim();
+        if (trimmed.Length == 0)
+        {
+            return null;
+        }
+
+        if (trimmed.Length > TrackingCodeMaxLength || trimmed.Any(char.IsControl))
+        {
+            throw new DomainException(DomainErrors.PhysicalProductPurchase_InvalidTrackingCode);
+        }
+
+        return trimmed;
+    }
+
+    private static string? NormalizeTrackingProvider(string? trackingProvider)
+    {
+        if (string.IsNullOrWhiteSpace(trackingProvider))
+        {
+            return null;
+        }
+
+        var trimmed = trackingProvider.Trim();
+        var allowed = AllowedTrackingProviders.FirstOrDefault(
+            provider => string.Equals(provider, trimmed, StringComparison.OrdinalIgnoreCase));
+        if (allowed is null)
+        {
+            throw new DomainException(DomainErrors.PhysicalProductPurchase_InvalidTrackingProvider);
+        }
+
+        return allowed;
+    }
+
+    /// <summary>فقط ثبت دستی شناسهٔ مرسوله را خالی می‌کند؛ منبع خودکار آن را نگه می‌دارد.</summary>
+    private static string? NormalizeProviderParcelId(string? provider, string? providerParcelId)
+    {
+        if (provider is null || IsManual(provider))
+        {
+            return null;
+        }
+
+        if (providerParcelId is null)
+        {
+            return null;
+        }
+
+        var trimmed = providerParcelId.Trim();
+        if (trimmed.Length == 0)
+        {
+            return null;
+        }
+
+        if (trimmed.Length > ProviderParcelIdMaxLength || trimmed.Any(char.IsControl))
+        {
+            throw new DomainException(DomainErrors.PhysicalProductPurchase_InvalidProviderParcelId);
+        }
+
+        return trimmed;
+    }
+
+    private static bool IsManual(string? provider) =>
+        string.Equals(provider, ManualProvider, StringComparison.Ordinal);
 
     private ConflictDomainException InvalidDeliveryTransition(PhysicalDeliveryStatus target) =>
         new(string.Format(DomainErrors.PhysicalProductPurchase_InvalidDeliveryTransition, DeliveryStatus, target));

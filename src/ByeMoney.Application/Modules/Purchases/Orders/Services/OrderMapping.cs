@@ -251,7 +251,9 @@ public static class OrderMapping
             physical.Id.Value, physical.LedgerTransactionId, physical.CreatedAtUtc,
             status.ToString(), delivery.ToString(), nameof(ProductItemType.Product), null,
             physical.Quantity, physical.DeliveryStatus.ToString(), physical.CancelledQuantity,
-            physical.RefundedRegularInNoor, physical.RefundedGiftInNoor);
+            physical.RefundedRegularInNoor, physical.RefundedGiftInNoor,
+            physical.TrackingCode, physical.TrackingProvider,
+            physical.ShippedAtUtc);
     }
 
     private static bool CompletePurchases(

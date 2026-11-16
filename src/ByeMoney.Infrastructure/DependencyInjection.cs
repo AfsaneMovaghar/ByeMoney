@@ -4,8 +4,11 @@ using ByeMoney.Application.Common.Interfaces;
 using ByeMoney.Application.Modules.Identity.Authorization;
 using ByeMoney.Application.Modules.Purchases.Interfaces;
 using ByeMoney.Application.Modules.Purchases.PhysicalCancellations.DTOs;
+using ByeMoney.Application.Modules.Purchases.Delivery.DTOs;
+using ByeMoney.Application.Modules.Purchases.Delivery.Services;
 using ByeMoney.Infrastructure.Modules.Identity.Persistence.User;
 using ByeMoney.Infrastructure.Modules.Identity.Services;
+using ByeMoney.Infrastructure.Modules.PostexIntegration;
 using ByeMoney.Infrastructure.Modules.Purchases.BackgroundServices;
 using ByeMoney.Infrastructure.Modules.Purchases.Persistence;
 using ByeMoney.Infrastructure.Modules.Settings.Persistence;
@@ -52,9 +55,16 @@ public static class DependencyInjection
             configuration.GetSection(PhysicalRestockSettings.SectionName).Get<PhysicalRestockSettings>()
             ?? new PhysicalRestockSettings());
         services.AddHostedService<PhysicalRestockRecoveryBackgroundService>();
+        services.AddSingleton(
+            configuration.GetSection(PhysicalDeliverySettings.SectionName).Get<PhysicalDeliverySettings>()
+            ?? new PhysicalDeliverySettings());
+        services.AddScoped<PhysicalDeliverySyncService>();
+        services.AddHostedService<PhysicalDeliveryAutoConfirmBackgroundService>();
+        services.AddHostedService<ExternalTrackingBackgroundService>();
         services.AddScoped<ByeMoney.Application.Common.Interfaces.IReceiptStorage>(_ => new PrivateReceiptStorage(configuration["ReceiptStorage:Path"] ?? Path.Combine(AppContext.BaseDirectory, "private-receipts")));
         services.AddWalletModule();
         services.AddTarhElahiIntegration(configuration);
+        services.AddPostexIntegration(configuration);
         return services;
     }
 }

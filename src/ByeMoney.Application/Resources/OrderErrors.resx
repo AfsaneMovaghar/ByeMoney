@@ -8,4 +8,11 @@
   <data name="PhysicalPurchaseNotFound" xml:space="preserve"><value>خرید کالای فیزیکی یافت نشد.</value></data>
   <data name="InvalidPurchaseId" xml:space="preserve"><value>شناسهٔ خرید معتبر نیست.</value></data>
   <data name="InvalidDeliveryStatus" xml:space="preserve"><value>وضعیت تحویل باید «ارسال‌شده» (Shipped) یا «تحویل‌شده» (Delivered) باشد.</value></data>
+  <data name="InvalidTrackingCode" xml:space="preserve"><value>کد رهگیری نامعتبر است؛ حداکثر ۵۰ نویسه و بدون نویسهٔ کنترلی.</value></data>
+  <data name="InvalidTrackingProvider" xml:space="preserve"><value>منبع کد رهگیری نامعتبر است.</value></data>
+  <data name="InvalidProviderParcelId" xml:space="preserve"><value>شناسهٔ مرسوله باید برای این منبع وارد شود و حداکثر ۵۰ نویسه و بدون نویسهٔ کنترلی باشد.</value></data>
+  <data name="ShipmentProviderUnavailable" xml:space="preserve"><value>واسط پستی انتخاب‌شده در دسترس یا پیکربندی‌شده نیست.</value></data>
+  <data name="ShipmentAddressRequired" xml:space="preserve"><value>آدرس تحویل سبد برای ساخت مرسوله موجود نیست.</value></data>
+  <data name="ShipmentNotAllowed" xml:space="preserve"><value>ساخت مرسوله فقط برای قلم «آماده‌سازی» با تعداد باقی‌مانده مجاز است.</value></data>
+  <data name="ShipmentCreateFailed" xml:space="preserve"><value>ساخت مرسوله نزد واسط پستی ناموفق بود.</value></data>
 </root>

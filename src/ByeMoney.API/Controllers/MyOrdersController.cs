@@ -1,3 +1,4 @@
+using ByeMoney.Application.Modules.Purchases.Commands.ConfirmMyPhysicalDelivery;
 using ByeMoney.Application.Modules.Purchases.History.DTOs;
 using ByeMoney.Application.Modules.Purchases.Orders.DTOs;
 using ByeMoney.Application.Modules.Purchases.Queries.GetMyOrder;
@@ -36,5 +37,17 @@ public sealed class MyOrdersController(ISender sender) : ControllerBase
     public async Task<ActionResult<OrderReceipt>> Receipt(string orderId, CancellationToken ct)
     {
         return Ok(await sender.Send(new GetMyOrderReceiptQuery(orderId), ct));
+    }
+
+    /// <summary>
+    /// تأیید دریافت کالای ارسال‌شده توسط خریدار؛ فقط سفارش خودش، تکرار بی‌اثر.
+    /// </summary>
+    [HttpPost("{orderId}/confirm-delivery")]
+    [ProducesResponseType(typeof(PhysicalDeliveryConfirmationResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<PhysicalDeliveryConfirmationResponse>> ConfirmDelivery(
+        string orderId, CancellationToken ct)
+    {
+        return Ok(await sender.Send(new ConfirmMyPhysicalDeliveryCommand(orderId), ct));
     }
 }

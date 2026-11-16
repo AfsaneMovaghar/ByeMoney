@@ -178,3 +178,21 @@
 
 - تغییر: شکست یا نبود دسترسی استعلام `batch-balances` در `/admin/users` و فرم سفارش دستی دیگر ۰ یا `light` قدیمی نشان نمی‌دهد؛ «نامشخص» با توضیح نبود `Wallet.View` نمایش داده می‌شود و فقط وقتی موجودی معلوم و کم است دکمهٔ ثبت غیرفعال می‌شود (کفایت نامشخص را ByeMoney در خرید بررسی می‌کند). جمع محلی پس از شارژ برای موجودی نامشخص انجام نمی‌شود.
 - آزمون: Jest `src/components/admin`، `src/lib/admin`، `src/app/api/admin` ۲۴ مجموعه و ۲۴۱ آزمون موفق. پذیرش دستی مرورگر (۸ نوامبر ۲۰۲۶): ادمین بدون `Wallet.View` موجودی «نامشخص» دید و دکمهٔ ثبت فعال بود؛ ادمین کامل بدون تغییر؛ تأیید مالک پروژه.
+
+## SHIP-TRACKING — کد رهگیری، تحویل خودکار و فیلتر «ارسال‌نشده» — ۱۴ نوامبر ۲۰۲۶
+
+- تغییر: ستون‌های nullable `TrackingCode`/`TrackingProvider`/`ProviderParcelId` روی `PhysicalProductPurchases` با migration افزودنی `AddPhysicalShipmentTracking`؛ `PUT /api/admin/physical-purchases/{id}/delivery-status` فیلدهای اختیاری کد/منبع/شناسهٔ مرسوله را می‌گیرد (اصلاح کد در Shipped، قفل پس از Delivered)؛ اندپوینت خریدار `POST /api/me/orders/{orderId}/confirm-delivery`؛ فیلتر سروری `awaitingShipment=true` در `GET /api/admin/orders`؛ `PhysicalDeliverySyncService` با همگام‌سازی وضعیت پستکس (هدر `x-api-key`، فقط با `Postex:Enabled` و کلید) و مهلت پشتیبان ۱۴ روزه؛ فرانت: ثبت/نمایش کد و دکمهٔ تأیید خریدار و حذف اسکن ۱۰۰تایی تب «نیاز به اقدام».
+- آزمون: بای‌مانی ۵۲۹ موفق و ۱۲۰ Skip (Skip همان آزمون‌های دیتابیسی مشروط؛ ۱۶ آزمون تازه: دامنهٔ کد رهگیری، تفسیر پاسخ پستکس، فیلتر awaitingShipment). Jest فرانت کامل: ۱۱۱ مجموعه و ۱۱۴۸ آزمون موفق. `next build` موفق و مسیر `/api/orders/[orderId]/confirm-delivery` در خروجی build ثبت شد. migration روی `ByeMoney_Dev` اعمال و `Down`/`Up` دوباره موفق.
+- محدودیت: فراخوانی واقعی پستکس انجام نشد (کلید نیست)؛ شکل پاسخ `parcels/{parcel-no}/status` در OpenAPI پستکس schema ندارد و `PostexStatusParser` تحمل‌گر نوشته شده و باید با یک مرسولهٔ واقعی تأیید شود؛ آزمون‌های PostgreSQL اختیاری (`BYEMONEY_CART_PG_TESTS=1`) اجرا نشد؛ پذیرش مرورگر با JWT واقعی باقی است.
+
+## SHIP-TRACKING-C — عمومی‌سازی واسط پستی — ۱۵ نوامبر ۲۰۲۶
+
+- تغییر: پورت عمومی `ITrackingProviderClient` جای پورت پستکسی را گرفت و `SyncExternalAsync` واسط هر قلم را از منبع همان قلم انتخاب می‌کند؛ `ExternalTrackingBackgroundService` همهٔ واسط‌های ثبت‌شده را می‌گرداند؛ `GetShippedAsync` فهرست کلید منبع می‌گیرد؛ `AutoConfirmAfterDays` و `PollIntervalMinutes` به بخش `PhysicalDelivery` رفت؛ `ProviderParcelId` متنی شد و قید منبع با migration `GeneralizeShipmentTracking` بازنویسی شد؛ ثبت قلم با منبع خودکارِ بدون شناسهٔ ارجاع رد می‌شود؛ متن خطاها بی‌نام فروشنده و فهرست منابع فرانت از یک ماژول می‌آید.
+- آزمون: `dotnet build` روی `ByeMoney.UnitTests` موفق (۰ خطا، ۰ اخطار)؛ `dotnet test` کامل ۵۴۵ موفق و ۱۲۰ Skip و ۰ ناموفق، شامل ۳۲ آزمون `ShipTrackingTests` و `PhysicalDeliverySyncTests`. فرانت: `PhysicalDeliveryControl.test.jsx` (۶ موفق) و `byeMoneyPhysicalOrders.test.js` (۳۴ موفق).
+- محدودیت: migration `GeneralizeShipmentTracking` روی `ByeMoney_Dev` (با ۱۴ ردیف داده) اعمال و سپس `Down`/`Up` دوباره اجرا شد و ستون به `character varying(50)` رسید؛ نگاشت وضعیت‌های خام پستکس تغییر نکرد و همچنان با مرسولهٔ واقعی تأیید نشده است؛ سه سناریوی Swagger و اصلاح کد روی قلم ارسال‌شده در مرورگر باقی است.
+
+## SHIP-TRACKING-B + پارسر واقعی — ۱۵ نوامبر ۲۰۲۶
+
+- تغییر: `PostexStatusParser` فقط با `parent.code`/`status_code` تصمیم می‌گیرد (استثناهای ۱۱۳۱۱ و ۱۱۳۱۰ در مسیر می‌مانند). پورت عمومی `IShipmentProviderClient` و پیاده‌سازی `PostexShipmentClient` (اول خواندن `custom-order-no`، بعد `bulk`؛ مبدأ رامسر city_id=۵۷۳؛ نگاشت شهر گیرنده از `cities/all`). فرمان/اندپوینت ادمین `POST /api/admin/physical-purchases/{id}/shipments`؛ فرانت دکمهٔ «ثبت مرسوله در واسط پستی». انتخاب هزینهٔ ثابت/پستکس اسلایس جدا (`SHIP-COST-MODE`).
+- آزمون: `dotnet test` کامل ۶۶۵ موفق و ۰ ناموفق (شامل `ShipTrackingTests`، `CreatePhysicalShipmentTests`، `PhysicalDeliverySyncTests`). فرانت `PhysicalDeliveryControl.test.jsx` ۷ موفق. استعلام زندهٔ مرسولهٔ تستی با کلید Development: HTTP ۲۰۰ و وضعیت `PAYMENT_PENDING` → InTransit.
+- محدودیت: ساخت مرسوله روی قلم Preparing واقعی و پذیرش مرورگر/Swagger و مرسولهٔ Delivered هنوز باز است؛ بارکد تا پرداخت کیف‌پول پستکس ممکن است ماسک بماند.

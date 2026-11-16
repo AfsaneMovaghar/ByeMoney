@@ -15,4 +15,5 @@ public sealed record OrderItem(
     string ItemType = nameof(ProductItemType.Course), string? ParentExternalId = null,
     int Quantity = 1, string? PhysicalDeliveryStatus = null,
     int CancelledQuantity = 0,
-    decimal RefundedRegularInNoor = 0m, decimal RefundedGiftInNoor = 0m);
+    decimal RefundedRegularInNoor = 0m, decimal RefundedGiftInNoor = 0m,
+    string? TrackingCode = null, string? TrackingProvider = null, DateTime? ShippedAtUtc = null);

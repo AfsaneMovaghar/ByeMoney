@@ -24,7 +24,6 @@
 | :--- | :--- | :--- | :--- | :--- |
 | AdminAssistedTopUp | `POST` | `/api/admin/topups/assisted` | نیازمند پالیسی `RequireTopUpReview` | `TopUp.Review` |
 | AdminCartOrders | `POST` | `/api/admin/carts/orders` | نیازمند پالیسی `RequireCoursesManage` | `Courses.Manage` |
-| AdminCourses | `POST` | `/api/admin/courses/purchase` | نیازمند پالیسی `RequireCoursesManage` | `Courses.Manage` |
 | AdminGatewayReview | `GET` | `/api/admin/topups/gateway-reviews/{clientReferenceCode}` | نیازمند پالیسی `RequireTopUpReview` | `TopUp.Review` |
 | AdminGatewayReview | `POST` | `/api/admin/topups/gateway-reviews/resolve` | نیازمند پالیسی `RequireTopUpReview` | `TopUp.Review` |
 | AdminGift | `POST` | `/api/admin/noor-gifts` | نیازمند پالیسی `RequireNoorGift` | `Noor.Gift` |
@@ -47,11 +46,11 @@
 | AdminPhysicalCancellations | `GET` | `/api/admin/physical-purchases/{purchaseId:guid}/cancellation-preview` | نیازمند پالیسی `RequireNoorInject` | `Noor.Inject` |
 | AdminPhysicalCancellations | `POST` | `/api/admin/physical-purchases/restocks/{operationId:guid}/resolve` | نیازمند پالیسی `RequireNoorInject` | `Noor.Inject` |
 | AdminPhysicalCancellations | `POST` | `/api/admin/physical-purchases/restocks/{operationId:guid}/retry` | نیازمند پالیسی `RequireNoorInject` | `Noor.Inject` |
+| AdminPhysicalPurchases | `POST` | `/api/admin/physical-purchases/{purchaseId:guid}/shipments` | نیازمند پالیسی `RequireCoursesManage` | `Courses.Manage` |
 | AdminPhysicalPurchases | `PUT` | `/api/admin/physical-purchases/{purchaseId:guid}/delivery-status` | نیازمند پالیسی `RequireCoursesManage` | `Courses.Manage` |
 | AdminPurchases | `GET` | `/api/admin/purchases` | نیازمند پالیسی `RequirePurchasesView` | `Purchases.View` |
 | AdminPurchases | `GET` | `/api/admin/purchases/{purchaseId:guid}` | نیازمند پالیسی `RequirePurchasesView` | `Purchases.View` |
 | AdminTopUp | `POST` | `/api/admin/topups/{id:guid}/confirm` | نیازمند پالیسی `RequireTopUpReview` | `TopUp.Review` |
-| AdminTopUp | `GET` | `/api/admin/topups/by-reference/{clientReferenceCode}` | نیازمند پالیسی `RequireTopUpReview` | `TopUp.Review` |
 | AdminTopUp | `GET` | `/api/admin/topups/permissions` | احراز هویت شده (JWT) | — |
 | AdminTopUp | `POST` | `/api/admin/topups/{id:guid}/reject` | نیازمند پالیسی `RequireTopUpReview` | `TopUp.Review` |
 | AdminWallet | `POST` | `/api/admin/wallets/batch-balances` | نیازمند پالیسی `RequireWalletView` | `Wallet.View` |
@@ -68,6 +67,7 @@
 | GatewayTopUp | `POST` | `/api/integrations/topups/v1/gateway-reviews/open` | عمومی (Anonymous) | — |
 | GatewayTopUp | `POST` | `/api/integrations/topups/gateway-results` | عمومی (Anonymous) | — |
 | GatewayTopUp | `POST` | `/api/integrations/topups/v1/gateway-reviews/reopen` | عمومی (Anonymous) | — |
+| MyOrders | `POST` | `/api/me/orders/{orderId}/confirm-delivery` | احراز هویت شده (JWT) | — |
 | MyOrders | `GET` | `/api/me/orders/{orderId}` | احراز هویت شده (JWT) | — |
 | MyOrders | `GET` | `/api/me/orders` | احراز هویت شده (JWT) | — |
 | MyOrders | `GET` | `/api/me/orders/{orderId}/receipt` | احراز هویت شده (JWT) | — |

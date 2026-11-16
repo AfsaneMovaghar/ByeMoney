@@ -67,11 +67,11 @@ public sealed class PhysicalDeliveryHttpPostgresTests : IAsyncLifetime
         "purchaseId", "externalItemId", "title", "itemType", "parentExternalId", "quantity", "unitPriceInNoor",
         "baseAmountInNoor", "discountAmountInNoor", "finalAmountInNoor", "referenceRialPerNoorAtPurchaseTime",
         "deliveryStatus", "physicalDeliveryStatus", "purchasedAtUtc", "deliveredAtUtc", "cancelledQuantity",
-        "refundedRegularInNoor", "refundedGiftInNoor"
+        "refundedRegularInNoor", "refundedGiftInNoor", "trackingCode", "trackingProvider", "shippedAtUtc"
     ];
 
     private static readonly string[] DeliveryResponseKeys =
-        ["purchaseId", "deliveryStatus", "shippedAtUtc", "deliveredAtUtc"];
+        ["purchaseId", "deliveryStatus", "shippedAtUtc", "deliveredAtUtc", "trackingCode", "trackingProvider"];
 
     private readonly string _schema = "physical_http_test_" + Guid.NewGuid().ToString("N");
     private readonly Mock<ICartPricingClient> _pricing = new();

@@ -298,6 +298,9 @@ namespace ByeMoney.Domain.Resources {
         public static string PhysicalProductPurchase_CannotMarkNonFreeAsFree => ResourceManager.GetString("PhysicalProductPurchase_CannotMarkNonFreeAsFree", resourceCulture)!;
         public static string PhysicalProductPurchase_CancellationInvalid => ResourceManager.GetString("PhysicalProductPurchase_CancellationInvalid", resourceCulture)!;
         public static string PhysicalProductPurchase_InvalidDeliveryTransition => ResourceManager.GetString("PhysicalProductPurchase_InvalidDeliveryTransition", resourceCulture)!;
+        public static string PhysicalProductPurchase_InvalidTrackingCode => ResourceManager.GetString("PhysicalProductPurchase_InvalidTrackingCode", resourceCulture)!;
+        public static string PhysicalProductPurchase_InvalidTrackingProvider => ResourceManager.GetString("PhysicalProductPurchase_InvalidTrackingProvider", resourceCulture)!;
+        public static string PhysicalProductPurchase_InvalidProviderParcelId => ResourceManager.GetString("PhysicalProductPurchase_InvalidProviderParcelId", resourceCulture)!;
         public static string GiftCampaign_AmountCannotBeNegative => ResourceManager.GetString("GiftCampaign_AmountCannotBeNegative", resourceCulture)!;
         public static string GiftCampaign_StartDateCannotBeAfterEndDate => ResourceManager.GetString("GiftCampaign_StartDateCannotBeAfterEndDate", resourceCulture)!;
         public static string Wallet_CreditAmountMustBePositive => ResourceManager.GetString("Wallet_CreditAmountMustBePositive", resourceCulture)!;

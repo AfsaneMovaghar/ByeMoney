@@ -19,7 +19,7 @@ public sealed class GetAdminOrdersQueryHandler(IOrderReader reader, ICurrentUser
         _ = BuyerId;
         var snapshot = await reader.ReadAsync(null, request.Filter.BuyerExternalUserId, ct);
         var buyers = snapshot.Buyers.ToDictionary(buyer => buyer.Id);
-        var page = OrderPaging.Page(OrderMapping.Build(snapshot), request.Filter.ToFilter());
+        var page = OrderPaging.Page(OrderMapping.Build(snapshot), request.Filter.ToFilter(), request.Filter.AwaitingShipment);
         var refundsByCart = OrderRefunds.ByCart(snapshot);
         var items = page.Items.Select(row =>
         {

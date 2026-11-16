@@ -1,4 +1,5 @@
-using ByeMoney.Domain.Modules.Identity.Users;using ByeMoney.Domain.Modules.Purchases;
+using ByeMoney.Domain.Modules.Identity.Users;
+using ByeMoney.Domain.Modules.Purchases;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -17,6 +18,9 @@ public class PhysicalProductPurchaseConfiguration : IEntityTypeConfiguration<Phy
             table.HasCheckConstraint("CK_PhysicalProductPurchases_Quantity", "\"Quantity\" >= 1");
             table.HasCheckConstraint("CK_PhysicalProductPurchases_DeliveryStatus",
                 "\"DeliveryStatus\" IN ('Preparing', 'Shipped', 'Delivered')");
+            table.HasCheckConstraint("CK_PhysicalProductPurchases_TrackingProvider",
+                "\"TrackingProvider\" IS NULL OR \"TrackingProvider\" IN (" +
+                string.Join(", ", PhysicalProductPurchase.AllowedTrackingProviders.Select(provider => $"'{provider}'")) + ")");
             table.HasCheckConstraint("CK_PhysicalProductPurchases_CancelledQuantity",
                 "\"CancelledQuantity\" >= 0 AND \"CancelledQuantity\" <= \"Quantity\"");
             // سقف برگشت: جمع برگشت هر نوع نور از سهم پرداخت واقعی همان نوع بیشتر نمی‌شود؛ خرید بدون سهم برگشت ندارد.
@@ -66,6 +70,11 @@ public class PhysicalProductPurchaseConfiguration : IEntityTypeConfiguration<Phy
             .IsRequired();
         builder.Property(x => x.ShippedAtUtc);
         builder.Property(x => x.DeliveredAtUtc);
+        builder.Property(x => x.TrackingCode).HasMaxLength(PhysicalProductPurchase.TrackingCodeMaxLength);
+        builder.Property(x => x.TrackingProvider).HasMaxLength(PhysicalProductPurchase.TrackingProviderMaxLength);
+        builder.Property(x => x.ProviderParcelId).HasMaxLength(PhysicalProductPurchase.ProviderParcelIdMaxLength);
+        builder.HasIndex(x => new { x.DeliveryStatus, x.ShippedAtUtc });
+        builder.HasIndex(x => x.TrackingCode);
         builder.Property(x => x.CancelledQuantity).HasDefaultValue(0).IsRequired();
         builder.Property(x => x.RefundedRegularInNoor).HasPrecision(18, 4).HasDefaultValue(0m).IsRequired();
         builder.Property(x => x.RefundedGiftInNoor).HasPrecision(18, 4).HasDefaultValue(0m).IsRequired();

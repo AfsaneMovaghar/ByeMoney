@@ -13,4 +13,5 @@ public sealed record OrderReceiptItem(
     decimal FinalAmountInNoor, decimal? ReferenceRialPerNoorAtPurchaseTime,
     string DeliveryStatus, string? PhysicalDeliveryStatus, DateTime PurchasedAtUtc, DateTime? DeliveredAtUtc,
     int CancelledQuantity = 0,
-    decimal RefundedRegularInNoor = 0m, decimal RefundedGiftInNoor = 0m);
+    decimal RefundedRegularInNoor = 0m, decimal RefundedGiftInNoor = 0m,
+    string? TrackingCode = null, string? TrackingProvider = null, DateTime? ShippedAtUtc = null);

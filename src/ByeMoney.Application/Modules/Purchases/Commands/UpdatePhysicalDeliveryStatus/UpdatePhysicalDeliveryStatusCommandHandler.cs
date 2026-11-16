@@ -27,7 +27,7 @@ public sealed class UpdatePhysicalDeliveryStatusCommandHandler(
 
             if (request.Status == nameof(PhysicalDeliveryStatus.Shipped))
             {
-                purchase.MarkShipped();
+                purchase.MarkShipped(request.TrackingCode, request.TrackingProvider, request.ProviderParcelId);
             }
             else
             {
@@ -38,7 +38,8 @@ public sealed class UpdatePhysicalDeliveryStatusCommandHandler(
             await unitOfWork.SaveChangesAsync(ct);
 
             return new PhysicalDeliveryStatusResponse(
-                purchase.Id.Value, purchase.DeliveryStatus.ToString(), purchase.ShippedAtUtc, purchase.DeliveredAtUtc);
+                purchase.Id.Value, purchase.DeliveryStatus.ToString(), purchase.ShippedAtUtc, purchase.DeliveredAtUtc,
+                purchase.TrackingCode, purchase.TrackingProvider);
         }, ct);
     }
 }
