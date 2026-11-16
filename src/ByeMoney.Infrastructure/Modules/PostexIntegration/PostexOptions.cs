@@ -101,8 +101,12 @@ public sealed class PostexSenderOptions
 
     public string? PostCode { get; set; }
 
-    /// <summary>فقط مرجع آزمون مسیر مبدأ←مقصد؛ مقصد واقعی از آدرس سبد می‌آید.</summary>
+    /// <summary>
+    /// فقط مرجع دستی آزمون مسیر مبدأ←مقصد (پیش‌فرض کد؛ در appsettings نباشد).
+    /// مقصد واقعی ساخت مرسوله از آدرس سبد می‌آید و این فیلد خوانده نمی‌شود.
+    /// </summary>
     public int TestDestinationCityId { get; set; } = 259;
 
+    /// <summary>همراه <see cref="TestDestinationCityId"/>؛ فقط مرجع آزمون دستی.</summary>
     public string TestDestinationCityName { get; set; } = "مشهد";
 }

@@ -210,3 +210,10 @@
 - اسناد: I09-PH، D08/هزینه ارسال، Postex_API هم‌تراز شد.
 - آزمون: Jest استرپی `cartShipping` + `postexShippingQuote` + `shippingOrigins` — ۱۵ موفق. بای‌مانی (با `-o .artifacts/ship-multi-origin-test` به‌خاطر قفل DLL توسط API در حال اجرا): `CartPricingClientTests` + `CreatePhysicalShipmentTests` + `CartTests` — ۴۲ موفق ۰ ناموفق. migration `AddCartShippingOriginId` روی دیتابیس توسعه اعمال شد.
 - محدودیت: پذیرش دستی تخصیص مبدأ به کالا و مرسولهٔ واقعی در TASKS بخش «نیازمند تست دستی».
+
+## SHIP-ORIGIN-CITY-TABLE — استان/شهر و مبدأ دراپ‌داون — ۱۶ نوامبر ۲۰۲۶
+
+- تغییر (استرپی): نوع‌های `province`/`city` با `externalId` (بدون برند حامل در دامنه/پنل)؛ آداپتور همگام‌سازی فعلی پستکس (`postexLocalitySync` + `POST /api/cities/sync-localities`)؛ `shipping-origin` فقط رابطه به شهر (بدون اسنپ‌شات cityId/cityName)؛ quote از `city.externalId`؛ کالای بدون مبدأ → رامسر؛ چند مبدأ تعارض؛ برچسب فارسی بدون نام حامل. ByeMoney و front-end تغییر نکردند.
+- گام ۲ (آدرس خریدار از همین جداول) در TASKS یادداشت شد؛ این اسلایس انجام نشد.
+- اختلاف سند: متن قبلی SHIP-MULTI-ORIGIN «نبود مبدأ روی کالا = تعارض» می‌گفت؛ رفتار کد اکنون پیش‌فرض رامسر است.
+- آزمون: Jest `shippingOrigins` + `postexLocalitySync` + `shippingCmLabels` + `cartShipping` + `postexShippingQuote` — ۲۱ موفق (پس از اصلاح `externalId` و حذف اسنپ‌شات مبدأ).
