@@ -342,6 +342,10 @@ namespace ByeMoney.Infrastructure.Migrations
                         .HasColumnType("numeric(18,4)")
                         .HasDefaultValue(0m);
 
+                    b.Property<string>("ShippingOriginId")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
                     b.Property<string>("ShippingRuleLabel")
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");

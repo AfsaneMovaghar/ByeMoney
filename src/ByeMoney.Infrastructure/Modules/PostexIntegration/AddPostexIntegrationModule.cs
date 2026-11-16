@@ -36,7 +36,16 @@ public static class AddPostexIntegrationModule
         }
 
         options.TimeoutSeconds = options.TimeoutSeconds > 0 ? options.TimeoutSeconds : 20;
-        options.Sender ??= new PostexSenderOptions();
+        // بایندر کانفیگ comparer را حفظ نمی‌کند؛ برای شناسهٔ مبدأ مقایسه بدون حساسیت به حروف لازم است.
+        options.Origins = new Dictionary<string, PostexSenderOptions>(
+            options.Origins ?? new Dictionary<string, PostexSenderOptions>(),
+            StringComparer.OrdinalIgnoreCase);
+        options.EnsureLegacySenderMapped();
+        if (options.Origins.Count == 0)
+        {
+            options.Origins[PostexOptions.DefaultOriginId] = new PostexSenderOptions();
+        }
+
         services.AddSingleton(options);
 
         services.AddHttpClient(HttpClientName, client =>

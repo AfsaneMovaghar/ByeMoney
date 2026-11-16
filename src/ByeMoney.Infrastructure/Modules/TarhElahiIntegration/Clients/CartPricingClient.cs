@@ -113,7 +113,10 @@ public sealed class CartPricingClient(HttpClient http) : ICartPricingClient
 
         var hasProduct = items.Any(x => x.Type == ProductItemType.Product);
         var address = hasProduct ? ToAddress(wire) : null;
-        if (hasProduct && address is null)
+        var originId = string.IsNullOrWhiteSpace(wire.ShippingOriginId)
+            ? null
+            : wire.ShippingOriginId.Trim();
+        if (hasProduct && (address is null || originId is null || originId.Length > Cart.ShippingOriginIdMaxLength))
         {
             return null;
         }
@@ -129,7 +132,8 @@ public sealed class CartPricingClient(HttpClient http) : ICartPricingClient
             wire.ShippingAmountInNoor,
             wire.ShippingRuleLabel,
             wire.PriceInNoor,
-            address);
+            address,
+            hasProduct ? originId : null);
     }
 
     /// <summary>

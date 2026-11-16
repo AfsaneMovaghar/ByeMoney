@@ -47,12 +47,14 @@ public sealed class CartTests
     public void ProductCartKeepsAddressAndCourseCartDoesNot()
     {
         var productCart = CreateProductCart();
-        productCart.SetQuote(BookQuote(), shippingAddress: Address);
+        productCart.SetQuote(BookQuote(), shippingAddress: Address, shippingOriginId: "ramsar");
         var courseCart = CreateCart();
         courseCart.SetQuote(Items(), shippingAddress: Address);
 
         productCart.ShippingAddress.Should().Be(Address);
+        productCart.ShippingOriginId.Should().Be("ramsar");
         courseCart.ShippingAddress.Should().BeNull();
+        courseCart.ShippingOriginId.Should().BeNull();
     }
 
     [Fact]
@@ -71,16 +73,18 @@ public sealed class CartTests
     public void ReopenClearsAddressUntilNewQuote()
     {
         var cart = CreateProductCart();
-        cart.SetQuote(BookQuote(), shippingAddress: Address);
+        cart.SetQuote(BookQuote(), shippingAddress: Address, shippingOriginId: "ramsar");
         cart.Fail();
         cart.RecordSynchronization(true, null);
         var fresh = Address with { Version = "v2", City = "Other" };
 
         cart.Reopen();
         cart.ShippingAddress.Should().BeNull();
-        cart.SetQuote(BookQuote(), shippingAddress: fresh);
+        cart.ShippingOriginId.Should().BeNull();
+        cart.SetQuote(BookQuote(), shippingAddress: fresh, shippingOriginId: "mashhad");
 
         cart.ShippingAddress.Should().Be(fresh);
+        cart.ShippingOriginId.Should().Be("mashhad");
     }
 
     [Fact]

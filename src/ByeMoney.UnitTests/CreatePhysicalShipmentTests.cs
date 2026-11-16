@@ -37,6 +37,24 @@ public sealed class CreatePhysicalShipmentTests
         purchase.DeliveryStatus.Should().Be(PhysicalDeliveryStatus.Shipped);
         client.LastRequest!.Parcel.IdempotencyKey.Should().Be($"BM-{purchase.Id.Value:N}");
         client.LastRequest.Recipient.CityName.Should().Be("مشهد");
+        client.LastRequest.OriginId.Should().Be("ramsar");
+    }
+
+    [Fact]
+    public async Task RejectsWhenCartOriginIsMissing()
+    {
+        var purchase = CreatePreparing();
+        var store = new FakeDeliveryStore(purchase, SampleAddress(), originId: null);
+        var repository = new FakeRepository(purchase);
+        var client = new FakeShipmentClient(PhysicalProductPurchase.PostexProvider);
+
+        var act = () => new CreatePhysicalShipmentCommandHandler(
+            repository, store, [client], repository)
+            .Handle(new CreatePhysicalShipmentCommand(purchase.Id.Value), CancellationToken.None);
+
+        await act.Should().ThrowAsync<DomainException>();
+        client.Calls.Should().Be(0);
+        purchase.DeliveryStatus.Should().Be(PhysicalDeliveryStatus.Preparing);
     }
 
     [Fact]
@@ -104,7 +122,9 @@ public sealed class CreatePhysicalShipmentTests
     }
 
     private sealed class FakeDeliveryStore(
-        PhysicalProductPurchase purchase, ShippingAddress? address) : IPhysicalDeliveryStore
+        PhysicalProductPurchase purchase,
+        ShippingAddress? address,
+        string? originId = "ramsar") : IPhysicalDeliveryStore
     {
         public Task<PhysicalPurchaseOwner?> FindOwnerAsync(Guid purchaseId, CancellationToken ct) =>
             Task.FromResult<PhysicalPurchaseOwner?>(
@@ -121,6 +141,9 @@ public sealed class CreatePhysicalShipmentTests
 
         public Task<ShippingAddress?> GetCartShippingAddressAsync(Guid cartId, CancellationToken ct) =>
             Task.FromResult(address);
+
+        public Task<string?> GetCartShippingOriginIdAsync(Guid cartId, CancellationToken ct) =>
+            Task.FromResult(originId);
 
         public Task<IReadOnlyList<PhysicalDeliveryCandidate>> GetShippedAsync(
             DateTime shippedAtOrBeforeUtc, IReadOnlyCollection<string> providers, int limit,

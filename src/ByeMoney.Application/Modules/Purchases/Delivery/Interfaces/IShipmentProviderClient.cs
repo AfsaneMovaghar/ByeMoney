@@ -24,11 +24,14 @@ public sealed record ShipmentParcelDetails(
     long DeclaredValueMinorUnits,
     string CurrencyCode);
 
-/// <summary>درخواست ساخت مرسوله؛ فرستنده از تنظیمات همان واسط خوانده می‌شود، نه از بدنهٔ عمومی.</summary>
+/// <summary>
+/// درخواست ساخت مرسوله؛ فرستنده از پروفایل مبدأ فریزشدهٔ سبد در تنظیمات همان واسط خوانده می‌شود.
+/// </summary>
 public sealed record ShipmentCreateRequest(
     ShipmentParty Recipient,
     ShipmentParcelDetails Parcel,
-    string? Remark = null);
+    string? Remark = null,
+    string? OriginId = null);
 
 public enum ShipmentCreateOutcome
 {

@@ -36,6 +36,14 @@ public sealed class PhysicalDeliveryStore(ApplicationDbContext db) : IPhysicalDe
         return cart?.ShippingAddress;
     }
 
+    public async Task<string?> GetCartShippingOriginIdAsync(Guid cartId, CancellationToken ct)
+    {
+        var cart = await db.Set<Cart>()
+            .AsNoTracking()
+            .SingleOrDefaultAsync(x => x.Id == cartId, ct);
+        return cart?.ShippingOriginId;
+    }
+
     public async Task<IReadOnlyList<PhysicalDeliveryCandidate>> GetShippedAsync(
         DateTime shippedAtOrBeforeUtc, IReadOnlyCollection<string> providers, int limit, CancellationToken ct)
     {

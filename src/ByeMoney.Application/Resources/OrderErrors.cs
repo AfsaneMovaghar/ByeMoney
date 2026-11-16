@@ -18,6 +18,7 @@ public static class OrderErrors
     public static string InvalidProviderParcelId => Get(nameof(InvalidProviderParcelId));
     public static string ShipmentProviderUnavailable => Get(nameof(ShipmentProviderUnavailable));
     public static string ShipmentAddressRequired => Get(nameof(ShipmentAddressRequired));
+    public static string ShipmentOriginRequired => Get(nameof(ShipmentOriginRequired));
     public static string ShipmentNotAllowed => Get(nameof(ShipmentNotAllowed));
     public static string ShipmentCreateFailed => Get(nameof(ShipmentCreateFailed));
 

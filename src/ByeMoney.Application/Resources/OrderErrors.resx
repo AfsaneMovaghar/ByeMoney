@@ -13,6 +13,7 @@
   <data name="InvalidProviderParcelId" xml:space="preserve"><value>شناسهٔ مرسوله باید برای این منبع وارد شود و حداکثر ۵۰ نویسه و بدون نویسهٔ کنترلی باشد.</value></data>
   <data name="ShipmentProviderUnavailable" xml:space="preserve"><value>واسط پستی انتخاب‌شده در دسترس یا پیکربندی‌شده نیست.</value></data>
   <data name="ShipmentAddressRequired" xml:space="preserve"><value>آدرس تحویل سبد برای ساخت مرسوله موجود نیست.</value></data>
+  <data name="ShipmentOriginRequired" xml:space="preserve"><value>مبدأ ارسال سبد برای ساخت مرسوله موجود نیست یا در تنظیمات واسط تعریف نشده است.</value></data>
   <data name="ShipmentNotAllowed" xml:space="preserve"><value>ساخت مرسوله فقط برای قلم «آماده‌سازی» با تعداد باقی‌مانده مجاز است.</value></data>
   <data name="ShipmentCreateFailed" xml:space="preserve"><value>ساخت مرسوله نزد واسط پستی ناموفق بود.</value></data>
 </root>

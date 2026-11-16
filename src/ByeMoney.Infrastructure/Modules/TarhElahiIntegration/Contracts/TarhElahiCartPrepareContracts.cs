@@ -33,7 +33,9 @@ internal sealed record TarhElahiCartPrepareResponse(
     string? ShippingRuleLabel = null,
     decimal PriceInNoor = 0m,
     TarhElahiCartAddressSnapshot? AddressSnapshot = null,
-    string? AddressVersion = null);
+    string? AddressVersion = null,
+    string? ShippingOriginId = null,
+    string? ShippingOriginLabel = null);
 
 /// <summary>
 /// شش فیلد آدرس تحویل در پاسخ prepare (I09-PH)؛ <c>postalCode</c> اختیاری است.

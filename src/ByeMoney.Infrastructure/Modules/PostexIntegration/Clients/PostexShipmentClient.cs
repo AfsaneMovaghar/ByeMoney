@@ -47,16 +47,17 @@ public sealed class PostexShipmentClient(HttpClient http, PostexOptions options)
                 ErrorMessage: $"شهر گیرنده «{request.Recipient.CityName}» در فهرست پستکس یافت نشد.");
         }
 
-        if (!IsSenderConfigured())
+        var sender = options.ResolveOrigin(request.OriginId);
+        if (sender is null || !IsSenderConfigured(sender))
         {
             return new ShipmentCreateResult(ShipmentCreateOutcome.Failed,
-                ErrorMessage: "تنظیمات فرستندهٔ پستکس ناقص است.");
+                ErrorMessage: "تنظیمات مبدأ/فرستندهٔ پستکس ناقص است یا مبدأ سبد در تنظیمات تعریف نشده.");
         }
 
         try
         {
             using var response = await http.PostAsJsonAsync(
-                "api/v1/parcels/bulk", BuildBulkBody(request, cityId.Value), ct);
+                "api/v1/parcels/bulk", BuildBulkBody(request, cityId.Value, sender), ct);
             var body = await response.Content.ReadAsStringAsync(ct);
 
             if (response.StatusCode == HttpStatusCode.PaymentRequired)
@@ -114,11 +115,11 @@ public sealed class PostexShipmentClient(HttpClient http, PostexOptions options)
         }
     }
 
-    private bool IsSenderConfigured() =>
-        options.Sender.CityId > 0 &&
-        !string.IsNullOrWhiteSpace(options.Sender.Address) &&
-        !string.IsNullOrWhiteSpace(options.Sender.MobileNo) &&
-        !string.IsNullOrWhiteSpace(options.Sender.TelephoneNo);
+    private static bool IsSenderConfigured(PostexSenderOptions sender) =>
+        sender.CityId > 0 &&
+        !string.IsNullOrWhiteSpace(sender.Address) &&
+        !string.IsNullOrWhiteSpace(sender.MobileNo) &&
+        !string.IsNullOrWhiteSpace(sender.TelephoneNo);
 
     private long ResolveDeclaredValueIrr(ShipmentParcelDetails parcel)
     {
@@ -138,10 +139,10 @@ public sealed class PostexShipmentClient(HttpClient http, PostexOptions options)
         return Math.Max(1, options.DefaultParcelValueIrr);
     }
 
-    private object BuildBulkBody(ShipmentCreateRequest request, int toCityId)
+    private object BuildBulkBody(
+        ShipmentCreateRequest request, int toCityId, PostexSenderOptions sender)
     {
         var (firstName, lastName) = SplitName(request.Recipient.FullName);
-        var sender = options.Sender;
         var (senderFirst, senderLast) = (
             string.IsNullOrWhiteSpace(sender.FirstName) ? "فرستنده" : sender.FirstName.Trim(),
             string.IsNullOrWhiteSpace(sender.LastName) ? "شرکت" : sender.LastName.Trim());

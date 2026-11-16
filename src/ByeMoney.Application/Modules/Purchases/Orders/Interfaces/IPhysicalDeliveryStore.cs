@@ -20,6 +20,9 @@ public interface IPhysicalDeliveryStore
     /// <summary>نسخهٔ ثابت آدرس تحویل سبد؛ برای ساخت مرسوله نزد واسط پستی.</summary>
     Task<ShippingAddress?> GetCartShippingAddressAsync(Guid cartId, CancellationToken ct);
 
+    /// <summary>شناسهٔ مبدأ فریزشدهٔ سبد؛ باید با پروفایل فرستندهٔ واسط یکی باشد.</summary>
+    Task<string?> GetCartShippingOriginIdAsync(Guid cartId, CancellationToken ct);
+
     /// <summary>
     /// قلم‌های Shipped با زمان ارسال تا <paramref name="shippedAtOrBeforeUtc"/>؛ قدیمی‌ترها اول برمی‌گردند.
     /// <paramref name="providers"/> کلیدهای منبع برای استعلام بیرونی است؛ فهرست خالی یعنی همهٔ منابع.

@@ -333,7 +333,7 @@
 ### ۸.۲. اسلایس ب: ساخت مرسوله با وب‌سرویس (`SHIP-TRACKING-B` — اجرا ۲۰۲۶-۱۱-۱۵)
 ساخت از پورت عمومی `IShipmentProviderClient` و پیاده‌سازی `PostexShipmentClient` است (افزودن واسط بعدی فقط یک کلاینت تازه):
 1. اول `GET /api/v1/parcels/custom-order-no/{custom-order-no}` برای idempotency؛ اگر نبود `POST /api/v1/parcels/bulk`.
-2. **فرستنده:** تنظیمات `Postex:Sender`؛ مبدأ پیش‌فرض رامسر (`city_id=573`).
+2. **فرستنده:** پروفایل مبدأ از `Postex:Origins[{shippingOriginId}]` (شناسهٔ فریزشدهٔ سبد، مشترک با استرپی؛ مثل `ramsar` با `city_id=573`). سازگاری عقب‌رو: اگر `Origins` خالی باشد، `Postex:Sender` قدیمی به‌عنوان `ramsar` نقشه‌برداری می‌شود.
 3. **گیرنده:** نسخهٔ ثابت آدرس سبد بای‌مانی؛ `city_id` با جست‌وجوی نام شهر در `locality/cities/all`.
 4. **بسته:** وزن/ارزش/جعبه از پیش‌فرض‌های `Postex` وقتی فراخواننده صفر بفرستد؛ کوریر پیش‌فرض `IR_POST`/`EXPRESS`.
 5. **`custom_order_no`:** `BM-{PurchaseId:N}`؛ کلید در سطح بای‌مانی یکتا است چون پستکس تکرار را مسدود نمی‌کند.

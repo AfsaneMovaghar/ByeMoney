@@ -71,7 +71,7 @@ public sealed class CartPricingClientTests
     }
 
     private const string ProductItemJson = """{"externalCourseId":"p","type":"product","title":"Book","basePriceInNoor":10,"itemDiscountInNoor":0,"couponDiscountInNoor":0,"priceInNoor":10}""";
-    private const string FullAddressJson = """ "addressSnapshot":{"province":"P","city":"C","postalCode":null,"fullAddress":"Street 1","recipientName":"R","recipientPhone":"09120000000"},"addressVersion":"abc123" """;
+    private const string FullAddressJson = """ "addressSnapshot":{"province":"P","city":"C","postalCode":null,"fullAddress":"Street 1","recipientName":"R","recipientPhone":"09120000000"},"addressVersion":"abc123","shippingOriginId":"ramsar" """;
 
     [Fact]
     public async Task ProductQuoteCarriesAddressSnapshotAndVersion()
@@ -84,15 +84,17 @@ public sealed class CartPricingClientTests
         result.IsSuccess.Should().BeTrue();
         result.Value.ShippingAddress.Should().Be(
             new ShippingAddress("abc123", "P", "C", null, "Street 1", "R", "09120000000"));
+        result.Value.ShippingOriginId.Should().Be("ramsar");
     }
 
     [Theory]
     [InlineData("")]
     [InlineData(""" "addressSnapshot":null,"addressVersion":null """)]
-    [InlineData(""" "addressSnapshot":{"province":"P","city":"C","fullAddress":"Street 1","recipientName":"R","recipientPhone":"09120000000"},"addressVersion":null """)]
-    [InlineData(""" "addressSnapshot":{"province":"P","city":" ","fullAddress":"Street 1","recipientName":"R","recipientPhone":"09120000000"},"addressVersion":"abc123" """)]
-    [InlineData(""" "addressSnapshot":{"province":"P","city":"C","fullAddress":"Street 1","recipientName":"R"},"addressVersion":"abc123" """)]
-    public async Task ProductQuoteWithoutCompleteAddressAndVersionIsInvalid(string addressJson)
+    [InlineData(""" "addressSnapshot":{"province":"P","city":"C","fullAddress":"Street 1","recipientName":"R","recipientPhone":"09120000000"},"addressVersion":null,"shippingOriginId":"ramsar" """)]
+    [InlineData(""" "addressSnapshot":{"province":"P","city":" ","fullAddress":"Street 1","recipientName":"R","recipientPhone":"09120000000"},"addressVersion":"abc123","shippingOriginId":"ramsar" """)]
+    [InlineData(""" "addressSnapshot":{"province":"P","city":"C","fullAddress":"Street 1","recipientName":"R"},"addressVersion":"abc123","shippingOriginId":"ramsar" """)]
+    [InlineData(""" "addressSnapshot":{"province":"P","city":"C","postalCode":null,"fullAddress":"Street 1","recipientName":"R","recipientPhone":"09120000000"},"addressVersion":"abc123" """)]
+    public async Task ProductQuoteWithoutCompleteAddressVersionOrOriginIsInvalid(string addressJson)
     {
         var client = Client(new CapturingHandler(QuoteJson(ProductItemJson, addressJson)));
 
@@ -124,8 +126,11 @@ public sealed class CartPricingClientTests
         var act = () => cart.SetQuote([selfParent]);
 
         act.Should().Throw<ArgumentException>();
-        cart.SetQuote([selfParent with { ParentExternalId = "bundle" }]);
+        cart.SetQuote(
+            [selfParent with { ParentExternalId = "bundle" }],
+            shippingOriginId: "ramsar");
         cart.Items.Single().ParentExternalId.Should().Be("bundle");
+        cart.ShippingOriginId.Should().Be("ramsar");
     }
 
     [Fact]

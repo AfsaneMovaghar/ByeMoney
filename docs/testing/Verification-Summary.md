@@ -201,4 +201,12 @@
 
 - تغییر (استرپی): `shipping-setting` فیلدهای `costMode` (`fixed`|`postex`) و `rialPerNoorForShipping`؛ `cartShipping` در mode پستکس از `postexShippingQuote` با `POST /api/v1/shipping/quotes` (مبدأ رامسر ۵۷۳، کوریر `IR_POST`/`EXPRESS`) مبلغ `total_cost` را می‌گیرد، به نور صحیح سقف می‌کند و آستانهٔ رایگان را پیش از فراخوانی اعمال می‌کند؛ بدون کلید یا خطای پستکس → `CART_CONFLICT`. بای‌مانی و فرانت قرارداد `shippingAmountInNoor`/`shippingRuleLabel` را عوض نکردند.
 - آزمون: Jest `tests/services/cartShipping.test.js` و `postexShippingQuote.test.js` — ۹ موفق.
-- محدودیت: استعلام زنده با کلید واقعی و پذیرش سبد فیزیکی در mode پستکس باقی است؛ چند مبدأ در SHIP-MULTI-ORIGIN.
+- محدودیت: استعلام زنده با کلید واقعی و پذیرش سبد فیزیکی در mode پستکس باقی است؛ چند مبدأ در SHIP-MULTI-ORIGIN (انجام‌شده؛ مبدأ ثابت رامسر برداشته شد).
+
+## SHIP-MULTI-ORIGIN — چند مبدأ/انبار ارسال — ۱۶ نوامبر ۲۰۲۶
+
+- تغییر (استرپی): نوع محتوای `shipping-origin`؛ فیلد رابطه‌ای `shippingOrigin` روی کالا؛ `resolveCartOrigin` در prepare؛ quote پستکس `from_city` را از مبدأ کالا می‌گیرد؛ پاسخ prepare فیلدهای `shippingOriginId`/`shippingOriginLabel`؛ bootstrap مبدأ پیش‌فرض `ramsar`؛ چند مبدأ در یک سبد → `CART_CONFLICT`.
+- تغییر (بای‌مانی): ستون nullable `ShippingOriginId` روی `Carts`؛ فریز از prepare؛ `Postex:Origins` keyed (با سازگاری `Sender`→`ramsar`)؛ ساخت مرسوله پروفایل همان مبدأ فریزشده را می‌فرستد؛ نبود مبدأ → خطای صریح. فرانت تغییری نکرد (Content-Manager کافی است).
+- اسناد: I09-PH، D08/هزینه ارسال، Postex_API هم‌تراز شد.
+- آزمون: Jest استرپی `cartShipping` + `postexShippingQuote` + `shippingOrigins` — ۱۵ موفق. بای‌مانی (با `-o .artifacts/ship-multi-origin-test` به‌خاطر قفل DLL توسط API در حال اجرا): `CartPricingClientTests` + `CreatePhysicalShipmentTests` + `CartTests` — ۴۲ موفق ۰ ناموفق. migration `AddCartShippingOriginId` روی دیتابیس توسعه اعمال شد.
+- محدودیت: پذیرش دستی تخصیص مبدأ به کالا و مرسولهٔ واقعی در TASKS بخش «نیازمند تست دستی».

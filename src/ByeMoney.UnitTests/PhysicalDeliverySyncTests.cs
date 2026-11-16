@@ -205,6 +205,9 @@ public sealed class PhysicalDeliverySyncTests
         public Task<ShippingAddress?> GetCartShippingAddressAsync(Guid cartId, CancellationToken ct) =>
             Task.FromResult<ShippingAddress?>(null);
 
+        public Task<string?> GetCartShippingOriginIdAsync(Guid cartId, CancellationToken ct) =>
+            Task.FromResult<string?>(null);
+
         public Task<IReadOnlyList<PhysicalDeliveryCandidate>> GetShippedAsync(
             DateTime shippedAtOrBeforeUtc, IReadOnlyCollection<string> providers, int limit, CancellationToken ct)
         {

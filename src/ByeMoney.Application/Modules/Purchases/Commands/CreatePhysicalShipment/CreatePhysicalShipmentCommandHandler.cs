@@ -57,8 +57,14 @@ public sealed class CreatePhysicalShipmentCommandHandler(
             throw new DomainException(OrderErrors.ShipmentAddressRequired);
         }
 
+        var originId = await deliveryStore.GetCartShippingOriginIdAsync(owner.CartId, ct);
+        if (string.IsNullOrWhiteSpace(originId))
+        {
+            throw new DomainException(OrderErrors.ShipmentOriginRequired);
+        }
+
         var createResult = await client.CreateOrGetParcelAsync(
-            BuildRequest(purchase, address), ct);
+            BuildRequest(purchase, address, originId), ct);
 
         if (createResult.Outcome is ShipmentCreateOutcome.Failed or ShipmentCreateOutcome.NotConfigured ||
             string.IsNullOrWhiteSpace(createResult.ProviderParcelId))
@@ -121,7 +127,7 @@ public sealed class CreatePhysicalShipmentCommandHandler(
     }
 
     private static ShipmentCreateRequest BuildRequest(
-        PhysicalProductPurchase purchase, ShippingAddress address)
+        PhysicalProductPurchase purchase, ShippingAddress address, string originId)
     {
         // کلید یکتا در سطح بای‌مانی؛ پستکس خودش تکرار را مسدود نمی‌کند.
         // وزن و ارزش اظهارشدهٔ صفر = کلاینت واسط از پیش‌فرض تنظیمات خودش استفاده می‌کند.
@@ -145,6 +151,7 @@ public sealed class CreatePhysicalShipmentCommandHandler(
                 WeightGrams: 0,
                 DeclaredValueMinorUnits: 0,
                 CurrencyCode: "IRR"),
-            Remark: $"ByeMoney purchase {purchase.Id.Value:N}");
+            Remark: $"ByeMoney purchase {purchase.Id.Value:N}",
+            OriginId: originId.Trim());
     }
 }

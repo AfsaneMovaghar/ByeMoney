@@ -8,6 +8,8 @@ public sealed class PostexOptions
 {
     public const string SectionName = "Postex";
 
+    public const string DefaultOriginId = "ramsar";
+
     public bool Enabled { get; set; }
 
     public string BaseUrl { get; set; } = "https://api.postex.ir/";
@@ -38,10 +40,44 @@ public sealed class PostexOptions
     /// <summary>اگر false باشد مرسوله بدون اعلام آمادگی جمع‌آوری ثبت می‌شود.</summary>
     public bool ReadyToAccept { get; set; }
 
-    public PostexSenderOptions Sender { get; set; } = new();
+    /// <summary>
+    /// پروفایل‌های مبدأ/فرستنده با شناسهٔ پایدار مشترک با استرپی (مثل <c>ramsar</c>).
+    /// </summary>
+    public Dictionary<string, PostexSenderOptions> Origins { get; set; } =
+        new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// سازگاری عقب‌رو: اگر <see cref="Origins"/> خالی باشد، همین پروفایل به‌عنوان <c>ramsar</c> استفاده می‌شود.
+    /// </summary>
+    public PostexSenderOptions? Sender { get; set; }
+
+    public PostexSenderOptions? ResolveOrigin(string? originId)
+    {
+        EnsureLegacySenderMapped();
+        if (string.IsNullOrWhiteSpace(originId))
+        {
+            return null;
+        }
+
+        return Origins.TryGetValue(originId.Trim(), out var profile) ? profile : null;
+    }
+
+    public void EnsureLegacySenderMapped()
+    {
+        Origins ??= new Dictionary<string, PostexSenderOptions>(StringComparer.OrdinalIgnoreCase);
+        if (Origins.Count > 0 || Sender is null)
+        {
+            return;
+        }
+
+        if (Sender.CityId > 0)
+        {
+            Origins[DefaultOriginId] = Sender;
+        }
+    }
 }
 
-/// <summary>فرستندهٔ ثابت شرکت؛ مبدأ پیش‌فرض رامسر (city_id=573).</summary>
+/// <summary>پروفایل فرستنده/مبدأ برای یک انبار؛ city_id پستکس باید با مبدأ استرپی یکی باشد.</summary>
 public sealed class PostexSenderOptions
 {
     public string FirstName { get; set; } = "خاک";
@@ -58,14 +94,14 @@ public sealed class PostexSenderOptions
 
     public string Address { get; set; } = "رامسر";
 
-    /// <summary>کد شهر پستکس برای رامسر.</summary>
+    /// <summary>کد شهر پستکس مبدأ.</summary>
     public int CityId { get; set; } = 573;
 
     public string CityName { get; set; } = "رامسر";
 
     public string? PostCode { get; set; }
 
-    /// <summary>فقط مرجع آزمون مسیر رامسر←مشهد؛ مقصد واقعی از آدرس سبد می‌آید.</summary>
+    /// <summary>فقط مرجع آزمون مسیر مبدأ←مقصد؛ مقصد واقعی از آدرس سبد می‌آید.</summary>
     public int TestDestinationCityId { get; set; } = 259;
 
     public string TestDestinationCityName { get; set; } = "مشهد";
