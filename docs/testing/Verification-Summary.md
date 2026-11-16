@@ -196,3 +196,9 @@
 - تغییر: `PostexStatusParser` فقط با `parent.code`/`status_code` تصمیم می‌گیرد (استثناهای ۱۱۳۱۱ و ۱۱۳۱۰ در مسیر می‌مانند). پورت عمومی `IShipmentProviderClient` و پیاده‌سازی `PostexShipmentClient` (اول خواندن `custom-order-no`، بعد `bulk`؛ مبدأ رامسر city_id=۵۷۳؛ نگاشت شهر گیرنده از `cities/all`). فرمان/اندپوینت ادمین `POST /api/admin/physical-purchases/{id}/shipments`؛ فرانت دکمهٔ «ثبت مرسوله در واسط پستی». انتخاب هزینهٔ ثابت/پستکس اسلایس جدا (`SHIP-COST-MODE`).
 - آزمون: `dotnet test` کامل ۶۶۵ موفق و ۰ ناموفق (شامل `ShipTrackingTests`، `CreatePhysicalShipmentTests`، `PhysicalDeliverySyncTests`). فرانت `PhysicalDeliveryControl.test.jsx` ۷ موفق. استعلام زندهٔ مرسولهٔ تستی با کلید Development: HTTP ۲۰۰ و وضعیت `PAYMENT_PENDING` → InTransit.
 - محدودیت: ساخت مرسوله روی قلم Preparing واقعی و پذیرش مرورگر/Swagger و مرسولهٔ Delivered هنوز باز است؛ بارکد تا پرداخت کیف‌پول پستکس ممکن است ماسک بماند.
+
+## SHIP-COST-MODE — هزینهٔ ثابت یا برآورد پستکس — ۱۵ نوامبر ۲۰۲۶
+
+- تغییر (استرپی): `shipping-setting` فیلدهای `costMode` (`fixed`|`postex`) و `rialPerNoorForShipping`؛ `cartShipping` در mode پستکس از `postexShippingQuote` با `POST /api/v1/shipping/quotes` (مبدأ رامسر ۵۷۳، کوریر `IR_POST`/`EXPRESS`) مبلغ `total_cost` را می‌گیرد، به نور صحیح سقف می‌کند و آستانهٔ رایگان را پیش از فراخوانی اعمال می‌کند؛ بدون کلید یا خطای پستکس → `CART_CONFLICT`. بای‌مانی و فرانت قرارداد `shippingAmountInNoor`/`shippingRuleLabel` را عوض نکردند.
+- آزمون: Jest `tests/services/cartShipping.test.js` و `postexShippingQuote.test.js` — ۹ موفق.
+- محدودیت: استعلام زنده با کلید واقعی و پذیرش سبد فیزیکی در mode پستکس باقی است؛ چند مبدأ در SHIP-MULTI-ORIGIN.
