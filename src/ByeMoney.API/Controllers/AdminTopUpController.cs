@@ -2,7 +2,6 @@ using ByeMoney.API.Contracts.TopUp;
 using ByeMoney.Application.Modules.Identity.Queries.GetUserPermissions;
 using ByeMoney.Application.Modules.Wallet.Commands.ConfirmTopUp;
 using ByeMoney.Application.Modules.Wallet.Commands.RejectTopUp;
-using ByeMoney.Application.Modules.Wallet.Queries.GetTopUpByClientReferenceCode;
 using ByeMoney.Domain.Common;
 using ByeMoney.Domain.Modules.Identity.Constants;
 using ByeMoney.Domain.Modules.Wallet.TopUps;
@@ -33,20 +32,6 @@ public class AdminTopUpController(ISender sender) : ControllerBase
 
         var result = await _sender.Send(new GetUserPermissionsQuery(externalUserId), ct);
         return result is null ? Unauthorized() : Ok(result);
-    }
-
-    /// <summary>
-    /// جست‌وجوی درخواست شارژ با کد پیگیری.
-    /// </summary>
-    [HttpGet("by-reference/{clientReferenceCode}")]
-    [Authorize(Policy = PolicyNames.RequireTopUpReview)]
-    public async Task<IActionResult> GetByClientReferenceCode(
-        string clientReferenceCode, CancellationToken ct)
-    {
-        var result = await _sender.Send(
-            new GetTopUpByClientReferenceCodeQuery(clientReferenceCode), ct);
-
-        return result is null ? NotFound() : Ok(result);
     }
 
     /// <summary>

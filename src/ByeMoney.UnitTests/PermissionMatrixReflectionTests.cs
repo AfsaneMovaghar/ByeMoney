@@ -35,7 +35,7 @@ public class PermissionMatrixReflectionTests
     [Fact]
     public void AllControllers_MustNotUseRolesDirectly()
     {
-        var controllerTypes = typeof(ByeMoney.API.Controllers.AdminCoursesController).Assembly
+        var controllerTypes = typeof(ByeMoney.API.Controllers.AdminCartOrdersController).Assembly
             .GetTypes()
             .Where(t => t.IsClass && !t.IsAbstract && typeof(ControllerBase).IsAssignableFrom(t))
             .ToList();
@@ -82,7 +82,7 @@ public class PermissionMatrixReflectionTests
     private static List<EndpointAuthInfo> ExtractEndpointsFromControllers()
     {
         var result = new List<EndpointAuthInfo>();
-        var controllerTypes = typeof(ByeMoney.API.Controllers.AdminCoursesController).Assembly
+        var controllerTypes = typeof(ByeMoney.API.Controllers.AdminCartOrdersController).Assembly
             .GetTypes()
             .Where(t => t.IsClass && !t.IsAbstract && typeof(ControllerBase).IsAssignableFrom(t))
             .OrderBy(t => t.Name)
