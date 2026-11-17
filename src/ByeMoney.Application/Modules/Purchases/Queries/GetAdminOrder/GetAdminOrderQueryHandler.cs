@@ -36,7 +36,8 @@ public sealed class GetAdminOrderQueryHandler(IOrderReader reader, ICurrentUserS
             row.Details,
             MapShippingAddress(cart),
             createdByAdmin,
-            cart?.AdminFreeReason);
+            cart?.AdminFreeReason,
+            MapShippingOrigin(cart));
     }
 
     private static OrderShippingAddress? MapShippingAddress(Cart? cart)
@@ -52,5 +53,15 @@ public sealed class GetAdminOrderQueryHandler(IOrderReader reader, ICurrentUserS
                 address.FullAddress,
                 address.RecipientName,
                 address.RecipientPhone);
+    }
+
+    private static ShippingOriginView? MapShippingOrigin(Cart? cart)
+    {
+        if (string.IsNullOrWhiteSpace(cart?.ShippingOriginId))
+        {
+            return null;
+        }
+
+        return new ShippingOriginView(cart.ShippingOriginId, cart.ShippingOriginLabel);
     }
 }

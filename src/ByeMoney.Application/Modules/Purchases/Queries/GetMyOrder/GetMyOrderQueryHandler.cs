@@ -21,13 +21,14 @@ public sealed class GetMyOrderQueryHandler(IOrderReader reader, ICurrentUserServ
         var details = OrderMapping.Build(snapshot).SingleOrDefault(row => row.Details.OrderId == request.OrderId)?.Details
             ?? throw new NotFoundException(OrderErrors.NotFound);
 
-        return new MyOrderDetails(details, FindShippingAddress(snapshot, details));
+        var cart = OrderShippingAddressFinder.FindCart(snapshot, details);
+        var paid = cart?.Status == CartStatus.Paid ? cart : null;
+        return new MyOrderDetails(details, FindShippingAddress(paid), MapShippingOrigin(paid));
     }
 
-    private static MyOrderShippingAddress? FindShippingAddress(OrderSnapshot snapshot, OrderDetails details)
+    private static MyOrderShippingAddress? FindShippingAddress(Cart? cart)
     {
-        var cart = OrderShippingAddressFinder.FindCart(snapshot, details);
-        var address = cart?.Status == CartStatus.Paid ? cart.ShippingAddress : null;
+        var address = cart?.ShippingAddress;
         return address is null
             ? null
             : new MyOrderShippingAddress(
@@ -37,5 +38,15 @@ public sealed class GetMyOrderQueryHandler(IOrderReader reader, ICurrentUserServ
                 address.City,
                 address.FullAddress,
                 address.PostalCode);
+    }
+
+    private static ShippingOriginView? MapShippingOrigin(Cart? cart)
+    {
+        if (string.IsNullOrWhiteSpace(cart?.ShippingOriginId))
+        {
+            return null;
+        }
+
+        return new ShippingOriginView(cart.ShippingOriginId, cart.ShippingOriginLabel);
     }
 }

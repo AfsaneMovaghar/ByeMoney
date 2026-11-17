@@ -75,7 +75,10 @@ public static class AddPostexIntegrationModule
         services.AddTransient<IShipmentProviderClient>(sp =>
         {
             var factory = sp.GetRequiredService<IHttpClientFactory>();
-            return new PostexShipmentClient(factory.CreateClient(HttpClientName), sp.GetRequiredService<PostexOptions>());
+            return new PostexShipmentClient(
+                factory.CreateClient(HttpClientName),
+                sp.GetRequiredService<PostexOptions>(),
+                sp.GetRequiredService<IDeliveryCityCodeReader>());
         });
 
         return services;

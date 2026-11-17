@@ -1,8 +1,8 @@
 namespace ByeMoney.Application.Modules.Purchases.Delivery.Interfaces;
 
 /// <summary>
-/// طرف ارسال/دریافت مرسوله به زبان دامنه؛ نگاشت به کد شهر یا شناسهٔ محلی هر واسط
-/// داخل همان پیاده‌سازی انجام می‌شود تا افزودن واسط تازه فقط یک کلاینت بخواهد.
+/// طرف ارسال/دریافت مرسوله. نام شهر برای نمایش و بدنهٔ واسط است.
+/// <c>CityDocumentId</c> شناسهٔ ردیف شهر خودمان است و فقط برای خواندن کد حامل به کار می‌رود؛ کد حامل اینجا نیست.
 /// </summary>
 public sealed record ShipmentParty(
     string FullName,
@@ -13,7 +13,8 @@ public sealed record ShipmentParty(
     string Address,
     string CityName,
     string ProvinceName,
-    string? PostalCode);
+    string? PostalCode,
+    string? CityDocumentId = null);
 
 /// <summary>مشخصات بسته؛ واحد وزن گرم و ارزش اظهارشده به واحد پول همان واسط است.</summary>
 public sealed record ShipmentParcelDetails(

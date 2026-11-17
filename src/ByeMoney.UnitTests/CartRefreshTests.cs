@@ -185,8 +185,8 @@ public sealed class CartRefreshTests
             .Callback(() => cart.Reopen())
             .ReturnsAsync(Result<Cart>.Success(cart));
 
-        _store.Setup(x => x.SetQuoteAsync(cart.Id, _buyer.Id.Value, It.IsAny<IReadOnlyList<CartQuoteItem>>(), It.IsAny<decimal>(), It.IsAny<string?>(), It.IsAny<ShippingAddress?>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
-            .Callback((Guid _, Guid _, IReadOnlyList<CartQuoteItem> items, decimal sAmt, string? sRule, ShippingAddress? addr, Guid res, CancellationToken _) => cart.SetQuote(items, sAmt, sRule, addr))
+        _store.Setup(x => x.SetQuoteAsync(cart.Id, _buyer.Id.Value, It.IsAny<IReadOnlyList<CartQuoteItem>>(), It.IsAny<decimal>(), It.IsAny<string?>(), It.IsAny<ShippingAddress?>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .Callback((Guid _, Guid _, IReadOnlyList<CartQuoteItem> items, decimal sAmt, string? sRule, ShippingAddress? addr, string? originId, string? originLabel, Guid _, CancellationToken _) => cart.SetQuote(items, sAmt, sRule, addr, originId, originLabel))
             .ReturnsAsync(cart);
 
         _pricing.Setup(x => x.PrepareAsync(It.IsAny<CartQuoteRequest>(), It.IsAny<CancellationToken>()))
@@ -244,8 +244,8 @@ public sealed class CartRefreshTests
             .Callback(() => cart.Reopen())
             .ReturnsAsync(Result<Cart>.Success(cart));
 
-        _store.Setup(x => x.SetQuoteAsync(cart.Id, _buyer.Id.Value, It.IsAny<IReadOnlyList<CartQuoteItem>>(), It.IsAny<decimal>(), It.IsAny<string?>(), It.IsAny<ShippingAddress?>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
-            .Callback((Guid _, Guid _, IReadOnlyList<CartQuoteItem> items, decimal sAmt, string? sRule, ShippingAddress? addr, Guid res, CancellationToken _) => cart.SetQuote(items, sAmt, sRule, addr))
+        _store.Setup(x => x.SetQuoteAsync(cart.Id, _buyer.Id.Value, It.IsAny<IReadOnlyList<CartQuoteItem>>(), It.IsAny<decimal>(), It.IsAny<string?>(), It.IsAny<ShippingAddress?>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .Callback((Guid _, Guid _, IReadOnlyList<CartQuoteItem> items, decimal sAmt, string? sRule, ShippingAddress? addr, string? originId, string? originLabel, Guid _, CancellationToken _) => cart.SetQuote(items, sAmt, sRule, addr, originId, originLabel))
             .ReturnsAsync(cart);
 
         _pricing.Setup(x => x.PrepareAsync(It.IsAny<CartQuoteRequest>(), It.IsAny<CancellationToken>()))

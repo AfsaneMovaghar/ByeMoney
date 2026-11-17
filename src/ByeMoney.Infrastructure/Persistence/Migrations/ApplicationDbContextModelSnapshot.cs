@@ -346,6 +346,10 @@ namespace ByeMoney.Infrastructure.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
 
+                    b.Property<string>("ShippingOriginLabel")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
                     b.Property<string>("ShippingRuleLabel")
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
@@ -1541,6 +1545,10 @@ namespace ByeMoney.Infrastructure.Migrations
                                 .IsRequired()
                                 .HasMaxLength(100)
                                 .HasColumnType("character varying(100)");
+
+                            b1.Property<string>("CityDocumentId")
+                                .HasMaxLength(64)
+                                .HasColumnType("character varying(64)");
 
                             b1.Property<string>("FullAddress")
                                 .IsRequired()

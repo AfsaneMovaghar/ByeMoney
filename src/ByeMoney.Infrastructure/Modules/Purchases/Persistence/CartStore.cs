@@ -118,12 +118,12 @@ public sealed class CartStore(IServiceScopeFactory scopes) : ICartStore
     });
 
     public Task<Cart> SetQuoteAsync(Guid id, Guid buyerId, IReadOnlyList<CartQuoteItem> items, Guid reservationId, CancellationToken ct) =>
-        SetQuoteAsync(id, buyerId, items, 0m, null, null, null, reservationId, ct);
+        SetQuoteAsync(id, buyerId, items, 0m, null, null, null, null, reservationId, ct);
 
     public Task<Cart> SetQuoteAsync(Guid id, Guid buyerId, IReadOnlyList<CartQuoteItem> items, decimal shippingAmountInNoor, string? shippingRuleLabel, ShippingAddress? shippingAddress, Guid reservationId, CancellationToken ct) =>
-        SetQuoteAsync(id, buyerId, items, shippingAmountInNoor, shippingRuleLabel, shippingAddress, null, reservationId, ct);
+        SetQuoteAsync(id, buyerId, items, shippingAmountInNoor, shippingRuleLabel, shippingAddress, null, null, reservationId, ct);
 
-    public Task<Cart> SetQuoteAsync(Guid id, Guid buyerId, IReadOnlyList<CartQuoteItem> items, decimal shippingAmountInNoor, string? shippingRuleLabel, ShippingAddress? shippingAddress, string? shippingOriginId, Guid reservationId, CancellationToken ct) => Run(async (_, db) =>
+    public Task<Cart> SetQuoteAsync(Guid id, Guid buyerId, IReadOnlyList<CartQuoteItem> items, decimal shippingAmountInNoor, string? shippingRuleLabel, ShippingAddress? shippingAddress, string? shippingOriginId, string? shippingOriginLabel, Guid reservationId, CancellationToken ct) => Run(async (_, db) =>
     {
         await using var tx = await db.Database.BeginTransactionAsync(ct);
         await Lock(db, id, ct);
@@ -131,7 +131,7 @@ public sealed class CartStore(IServiceScopeFactory scopes) : ICartStore
         var cart = await db.Set<Cart>().SingleAsync(x => x.Id == id && x.BuyerId == new UserId(buyerId), ct);
         if (cart.ReservationId == reservationId)
         {
-            cart.SetQuote(items, shippingAmountInNoor, shippingRuleLabel, shippingAddress, shippingOriginId);
+            cart.SetQuote(items, shippingAmountInNoor, shippingRuleLabel, shippingAddress, shippingOriginId, shippingOriginLabel);
         }
 
         await db.SaveChangesAsync(ct);

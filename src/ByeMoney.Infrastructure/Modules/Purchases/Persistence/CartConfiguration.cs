@@ -22,6 +22,7 @@ public sealed class CartConfiguration : IEntityTypeConfiguration<Cart>
         b.Property(x => x.ShippingAmountInNoor).HasPrecision(18, 4).HasDefaultValue(0m);
         b.Property(x => x.ShippingRuleLabel).HasMaxLength(200);
         b.Property(x => x.ShippingOriginId).HasMaxLength(Cart.ShippingOriginIdMaxLength);
+        b.Property(x => x.ShippingOriginLabel).HasMaxLength(Cart.ShippingOriginLabelMaxLength);
         b.Property(x => x.AdminFreeReason).HasMaxLength(Cart.AdminFreeReasonMaxLength);
         b.Ignore(x => x.IsAdminFree);
         b.OwnsOne(x => x.ShippingAddress, address =>
@@ -33,6 +34,7 @@ public sealed class CartConfiguration : IEntityTypeConfiguration<Cart>
             address.Property(x => x.FullAddress).HasMaxLength(ShippingAddress.FullAddressMaxLength);
             address.Property(x => x.RecipientName).HasMaxLength(ShippingAddress.RecipientNameMaxLength);
             address.Property(x => x.RecipientPhone).HasMaxLength(ShippingAddress.RecipientPhoneMaxLength);
+            address.Property(x => x.CityDocumentId).HasMaxLength(ShippingAddress.CityDocumentIdMaxLength);
         });
         b.OwnsMany(x => x.Items, items =>
         {

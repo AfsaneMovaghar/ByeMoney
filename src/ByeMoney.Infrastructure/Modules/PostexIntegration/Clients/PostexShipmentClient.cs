@@ -2,19 +2,20 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using ByeMoney.Application.Modules.Purchases.Delivery.Interfaces;
+using ByeMoney.Application.Resources;
 using ByeMoney.Domain.Modules.Purchases;
 
 namespace ByeMoney.Infrastructure.Modules.PostexIntegration.Clients;
 
 /// <summary>
 /// ساخت مرسوله در پستکس: اول خواندن با <c>custom-order-no</c>، بعد <c>parcels/bulk</c>.
-/// نگاشت نام شهر گیرنده به <c>city_id</c> داخل همین کلاینت است تا واسط بعدی نگاشت خودش را داشته باشد.
+/// کد شهر گیرنده از جدول محل خوانده می‌شود و از فهرست شهر پستکس پیدا نمی‌شود.
 /// </summary>
-public sealed class PostexShipmentClient(HttpClient http, PostexOptions options) : IShipmentProviderClient
+public sealed class PostexShipmentClient(
+    HttpClient http,
+    PostexOptions options,
+    IDeliveryCityCodeReader cityCodes) : IShipmentProviderClient
 {
-    private readonly SemaphoreSlim _cityCacheLock = new(1, 1);
-    private Dictionary<string, int>? _cityIdsByName;
-
     public string Provider => PhysicalProductPurchase.PostexProvider;
 
     public bool IsConfigured => options.Enabled && !string.IsNullOrWhiteSpace(options.ApiKey);
@@ -40,11 +41,17 @@ public sealed class PostexShipmentClient(HttpClient http, PostexOptions options)
             return existing with { Outcome = ShipmentCreateOutcome.AlreadyExists };
         }
 
-        var cityId = await ResolveCityIdAsync(request.Recipient.CityName, request.Recipient.ProvinceName, ct);
-        if (cityId is null)
+        var cityCode = await cityCodes.ReadAsync(
+            request.Recipient.CityDocumentId,
+            request.Recipient.ProvinceName,
+            request.Recipient.CityName,
+            ct);
+        if (cityCode.Status != DeliveryCityCodeStatus.Found || cityCode.Code is not int cityId || cityId <= 0)
         {
             return new ShipmentCreateResult(ShipmentCreateOutcome.Failed,
-                ErrorMessage: $"شهر گیرنده «{request.Recipient.CityName}» در فهرست پستکس یافت نشد.");
+                ErrorMessage: cityCode.Status == DeliveryCityCodeStatus.Unavailable
+                    ? OrderErrors.ShipmentCityUnavailable
+                    : OrderErrors.ShipmentCityNotFound);
         }
 
         var sender = options.ResolveOrigin(request.OriginId);
@@ -57,7 +64,7 @@ public sealed class PostexShipmentClient(HttpClient http, PostexOptions options)
         try
         {
             using var response = await http.PostAsJsonAsync(
-                "api/v1/parcels/bulk", BuildBulkBody(request, cityId.Value, sender), ct);
+                "api/v1/parcels/bulk", BuildBulkBody(request, cityId, sender), ct);
             var body = await response.Content.ReadAsStringAsync(ct);
 
             if (response.StatusCode == HttpStatusCode.PaymentRequired)
@@ -335,89 +342,6 @@ public sealed class PostexShipmentClient(HttpClient http, PostexOptions options)
         !string.IsNullOrWhiteSpace(tracking) &&
         tracking.Any(char.IsLetterOrDigit) &&
         !tracking.All(ch => ch == '*');
-
-    private async Task<int?> ResolveCityIdAsync(string cityName, string provinceName, CancellationToken ct)
-    {
-        var map = await GetCityMapAsync(ct);
-        var cityKey = NormalizeName(cityName);
-        if (map.TryGetValue(cityKey, out var id))
-        {
-            return id;
-        }
-
-        // بعضی آدرس‌ها «مشهد مقدس» دارند؛ پیشوند نام شهر را هم امتحان می‌کنیم.
-        var provinceKey = NormalizeName(provinceName);
-        foreach (var pair in map)
-        {
-            if (pair.Key.StartsWith(cityKey, StringComparison.Ordinal) ||
-                cityKey.StartsWith(pair.Key, StringComparison.Ordinal))
-            {
-                return pair.Value;
-            }
-        }
-
-        _ = provinceKey;
-        return null;
-    }
-
-    private async Task<Dictionary<string, int>> GetCityMapAsync(CancellationToken ct)
-    {
-        if (_cityIdsByName is not null)
-        {
-            return _cityIdsByName;
-        }
-
-        await _cityCacheLock.WaitAsync(ct);
-        try
-        {
-            if (_cityIdsByName is not null)
-            {
-                return _cityIdsByName;
-            }
-
-            using var response = await http.GetAsync("api/v1/locality/cities/all", ct);
-            response.EnsureSuccessStatusCode();
-            await using var stream = await response.Content.ReadAsStreamAsync(ct);
-            using var document = await JsonDocument.ParseAsync(stream, cancellationToken: ct);
-
-            var map = new Dictionary<string, int>(StringComparer.Ordinal);
-            foreach (var province in document.RootElement.EnumerateArray())
-            {
-                if (!province.TryGetProperty("cities", out var cities) ||
-                    cities.ValueKind != JsonValueKind.Array)
-                {
-                    continue;
-                }
-
-                foreach (var city in cities.EnumerateArray())
-                {
-                    var name = ReadString(city, "name");
-                    if (string.IsNullOrWhiteSpace(name))
-                    {
-                        continue;
-                    }
-
-                    var id = city.TryGetProperty("id", out var idProperty) && idProperty.TryGetInt32(out var cityId)
-                        ? cityId
-                        : 0;
-                    if (id > 0)
-                    {
-                        map[NormalizeName(name)] = id;
-                    }
-                }
-            }
-
-            _cityIdsByName = map;
-            return map;
-        }
-        finally
-        {
-            _cityCacheLock.Release();
-        }
-    }
-
-    private static string NormalizeName(string value) =>
-        value.Trim().Replace("ي", "ی").Replace("ك", "ک").Replace(" ", string.Empty);
 
     private static (string First, string Last) SplitName(string fullName)
     {

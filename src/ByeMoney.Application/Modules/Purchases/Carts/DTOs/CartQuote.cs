@@ -14,5 +14,6 @@ public sealed record CartQuote(
     string? ShippingRuleLabel = null,
     decimal PriceInNoor = 0m,
     ShippingAddress? ShippingAddress = null,
-    string? ShippingOriginId = null);
+    string? ShippingOriginId = null,
+    string? ShippingOriginLabel = null);
 

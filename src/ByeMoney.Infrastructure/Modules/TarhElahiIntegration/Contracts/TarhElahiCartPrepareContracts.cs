@@ -38,7 +38,8 @@ internal sealed record TarhElahiCartPrepareResponse(
     string? ShippingOriginLabel = null);
 
 /// <summary>
-/// شش فیلد آدرس تحویل در پاسخ prepare (I09-PH)؛ <c>postalCode</c> اختیاری است.
+/// آدرس تحویل در پاسخ prepare (I09-PH). <c>postalCode</c> اختیاری است.
+/// <c>CityDocumentId</c> شناسهٔ ردیف شهر است و کد حامل نیست.
 /// </summary>
 internal sealed record TarhElahiCartAddressSnapshot(
     string? Province,
@@ -46,7 +47,8 @@ internal sealed record TarhElahiCartAddressSnapshot(
     string? PostalCode,
     string? FullAddress,
     string? RecipientName,
-    string? RecipientPhone);
+    string? RecipientPhone,
+    string? CityDocumentId = null);
 
 /// <summary>
 /// بدنهٔ خطای سبد طرح الهی؛ <c>lineError</c> فقط وقتی می‌آید که یک قلم مشخص قابل فروش نباشد.

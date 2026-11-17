@@ -116,7 +116,11 @@ public sealed class CartPricingClient(HttpClient http) : ICartPricingClient
         var originId = string.IsNullOrWhiteSpace(wire.ShippingOriginId)
             ? null
             : wire.ShippingOriginId.Trim();
-        if (hasProduct && (address is null || originId is null || originId.Length > Cart.ShippingOriginIdMaxLength))
+        var originLabel = string.IsNullOrWhiteSpace(wire.ShippingOriginLabel)
+            ? null
+            : wire.ShippingOriginLabel.Trim();
+        if (hasProduct && (address is null || originId is null || originId.Length > Cart.ShippingOriginIdMaxLength
+            || (originLabel is not null && originLabel.Length > Cart.ShippingOriginLabelMaxLength)))
         {
             return null;
         }
@@ -133,12 +137,13 @@ public sealed class CartPricingClient(HttpClient http) : ICartPricingClient
             wire.ShippingRuleLabel,
             wire.PriceInNoor,
             address,
-            hasProduct ? originId : null);
+            hasProduct ? originId : null,
+            hasProduct ? originLabel : null);
     }
 
     /// <summary>
-    /// سبد دارای کالا باید آدرس کامل و نسخهٔ معتبر داشته باشد؛ در غیر این صورت پاسخ نامعتبر است.
-    /// نبود <c>postalCode</c> مجاز است.
+    /// سبد دارای کالا باید آدرس کامل، شناسهٔ شهر و نسخهٔ معتبر داشته باشد؛ در غیر این صورت پاسخ نامعتبر است.
+    /// نبود <c>postalCode</c> مجاز است. شناسهٔ شهر کد حامل نیست.
     /// </summary>
     private static ShippingAddress? ToAddress(TarhElahiCartPrepareResponse wire)
     {
@@ -149,6 +154,14 @@ public sealed class CartPricingClient(HttpClient http) : ICartPricingClient
         }
 
         var postalCode = string.IsNullOrWhiteSpace(snapshot.PostalCode) ? null : snapshot.PostalCode.Trim();
+        var cityDocumentId = string.IsNullOrWhiteSpace(snapshot.CityDocumentId)
+            ? null
+            : snapshot.CityDocumentId.Trim();
+        if (cityDocumentId is null)
+        {
+            return null;
+        }
+
         var address = new ShippingAddress(
             wire.AddressVersion?.Trim() ?? string.Empty,
             snapshot.Province?.Trim() ?? string.Empty,
@@ -156,7 +169,8 @@ public sealed class CartPricingClient(HttpClient http) : ICartPricingClient
             postalCode,
             snapshot.FullAddress?.Trim() ?? string.Empty,
             snapshot.RecipientName?.Trim() ?? string.Empty,
-            snapshot.RecipientPhone?.Trim() ?? string.Empty);
+            snapshot.RecipientPhone?.Trim() ?? string.Empty,
+            cityDocumentId);
         return address.IsValid() ? address : null;
     }
 

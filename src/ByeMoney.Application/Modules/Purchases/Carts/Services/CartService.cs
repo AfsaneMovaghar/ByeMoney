@@ -1,5 +1,6 @@
 using ByeMoney.Application.Modules.Purchases.Carts.Constants;
 using ByeMoney.Application.Modules.Purchases.Carts.DTOs;
+using ByeMoney.Application.Modules.Purchases.Orders.DTOs;
 using ByeMoney.Application.Modules.Purchases.Carts.Interfaces;
 using ByeMoney.Application.Modules.Settings.Interfaces;
 using ByeMoney.Application.Modules.Identity.Users.Interfaces;
@@ -218,6 +219,7 @@ public sealed class CartService(
                     quote.Value.ShippingRuleLabel,
                     quote.Value.ShippingAddress,
                     quote.Value.ShippingOriginId,
+                    quote.Value.ShippingOriginLabel,
                     cart.ReservationId,
                     ct);
             }
@@ -466,7 +468,33 @@ public sealed class CartService(
             topUp?.IsUnderReview ?? false,
             topUp?.ReviewCaseId,
             topUp?.ReviewReasonCode,
-            topUp?.GatewayResultKind);
+            topUp?.GatewayResultKind,
+            MapShippingOrigin(cart),
+            MapShippingAddress(cart));
+    }
+
+    private static ShippingOriginView? MapShippingOrigin(Cart cart)
+    {
+        if (string.IsNullOrWhiteSpace(cart.ShippingOriginId))
+        {
+            return null;
+        }
+
+        return new ShippingOriginView(cart.ShippingOriginId, cart.ShippingOriginLabel);
+    }
+
+    private static MyOrderShippingAddress? MapShippingAddress(Cart cart)
+    {
+        var address = cart.ShippingAddress;
+        return address is null
+            ? null
+            : new MyOrderShippingAddress(
+                address.RecipientName,
+                address.RecipientPhone,
+                address.Province,
+                address.City,
+                address.FullAddress,
+                address.PostalCode);
     }
 
     private static Result<T> Copy<T, U>(Result<U> result) => Copy<T>((Result)result);

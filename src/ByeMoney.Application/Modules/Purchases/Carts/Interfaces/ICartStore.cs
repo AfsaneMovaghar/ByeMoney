@@ -13,7 +13,7 @@ public interface ICartStore
     Task<Result<Cart>> ReopenAsync(Guid id, Guid buyerId, Guid reservationId, CancellationToken ct);
     Task<Cart> SetQuoteAsync(Guid id, Guid buyerId, IReadOnlyList<CartQuoteItem> items, Guid reservationId, CancellationToken ct);
     Task<Cart> SetQuoteAsync(Guid id, Guid buyerId, IReadOnlyList<CartQuoteItem> items, decimal shippingAmountInNoor, string? shippingRuleLabel, ShippingAddress? shippingAddress, Guid reservationId, CancellationToken ct);
-    Task<Cart> SetQuoteAsync(Guid id, Guid buyerId, IReadOnlyList<CartQuoteItem> items, decimal shippingAmountInNoor, string? shippingRuleLabel, ShippingAddress? shippingAddress, string? shippingOriginId, Guid reservationId, CancellationToken ct);
+    Task<Cart> SetQuoteAsync(Guid id, Guid buyerId, IReadOnlyList<CartQuoteItem> items, decimal shippingAmountInNoor, string? shippingRuleLabel, ShippingAddress? shippingAddress, string? shippingOriginId, string? shippingOriginLabel, Guid reservationId, CancellationToken ct);
     Task<Result<Cart>> PayAsync(
         Guid id,
         Guid buyerId,

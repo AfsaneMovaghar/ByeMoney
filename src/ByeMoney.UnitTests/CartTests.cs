@@ -73,7 +73,7 @@ public sealed class CartTests
     public void ReopenClearsAddressUntilNewQuote()
     {
         var cart = CreateProductCart();
-        cart.SetQuote(BookQuote(), shippingAddress: Address, shippingOriginId: "ramsar");
+        cart.SetQuote(BookQuote(), shippingAddress: Address, shippingOriginId: "ramsar", shippingOriginLabel: "رامسر");
         cart.Fail();
         cart.RecordSynchronization(true, null);
         var fresh = Address with { Version = "v2", City = "Other" };
@@ -81,10 +81,12 @@ public sealed class CartTests
         cart.Reopen();
         cart.ShippingAddress.Should().BeNull();
         cart.ShippingOriginId.Should().BeNull();
-        cart.SetQuote(BookQuote(), shippingAddress: fresh, shippingOriginId: "mashhad");
+        cart.ShippingOriginLabel.Should().BeNull();
+        cart.SetQuote(BookQuote(), shippingAddress: fresh, shippingOriginId: "mashhad", shippingOriginLabel: "مشهد");
 
         cart.ShippingAddress.Should().Be(fresh);
         cart.ShippingOriginId.Should().Be("mashhad");
+        cart.ShippingOriginLabel.Should().Be("مشهد");
     }
 
     [Fact]

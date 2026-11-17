@@ -37,7 +37,30 @@ public sealed class CreatePhysicalShipmentTests
         purchase.DeliveryStatus.Should().Be(PhysicalDeliveryStatus.Shipped);
         client.LastRequest!.Parcel.IdempotencyKey.Should().Be($"BM-{purchase.Id.Value:N}");
         client.LastRequest.Recipient.CityName.Should().Be("مشهد");
+        client.LastRequest.Recipient.CityDocumentId.Should().Be("city-mashhad");
         client.LastRequest.OriginId.Should().Be("ramsar");
+    }
+
+    [Fact]
+    public async Task ForwardsLegacyAddressWithoutCityDocumentId()
+    {
+        var purchase = CreatePreparing();
+        var address = new ShippingAddress(
+            "ver", "خراسان رضوی", "مشهد", null, "خیابان نمونه", "علی محمدی", "09121111111");
+        var store = new FakeDeliveryStore(purchase, address);
+        var repository = new FakeRepository(purchase);
+        var client = new FakeShipmentClient(PhysicalProductPurchase.PostexProvider)
+        {
+            Result = new ShipmentCreateResult(ShipmentCreateOutcome.Created, "1")
+        };
+
+        await new CreatePhysicalShipmentCommandHandler(repository, store, [client], repository)
+            .Handle(new CreatePhysicalShipmentCommand(purchase.Id.Value), CancellationToken.None);
+
+        client.Calls.Should().Be(1);
+        client.LastRequest!.Recipient.CityDocumentId.Should().BeNull();
+        client.LastRequest.Recipient.ProvinceName.Should().Be("خراسان رضوی");
+        client.LastRequest.Recipient.CityName.Should().Be("مشهد");
     }
 
     [Fact]
@@ -97,7 +120,7 @@ public sealed class CreatePhysicalShipmentTests
             "product-1", "شمش", 1, 100m, 100m);
 
     private static ShippingAddress SampleAddress() =>
-        new("ver", "خراسان رضوی", "مشهد", "1234567890", "خیابان نمونه", "علی محمدی", "09121111111");
+        new("ver", "خراسان رضوی", "مشهد", "1234567890", "خیابان نمونه", "علی محمدی", "09121111111", "city-mashhad");
 
     private sealed class FakeShipmentClient(string provider) : IShipmentProviderClient
     {

@@ -218,6 +218,18 @@
 - اختلاف سند: متن قبلی SHIP-MULTI-ORIGIN «نبود مبدأ روی کالا = تعارض» می‌گفت؛ رفتار کد اکنون پیش‌فرض رامسر است.
 - آزمون: Jest `shippingOrigins` + `postexLocalitySync` + `shippingCmLabels` + `cartShipping` + `postexShippingQuote` — ۲۱ موفق (پس از اصلاح `externalId` و حذف اسنپ‌شات مبدأ).
 
+## BUYER-CITY-LINK — اتصال آدرس به شناسهٔ شهرِ خودمان — ۱۶ نوامبر ۲۰۲۶
+
+- تغییر (استرپی): `GET /api/localities` شهر را با `documentId` و نام می‌دهد و `externalId` نمی‌دهد؛ ذخیرهٔ آدرس فقط با اتصال `cityLink` به همان ردیف است و نام استان/شهر از ردیف کپی می‌شود؛ `addressSnapshot` فیلد `cityDocumentId` دارد و کد حامل ندارد؛ برآورد پستکس `to_city_code` را از `externalId` همان ردیف می‌خواند؛ `POST /api/integrations/byemoney/v1/localities/carrier-code` فقط با کلید سرویس کد حامل را برمی‌گرداند (برای سفارش قدیمی با نام دقیق). آدرس بدون اتصال برای سبد فیزیکی رد می‌شود.
+- ByeMoney: فریز `cityDocumentId` و خواندن کد حامل در بخش FREEZE-CITY-DOCUMENT انجام شد. فرانت از قبل فقط نام آدرس را نشان می‌دهد.
+- آزمون: Jest روی localities، lifecycle آدرس، مسیر localities، carrier-code، cartShipping، physicalAddress، postexShippingQuote و shippingCmLabels — ۳۶ موفق.
+
+## FREEZE-CITY-DOCUMENT — فریز شناسهٔ شهر و خواندن کد حامل — ۱۶ نوامبر ۲۰۲۶
+
+- تغییر (بای‌مانی): `ShippingAddress.CityDocumentId` روی سبد فریز می‌شود (مهاجرت افزودنی nullable). prepare بدون این شناسه برای سبد کالا نامعتبر است. ساخت مرسوله کد حامل را از `POST /api/integrations/byemoney/v1/localities/carrier-code` می‌خواند: با شناسه، یا برای سفارش قدیمی فقط با نام دقیق استان و شهر. کد ذخیره نمی‌شود و `api/v1/locality/cities/all` دیگر برای گیرنده خوانده نمی‌شود. شهرِ پیدا نشده یا قطع خواندن، مرسوله نمی‌سازد. جزئیات خریدار و ادمین همان نام‌ها را برمی‌گردانند. محاسبهٔ هزینه، مبدأ و `Postex:Origins` عوض نشد. فرانت تغییر نکرد.
+- آزمون: همان پنج مجموعه ۴۰ موفق و ۰ ناموفق (خروجی جدا به‌خاطر قفل DLL توسط API در حال اجرا). migration `AddCartShippingCityDocumentId` روی دیتابیس توسعه اعمال شد؛ ستون `ShippingAddress_CityDocumentId` تهی‌پذیر با طول ۶۴ است.
+- محدودیت: مرسولهٔ زنده با کلید پستکس و سفارش قدیمی واقعی در این اجرا نبود.
+
 ## BUYER-ADDRESS-LOCALITY-DROPDOWN — آدرس خریدار از جدول استان/شهر — ۱۶ نوامبر ۲۰۲۶
 
 - تغییر (استرپی): `GET /api/localities` فقط‌خواندنی با `auth: false` → `{ data: [{ name, cities: [name, ...] }] }` (مرتب، بدون id/`externalId`، بدون صفحه‌بندی)؛ سرویس `localities`؛ lifecycle آدرس `beforeCreate`/`beforeUpdate` فقط جفت رسمی استان/شهر را بعد از trim می‌پذیرد. رابطهٔ شهر روی `address` اضافه نشد.
@@ -225,3 +237,10 @@
 - ByeMoney: بدون تغییر؛ شکل `addressSnapshot` حفظ شد.
 - آزمون: استرپی Jest سه فایل localities/lifecycle/route — ۱۵ موفق. فرانت Jest مدال آدرس + کنترل مشترک + ProfileForm + route localities — ۱۷ موفق.
 - محدودیت: تا `sync-localities`/bootstrap جدول پر نشود فرم ذخیره نمی‌کند؛ آدرس قدیمی با املای غیررسمی باید دوباره از لیست انتخاب شود؛ حفرهٔ نبود بررسی نشست روی `/api/addresses` خارج از دامنه ماند.
+
+## ORDER-ORIGIN-DISPLAY — نمایش آدرس و مبدأ از بای‌مانی — ۱۶ نوامبر ۲۰۲۶
+
+- تغییر (بای‌مانی): ستون nullable `ShippingOriginLabel` روی `Carts`؛ فریز برچسب کنار شناسه از prepare؛ پاسخ سبد `shippingOrigin` و `shippingAddress` (بدون شناسهٔ شهر)؛ جزئیات ادمین همیشه و جزئیات خریدار فقط برای سبد `Paid` همان مبدأ را برمی‌گردانند. سفارش قدیمی بدون برچسب فقط شناسه دارد.
+- تغییر (فرانت): خلاصهٔ سبد، جزئیات سفارش خریدار و پنل/کشوی ادمین نشانی را با استان و شهر نشان می‌دهند و مبدأ را از پاسخ بای‌مانی (یا برچسب پیش‌نمایش، پیش از ساخت سبد) می‌نویسند.
+- آزمون: بای‌مانی `CartTests` + `CartPricingClientTests` + `CartRefreshTests` — ۵۰ موفق. فرانت Jest همین مسیر (سبد، سفارش خریدار، پنل ادمین، route سفارش و tracking) — ۱۰۹ موفق. migration `AddCartShippingOriginLabel` روی دیتابیس توسعه اعمال شد.
+- محدودیت: مرورگر با نشست واقعی در این اجرا باز نشد.

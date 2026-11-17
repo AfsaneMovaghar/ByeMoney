@@ -35,7 +35,13 @@ public sealed class Cart
     /// </summary>
     public string? ShippingOriginId { get; private set; }
 
+    /// <summary>
+    /// برچسب نمایشی مبدأ در لحظهٔ قیمت‌گذاری. سفارش قدیمی ممکن است فقط شناسه داشته باشد.
+    /// </summary>
+    public string? ShippingOriginLabel { get; private set; }
+
     public const int ShippingOriginIdMaxLength = 50;
+    public const int ShippingOriginLabelMaxLength = 200;
 
     /// <summary>
     /// آدرس تحویل ثابت‌شدهٔ همین قیمت‌گذاری؛ فقط برای سبد دارای کالا پر می‌شود و با بازگشایی سبد پاک می‌شود.
@@ -148,7 +154,8 @@ public sealed class Cart
         decimal shippingAmountInNoor = 0m,
         string? shippingRuleLabel = null,
         ShippingAddress? shippingAddress = null,
-        string? shippingOriginId = null)
+        string? shippingOriginId = null,
+        string? shippingOriginLabel = null)
     {
         if (Status != CartStatus.Preparing)
         {
@@ -176,9 +183,15 @@ public sealed class Cart
 
         var hasProduct = items.Any(x => x.Type == ProductItemType.Product);
         var normalizedOriginId = string.IsNullOrWhiteSpace(shippingOriginId) ? null : shippingOriginId.Trim();
+        var normalizedOriginLabel = string.IsNullOrWhiteSpace(shippingOriginLabel) ? null : shippingOriginLabel.Trim();
         if (normalizedOriginId is not null && normalizedOriginId.Length > ShippingOriginIdMaxLength)
         {
             throw new ArgumentException(nameof(shippingOriginId));
+        }
+
+        if (normalizedOriginLabel is not null && normalizedOriginLabel.Length > ShippingOriginLabelMaxLength)
+        {
+            throw new ArgumentException(nameof(shippingOriginLabel));
         }
 
         _items.Clear();
@@ -197,6 +210,7 @@ public sealed class Cart
         ShippingAddress = hasProduct ? shippingAddress : null;
         // الزام مبدأ در prepare زنده (CartPricingClient) و ساخت مرسوله است؛ اینجا فقط فریز می‌شود.
         ShippingOriginId = hasProduct ? normalizedOriginId : null;
+        ShippingOriginLabel = hasProduct && normalizedOriginId is not null ? normalizedOriginLabel : null;
 
         if (_items.Sum(x => x.AllocatedAmountInNoor) + ShippingAmountInNoor != Total)
         {
@@ -245,6 +259,7 @@ public sealed class Cart
         ShippingAmountInNoor = 0;
         ShippingRuleLabel = null;
         ShippingOriginId = null;
+        ShippingOriginLabel = null;
         ShippingAddress = null;
         Status = CartStatus.Preparing;
         Synchronized = false;

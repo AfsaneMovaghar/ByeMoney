@@ -1,3 +1,4 @@
+using ByeMoney.Application.Modules.Purchases.Delivery.Interfaces;
 using ByeMoney.Application.Modules.TarhElahiIntegration.Interfaces;
 using ByeMoney.Infrastructure.Modules.TarhElahiIntegration.Clients;
 using ByeMoney.Infrastructure.Modules.TarhElahiIntegration.Configuration;
@@ -45,6 +46,21 @@ public static class AddTarhElahiIntegrationModule
         {
             if (!string.IsNullOrWhiteSpace(options.BaseUrl)) client.BaseAddress = new Uri(options.BaseUrl.Trim().TrimEnd('/') + "/");
             if (!string.IsNullOrWhiteSpace(options.ServiceKey)) client.DefaultRequestHeaders.Add("X-Service-Key", options.ServiceKey.Trim());
+            client.Timeout = TimeSpan.FromSeconds(options.TimeoutSeconds > 0 ? options.TimeoutSeconds : 10);
+        });
+
+        services.AddHttpClient<IDeliveryCityCodeReader, DeliveryCityCodeClient>(client =>
+        {
+            if (!string.IsNullOrWhiteSpace(options.BaseUrl))
+            {
+                client.BaseAddress = new Uri(options.BaseUrl.Trim().TrimEnd('/') + "/");
+            }
+
+            if (!string.IsNullOrWhiteSpace(options.ServiceKey))
+            {
+                client.DefaultRequestHeaders.Add("X-Service-Key", options.ServiceKey.Trim());
+            }
+
             client.Timeout = TimeSpan.FromSeconds(options.TimeoutSeconds > 0 ? options.TimeoutSeconds : 10);
         });
 

@@ -1,3 +1,5 @@
+using ByeMoney.Application.Modules.Purchases.Orders.DTOs;
+
 namespace ByeMoney.Application.Modules.Purchases.Carts.DTOs;
 
 public sealed record CartResponse(
@@ -20,5 +22,7 @@ public sealed record CartResponse(
     bool IsUnderReview = false,
     string? ReviewCaseId = null,
     string? ReviewReasonCode = null,
-    string? GatewayResultKind = null);
+    string? GatewayResultKind = null,
+    ShippingOriginView? ShippingOrigin = null,
+    MyOrderShippingAddress? ShippingAddress = null);
 

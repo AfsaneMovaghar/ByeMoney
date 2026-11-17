@@ -16,4 +16,6 @@
   <data name="ShipmentOriginRequired" xml:space="preserve"><value>مبدأ ارسال سبد برای ساخت مرسوله موجود نیست یا در تنظیمات واسط تعریف نشده است.</value></data>
   <data name="ShipmentNotAllowed" xml:space="preserve"><value>ساخت مرسوله فقط برای قلم «آماده‌سازی» با تعداد باقی‌مانده مجاز است.</value></data>
   <data name="ShipmentCreateFailed" xml:space="preserve"><value>ساخت مرسوله نزد واسط پستی ناموفق بود.</value></data>
+  <data name="ShipmentCityNotFound" xml:space="preserve"><value>شهر تحویل در جدول محل یافت نشد و مرسوله ساخته نشد.</value></data>
+  <data name="ShipmentCityUnavailable" xml:space="preserve"><value>خواندن شهر تحویل ناموفق بود و مرسوله ساخته نشد.</value></data>
 </root>

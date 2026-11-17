@@ -143,7 +143,8 @@ public sealed class CreatePhysicalShipmentCommandHandler(
                 address.FullAddress,
                 address.City,
                 address.Province,
-                address.PostalCode),
+                address.PostalCode,
+                address.CityDocumentId),
             new ShipmentParcelDetails(
                 idempotencyKey,
                 purchase.ProductTitle,

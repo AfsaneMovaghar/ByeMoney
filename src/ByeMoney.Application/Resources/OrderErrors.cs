@@ -21,6 +21,8 @@ public static class OrderErrors
     public static string ShipmentOriginRequired => Get(nameof(ShipmentOriginRequired));
     public static string ShipmentNotAllowed => Get(nameof(ShipmentNotAllowed));
     public static string ShipmentCreateFailed => Get(nameof(ShipmentCreateFailed));
+    public static string ShipmentCityNotFound => Get(nameof(ShipmentCityNotFound));
+    public static string ShipmentCityUnavailable => Get(nameof(ShipmentCityUnavailable));
 
     private static string Get(string name) => Resources.GetString(name)
         ?? throw new MissingManifestResourceException(name);

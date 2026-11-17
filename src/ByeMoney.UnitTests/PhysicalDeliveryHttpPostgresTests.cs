@@ -154,6 +154,8 @@ public sealed class PhysicalDeliveryHttpPostgresTests : IAsyncLifetime
         admin.StatusCode.Should().Be(HttpStatusCode.OK);
         using var adminBody = JsonDocument.Parse(await admin.Content.ReadAsStringAsync());
         var address = adminBody.RootElement.GetProperty("shippingAddress");
+        PropertyNames(address).Should().BeEquivalentTo(
+            ["version", "province", "city", "postalCode", "fullAddress", "recipientName", "recipientPhone"]);
         address.GetProperty("province").GetString().Should().Be(Address.Province);
         address.GetProperty("city").GetString().Should().Be(Address.City);
         address.GetProperty("fullAddress").GetString().Should().Be(Address.FullAddress);

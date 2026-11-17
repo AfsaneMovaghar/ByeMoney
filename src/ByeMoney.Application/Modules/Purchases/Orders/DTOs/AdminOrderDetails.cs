@@ -9,4 +9,5 @@ public sealed record AdminOrderDetails(
     OrderDetails Order,
     OrderShippingAddress? ShippingAddress = null,
     string? CreatedByAdminExternalUserId = null,
-    string? AdminFreeReason = null);
+    string? AdminFreeReason = null,
+    ShippingOriginView? ShippingOrigin = null);

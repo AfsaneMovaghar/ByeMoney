@@ -405,7 +405,7 @@ public sealed class CartPostgresTests : IAsyncLifetime
     [CartPostgresFact]
     public async Task ShippingAddressIsPersistedWithProductQuoteAndReplacedOnReopen()
     {
-        var first = new ShippingAddress("v1", "ProvinceA", "CityA", null, "StreetA 1", "RecipientA", "09120000001");
+        var first = new ShippingAddress("v1", "ProvinceA", "CityA", null, "StreetA 1", "RecipientA", "09120000001", "city-a");
         var second = new ShippingAddress("v2", "ProvinceB", "CityB", "1234567890", "StreetB 2", "RecipientB", "09120000002");
         var cart = Cart.Create(Guid.NewGuid(), _buyer.Id.Value, _buyer.ExternalUserId,
             [new CartItemInput("book", ProductItemType.Product, 1)], null);
