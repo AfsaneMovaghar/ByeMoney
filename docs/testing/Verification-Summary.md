@@ -2,6 +2,12 @@
 
 بازبینی و فشرده‌سازی: ۲۰۲۶-۱۱-۰۷. این گزارش فقط نتیجه و محدودیت پذیرش را نگه می‌دارد. شمارش آزمون‌های اجراهای مختلف با هم جمع نمی‌شود. آزمون محلی، ادغام و انتشار سه شاهد مستقل‌اند. کار باقی‌مانده فقط در [TASKS](../../TASKS.md) و [HOTFIXES](../../HOTFIXES.md) است. نام آزمون‌ها، SHA و شرح اجرا در Git است. ثبت تازه فقط تاریخ، نسخه، محیط، دامنه، نتیجه و محدودیت داشته باشد.
 
+## SHIP-RETURN-RESOLUTION — تعیین‌تکلیف مرسولهٔ برگشتی ادمین — ۱۷ نوامبر ۲۰۲۶
+
+- تغییر ByeMoney: ستون‌های `CarrierReturnResolution`، `CarrierReturnResolutionNote`، `CarrierReturnResolvedAtUtc` و `CarrierReturnResolvedByUserId` با migration افزودنی `AddCarrierReturnResolution` و قید Check؛ متد دامنه‌ای `ResolveCarrierReturn` (برگشتی الزامی، تکرار دقیق idempotence، تکرار متناقض ۴۰۹)؛ حالت `DeliveryConfirmed` کالا را تحویل‌شده و تسویه را باز می‌کند؛ حالت `ClosedWithoutSettlement` کالا را `Shipped` نگه می‌دارد و برای همیشه از تسویه و تحویل خارج می‌کند بدون اثر مالی/Ledger/موجودی؛ قفل تحویل زودهنگام توسط ادمین (۴۰۰) و خریدار (۴۰۹)؛ اندپوینت ادمین `POST /api/admin/physical-purchases/{id}/carrier-return/resolve`؛ نمایش فیلدها در جزئیات سفارش خریدار/ادمین/رسیدها و فیلد تجمیعی `carrierReturnStatus` در فهرست سفارش‌های ادمین.
+- آزمون واحد و ادغام: مجموعهٔ جدید `CarrierReturnResolutionTests` (۱۵ موفق)، آزمون‌های تسویه `OrderSettlementTests` (۳۲ موفق) و آزمون‌های HTTP دیتابیسی `PhysicalDeliveryHttpPostgresTests` (۳ موفق).
+- باقی: پذیرش از پنل مدیریت با ثبت مرسولهٔ برگشتی واقعی.
+
 ## SHIP-RETURN-SETTLEMENT — برگشتی پستکس از تسویه خارج شود — ۱۷ نوامبر ۲۰۲۶
 
 - تغییر ByeMoney: ستون nullable `CarrierReturnedAtUtc` روی `PhysicalProductPurchases` (migration `AddCarrierReturnedAtUtc`)؛ همگام‌سازی پستکس با `Returned` یک‌بار علامت می‌زند بدون تغییر `DeliveryStatus` و بدون Ledger؛ تأیید خودکار ۱۴روزه و قاعدهٔ قابل‌تسویه (D10) سفارش دارای قلم باقی‌ماندهٔ برگشتی را رد می‌کنند. فرانت و استرپی تغییر نکردند.

@@ -30,6 +30,8 @@ public class PhysicalProductPurchaseConfiguration : IEntityTypeConfiguration<Phy
                 "\"RefundedRegularInNoor\" >= 0 AND \"RefundedGiftInNoor\" >= 0 AND " +
                 "\"RefundedRegularInNoor\" <= COALESCE(\"RegularAmountInNoor\", 0) AND " +
                 "\"RefundedGiftInNoor\" <= COALESCE(\"GiftAmountInNoor\", 0)");
+            table.HasCheckConstraint("CK_PhysicalProductPurchases_CarrierReturnResolution",
+                "\"CarrierReturnResolution\" IS NULL OR \"CarrierReturnResolution\" IN ('DeliveryConfirmed', 'ClosedWithoutSettlement')");
         });
 
         builder.HasKey(x => x.Id);
@@ -82,6 +84,13 @@ public class PhysicalProductPurchaseConfiguration : IEntityTypeConfiguration<Phy
         builder.Property(x => x.ShippedAtUtc);
         builder.Property(x => x.DeliveredAtUtc);
         builder.Property(x => x.CarrierReturnedAtUtc);
+        builder.Property(x => x.CarrierReturnResolution)
+            .HasConversion<string>()
+            .HasMaxLength(PhysicalProductPurchase.CarrierReturnResolutionMaxLength);
+        builder.Property(x => x.CarrierReturnResolutionNote)
+            .HasMaxLength(PhysicalProductPurchase.CarrierReturnResolutionNoteMaxLength);
+        builder.Property(x => x.CarrierReturnResolvedAtUtc);
+        builder.Property(x => x.CarrierReturnResolvedByUserId);
         builder.Property(x => x.TrackingCode).HasMaxLength(PhysicalProductPurchase.TrackingCodeMaxLength);
         builder.Property(x => x.TrackingProvider).HasMaxLength(PhysicalProductPurchase.TrackingProviderMaxLength);
         builder.Property(x => x.ProviderParcelId).HasMaxLength(PhysicalProductPurchase.ProviderParcelIdMaxLength);

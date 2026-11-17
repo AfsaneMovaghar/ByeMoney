@@ -301,6 +301,10 @@ namespace ByeMoney.Domain.Resources {
         public static string PhysicalProductPurchase_InvalidTrackingCode => ResourceManager.GetString("PhysicalProductPurchase_InvalidTrackingCode", resourceCulture)!;
         public static string PhysicalProductPurchase_InvalidTrackingProvider => ResourceManager.GetString("PhysicalProductPurchase_InvalidTrackingProvider", resourceCulture)!;
         public static string PhysicalProductPurchase_InvalidProviderParcelId => ResourceManager.GetString("PhysicalProductPurchase_InvalidProviderParcelId", resourceCulture)!;
+        public static string PhysicalProductPurchase_DeliveryBlockedByCarrierReturn => ResourceManager.GetString("PhysicalProductPurchase_DeliveryBlockedByCarrierReturn", resourceCulture)!;
+        public static string PhysicalProductPurchase_NotCarrierReturned => ResourceManager.GetString("PhysicalProductPurchase_NotCarrierReturned", resourceCulture)!;
+        public static string PhysicalProductPurchase_CarrierReturnResolutionConflict => ResourceManager.GetString("PhysicalProductPurchase_CarrierReturnResolutionConflict", resourceCulture)!;
+        public static string PhysicalProductPurchase_InvalidCarrierReturnResolutionNote => ResourceManager.GetString("PhysicalProductPurchase_InvalidCarrierReturnResolutionNote", resourceCulture)!;
         public static string GiftCampaign_AmountCannotBeNegative => ResourceManager.GetString("GiftCampaign_AmountCannotBeNegative", resourceCulture)!;
         public static string GiftCampaign_StartDateCannotBeAfterEndDate => ResourceManager.GetString("GiftCampaign_StartDateCannotBeAfterEndDate", resourceCulture)!;
         public static string Wallet_CreditAmountMustBePositive => ResourceManager.GetString("Wallet_CreditAmountMustBePositive", resourceCulture)!;

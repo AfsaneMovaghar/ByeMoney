@@ -45,6 +45,7 @@ public sealed class MyOrdersController(ISender sender) : ControllerBase
     [HttpPost("{orderId}/confirm-delivery")]
     [ProducesResponseType(typeof(PhysicalDeliveryConfirmationResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<ActionResult<PhysicalDeliveryConfirmationResponse>> ConfirmDelivery(
         string orderId, CancellationToken ct)
     {

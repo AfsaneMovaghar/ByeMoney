@@ -19,7 +19,7 @@ public sealed class GetAdminOrderQueryHandler(IOrderReader reader, ICurrentUserS
             ?? throw new UnauthorizedAccessException(ApplicationErrors.Wallet_UserNotAuthenticated);
 
         var snapshot = await reader.ReadAsync(null, null, ct);
-        var row = OrderMapping.Build(snapshot)
+        var row = OrderMapping.Build(snapshot, includeAdminResolutionDetails: true)
             .SingleOrDefault(item => item.Details.OrderId == request.OrderId)
             ?? throw new NotFoundException(OrderErrors.NotFound);
         var buyer = snapshot.Buyers.Single(item => item.Id == row.BuyerId);

@@ -64,6 +64,8 @@ public static class OrderReceiptMapping
             finalAmount, course?.Snapshot.ReferenceRialPerNoorAtPurchaseTime, item.DeliveryStatus,
             item.PhysicalDeliveryStatus, item.PurchasedAtUtc ?? orderCreatedAtUtc, deliveredAt,
             item.CancelledQuantity, item.RefundedRegularInNoor, item.RefundedGiftInNoor,
-            item.TrackingCode, item.TrackingProvider, item.ShippedAtUtc);
+            item.TrackingCode, item.TrackingProvider, item.ShippedAtUtc,
+            item.CarrierReturnedAtUtc ?? physical?.CarrierReturnedAtUtc,
+            item.CarrierReturnResolution ?? physical?.CarrierReturnResolution?.ToString());
     }
 }

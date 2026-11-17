@@ -273,6 +273,28 @@ public sealed class OrderSettlementTests
     }
 
     [Fact]
+    public async Task Candidates_IncludeOrderWhenCarrierReturnResolvedWithDeliveryConfirmed()
+    {
+        var fixture = new HandlerFixture();
+        var orderId = fixture.AddPaidShippedPhysicalCart(carrierReturned: true, CarrierReturnResolution.DeliveryConfirmed);
+
+        var orders = await fixture.CandidatesAsync();
+
+        orders.Should().ContainSingle().Which.OrderId.Should().Be(orderId);
+    }
+
+    [Fact]
+    public async Task Candidates_PermanentlyExcludeOrderWhenCarrierReturnResolvedWithClosedWithoutSettlement()
+    {
+        var fixture = new HandlerFixture();
+        fixture.AddPaidShippedPhysicalCart(carrierReturned: true, CarrierReturnResolution.ClosedWithoutSettlement);
+
+        var orders = await fixture.CandidatesAsync();
+
+        orders.Should().BeEmpty();
+    }
+
+    [Fact]
     public void ClosePeriod_RejectsEmptyAndDuplicateOrders()
     {
         var admin = new UserId(Guid.NewGuid());
@@ -433,7 +455,7 @@ public sealed class OrderSettlementTests
             return "cart:" + cart.Id.ToString("D");
         }
 
-        public string AddPaidShippedPhysicalCart(bool carrierReturned)
+        public string AddPaidShippedPhysicalCart(bool carrierReturned, CarrierReturnResolution? resolution = null)
         {
             var buyerId = new UserId(_buyer.Id);
             var cart = Cart.Create(Guid.NewGuid(), _buyer.Id, _buyer.ExternalUserId, [
@@ -452,6 +474,10 @@ public sealed class OrderSettlementTests
             if (carrierReturned)
             {
                 book.MarkCarrierReturned(DateTime.UtcNow);
+                if (resolution.HasValue)
+                {
+                    book.ResolveCarrierReturn(resolution.Value, "Resolution note", Guid.NewGuid(), DateTime.UtcNow);
+                }
             }
 
             _carts.Add(cart);

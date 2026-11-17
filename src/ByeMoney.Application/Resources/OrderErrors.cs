@@ -28,6 +28,13 @@ public static class OrderErrors
     public static string ShipmentCityUnavailable => Get(nameof(ShipmentCityUnavailable));
     public static string ShipmentReadFailed => Get(nameof(ShipmentReadFailed));
     public static string ShipmentPaymentPending => Get(nameof(ShipmentPaymentPending));
+    public static string PhysicalPurchase_DeliveryBlockedByCarrierReturn => Get(nameof(PhysicalPurchase_DeliveryBlockedByCarrierReturn));
+    public static string CarrierReturn_BuyerConfirmationBlocked => Get(nameof(CarrierReturn_BuyerConfirmationBlocked));
+    public static string CarrierReturn_InvalidResolution => Get(nameof(CarrierReturn_InvalidResolution));
+    public static string CarrierReturn_NoteRequired => Get(nameof(CarrierReturn_NoteRequired));
+    public static string CarrierReturn_NoteTooLong => Get(nameof(CarrierReturn_NoteTooLong));
+    public static string CarrierReturn_NotReturned => Get(nameof(CarrierReturn_NotReturned));
+    public static string CarrierReturn_ResolutionConflict => Get(nameof(CarrierReturn_ResolutionConflict));
 
     private static string Get(string name) => Resources.GetString(name)
         ?? throw new MissingManifestResourceException(name);

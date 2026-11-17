@@ -1,5 +1,6 @@
 using ByeMoney.API.Contracts.Purchases;
 using ByeMoney.Application.Modules.Purchases.Commands.CreatePhysicalShipment;
+using ByeMoney.Application.Modules.Purchases.Commands.ResolveCarrierReturn;
 using ByeMoney.Application.Modules.Purchases.Commands.UpdatePhysicalDeliveryStatus;
 using ByeMoney.Domain.Modules.Identity.Constants;
 using MediatR;
@@ -48,5 +49,24 @@ public sealed class AdminPhysicalPurchasesController(ISender sender) : Controlle
     {
         return Ok(await sender.Send(
             new CreatePhysicalShipmentCommand(purchaseId, request?.Provider), ct));
+    }
+
+    /// <summary>
+    /// تعیین‌تکلیف مرسولهٔ برگشتی توسط ادمین (D10).
+    /// </summary>
+    [HttpPost("{purchaseId:guid}/carrier-return/resolve")]
+    [ProducesResponseType(typeof(CarrierReturnResolutionResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<CarrierReturnResolutionResponse>> ResolveCarrierReturn(
+        Guid purchaseId,
+        [FromBody] ResolveCarrierReturnApiRequest request,
+        CancellationToken ct)
+    {
+        return Ok(await sender.Send(new ResolveCarrierReturnCommand(
+            purchaseId, request.Resolution, request.Note), ct));
     }
 }

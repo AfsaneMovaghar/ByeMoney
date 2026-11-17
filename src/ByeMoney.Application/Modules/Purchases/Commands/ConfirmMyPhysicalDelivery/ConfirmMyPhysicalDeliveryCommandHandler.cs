@@ -52,19 +52,28 @@ public sealed class ConfirmMyPhysicalDeliveryCommandHandler(
                     purchase.DeliveryStatus == PhysicalDeliveryStatus.Shipped)
                 .ToArray();
 
-            foreach (var purchase in shipped)
+            var confirmable = shipped
+                .Where(purchase => purchase.CarrierReturnedAtUtc == null)
+                .ToArray();
+
+            if (confirmable.Length == 0 && shipped.Any(purchase => purchase.CarrierReturnedAtUtc != null))
+            {
+                throw new ConflictDomainException(OrderErrors.CarrierReturn_BuyerConfirmationBlocked);
+            }
+
+            foreach (var purchase in confirmable)
             {
                 purchase.MarkDelivered();
                 repository.Update(purchase);
             }
 
-            if (shipped.Length > 0)
+            if (confirmable.Length > 0)
             {
                 await unitOfWork.SaveChangesAsync(ct);
             }
 
             return new PhysicalDeliveryConfirmationResponse(
-                request.OrderId, shipped.Length, shipped.Select(purchase => purchase.Id.Value).ToArray());
+                request.OrderId, confirmable.Length, confirmable.Select(purchase => purchase.Id.Value).ToArray());
         }, ct);
     }
 

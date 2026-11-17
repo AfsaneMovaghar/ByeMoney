@@ -24,7 +24,7 @@ public static class OrderSettlementRule
             .ToArray();
 
         var remainingPhysical = remainingItems.Where(IsPhysical).ToArray();
-        if (remainingPhysical.Any(IsCarrierReturned))
+        if (remainingPhysical.Any(BlocksSettlementDueToCarrierReturn))
         {
             return false;
         }
@@ -50,6 +50,7 @@ public static class OrderSettlementRule
     private static bool IsShippedOrDelivered(OrderItem item) =>
         item.PhysicalDeliveryStatus is nameof(PhysicalDeliveryStatus.Shipped) or nameof(PhysicalDeliveryStatus.Delivered);
 
-    private static bool IsCarrierReturned(OrderItem item) =>
-        item.CarrierReturnedAtUtc.HasValue;
+    private static bool BlocksSettlementDueToCarrierReturn(OrderItem item) =>
+        (item.CarrierReturnedAtUtc.HasValue && string.IsNullOrEmpty(item.CarrierReturnResolution)) ||
+        string.Equals(item.CarrierReturnResolution, nameof(CarrierReturnResolution.ClosedWithoutSettlement), StringComparison.OrdinalIgnoreCase);
 }

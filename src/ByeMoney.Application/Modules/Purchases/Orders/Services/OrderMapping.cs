@@ -9,7 +9,7 @@ namespace ByeMoney.Application.Modules.Purchases.Orders.Services;
 
 public static class OrderMapping
 {
-    public static IReadOnlyList<OrderReadRow> Build(OrderSnapshot snapshot)
+    public static IReadOnlyList<OrderReadRow> Build(OrderSnapshot snapshot, bool includeAdminResolutionDetails = false)
     {
         var rows = new List<OrderReadRow>();
         var purchasesByCart = snapshot.Purchases.Where(purchase => purchase.CartId.HasValue)
@@ -23,6 +23,9 @@ public static class OrderMapping
         var physicalByCart = snapshot.PhysicalPurchases.ToLookup(purchase => purchase.CartId);
         var groupedPurchases = new HashSet<Guid>();
         var groupedPhysicalPurchases = new HashSet<Guid>();
+        var externalUserIds = includeAdminResolutionDetails
+            ? snapshot.Buyers.ToDictionary(b => b.Id, b => b.ExternalUserId)
+            : null;
 
         foreach (var cart in snapshot.Carts)
         {
@@ -39,7 +42,7 @@ public static class OrderMapping
             groupedPurchases.UnionWith(ownedPurchases.Select(purchase => purchase.Id.Value));
             groupedPhysicalPurchases.UnionWith(ownedPhysicalPurchases.Select(purchase => purchase.Id.Value));
             rows.Add(new OrderReadRow(cart.BuyerId.Value,
-                MapCart(cart, ownedPurchases, ownedPhysicalPurchases, ownedTopUps, invalidLink)));
+                MapCart(cart, ownedPurchases, ownedPhysicalPurchases, ownedTopUps, invalidLink, includeAdminResolutionDetails, externalUserIds)));
         }
 
         var purchasesById = snapshot.Purchases.ToDictionary(purchase => purchase.Id);
@@ -75,7 +78,7 @@ public static class OrderMapping
         foreach (var physical in snapshot.PhysicalPurchases
             .Where(purchase => !groupedPhysicalPurchases.Contains(purchase.Id.Value)))
         {
-            var item = MapPhysicalItem(physical, null);
+            var item = MapPhysicalItem(physical, null, includeAdminResolutionDetails, externalUserIds);
             rows.Add(new OrderReadRow(physical.BuyerId.Value, new OrderDetails(
                 OrderIdFormat.For(OrderSourceType.Purchase, physical.Id.Value),
                 OrderSourceType.Purchase.ToString(), physical.CartId, physical.CreatedAtUtc,
@@ -88,7 +91,9 @@ public static class OrderMapping
 
     private static OrderDetails MapCart(
         Cart cart, CoursePurchase[] purchases, PhysicalProductPurchase[] physicalPurchases,
-        TopUpRequest[] topUps, bool invalidLink)
+        TopUpRequest[] topUps, bool invalidLink,
+        bool includeAdminResolutionDetails = false,
+        IReadOnlyDictionary<Guid, string>? externalUserIds = null)
     {
         var requested = RequestedItems(cart);
         var expectedKeys = requested.Select(item => new OrderItemKey(item.ExternalId, item.Type)).Distinct().ToArray();
@@ -113,7 +118,7 @@ public static class OrderMapping
                 : null;
             if (physical is not null)
             {
-                return MapPhysicalItem(physical, quote);
+                return MapPhysicalItem(physical, quote, includeAdminResolutionDetails, externalUserIds);
             }
 
             var purchase = purchases.FirstOrDefault(item => KeyOf(item) == key);
@@ -239,13 +244,34 @@ public static class OrderMapping
             purchase?.Snapshot.ExternalParentId ?? parentExternalId, quantity);
     }
 
-    private static OrderItem MapPhysicalItem(PhysicalProductPurchase physical, CartItem? quote)
+    private static OrderItem MapPhysicalItem(
+        PhysicalProductPurchase physical,
+        CartItem? quote,
+        bool includeAdminResolutionDetails = false,
+        IReadOnlyDictionary<Guid, string>? externalUserIds = null)
     {
         var paid = IsPaid(physical);
         var status = paid ? OrderFinancialStatus.Paid : OrderFinancialStatus.Processing;
         var delivery = !paid ? OrderDeliveryStatus.NotStarted
             : physical.DeliveryStatus == PhysicalDeliveryStatus.Delivered
                 ? OrderDeliveryStatus.Delivered : OrderDeliveryStatus.Pending;
+
+        string? note = null;
+        DateTime? resolvedAtUtc = null;
+        string? resolvedByExternalUserId = null;
+
+        if (includeAdminResolutionDetails)
+        {
+            note = physical.CarrierReturnResolutionNote;
+            resolvedAtUtc = physical.CarrierReturnResolvedAtUtc;
+            if (physical.CarrierReturnResolvedByUserId.HasValue &&
+                externalUserIds != null &&
+                externalUserIds.TryGetValue(physical.CarrierReturnResolvedByUserId.Value, out var extId))
+            {
+                resolvedByExternalUserId = extId;
+            }
+        }
+
         return new OrderItem(physical.ExternalProductId, physical.ProductTitle,
             quote?.PriceInNoor ?? physical.UnitPriceInNoor, physical.PaidAmountInNoor,
             physical.Id.Value, physical.LedgerTransactionId, physical.CreatedAtUtc,
@@ -253,7 +279,9 @@ public static class OrderMapping
             physical.Quantity, physical.DeliveryStatus.ToString(), physical.CancelledQuantity,
             physical.RefundedRegularInNoor, physical.RefundedGiftInNoor,
             physical.TrackingCode, physical.TrackingProvider,
-            physical.ShippedAtUtc, physical.CarrierReturnedAtUtc);
+            physical.ShippedAtUtc, physical.CarrierReturnedAtUtc,
+            physical.CarrierReturnResolution?.ToString(),
+            note, resolvedAtUtc, resolvedByExternalUserId);
     }
 
     private static bool CompletePurchases(

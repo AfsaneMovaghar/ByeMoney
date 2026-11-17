@@ -67,7 +67,8 @@ public sealed class PhysicalDeliveryHttpPostgresTests : IAsyncLifetime
         "purchaseId", "externalItemId", "title", "itemType", "parentExternalId", "quantity", "unitPriceInNoor",
         "baseAmountInNoor", "discountAmountInNoor", "finalAmountInNoor", "referenceRialPerNoorAtPurchaseTime",
         "deliveryStatus", "physicalDeliveryStatus", "purchasedAtUtc", "deliveredAtUtc", "cancelledQuantity",
-        "refundedRegularInNoor", "refundedGiftInNoor", "trackingCode", "trackingProvider", "shippedAtUtc"
+        "refundedRegularInNoor", "refundedGiftInNoor", "trackingCode", "trackingProvider", "shippedAtUtc",
+        "carrierReturnedAtUtc", "carrierReturnResolution"
     ];
 
     private static readonly string[] DeliveryResponseKeys =

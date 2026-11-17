@@ -23,4 +23,11 @@
   <data name="ShipmentCityUnavailable" xml:space="preserve"><value>خواندن شهر تحویل ناموفق بود و مرسوله ساخته نشد.</value></data>
   <data name="ShipmentReadFailed" xml:space="preserve"><value>وضعیت مرسوله از واسط خوانده نشد؛ برای جلوگیری از مرسولهٔ تکراری، ساخت انجام نشد.</value></data>
   <data name="ShipmentPaymentPending" xml:space="preserve"><value>مرسوله نزد واسط ثبت شده ولی پرداخت کرایه انجام نشده و ارسال‌شده حساب نمی‌شود.</value></data>
+  <data name="PhysicalPurchase_DeliveryBlockedByCarrierReturn" xml:space="preserve"><value>این کالا برگشتی از واسط پستی دارد و تا تعیین تکلیف نهایی نمی‌تواند به تحویل‌شده تغییر کند.</value></data>
+  <data name="CarrierReturn_BuyerConfirmationBlocked" xml:space="preserve"><value>مرسولهٔ این سفارش توسط واسط پستی برگشتی اعلام شده و تأیید دریافت توسط خریدار امکان‌پذیر نیست.</value></data>
+  <data name="CarrierReturn_InvalidResolution" xml:space="preserve"><value>نتیجهٔ تعیین تکلیف برگشتی باید یکی از مقادیر معتبر باشد.</value></data>
+  <data name="CarrierReturn_NoteRequired" xml:space="preserve"><value>یادداشت تعیین تکلیف برگشتی الزامی است.</value></data>
+  <data name="CarrierReturn_NoteTooLong" xml:space="preserve"><value>یادداشت تعیین تکلیف برگشتی نمی‌تواند بیشتر از ۱۰۰۰ نویسه باشد.</value></data>
+  <data name="CarrierReturn_NotReturned" xml:space="preserve"><value>این مرسوله برگشتی از واسط پستی ثبت نشده است.</value></data>
+  <data name="CarrierReturn_ResolutionConflict" xml:space="preserve"><value>این مرسوله پیش‌تر با نتیجه یا یادداشت دیگری تعیین تکلیف شده است.</value></data>
 </root>

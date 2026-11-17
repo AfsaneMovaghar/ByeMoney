@@ -26,11 +26,13 @@ public sealed class GetAdminOrdersQueryHandler(IOrderReader reader, ICurrentUser
             var order = row.Details;
             var buyer = buyers[row.BuyerId];
             var refunded = OrderRefunds.For(order, refundsByCart);
+            var carrierReturnStatus = OrderCarrierReturnStatus.For(order);
 
             return new AdminOrderListItem(order.OrderId, order.SourceType, order.CartId,
                 order.CreatedAtUtc, order.UpdatedAtUtc, order.FinancialStatus, order.DeliveryStatus,
                 order.FinalAmountInNoor, order.ItemCount, order.TopUps.Count, buyer.ExternalUserId,
-                string.IsNullOrWhiteSpace(buyer.DisplayName) ? null : buyer.DisplayName, refunded);
+                string.IsNullOrWhiteSpace(buyer.DisplayName) ? null : buyer.DisplayName, refunded,
+                carrierReturnStatus);
         }).ToArray();
         return new PurchasePage<AdminOrderListItem>(items, page.Page, page.PageSize, page.TotalCount);
     }

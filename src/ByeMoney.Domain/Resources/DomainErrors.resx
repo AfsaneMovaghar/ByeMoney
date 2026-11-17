@@ -150,6 +150,10 @@
   <data name="PhysicalProductPurchase_InvalidTrackingCode" xml:space="preserve"><value>کد رهگیری نامعتبر است؛ حداکثر ۵۰ نویسه و بدون نویسهٔ کنترلی.</value></data>
   <data name="PhysicalProductPurchase_InvalidTrackingProvider" xml:space="preserve"><value>منبع کد رهگیری نامعتبر است.</value></data>
   <data name="PhysicalProductPurchase_InvalidProviderParcelId" xml:space="preserve"><value>شناسهٔ مرسوله نامعتبر است؛ حداکثر ۵۰ نویسه و بدون نویسهٔ کنترلی.</value></data>
+  <data name="PhysicalProductPurchase_DeliveryBlockedByCarrierReturn" xml:space="preserve"><value>این کالا برگشتی از واسط پستی دارد و تا تعیین تکلیف نهایی نمی‌تواند به تحویل‌شده تغییر کند.</value></data>
+  <data name="PhysicalProductPurchase_NotCarrierReturned" xml:space="preserve"><value>این مرسوله برگشتی از واسط پستی ثبت نشده است.</value></data>
+  <data name="PhysicalProductPurchase_CarrierReturnResolutionConflict" xml:space="preserve"><value>این مرسوله پیش‌تر با نتیجه یا یادداشت دیگری تعیین تکلیف شده است.</value></data>
+  <data name="PhysicalProductPurchase_InvalidCarrierReturnResolutionNote" xml:space="preserve"><value>یادداشت تعیین تکلیف برگشتی الزامی است و حداکثر می‌تواند ۱۰۰۰ نویسه باشد.</value></data>
   <data name="GiftCampaign_AmountCannotBeNegative" xml:space="preserve"><value>مبلغ هدیه نمی‌تواند منفی باشد.</value></data>
   <data name="GiftCampaign_StartDateCannotBeAfterEndDate" xml:space="preserve"><value>تاریخ شروع هدیه نمی‌تواند بعد از تاریخ پایان باشد.</value></data>
   <data name="Wallet_CreditAmountMustBePositive" xml:space="preserve"><value>مبلغ افزایش موجودی باید بزرگتر از صفر باشد.</value></data>

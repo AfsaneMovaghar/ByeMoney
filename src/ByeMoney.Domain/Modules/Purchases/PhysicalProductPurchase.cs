@@ -36,6 +36,27 @@ public class PhysicalProductPurchase : BaseEntity<PhysicalProductPurchaseId>
     /// </summary>
     public DateTime? CarrierReturnedAtUtc { get; private set; }
 
+    /// <summary>تصمیم و تعیین‌تکلیف ادمین برای مرسولهٔ برگشتی.</summary>
+    public CarrierReturnResolution? CarrierReturnResolution { get; private set; }
+
+    /// <summary>یادداشت ادمین دربارهٔ نحوهٔ رسیدگی به مرسولهٔ برگشتی.</summary>
+    public string? CarrierReturnResolutionNote { get; private set; }
+
+    /// <summary>زمان تعیین‌تکلیف مرسولهٔ برگشتی توسط ادمین.</summary>
+    public DateTime? CarrierReturnResolvedAtUtc { get; private set; }
+
+    /// <summary>شناسهٔ داخلی ادمین تعیین‌تکلیف‌کننده.</summary>
+    public Guid? CarrierReturnResolvedByUserId { get; private set; }
+
+    public const int CarrierReturnResolutionMaxLength = 30;
+    public const int CarrierReturnResolutionNoteMaxLength = 1000;
+
+    /// <summary>مرسوله برگشتی دارد و هنوز توسط ادمین تعیین‌تکلیف نشده است.</summary>
+    public bool HasUnresolvedCarrierReturn => CarrierReturnedAtUtc != null && CarrierReturnResolution == null;
+
+    /// <summary>مرسوله برگشتی با تصمیم عدم تسویه بسته شده و برای همیشه از تسویه و تحویل خارج است.</summary>
+    public bool HasClosedWithoutSettlementReturn => CarrierReturnedAtUtc != null && CarrierReturnResolution == Purchases.CarrierReturnResolution.ClosedWithoutSettlement;
+
     /// <summary>کد رهگیری مرسوله که به خریدار نشان داده می‌شود؛ تا پیش از «تحویل‌شده» قابل اصلاح است.</summary>
     public string? TrackingCode { get; private set; }
 
@@ -194,6 +215,11 @@ public class PhysicalProductPurchase : BaseEntity<PhysicalProductPurchaseId>
             throw InvalidDeliveryTransition(PhysicalDeliveryStatus.Delivered);
         }
 
+        if (HasUnresolvedCarrierReturn || HasClosedWithoutSettlementReturn)
+        {
+            throw new DomainException(DomainErrors.PhysicalProductPurchase_DeliveryBlockedByCarrierReturn);
+        }
+
         var now = DateTime.UtcNow;
         DeliveryStatus = PhysicalDeliveryStatus.Delivered;
         DeliveredAtUtc = now;
@@ -212,6 +238,48 @@ public class PhysicalProductPurchase : BaseEntity<PhysicalProductPurchaseId>
 
         CarrierReturnedAtUtc = detectedAtUtc;
         UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// تعیین‌تکلیف مرسولهٔ برگشتی توسط ادمین (D10).
+    /// </summary>
+    public void ResolveCarrierReturn(CarrierReturnResolution resolution, string note, Guid adminUserId, DateTime utcNow)
+    {
+        if (!CarrierReturnedAtUtc.HasValue)
+        {
+            throw new DomainException(DomainErrors.PhysicalProductPurchase_NotCarrierReturned);
+        }
+
+        if (string.IsNullOrWhiteSpace(note) || note.Length > CarrierReturnResolutionNoteMaxLength)
+        {
+            throw new DomainException(DomainErrors.PhysicalProductPurchase_InvalidCarrierReturnResolutionNote);
+        }
+
+        if (CarrierReturnResolution.HasValue)
+        {
+            if (CarrierReturnResolution == resolution && CarrierReturnResolutionNote == note)
+            {
+                return;
+            }
+
+            throw new ConflictDomainException(DomainErrors.PhysicalProductPurchase_CarrierReturnResolutionConflict);
+        }
+
+        CarrierReturnResolution = resolution;
+        CarrierReturnResolutionNote = note;
+        CarrierReturnResolvedAtUtc = utcNow;
+        CarrierReturnResolvedByUserId = adminUserId;
+        UpdatedAt = utcNow;
+
+        if (resolution == Purchases.CarrierReturnResolution.DeliveryConfirmed)
+        {
+            DeliveryStatus = PhysicalDeliveryStatus.Delivered;
+            DeliveredAtUtc ??= utcNow;
+        }
+        else if (resolution == Purchases.CarrierReturnResolution.ClosedWithoutSettlement)
+        {
+            DeliveryStatus = PhysicalDeliveryStatus.Shipped;
+        }
     }
 
     /// <summary>
