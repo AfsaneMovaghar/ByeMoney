@@ -26,17 +26,6 @@ public sealed class PostexOptions
 
     public string DefaultServiceType { get; set; } = "EXPRESS";
 
-    /// <summary>شناسهٔ جعبهٔ استاندارد پستکس؛ پیش‌فرض جعبه سایز ۲.</summary>
-    public int DefaultBoxTypeId { get; set; } = 5;
-
-    public int DefaultWeightGrams { get; set; } = 250;
-
-    /// <summary>ارزش اظهارشدهٔ بیمه به ریال وقتی نرخ تبدیل نور در دسترس نیست.</summary>
-    public long DefaultParcelValueIrr { get; set; } = 50_000_000;
-
-    /// <summary>نرخ ریال به‌ازای نور فقط برای ارزش اظهارشدهٔ مرسوله؛ در مبلغ سبد اثر ندارد.</summary>
-    public long RialPerNoorForDeclaredValue { get; set; } = 10_000;
-
     /// <summary>اگر false باشد مرسوله بدون اعلام آمادگی جمع‌آوری ثبت می‌شود.</summary>
     public bool ReadyToAccept { get; set; }
 
@@ -100,6 +89,12 @@ public sealed class PostexSenderOptions
     public string CityName { get; set; } = "رامسر";
 
     public string? PostCode { get; set; }
+
+    /// <summary>عرض جغرافیایی مبدأ؛ برای collection_type=pick_up اجباری است.</summary>
+    public double? Lat { get; set; }
+
+    /// <summary>طول جغرافیایی مبدأ؛ برای collection_type=pick_up اجباری است.</summary>
+    public double? Lon { get; set; }
 
     /// <summary>
     /// فقط مرجع دستی آزمون مسیر مبدأ←مقصد (پیش‌فرض کد؛ در appsettings نباشد).

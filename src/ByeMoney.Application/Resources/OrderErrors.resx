@@ -14,8 +14,13 @@
   <data name="ShipmentProviderUnavailable" xml:space="preserve"><value>واسط پستی انتخاب‌شده در دسترس یا پیکربندی‌شده نیست.</value></data>
   <data name="ShipmentAddressRequired" xml:space="preserve"><value>آدرس تحویل سبد برای ساخت مرسوله موجود نیست.</value></data>
   <data name="ShipmentOriginRequired" xml:space="preserve"><value>مبدأ ارسال سبد برای ساخت مرسوله موجود نیست یا در تنظیمات واسط تعریف نشده است.</value></data>
+  <data name="ShipmentParcelRequired" xml:space="preserve"><value>وزن، ابعاد یا ارزش اظهارشدهٔ این قلم ثبت نشده است؛ بدون عوامل کامل مرسوله، ساخت ارسال انجام نمی‌شود.</value></data>
+  <data name="ShipmentOriginCoordinatesRequired" xml:space="preserve"><value>مختصات مبدأ (عرض و طول جغرافیایی) برای جمع‌آوری از محل تنظیم نشده است؛ مرسوله ساخته نشد.</value></data>
+  <data name="ShipmentOriginProfileIncomplete" xml:space="preserve"><value>تنظیمات مبدأ/فرستندهٔ پستکس ناقص است یا مبدأ سبد در تنظیمات تعریف نشده.</value></data>
   <data name="ShipmentNotAllowed" xml:space="preserve"><value>ساخت مرسوله فقط برای قلم «آماده‌سازی» با تعداد باقی‌مانده مجاز است.</value></data>
   <data name="ShipmentCreateFailed" xml:space="preserve"><value>ساخت مرسوله نزد واسط پستی ناموفق بود.</value></data>
   <data name="ShipmentCityNotFound" xml:space="preserve"><value>شهر تحویل در جدول محل یافت نشد و مرسوله ساخته نشد.</value></data>
   <data name="ShipmentCityUnavailable" xml:space="preserve"><value>خواندن شهر تحویل ناموفق بود و مرسوله ساخته نشد.</value></data>
+  <data name="ShipmentReadFailed" xml:space="preserve"><value>وضعیت مرسوله از واسط خوانده نشد؛ برای جلوگیری از مرسولهٔ تکراری، ساخت انجام نشد.</value></data>
+  <data name="ShipmentPaymentPending" xml:space="preserve"><value>مرسوله نزد واسط ثبت شده ولی پرداخت کرایه انجام نشده و ارسال‌شده حساب نمی‌شود.</value></data>
 </root>

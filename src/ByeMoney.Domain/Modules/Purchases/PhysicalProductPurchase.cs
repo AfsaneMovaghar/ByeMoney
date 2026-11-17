@@ -11,6 +11,12 @@ public class PhysicalProductPurchase : BaseEntity<PhysicalProductPurchaseId>
     public UserId BuyerId { get; private set; }
     public string ExternalProductId { get; private set; } = null!;
     public string ProductTitle { get; private set; } = null!;
+
+    /// <summary>عوامل مرسولهٔ فریزشدهٔ همین قلم؛ برای خرید قدیمی بدون این عوامل null است.</summary>
+    public ParcelFacts? Parcel { get; private set; }
+
+    public bool HasParcelFacts => Parcel is { IsComplete: true };
+
     public int Quantity { get; private set; }
     public decimal UnitPriceInNoor { get; private set; }
     public decimal PaidAmountInNoor { get; private set; }
@@ -24,6 +30,11 @@ public class PhysicalProductPurchase : BaseEntity<PhysicalProductPurchaseId>
     public PhysicalDeliveryStatus DeliveryStatus { get; private set; } = PhysicalDeliveryStatus.Preparing;
     public DateTime? ShippedAtUtc { get; private set; }
     public DateTime? DeliveredAtUtc { get; private set; }
+
+    /// <summary>
+    /// زمان تشخیص برگشتی از واسط پستی؛ وضعیت تحویل عوض نمی‌شود و اثر مالی ندارد.
+    /// </summary>
+    public DateTime? CarrierReturnedAtUtc { get; private set; }
 
     /// <summary>کد رهگیری مرسوله که به خریدار نشان داده می‌شود؛ تا پیش از «تحویل‌شده» قابل اصلاح است.</summary>
     public string? TrackingCode { get; private set; }
@@ -66,7 +77,8 @@ public class PhysicalProductPurchase : BaseEntity<PhysicalProductPurchaseId>
         string productTitle,
         int quantity,
         decimal unitPriceInNoor,
-        decimal paidAmountInNoor)
+        decimal paidAmountInNoor,
+        ParcelFacts? parcel = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(externalProductId);
         ArgumentException.ThrowIfNullOrWhiteSpace(productTitle);
@@ -82,6 +94,10 @@ public class PhysicalProductPurchase : BaseEntity<PhysicalProductPurchaseId>
         {
             throw new ArgumentOutOfRangeException(nameof(paidAmountInNoor));
         }
+        if (parcel is not null && !parcel.IsComplete)
+        {
+            throw new ArgumentException("Parcel facts must be complete.", nameof(parcel));
+        }
 
         return new PhysicalProductPurchase
         {
@@ -90,6 +106,7 @@ public class PhysicalProductPurchase : BaseEntity<PhysicalProductPurchaseId>
             BuyerId = buyerId,
             ExternalProductId = externalProductId.Trim(),
             ProductTitle = productTitle.Trim(),
+            Parcel = parcel,
             Quantity = quantity,
             UnitPriceInNoor = unitPriceInNoor,
             PaidAmountInNoor = paidAmountInNoor
@@ -181,6 +198,20 @@ public class PhysicalProductPurchase : BaseEntity<PhysicalProductPurchaseId>
         DeliveryStatus = PhysicalDeliveryStatus.Delivered;
         DeliveredAtUtc = now;
         UpdatedAt = now;
+    }
+
+    /// <summary>
+    /// ثبت یک‌بارهٔ برگشتی واسط پستی بدون تغییر وضعیت تحویل و بدون اثر Ledger.
+    /// </summary>
+    public void MarkCarrierReturned(DateTime detectedAtUtc)
+    {
+        if (CarrierReturnedAtUtc.HasValue)
+        {
+            return;
+        }
+
+        CarrierReturnedAtUtc = detectedAtUtc;
+        UpdatedAt = DateTime.UtcNow;
     }
 
     /// <summary>

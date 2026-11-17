@@ -197,7 +197,16 @@
 - آزمون: `dotnet test` کامل ۶۶۵ موفق و ۰ ناموفق (شامل `ShipTrackingTests`، `CreatePhysicalShipmentTests`، `PhysicalDeliverySyncTests`). فرانت `PhysicalDeliveryControl.test.jsx` ۷ موفق. استعلام زندهٔ مرسولهٔ تستی با کلید Development: HTTP ۲۰۰ و وضعیت `PAYMENT_PENDING` → InTransit.
 - محدودیت: ساخت مرسوله روی قلم Preparing واقعی و پذیرش مرورگر/Swagger و مرسولهٔ Delivered هنوز باز است؛ بارکد تا پرداخت کیف‌پول پستکس ممکن است ماسک بماند.
 
+## SHIP-PARCEL-FACTORS — عوامل واقعی مرسوله — ۱۷ نوامبر ۲۰۲۶
+
+- تغییر (استرپی): فیلدهای `length`/`width`/`height`/`isFragile` روی کالا (+ مهاجرت `2026.11.17T12.00.00.product-parcel-factors`)؛ `weight` موجود گرم است. در `postex` هر قلم جدا استعلام می‌شود با وزن×تعداد، ابعاد واقعی، ارزش ریالی قلم، `is_fragile` کالا، بدون `box_type_id`؛ هزینهٔ سبد جمع استعلام‌هاست؛ نبود وزن/ابعاد → تعارض. کف ۵۰ میلیون فقط پس از رد پستکس. خطای اعتبارسنجی پستکس (`errors`/`invalid_fields`) در پیام تعارض می‌آید. prepare روی ردیف کالا `parcel` با عوامل فریزشدنی برمی‌گرداند.
+- تغییر (بای‌مانی): `parcel` در قرارداد prepare به `ParcelFacts` نگاشت و روی `CartItems` و `PhysicalProductPurchases` (ستون‌های nullable + قید همه‌یا‌هیچ) فریز شد (migration `20261117105330_AddShipmentParcelFactors`). بدنهٔ `parcels/bulk` فقط اعداد فریزشده را با `parcel_items` می‌فرستد؛ `box_type_id`، ۲۵۰ گرم و ۵۰ میلیون حذف شدند. `pick_up` بدون `lat`/`lon` مبدأ پیش از bulk با پیام روشن رد می‌شود و `ExtractErrorMessage` خطاهای `errors`/`invalid_fields` را نشان می‌دهد.
+- اسناد: I09-PH، بند هزینه ارسال D و Postex_API (بندهای ۸.۲.۲، ۸.۲.۴ و ۸.۲.۷) به‌روز شد.
+- آزمون: Jest استرپی `cartShipping` + `postexShippingQuote` — ۱۶ موفق؛ مجموعهٔ `tests/services` + `physicalCartNoOrder` — ۷۱ موفق. بای‌مانی: `dotnet test` کامل ۵۷۵ موفق، ۱۲۱ Skip، ۰ ناموفق؛ `CartPostgresTests` با `BYEMONEY_CART_PG_TESTS=1` — ۳۹/۳۹ موفق (شامل ماندگاری parcel روی سبد و خرید)؛ migration روی دیتابیس توسعه اعمال و Down/Up دوباره اجرا شد.
+- محدودیت: مختصات واقعی انبار رامسر در تنظیمات نیست و `Lat`/`Lon` خالی مانده؛ تا تکمیل آن، `pick_up` عمداً با پیام روشن متوقف می‌شود. پذیرش ساخت مرسوله با کلید زنده و بارکد واقعی باقی است. اگر بخشی از تعداد خرید پس از prepare لغو شود، وزن/ارزش فریزشده مطابق قید تسک مقیاس نمی‌شود.
+
 ## SHIP-COST-MODE — هزینهٔ ثابت یا برآورد پستکس — ۱۵ نوامبر ۲۰۲۶
+
 
 - تغییر (استرپی): `shipping-setting` فیلدهای `costMode` (`fixed`|`postex`) و `rialPerNoorForShipping`؛ `cartShipping` در mode پستکس از `postexShippingQuote` با `POST /api/v1/shipping/quotes` (مبدأ رامسر ۵۷۳، کوریر `IR_POST`/`EXPRESS`) مبلغ `total_cost` را می‌گیرد، به نور صحیح سقف می‌کند و آستانهٔ رایگان را پیش از فراخوانی اعمال می‌کند؛ بدون کلید یا خطای پستکس → `CART_CONFLICT`. بای‌مانی و فرانت قرارداد `shippingAmountInNoor`/`shippingRuleLabel` را عوض نکردند.
 - آزمون: Jest `tests/services/cartShipping.test.js` و `postexShippingQuote.test.js` — ۹ موفق.
@@ -244,3 +253,10 @@
 - تغییر (فرانت): خلاصهٔ سبد، جزئیات سفارش خریدار و پنل/کشوی ادمین نشانی را با استان و شهر نشان می‌دهند و مبدأ را از پاسخ بای‌مانی (یا برچسب پیش‌نمایش، پیش از ساخت سبد) می‌نویسند.
 - آزمون: بای‌مانی `CartTests` + `CartPricingClientTests` + `CartRefreshTests` — ۵۰ موفق. فرانت Jest همین مسیر (سبد، سفارش خریدار، پنل ادمین، route سفارش و tracking) — ۱۰۹ موفق. migration `AddCartShippingOriginLabel` روی دیتابیس توسعه اعمال شد.
 - محدودیت: مرورگر با نشست واقعی در این اجرا باز نشد.
+
+## SHIP-CREATE-ONCE و SHIP-UNPAID — مرسولهٔ تکراری و پرداخت‌نشده — ۱۶ نوامبر ۲۰۲۶
+
+- تغییر (بای‌مانی): خواندن `custom-order-no` فقط با ۴۰۴ «نیست» است؛ خطای خواندن یا بدنهٔ بدون `parcel_no` ساخت را شروع نمی‌کند. فراخوانی واسط داخل قفل خریدار/سبد است. والد ۱ / کد ۱۰۰۰۰ / `PAYMENT_PENDING` و پاسخ ۴۰۲ خرید را `Shipped` نمی‌کند و ۴۰۰ با پیام دامنه برمی‌گرداند؛ تسویه چون هنوز `Preparing` است باز نمی‌شود. دکمهٔ پنل همان مسیر خطای ۴۰۰ را نشان می‌دهد. فرانت عوض نشد.
+- اسناد: بند ۸.۲ `Postex_API` و جملهٔ ساخت مرسوله در I11-O.
+- آزمون: `CreatePhysicalShipmentTests` + `PostexShipmentCityCodeTests` + `OrderSettlementTests` — ۳۹ موفق و ۰ ناموفق.
+- محدودیت: پستکس زنده صدا زده نشد. مرسولهٔ پرداخت‌نشدهٔ قبلی با کلیک دوباره پرداخت نمی‌شود؛ تا وضعیت واسط از «در انتظار پرداخت» خارج شود، ساخت دوم انجام نمی‌شود و خرید `Preparing` می‌ماند. قفل سبد تا پایان مهلت پستکس (پیش‌فرض ۲۰ ثانیه) نگه داشته می‌شود.

@@ -122,6 +122,35 @@ public sealed class CartPostgresTests : IAsyncLifetime
     }
 
     [CartPostgresFact]
+    public async Task ParcelFactsArePersistedOnCartAndPhysicalPurchase()
+    {
+        const string productId = "book";
+        var cart = Cart.Create(
+            Guid.NewGuid(),
+            _buyer.Id.Value,
+            _buyer.ExternalUserId,
+            [new CartItemInput(productId, ProductItemType.Product, 2)],
+            null);
+        (await Store.CreateAsync(cart, default)).IsSuccess.Should().BeTrue();
+        var parcel = new ParcelFacts(750, 15, 10, 5, 60_000_000, true);
+        cart = await Store.SetQuoteAsync(
+            cart.Id,
+            _buyer.Id.Value,
+            [new CartQuoteItem(productId, "Book", 50, 0, 0, 100, ProductItemType.Product, null, 2, parcel)],
+            cart.ReservationId,
+            default);
+        cart.Items.Single().Parcel.Should().Be(parcel);
+
+        (await Store.PayAsync(cart.Id, _buyer.Id.Value, cart.ReservationId, default)).IsSuccess.Should().BeTrue();
+
+        using var scope = _provider.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var purchase = await db.Set<PhysicalProductPurchase>().AsNoTracking().SingleAsync();
+        purchase.Parcel.Should().Be(parcel);
+        (await Store.FindAsync(cart.Id, _buyer.Id.Value, default))!.Items.Single().Parcel.Should().Be(parcel);
+    }
+
+    [CartPostgresFact]
     public async Task ConcurrentCartsForSameChapterHaveOnlyOneFinancialEffect()
     {
         var chapterId = Guid.NewGuid().ToString();

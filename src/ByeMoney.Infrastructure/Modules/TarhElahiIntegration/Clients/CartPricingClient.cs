@@ -108,7 +108,8 @@ public sealed class CartPricingClient(HttpClient http) : ICartPricingClient
                 x.PriceInNoor,
                 x.Type,
                 x.ParentExternalId,
-                x.Quantity))
+                x.Quantity,
+                ToParcel(x)))
             .ToArray();
 
         var hasProduct = items.Any(x => x.Type == ProductItemType.Product);
@@ -139,6 +140,30 @@ public sealed class CartPricingClient(HttpClient http) : ICartPricingClient
             address,
             hasProduct ? originId : null,
             hasProduct ? originLabel : null);
+    }
+
+    /// <summary>
+    /// عوامل مرسوله فقط برای کالا و فقط وقتی همهٔ اعداد مثبت‌اند نگاشت می‌شوند؛
+    /// دادهٔ ناقص null می‌ماند تا ساخت مرسوله با پیام روشن رد شود، نه با عدد جایگزین.
+    /// </summary>
+    private static ParcelFacts? ToParcel(TarhElahiCartPrepareResponseItem wire)
+    {
+        if (wire.Type != ProductItemType.Product || wire.Parcel is not { } parcel)
+        {
+            return null;
+        }
+
+        if (parcel.WeightGrams is not int weightGrams || weightGrams < 1 ||
+            parcel.LengthCm is not int lengthCm || lengthCm < 1 ||
+            parcel.WidthCm is not int widthCm || widthCm < 1 ||
+            parcel.HeightCm is not int heightCm || heightCm < 1 ||
+            parcel.DeclaredValueIrr is not long declaredValueIrr || declaredValueIrr < 1)
+        {
+            return null;
+        }
+
+        return new ParcelFacts(
+            weightGrams, lengthCm, widthCm, heightCm, declaredValueIrr, parcel.IsFragile == true);
     }
 
     /// <summary>

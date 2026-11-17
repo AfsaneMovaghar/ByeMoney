@@ -16,4 +16,5 @@ public sealed record OrderItem(
     int Quantity = 1, string? PhysicalDeliveryStatus = null,
     int CancelledQuantity = 0,
     decimal RefundedRegularInNoor = 0m, decimal RefundedGiftInNoor = 0m,
-    string? TrackingCode = null, string? TrackingProvider = null, DateTime? ShippedAtUtc = null);
+    string? TrackingCode = null, string? TrackingProvider = null, DateTime? ShippedAtUtc = null,
+    DateTime? CarrierReturnedAtUtc = null);

@@ -35,10 +35,36 @@ public sealed class PostexShipmentClient(
                 ErrorMessage: "کلید یکتای مرسوله خالی است.");
         }
 
-        var existing = await TryGetByCustomOrderNoAsync(request.Parcel.IdempotencyKey.Trim(), ct);
-        if (existing is not null)
+        if (!request.Parcel.Facts.IsComplete)
         {
-            return existing with { Outcome = ShipmentCreateOutcome.AlreadyExists };
+            return new ShipmentCreateResult(ShipmentCreateOutcome.Failed,
+                ErrorMessage: OrderErrors.ShipmentParcelRequired);
+        }
+
+        var existing = await ReadParcelAsync(request.Parcel.IdempotencyKey.Trim(), ct);
+        if (existing.Kind == ParcelReadKind.Failed)
+        {
+            return new ShipmentCreateResult(ShipmentCreateOutcome.Failed,
+                ErrorMessage: OrderErrors.ShipmentReadFailed);
+        }
+
+        if (existing.Kind == ParcelReadKind.Found)
+        {
+            return AsExisting(existing.Parcel!);
+        }
+
+        var collectionType = ResolveCollectionType();
+        var sender = options.ResolveOrigin(request.OriginId);
+        if (sender is null || !IsSenderConfigured(sender))
+        {
+            return new ShipmentCreateResult(ShipmentCreateOutcome.Failed,
+                ErrorMessage: OrderErrors.ShipmentOriginProfileIncomplete);
+        }
+
+        if (RequiresPickUpCoordinates(collectionType) && !HasCoordinates(sender))
+        {
+            return new ShipmentCreateResult(ShipmentCreateOutcome.Failed,
+                ErrorMessage: OrderErrors.ShipmentOriginCoordinatesRequired);
         }
 
         var cityCode = await cityCodes.ReadAsync(
@@ -54,33 +80,32 @@ public sealed class PostexShipmentClient(
                     : OrderErrors.ShipmentCityNotFound);
         }
 
-        var sender = options.ResolveOrigin(request.OriginId);
-        if (sender is null || !IsSenderConfigured(sender))
-        {
-            return new ShipmentCreateResult(ShipmentCreateOutcome.Failed,
-                ErrorMessage: "تنظیمات مبدأ/فرستندهٔ پستکس ناقص است یا مبدأ سبد در تنظیمات تعریف نشده.");
-        }
-
         try
         {
             using var response = await http.PostAsJsonAsync(
-                "api/v1/parcels/bulk", BuildBulkBody(request, cityId, sender), ct);
+                "api/v1/parcels/bulk", BuildBulkBody(request, cityId, sender, collectionType), ct);
             var body = await response.Content.ReadAsStringAsync(ct);
 
             if (response.StatusCode == HttpStatusCode.PaymentRequired)
             {
-                var afterPayment = await TryGetByCustomOrderNoAsync(request.Parcel.IdempotencyKey.Trim(), ct);
-                if (afterPayment is not null)
+                var afterPayment = await ReadParcelAsync(request.Parcel.IdempotencyKey.Trim(), ct);
+                if (afterPayment.Kind == ParcelReadKind.Failed)
                 {
-                    return afterPayment with
+                    return new ShipmentCreateResult(ShipmentCreateOutcome.Failed,
+                        ErrorMessage: OrderErrors.ShipmentReadFailed);
+                }
+
+                if (afterPayment.Kind == ParcelReadKind.Found)
+                {
+                    return afterPayment.Parcel! with
                     {
                         Outcome = ShipmentCreateOutcome.PendingPayment,
-                        ErrorMessage = "مرسوله ثبت شد ولی پرداخت نزد واسط معلق است."
+                        ErrorMessage = OrderErrors.ShipmentPaymentPending
                     };
                 }
 
                 return new ShipmentCreateResult(ShipmentCreateOutcome.PendingPayment,
-                    ErrorMessage: ExtractErrorMessage(body) ?? "موجودی کیف پول واسط برای ثبت مرسوله کافی نیست.");
+                    ErrorMessage: ExtractErrorMessage(body) ?? OrderErrors.ShipmentPaymentPending);
             }
 
             if (!response.IsSuccessStatusCode)
@@ -93,19 +118,19 @@ public sealed class PostexShipmentClient(
             if (bulkFailed is not null)
             {
                 // حتی وقتی HTTP 200 و isSuccess=false است، گاهی مرسوله ساخته شده؛ دوباره می‌خوانیم.
-                var maybeCreated = await TryGetByCustomOrderNoAsync(request.Parcel.IdempotencyKey.Trim(), ct);
-                if (maybeCreated is not null)
-                {
-                    return maybeCreated with { Outcome = ShipmentCreateOutcome.Created };
-                }
-
-                return new ShipmentCreateResult(ShipmentCreateOutcome.Failed, ErrorMessage: bulkFailed);
+                return await ResultAfterWriteAsync(request.Parcel.IdempotencyKey.Trim(), bulkFailed, ct);
             }
 
-            var created = await TryGetByCustomOrderNoAsync(request.Parcel.IdempotencyKey.Trim(), ct);
-            if (created is not null)
+            var created = await ReadParcelAsync(request.Parcel.IdempotencyKey.Trim(), ct);
+            if (created.Kind == ParcelReadKind.Failed)
             {
-                return created with { Outcome = ShipmentCreateOutcome.Created };
+                return new ShipmentCreateResult(ShipmentCreateOutcome.Failed,
+                    ErrorMessage: OrderErrors.ShipmentReadFailed);
+            }
+
+            if (created.Kind == ParcelReadKind.Found)
+            {
+                return AsWritten(created.Parcel!);
             }
 
             return new ShipmentCreateResult(ShipmentCreateOutcome.Failed,
@@ -128,35 +153,28 @@ public sealed class PostexShipmentClient(
         !string.IsNullOrWhiteSpace(sender.MobileNo) &&
         !string.IsNullOrWhiteSpace(sender.TelephoneNo);
 
-    private long ResolveDeclaredValueIrr(ShipmentParcelDetails parcel)
-    {
-        if (parcel.DeclaredValueMinorUnits > 0 &&
-            string.Equals(parcel.CurrencyCode, "IRR", StringComparison.OrdinalIgnoreCase))
-        {
-            return parcel.DeclaredValueMinorUnits;
-        }
+    private string ResolveCollectionType() =>
+        string.IsNullOrWhiteSpace(options.CollectionType) ? "pick_up" : options.CollectionType.Trim();
 
-        if (parcel.DeclaredValueMinorUnits > 0 &&
-            string.Equals(parcel.CurrencyCode, "NOOR", StringComparison.OrdinalIgnoreCase))
-        {
-            var rate = options.RialPerNoorForDeclaredValue > 0 ? options.RialPerNoorForDeclaredValue : 10_000;
-            return Math.Max(1, parcel.DeclaredValueMinorUnits * rate);
-        }
+    private static bool RequiresPickUpCoordinates(string collectionType) =>
+        string.Equals(collectionType, "pick_up", StringComparison.OrdinalIgnoreCase);
 
-        return Math.Max(1, options.DefaultParcelValueIrr);
-    }
+    private static bool HasCoordinates(PostexSenderOptions sender) =>
+        sender.Lat is >= -90 and <= 90 &&
+        sender.Lon is >= -180 and <= 180;
 
     private object BuildBulkBody(
-        ShipmentCreateRequest request, int toCityId, PostexSenderOptions sender)
+        ShipmentCreateRequest request, int toCityId, PostexSenderOptions sender, string collectionType)
     {
         var (firstName, lastName) = SplitName(request.Recipient.FullName);
         var (senderFirst, senderLast) = (
             string.IsNullOrWhiteSpace(sender.FirstName) ? "فرستنده" : sender.FirstName.Trim(),
             string.IsNullOrWhiteSpace(sender.LastName) ? "شرکت" : sender.LastName.Trim());
+        var parcelFacts = request.Parcel.Facts;
 
         return new
         {
-            collection_type = string.IsNullOrWhiteSpace(options.CollectionType) ? "pick_up" : options.CollectionType,
+            collection_type = collectionType,
             remark = request.Remark,
             custom_channel = "api",
             parcels = new[]
@@ -183,7 +201,9 @@ public sealed class PostexShipmentClient(
                             city_id = sender.CityId,
                             city_name = sender.CityName,
                             country = "IR",
-                            post_code = sender.PostCode
+                            post_code = sender.PostCode,
+                            lat = sender.Lat,
+                            lon = sender.Lon
                         }
                     },
                     to = new
@@ -207,16 +227,26 @@ public sealed class PostexShipmentClient(
                             post_code = request.Recipient.PostalCode
                         }
                     },
+                    parcel_items = new[]
+                    {
+                        new
+                        {
+                            description = request.Parcel.ItemTitle,
+                            quantity = request.Parcel.Quantity,
+                            weight = parcelFacts.WeightGrams,
+                            price = parcelFacts.DeclaredValueIrr
+                        }
+                    },
                     parcel_properties = new
                     {
-                        box_type_id = options.DefaultBoxTypeId > 0 ? options.DefaultBoxTypeId : 5,
-                        total_weight = request.Parcel.WeightGrams > 0
-                            ? request.Parcel.WeightGrams
-                            : Math.Max(1, options.DefaultWeightGrams),
-                        total_value = ResolveDeclaredValueIrr(request.Parcel),
+                        length = parcelFacts.LengthCm,
+                        width = parcelFacts.WidthCm,
+                        height = parcelFacts.HeightCm,
+                        total_weight = parcelFacts.WeightGrams,
+                        total_value = parcelFacts.DeclaredValueIrr,
                         total_value_currency = "IRR",
                         pre_paid_amount = 0,
-                        is_fragile = true,
+                        is_fragile = parcelFacts.IsFragile,
                         is_liquid = false
                     },
                     courier = new
@@ -232,7 +262,35 @@ public sealed class PostexShipmentClient(
         };
     }
 
-    private async Task<ShipmentCreateResult?> TryGetByCustomOrderNoAsync(string customOrderNo, CancellationToken ct)
+    private async Task<ShipmentCreateResult> ResultAfterWriteAsync(
+        string customOrderNo, string fallbackError, CancellationToken ct)
+    {
+        var read = await ReadParcelAsync(customOrderNo, ct);
+        if (read.Kind == ParcelReadKind.Failed)
+        {
+            return new ShipmentCreateResult(ShipmentCreateOutcome.Failed,
+                ErrorMessage: OrderErrors.ShipmentReadFailed);
+        }
+
+        if (read.Kind == ParcelReadKind.Found)
+        {
+            return AsWritten(read.Parcel!);
+        }
+
+        return new ShipmentCreateResult(ShipmentCreateOutcome.Failed, ErrorMessage: fallbackError);
+    }
+
+    private static ShipmentCreateResult AsExisting(ShipmentCreateResult parcel) =>
+        parcel.Outcome == ShipmentCreateOutcome.PendingPayment
+            ? parcel with { ErrorMessage = OrderErrors.ShipmentPaymentPending }
+            : parcel with { Outcome = ShipmentCreateOutcome.AlreadyExists };
+
+    private static ShipmentCreateResult AsWritten(ShipmentCreateResult parcel) =>
+        parcel.Outcome == ShipmentCreateOutcome.PendingPayment
+            ? parcel with { ErrorMessage = OrderErrors.ShipmentPaymentPending }
+            : parcel with { Outcome = ShipmentCreateOutcome.Created };
+
+    private async Task<ParcelRead> ReadParcelAsync(string customOrderNo, CancellationToken ct)
     {
         var path = $"api/v1/parcels/custom-order-no/{Uri.EscapeDataString(customOrderNo)}";
         try
@@ -240,16 +298,17 @@ public sealed class PostexShipmentClient(
             using var response = await http.GetAsync(path, ct);
             if (response.StatusCode == HttpStatusCode.NotFound)
             {
-                return null;
+                return ParcelRead.NotFound();
             }
 
             var body = await response.Content.ReadAsStringAsync(ct);
             if (!response.IsSuccessStatusCode)
             {
-                return null;
+                return ParcelRead.Failed();
             }
 
-            return ParseParcelDetails(body);
+            var parsed = ParseParcelDetails(body);
+            return parsed is null ? ParcelRead.Failed() : ParcelRead.Found(parsed);
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
@@ -257,8 +316,19 @@ public sealed class PostexShipmentClient(
         }
         catch (Exception ex) when (ex is HttpRequestException or OperationCanceledException or JsonException)
         {
-            return null;
+            return ParcelRead.Failed();
         }
+    }
+
+    private enum ParcelReadKind { NotFound, Found, Failed }
+
+    private readonly record struct ParcelRead(ParcelReadKind Kind, ShipmentCreateResult? Parcel)
+    {
+        public static ParcelRead NotFound() => new(ParcelReadKind.NotFound, null);
+
+        public static ParcelRead Found(ShipmentCreateResult parcel) => new(ParcelReadKind.Found, parcel);
+
+        public static ParcelRead Failed() => new(ParcelReadKind.Failed, null);
     }
 
     private static ShipmentCreateResult? ParseParcelDetails(string body)
@@ -275,11 +345,13 @@ public sealed class PostexShipmentClient(
             ?? ReadNestedString(root, "current_status", "name")
             ?? ReadNestedString(root, "current_status", "status_name");
 
+        var unpaid = IsPaymentPending(root);
         return new ShipmentCreateResult(
-            ShipmentCreateOutcome.Created,
+            unpaid ? ShipmentCreateOutcome.PendingPayment : ShipmentCreateOutcome.Created,
             ProviderParcelId: parcelNo,
             TrackingCode: IsUsableTracking(tracking) ? tracking : null,
-            StatusName: statusName);
+            StatusName: statusName,
+            ErrorMessage: unpaid ? OrderErrors.ShipmentPaymentPending : null);
     }
 
     private static bool TryReadParcelNo(JsonElement root, out string parcelNo)
@@ -307,6 +379,64 @@ public sealed class PostexShipmentClient(
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// والد ۱ و کد ۱۰۰۰۰ هر دو «در انتظار پرداخت» هستند. نام فقط وقتی کد عددی نیست به کار می‌رود.
+    /// </summary>
+    private static bool IsPaymentPending(JsonElement root)
+    {
+        if (ReadNestedInt(root, "parent", "code") == 1 || ReadInt(root, "status_code") is 1 or 10000)
+        {
+            return true;
+        }
+
+        if (root.ValueKind == JsonValueKind.Object &&
+            root.TryGetProperty("current_status", out var current) &&
+            current.ValueKind == JsonValueKind.Object &&
+            (ReadNestedInt(current, "parent", "code") == 1 ||
+                ReadInt(current, "code") == 1 ||
+                ReadInt(current, "status_code") is 1 or 10000))
+        {
+            return true;
+        }
+
+        var name = ReadString(root, "status_name")
+            ?? ReadNestedString(root, "current_status", "name")
+            ?? ReadNestedString(root, "current_status", "status_name")
+            ?? ReadNestedString(root, "parent", "name");
+        return string.Equals(name, "PAYMENT_PENDING", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static int? ReadInt(JsonElement element, string name)
+    {
+        if (element.ValueKind != JsonValueKind.Object ||
+            !element.TryGetProperty(name, out var property))
+        {
+            return null;
+        }
+
+        if (property.ValueKind == JsonValueKind.Number && property.TryGetInt32(out var number))
+        {
+            return number;
+        }
+
+        return property.ValueKind == JsonValueKind.String &&
+            int.TryParse(property.GetString(), out var parsed)
+            ? parsed
+            : null;
+    }
+
+    private static int? ReadNestedInt(JsonElement element, string objectName, string propertyName)
+    {
+        if (element.ValueKind != JsonValueKind.Object ||
+            !element.TryGetProperty(objectName, out var nested) ||
+            nested.ValueKind != JsonValueKind.Object)
+        {
+            return null;
+        }
+
+        return ReadInt(nested, propertyName);
     }
 
     private static string? ReadTrackingNumber(JsonElement root)
@@ -388,6 +518,10 @@ public sealed class PostexShipmentClient(
         return null;
     }
 
+    /// <summary>
+    /// پیام خطای پستکس چند قالب دارد؛ علاوه بر پیام کلی، خطاهای فیلدی
+    /// <c>errors</c> و <c>invalid_fields</c> هم با نام فیلد برگردانده می‌شوند.
+    /// </summary>
     private static string? ExtractErrorMessage(string? body)
     {
         if (string.IsNullOrWhiteSpace(body))
@@ -398,14 +532,69 @@ public sealed class PostexShipmentClient(
         try
         {
             using var document = JsonDocument.Parse(body);
-            return ReadString(document.RootElement, "Message")
-                ?? ReadString(document.RootElement, "message")
-                ?? ReadString(document.RootElement, "title");
+            var root = document.RootElement;
+            if (root.ValueKind != JsonValueKind.Object)
+            {
+                return null;
+            }
+
+            var messages = new List<string>();
+            AddMessage(messages, ReadString(root, "Message"));
+            AddMessage(messages, ReadString(root, "message"));
+            AddMessage(messages, ReadString(root, "title"));
+            AddFieldMessages(messages, root, "errors");
+            AddFieldMessages(messages, root, "invalid_fields");
+            return messages.Count == 0 ? null : string.Join(" | ", messages);
         }
         catch (JsonException)
         {
             return null;
         }
+    }
+
+    private static void AddMessage(List<string> messages, string? message)
+    {
+        var trimmed = message?.Trim();
+        if (!string.IsNullOrWhiteSpace(trimmed) && !messages.Contains(trimmed!))
+        {
+            messages.Add(trimmed!);
+        }
+    }
+
+    private static void AddFieldMessages(List<string> messages, JsonElement root, string propertyName)
+    {
+        if (!root.TryGetProperty(propertyName, out var fields) || fields.ValueKind != JsonValueKind.Object)
+        {
+            return;
+        }
+
+        foreach (var field in fields.EnumerateObject())
+        {
+            var text = ReadFieldMessage(field.Value);
+            if (!string.IsNullOrWhiteSpace(text))
+            {
+                messages.Add($"{field.Name}: {text}");
+            }
+        }
+    }
+
+    private static string? ReadFieldMessage(JsonElement value)
+    {
+        if (value.ValueKind == JsonValueKind.String)
+        {
+            return value.GetString();
+        }
+
+        if (value.ValueKind != JsonValueKind.Array)
+        {
+            return null;
+        }
+
+        var messages = value.EnumerateArray()
+            .Select(item => item.ValueKind == JsonValueKind.String ? item.GetString() : item.ToString())
+            .Where(item => !string.IsNullOrWhiteSpace(item))
+            .ToArray();
+        return messages.Length == 0 ? null : string.Join("; ", messages);
     }
 
     private static string? ReadString(JsonElement element, string name) =>

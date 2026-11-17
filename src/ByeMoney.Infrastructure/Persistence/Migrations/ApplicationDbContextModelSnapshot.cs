@@ -759,6 +759,8 @@ namespace ByeMoney.Infrastructure.Migrations
 
                             t.HasCheckConstraint("CK_PhysicalProductPurchases_NonNegativeAmounts", "\"UnitPriceInNoor\" >= 0 AND \"PaidAmountInNoor\" >= 0 AND trunc(\"UnitPriceInNoor\") = \"UnitPriceInNoor\" AND trunc(\"PaidAmountInNoor\") = \"PaidAmountInNoor\"");
 
+                            t.HasCheckConstraint("CK_PhysicalProductPurchases_ParcelFacts", "(\"ParcelWeightGrams\" IS NULL AND \"ParcelLengthCm\" IS NULL AND \"ParcelWidthCm\" IS NULL AND \"ParcelHeightCm\" IS NULL AND \"ParcelDeclaredValueIrr\" IS NULL AND \"ParcelIsFragile\" IS NULL) OR (\"ParcelWeightGrams\" > 0 AND \"ParcelLengthCm\" > 0 AND \"ParcelWidthCm\" > 0 AND \"ParcelHeightCm\" > 0 AND \"ParcelDeclaredValueIrr\" > 0 AND \"ParcelIsFragile\" IS NOT NULL)");
+
                             t.HasCheckConstraint("CK_PhysicalProductPurchases_PaymentShares", "(\"RegularAmountInNoor\" IS NULL AND \"GiftAmountInNoor\" IS NULL) OR (\"RegularAmountInNoor\" >= 0 AND \"GiftAmountInNoor\" >= 0 AND \"RegularAmountInNoor\" + \"GiftAmountInNoor\" = \"PaidAmountInNoor\")");
 
                             t.HasCheckConstraint("CK_PhysicalProductPurchases_Quantity", "\"Quantity\" >= 1");
@@ -1527,6 +1529,8 @@ namespace ByeMoney.Infrastructure.Migrations
 
                                     t.HasCheckConstraint("CK_CartItems_NonNegativeAmounts", "\"PriceInNoor\" >= 0");
 
+                                    t.HasCheckConstraint("CK_CartItems_ParcelFacts", "(\"ParcelWeightGrams\" IS NULL AND \"ParcelLengthCm\" IS NULL AND \"ParcelWidthCm\" IS NULL AND \"ParcelHeightCm\" IS NULL AND \"ParcelDeclaredValueIrr\" IS NULL AND \"ParcelIsFragile\" IS NULL) OR (\"ParcelWeightGrams\" > 0 AND \"ParcelLengthCm\" > 0 AND \"ParcelWidthCm\" > 0 AND \"ParcelHeightCm\" > 0 AND \"ParcelDeclaredValueIrr\" > 0 AND \"ParcelIsFragile\" IS NOT NULL)");
+
                                     t.HasCheckConstraint("CK_CartItems_Quantity", "\"Quantity\" >= 1");
 
                                     t.HasCheckConstraint("CK_CartItems_WholeNoorAmounts", "trunc(\"PriceInNoor\") = \"PriceInNoor\"");
@@ -1534,6 +1538,52 @@ namespace ByeMoney.Infrastructure.Migrations
 
                             b1.WithOwner()
                                 .HasForeignKey("CartId");
+
+                            b1.OwnsOne("ByeMoney.Domain.Modules.Purchases.ParcelFacts", "Parcel", b2 =>
+                                {
+                                    b2.Property<Guid>("CartItemCartId")
+                                        .HasColumnType("uuid");
+
+                                    b2.Property<string>("CartItemExternalItemId")
+                                        .HasColumnType("character varying(100)");
+
+                                    b2.Property<string>("CartItemItemType")
+                                        .ValueGeneratedOnAdd()
+                                        .HasColumnType("character varying(30)");
+
+                                    b2.Property<long>("DeclaredValueIrr")
+                                        .HasColumnType("bigint")
+                                        .HasColumnName("ParcelDeclaredValueIrr");
+
+                                    b2.Property<int>("HeightCm")
+                                        .HasColumnType("integer")
+                                        .HasColumnName("ParcelHeightCm");
+
+                                    b2.Property<bool>("IsFragile")
+                                        .HasColumnType("boolean")
+                                        .HasColumnName("ParcelIsFragile");
+
+                                    b2.Property<int>("LengthCm")
+                                        .HasColumnType("integer")
+                                        .HasColumnName("ParcelLengthCm");
+
+                                    b2.Property<int>("WeightGrams")
+                                        .HasColumnType("integer")
+                                        .HasColumnName("ParcelWeightGrams");
+
+                                    b2.Property<int>("WidthCm")
+                                        .HasColumnType("integer")
+                                        .HasColumnName("ParcelWidthCm");
+
+                                    b2.HasKey("CartItemCartId", "CartItemExternalItemId", "CartItemItemType");
+
+                                    b2.ToTable("CartItems");
+
+                                    b2.WithOwner()
+                                        .HasForeignKey("CartItemCartId", "CartItemExternalItemId", "CartItemItemType");
+                                });
+
+                            b1.Navigation("Parcel");
                         });
 
                     b.OwnsOne("ByeMoney.Domain.Modules.Purchases.ShippingAddress", "ShippingAddress", b1 =>
@@ -1738,6 +1788,45 @@ namespace ByeMoney.Infrastructure.Migrations
                         .HasForeignKey("CartId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.OwnsOne("ByeMoney.Domain.Modules.Purchases.ParcelFacts", "Parcel", b1 =>
+                        {
+                            b1.Property<Guid>("PhysicalProductPurchaseId")
+                                .HasColumnType("uuid");
+
+                            b1.Property<long>("DeclaredValueIrr")
+                                .HasColumnType("bigint")
+                                .HasColumnName("ParcelDeclaredValueIrr");
+
+                            b1.Property<int>("HeightCm")
+                                .HasColumnType("integer")
+                                .HasColumnName("ParcelHeightCm");
+
+                            b1.Property<bool>("IsFragile")
+                                .HasColumnType("boolean")
+                                .HasColumnName("ParcelIsFragile");
+
+                            b1.Property<int>("LengthCm")
+                                .HasColumnType("integer")
+                                .HasColumnName("ParcelLengthCm");
+
+                            b1.Property<int>("WeightGrams")
+                                .HasColumnType("integer")
+                                .HasColumnName("ParcelWeightGrams");
+
+                            b1.Property<int>("WidthCm")
+                                .HasColumnType("integer")
+                                .HasColumnName("ParcelWidthCm");
+
+                            b1.HasKey("PhysicalProductPurchaseId");
+
+                            b1.ToTable("PhysicalProductPurchases");
+
+                            b1.WithOwner()
+                                .HasForeignKey("PhysicalProductPurchaseId");
+                        });
+
+                    b.Navigation("Parcel");
                 });
 
             modelBuilder.Entity("ByeMoney.Domain.Modules.Wallet.Gifts.GiftGrantRecipient", b =>

@@ -10,7 +10,7 @@ namespace ByeMoney.Application.Modules.Purchases.Delivery.Services;
 /// <summary>
 /// تحویل خودکار قلم‌های «ارسال‌شده» (SHIP-TRACKING): هر قلم جدا و idempotent.
 /// دو منبع دارد: وضعیت واسط پستیِ همان قلم (استعلام بیرونی، خارج از قفل) و مهلت زمانی پشتیبان.
-/// هیچ‌کدام اثر مالی ندارند؛ تسویه فقط Shipped یا Delivered می‌خواهد و لغو فقط از Preparing ممکن است.
+/// هیچ‌کدام اثر مالی ندارند؛ برگشتیِ واسط فقط علامت می‌شود و تسویه را می‌بندد؛ لغو فقط از Preparing ممکن است.
 /// </summary>
 public sealed class PhysicalDeliverySyncService(
     IPhysicalDeliveryStore store,
@@ -31,6 +31,7 @@ public sealed class PhysicalDeliverySyncService(
         }
 
         var threshold = DateTime.UtcNow.AddDays(-settings.AutoConfirmAfterDays);
+        // GetShippedAsync قلم‌های دارای CarrierReturnedAtUtc را نمی‌آورد.
         var candidates = await store.GetShippedAsync(threshold, providers: [], BatchSize, ct);
         if (candidates.Count == 0)
         {
@@ -40,7 +41,7 @@ public sealed class PhysicalDeliverySyncService(
         return await DeliverAsync(candidates, "expired", ct);
     }
 
-    /// <summary>وضعیت هر مرسوله را از واسط پستیِ خودش می‌پرسد و تحویل‌شده‌ها را ثبت می‌کند.</summary>
+    /// <summary>وضعیت هر مرسوله را از واسط پستیِ خودش می‌پرسد و تحویل‌شده‌ها یا برگشتی‌ها را ثبت می‌کند.</summary>
     public async Task<int> SyncExternalAsync(CancellationToken ct)
     {
         var clients = ConfiguredClients();
@@ -58,6 +59,7 @@ public sealed class PhysicalDeliverySyncService(
         }
 
         var delivered = new List<PhysicalDeliveryCandidate>();
+        var returned = 0;
         foreach (var candidate in candidates)
         {
             if (candidate.TrackingProvider is null ||
@@ -79,9 +81,7 @@ public sealed class PhysicalDeliverySyncService(
                     break;
 
                 case TrackingOutcome.Returned:
-                    logger.LogWarning(
-                        "{Provider} tracking returned for purchase {PurchaseId} (reference {Reference}).",
-                        client.Provider, candidate.PurchaseId, candidate.ProviderParcelId);
+                    returned += await MarkReturnedAsync(candidate, client.Provider, ct);
                     break;
 
                 case TrackingOutcome.NotFound:
@@ -100,7 +100,8 @@ public sealed class PhysicalDeliverySyncService(
             }
         }
 
-        return delivered.Count == 0 ? 0 : await DeliverAsync(delivered, "provider", ct);
+        var deliveredCount = delivered.Count == 0 ? 0 : await DeliverAsync(delivered, "provider", ct);
+        return deliveredCount + returned;
     }
 
     private Dictionary<string, ITrackingProviderClient> ConfiguredClients() =>
@@ -108,6 +109,34 @@ public sealed class PhysicalDeliverySyncService(
             .Where(client => client.IsConfigured && !string.IsNullOrWhiteSpace(client.Provider))
             .GroupBy(client => client.Provider, StringComparer.OrdinalIgnoreCase)
             .ToDictionary(group => group.Key, group => group.First(), StringComparer.OrdinalIgnoreCase);
+
+    private async Task<int> MarkReturnedAsync(
+        PhysicalDeliveryCandidate candidate, string provider, CancellationToken ct)
+    {
+        var changed = await store.ExecuteLockedAsync(candidate.BuyerId, candidate.CartId, async () =>
+        {
+            var purchase = await repository.GetByIdAsync(
+                new PhysicalProductPurchaseId(candidate.PurchaseId), ct);
+            if (purchase is null || purchase.CarrierReturnedAtUtc.HasValue)
+            {
+                return 0;
+            }
+
+            purchase.MarkCarrierReturned(DateTime.UtcNow);
+            repository.Update(purchase);
+            await unitOfWork.SaveChangesAsync(ct);
+            return 1;
+        }, ct);
+
+        if (changed > 0)
+        {
+            logger.LogWarning(
+                "{Provider} tracking returned for purchase {PurchaseId} (reference {Reference}); settlement blocked until manual review.",
+                provider, candidate.PurchaseId, candidate.ProviderParcelId);
+        }
+
+        return changed;
+    }
 
     private async Task<int> DeliverAsync(
         IReadOnlyList<PhysicalDeliveryCandidate> candidates, string source, CancellationToken ct)
@@ -119,7 +148,9 @@ public sealed class PhysicalDeliverySyncService(
             {
                 var purchase = await repository.GetByIdAsync(
                     new PhysicalProductPurchaseId(candidate.PurchaseId), ct);
-                if (purchase is null || purchase.DeliveryStatus != PhysicalDeliveryStatus.Shipped)
+                if (purchase is null ||
+                    purchase.DeliveryStatus != PhysicalDeliveryStatus.Shipped ||
+                    purchase.CarrierReturnedAtUtc.HasValue)
                 {
                     return 0;
                 }

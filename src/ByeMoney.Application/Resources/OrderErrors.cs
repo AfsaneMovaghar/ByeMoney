@@ -19,10 +19,15 @@ public static class OrderErrors
     public static string ShipmentProviderUnavailable => Get(nameof(ShipmentProviderUnavailable));
     public static string ShipmentAddressRequired => Get(nameof(ShipmentAddressRequired));
     public static string ShipmentOriginRequired => Get(nameof(ShipmentOriginRequired));
+    public static string ShipmentParcelRequired => Get(nameof(ShipmentParcelRequired));
+    public static string ShipmentOriginCoordinatesRequired => Get(nameof(ShipmentOriginCoordinatesRequired));
+    public static string ShipmentOriginProfileIncomplete => Get(nameof(ShipmentOriginProfileIncomplete));
     public static string ShipmentNotAllowed => Get(nameof(ShipmentNotAllowed));
     public static string ShipmentCreateFailed => Get(nameof(ShipmentCreateFailed));
     public static string ShipmentCityNotFound => Get(nameof(ShipmentCityNotFound));
     public static string ShipmentCityUnavailable => Get(nameof(ShipmentCityUnavailable));
+    public static string ShipmentReadFailed => Get(nameof(ShipmentReadFailed));
+    public static string ShipmentPaymentPending => Get(nameof(ShipmentPaymentPending));
 
     private static string Get(string name) => Resources.GetString(name)
         ?? throw new MissingManifestResourceException(name);

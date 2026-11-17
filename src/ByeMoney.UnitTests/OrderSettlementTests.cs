@@ -76,6 +76,28 @@ public sealed class OrderSettlementTests
         OrderSettlementRule.IsSettleable(order).Should().BeTrue();
     }
 
+    [Theory]
+    [InlineData(PhysicalDeliveryStatus.Shipped)]
+    [InlineData(PhysicalDeliveryStatus.Delivered)]
+    public void CarrierReturnedRemainingPhysicalItem_IsNotSettleable(PhysicalDeliveryStatus status)
+    {
+        var order = Order(Paid, 100m, CourseItem(),
+            PhysicalItem(status, carrierReturnedAtUtc: DateTime.UtcNow));
+
+        OrderSettlementRule.IsSettleable(order).Should().BeFalse();
+    }
+
+    [Fact]
+    public void CarrierReturnedOnFullyCancelledPhysicalItem_DoesNotBlockSettlement()
+    {
+        var order = Order(Paid, 100m,
+            CourseItem(),
+            PhysicalItem(PhysicalDeliveryStatus.Preparing, quantity: 1, cancelledQuantity: 1,
+                carrierReturnedAtUtc: DateTime.UtcNow));
+
+        OrderSettlementRule.IsSettleable(order).Should().BeTrue();
+    }
+
     [Fact]
     public void ItemCancelledBeforeShipping_IsIgnored()
     {

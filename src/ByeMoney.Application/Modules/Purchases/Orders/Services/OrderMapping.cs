@@ -253,7 +253,7 @@ public static class OrderMapping
             physical.Quantity, physical.DeliveryStatus.ToString(), physical.CancelledQuantity,
             physical.RefundedRegularInNoor, physical.RefundedGiftInNoor,
             physical.TrackingCode, physical.TrackingProvider,
-            physical.ShippedAtUtc);
+            physical.ShippedAtUtc, physical.CarrierReturnedAtUtc);
     }
 
     private static bool CompletePurchases(

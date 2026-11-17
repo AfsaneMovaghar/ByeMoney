@@ -74,4 +74,17 @@ internal sealed record TarhElahiCartPrepareResponseItem(
     decimal PriceInNoor,
     ProductItemType Type = ProductItemType.Course,
     string? ParentExternalId = null,
-    int Quantity = 1);
+    int Quantity = 1,
+    TarhElahiParcelFacts? Parcel = null);
+
+/// <summary>
+/// عوامل مرسولهٔ همین ردیف کالا در prepare؛ وزن گرم کل ردیف (واحد×تعداد) و ابعاد سانتی‌متر.
+/// فیلدها nullableاند تا نبود یا ناقص‌بودن داده در بای‌مانی به عدد جایگزین تبدیل نشود.
+/// </summary>
+internal sealed record TarhElahiParcelFacts(
+    int? WeightGrams,
+    int? LengthCm,
+    int? WidthCm,
+    int? HeightCm,
+    long? DeclaredValueIrr,
+    bool? IsFragile);

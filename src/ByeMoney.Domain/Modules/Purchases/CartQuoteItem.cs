@@ -9,7 +9,8 @@ public sealed record CartQuoteItem(
     decimal PriceInNoor,
     ProductItemType Type = ProductItemType.Course,
     string? ParentExternalId = null,
-    int Quantity = 1)
+    int Quantity = 1,
+    ParcelFacts? Parcel = null)
 {
     public decimal LineTotalInNoor => Quantity * BasePriceInNoor;
 }

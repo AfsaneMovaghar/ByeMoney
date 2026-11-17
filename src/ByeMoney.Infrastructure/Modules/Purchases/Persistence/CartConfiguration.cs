@@ -48,6 +48,8 @@ public sealed class CartConfiguration : IEntityTypeConfiguration<Cart>
                     "\"Quantity\" >= 1");
                 table.HasCheckConstraint("CK_CartItems_Allocation",
                     "\"AllocatedAmountInNoor\" >= 0 AND trunc(\"AllocatedAmountInNoor\") = \"AllocatedAmountInNoor\" AND \"AllocatedAmountInNoor\" <= \"Quantity\" * \"PriceInNoor\"");
+                table.HasCheckConstraint("CK_CartItems_ParcelFacts",
+                    "(\"ParcelWeightGrams\" IS NULL AND \"ParcelLengthCm\" IS NULL AND \"ParcelWidthCm\" IS NULL AND \"ParcelHeightCm\" IS NULL AND \"ParcelDeclaredValueIrr\" IS NULL AND \"ParcelIsFragile\" IS NULL) OR (\"ParcelWeightGrams\" > 0 AND \"ParcelLengthCm\" > 0 AND \"ParcelWidthCm\" > 0 AND \"ParcelHeightCm\" > 0 AND \"ParcelDeclaredValueIrr\" > 0 AND \"ParcelIsFragile\" IS NOT NULL)");
             });
             items.WithOwner().HasForeignKey("CartId");
             items.HasKey("CartId", nameof(CartItem.ExternalItemId), nameof(CartItem.ItemType));
@@ -58,6 +60,15 @@ public sealed class CartConfiguration : IEntityTypeConfiguration<Cart>
             items.Property(x => x.PriceInNoor).HasPrecision(18, 4);
             items.Property(x => x.AllocatedAmountInNoor).HasPrecision(18, 4);
             items.Property(x => x.Quantity).HasDefaultValue(1).IsRequired();
+            items.OwnsOne(x => x.Parcel, parcel =>
+            {
+                parcel.Property(x => x.WeightGrams).HasColumnName("ParcelWeightGrams");
+                parcel.Property(x => x.LengthCm).HasColumnName("ParcelLengthCm");
+                parcel.Property(x => x.WidthCm).HasColumnName("ParcelWidthCm");
+                parcel.Property(x => x.HeightCm).HasColumnName("ParcelHeightCm");
+                parcel.Property(x => x.DeclaredValueIrr).HasColumnName("ParcelDeclaredValueIrr");
+                parcel.Property(x => x.IsFragile).HasColumnName("ParcelIsFragile");
+            });
         });
         b.Navigation(x => x.Items).HasField("_items").UsePropertyAccessMode(PropertyAccessMode.Field);
         b.Property(x => x.ItemDiscountInNoor).HasPrecision(18, 4);

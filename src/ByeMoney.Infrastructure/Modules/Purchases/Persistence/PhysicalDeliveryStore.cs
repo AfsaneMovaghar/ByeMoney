@@ -51,6 +51,7 @@ public sealed class PhysicalDeliveryStore(ApplicationDbContext db) : IPhysicalDe
         var query = db.Set<PhysicalProductPurchase>()
             .AsNoTracking()
             .Where(x => x.DeliveryStatus == PhysicalDeliveryStatus.Shipped &&
+                x.CarrierReturnedAtUtc == null &&
                 x.ShippedAtUtc != null && x.ShippedAtUtc <= shippedAtOrBeforeUtc);
 
         if (providerKeys.Length > 0)

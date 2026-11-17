@@ -332,12 +332,13 @@
 
 ### ۸.۲. اسلایس ب: ساخت مرسوله با وب‌سرویس (`SHIP-TRACKING-B` — اجرا ۲۰۲۶-۱۱-۱۵)
 ساخت از پورت عمومی `IShipmentProviderClient` و پیاده‌سازی `PostexShipmentClient` است (افزودن واسط بعدی فقط یک کلاینت تازه):
-1. اول `GET /api/v1/parcels/custom-order-no/{custom-order-no}` برای idempotency؛ اگر نبود `POST /api/v1/parcels/bulk`.
-2. **فرستنده:** پروفایل مبدأ از `Postex:Origins[{shippingOriginId}]` (شناسهٔ فریزشدهٔ سبد، مشترک با استرپی؛ مثل `ramsar` با `city_id=573`). سازگاری عقب‌رو: اگر `Origins` خالی باشد، `Postex:Sender` قدیمی به‌عنوان `ramsar` نقشه‌برداری می‌شود.
+1. اول `GET /api/v1/parcels/custom-order-no/{custom-order-no}` برای idempotency؛ فقط ۴۰۴ یعنی مرسوله نیست و بعد `POST /api/v1/parcels/bulk`. خطای خواندن ساخت را شروع نمی‌کند. فراخوانی داخل قفل خریدار/سبد است تا دو درخواست هم‌زمان هر دو `bulk` نزنند.
+2. **فرستنده:** پروفایل مبدأ از `Postex:Origins[{shippingOriginId}]` (شناسهٔ فریزشدهٔ سبد، مشترک با استرپی؛ مثل `ramsar` با `city_id=573`). سازگاری عقب‌رو: اگر `Origins` خالی باشد، `Postex:Sender` قدیمی به‌عنوان `ramsar` نقشه‌برداری می‌شود. برای `collection_type=pick_up` داشتن `lat`/`lon` معتبر در همین پروفایل اجباری است؛ نبودشان ساخت را پیش از `bulk` با پیام روشن متوقف می‌کند.
 3. **گیرنده:** نسخهٔ ثابت آدرس سبد بای‌مانی؛ `city_id` همان کد حامل است که از جدول محل استرپی خوانده می‌شود (شناسهٔ فریزشده، یا برای سفارش قدیمی نام دقیق) و در بای‌مانی ذخیره نمی‌شود. `locality/cities/all` برای گیرنده خوانده نمی‌شود.
-4. **بسته:** وزن/ارزش/جعبه از پیش‌فرض‌های `Postex` وقتی فراخواننده صفر بفرستد؛ کوریر پیش‌فرض `IR_POST`/`EXPRESS`.
+4. **بسته:** فقط عوامل فریزشدهٔ خرید (`ParcelFacts`) فرستاده می‌شود: `length`/`width`/`height` سانتی‌متر، `total_weight` گرم، `total_value` ریال و `is_fragile`؛ `parcel_items` یک ردیف با `description` عنوان، `quantity` تعداد باقی‌مانده، `weight` وزن فریزشده و `price` ارزش فریزشده دارد. `box_type_id` و پیش‌فرض وزن/ارزش حذف شده‌اند؛ نبود عوامل کامل، ساخت را پیش از فراخوانی واسط رد می‌کند. کوریر پیش‌فرض `IR_POST`/`EXPRESS`، پرداخت `SENDER` و بدون `added_service` می‌ماند.
 5. **`custom_order_no`:** `BM-{PurchaseId:N}`؛ کلید در سطح بای‌مانی یکتا است چون پستکس تکرار را مسدود نمی‌کند.
-6. **خروجی:** `parcel_no` → `ProviderParcelId`؛ بارکد غیرماسک → `TrackingCode`؛ سپس `MarkShipped`. پاسخ `402` با خواندن مجدد `custom-order-no` به‌صورت `PendingPayment` مدیریت می‌شود.
+6. **خروجی:** `parcel_no` → `ProviderParcelId`؛ بارکد غیرماسک → `TrackingCode`؛ فقط مرسولهٔ پرداخت‌شده `MarkShipped` می‌شود. پاسخ `402` یا والد `1` (`PAYMENT_PENDING`) خرید را `Preparing` نگه می‌دارد، تسویه باز نمی‌کند و خطای دامنه برمی‌گرداند. تکرار همان کلید مرسولهٔ دوم نمی‌سازد.
+7. **خطای اعتبارسنجی:** `ExtractErrorMessage` علاوه بر `Message`/`message`/`title`، خطاهای فیلدی `errors` و `invalid_fields` را با نام فیلد و پیام‌ها در خطای دامنه نشان می‌دهد.
 
 ---
 

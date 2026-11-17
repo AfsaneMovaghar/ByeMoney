@@ -9,5 +9,8 @@ public sealed record CartItem(
     string? ParentExternalId = null,
     int Quantity = 1)
 {
+    /// <summary>عوامل مرسولهٔ فریزشدهٔ همین قلم؛ برای دوره/فصل و دادهٔ ناقص null است.</summary>
+    public ParcelFacts? Parcel { get; init; }
+
     public decimal LineTotalInNoor => Quantity * PriceInNoor;
 }

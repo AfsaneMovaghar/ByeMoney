@@ -66,7 +66,6 @@ public sealed class PhysicalDeliverySyncTests
     }
 
     [Theory]
-    [InlineData(TrackingOutcome.Returned)]
     [InlineData(TrackingOutcome.NotFound)]
     [InlineData(TrackingOutcome.NotConfigured)]
     [InlineData(TrackingOutcome.Failed)]
@@ -77,6 +76,66 @@ public sealed class PhysicalDeliverySyncTests
         var store = new FakeStore(CandidateFor(purchase));
         var repository = new FakeRepository(purchase);
         var client = new FakeTrackingClient(PhysicalProductPurchase.PostexProvider, outcome);
+
+        var changed = await CreateService(store, repository, client).SyncExternalAsync(CancellationToken.None);
+
+        changed.Should().Be(0);
+        purchase.DeliveryStatus.Should().Be(PhysicalDeliveryStatus.Shipped);
+        purchase.CarrierReturnedAtUtc.Should().BeNull();
+        repository.SavedCount.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task ReturnedOutcomePersistsCarrierReturnedOnceWithoutChangingDeliveryStatus()
+    {
+        var purchase = CreateShipped(PhysicalProductPurchase.PostexProvider, "12345");
+        var store = new FakeStore(CandidateFor(purchase));
+        var repository = new FakeRepository(purchase);
+        var client = new FakeTrackingClient(PhysicalProductPurchase.PostexProvider, TrackingOutcome.Returned);
+        var service = CreateService(store, repository, client);
+
+        var first = await service.SyncExternalAsync(CancellationToken.None);
+        var markedAt = purchase.CarrierReturnedAtUtc;
+
+        var second = await service.SyncExternalAsync(CancellationToken.None);
+
+        first.Should().Be(1);
+        second.Should().Be(0);
+        purchase.DeliveryStatus.Should().Be(PhysicalDeliveryStatus.Shipped);
+        markedAt.Should().NotBeNull();
+        purchase.CarrierReturnedAtUtc.Should().Be(markedAt);
+        repository.SavedCount.Should().Be(1);
+        client.Calls.Should().Be(2);
+    }
+
+    [Fact]
+    public async Task ExpiredConfirmationSkipsPurchaseAlreadyMarkedCarrierReturned()
+    {
+        var purchase = CreateShipped(PhysicalProductPurchase.PostexProvider, "12345");
+        purchase.MarkCarrierReturned(DateTime.UtcNow.AddDays(-20));
+        // Store واقعی CarrierReturned را فیلتر می‌کند؛ اینجا کاندید خالی می‌آید.
+        var store = new FakeStore();
+        var repository = new FakeRepository(purchase);
+
+        var service = CreateService(
+            store, repository, new PhysicalDeliverySettings { AutoConfirmAfterDays = 14 });
+
+        var changed = await service.ConfirmExpiredAsync(CancellationToken.None);
+
+        changed.Should().Be(0);
+        purchase.DeliveryStatus.Should().Be(PhysicalDeliveryStatus.Shipped);
+        purchase.CarrierReturnedAtUtc.Should().NotBeNull();
+        repository.SavedCount.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task DeliverAsyncSkipsPurchaseAlreadyMarkedCarrierReturned()
+    {
+        var purchase = CreateShipped(PhysicalProductPurchase.PostexProvider, "12345");
+        purchase.MarkCarrierReturned(DateTime.UtcNow);
+        var store = new FakeStore(CandidateFor(purchase));
+        var repository = new FakeRepository(purchase);
+        var client = new FakeTrackingClient(PhysicalProductPurchase.PostexProvider, TrackingOutcome.Delivered);
 
         var changed = await CreateService(store, repository, client).SyncExternalAsync(CancellationToken.None);
 

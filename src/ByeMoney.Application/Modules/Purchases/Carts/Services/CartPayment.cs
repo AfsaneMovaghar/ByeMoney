@@ -71,6 +71,8 @@ public static class CartPayment
 
             if (item.ItemType == ProductItemType.Product)
             {
+                // نمونهٔ مستقل تا ParcelFacts بین قلم سبد و خرید جدید مشترک نماند.
+                var parcel = item.Parcel is { } facts ? facts with { } : null;
                 var physicalPurchase = PhysicalProductPurchase.Create(
                     new PhysicalProductPurchaseId(purchaseIdGuid),
                     cart.Id,
@@ -79,7 +81,8 @@ public static class CartPayment
                     item.Title,
                     item.Quantity,
                     item.PriceInNoor,
-                    amount);
+                    amount,
+                    parcel);
 
                 if (amount == 0)
                 {

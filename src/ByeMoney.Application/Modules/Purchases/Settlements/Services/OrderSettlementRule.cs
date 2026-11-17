@@ -7,6 +7,7 @@ namespace ByeMoney.Application.Modules.Purchases.Settlements.Services;
 /// <summary>
 /// قاعدهٔ «قابل تسویه» (D10): سفارش <c>Paid</c> که همهٔ کالاهای فیزیکیِ لغونشده‌اش ارسال یا تحویل شده‌اند.
 /// قلم کاملاً لغوشده حساب نمی‌شود و سفارشی که هیچ قلم باقی‌مانده ندارد قابل تسویه نیست.
+/// قلم باقی‌مانده با برگشتیِ واسط پستی تسویه را می‌بندد تا رسیدگی دستی.
 /// سفارش فقط‌دوره پس از پرداخت قابل تسویه است.
 /// </summary>
 public static class OrderSettlementRule
@@ -22,9 +23,13 @@ public static class OrderSettlementRule
             .Where(HasRemainingQuantity)
             .ToArray();
 
-        return remainingItems.Length > 0 && remainingItems
-            .Where(IsPhysical)
-            .All(IsShippedOrDelivered);
+        var remainingPhysical = remainingItems.Where(IsPhysical).ToArray();
+        if (remainingPhysical.Any(IsCarrierReturned))
+        {
+            return false;
+        }
+
+        return remainingItems.Length > 0 && remainingPhysical.All(IsShippedOrDelivered);
     }
 
     /// <summary>نور خالص سفارش: مبلغ نهایی منهای برگشتی لغو کالا.</summary>
@@ -44,4 +49,7 @@ public static class OrderSettlementRule
 
     private static bool IsShippedOrDelivered(OrderItem item) =>
         item.PhysicalDeliveryStatus is nameof(PhysicalDeliveryStatus.Shipped) or nameof(PhysicalDeliveryStatus.Delivered);
+
+    private static bool IsCarrierReturned(OrderItem item) =>
+        item.CarrierReturnedAtUtc.HasValue;
 }

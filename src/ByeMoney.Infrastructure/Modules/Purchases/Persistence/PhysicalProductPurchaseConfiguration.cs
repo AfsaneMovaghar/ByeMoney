@@ -23,6 +23,8 @@ public class PhysicalProductPurchaseConfiguration : IEntityTypeConfiguration<Phy
                 string.Join(", ", PhysicalProductPurchase.AllowedTrackingProviders.Select(provider => $"'{provider}'")) + ")");
             table.HasCheckConstraint("CK_PhysicalProductPurchases_CancelledQuantity",
                 "\"CancelledQuantity\" >= 0 AND \"CancelledQuantity\" <= \"Quantity\"");
+            table.HasCheckConstraint("CK_PhysicalProductPurchases_ParcelFacts",
+                "(\"ParcelWeightGrams\" IS NULL AND \"ParcelLengthCm\" IS NULL AND \"ParcelWidthCm\" IS NULL AND \"ParcelHeightCm\" IS NULL AND \"ParcelDeclaredValueIrr\" IS NULL AND \"ParcelIsFragile\" IS NULL) OR (\"ParcelWeightGrams\" > 0 AND \"ParcelLengthCm\" > 0 AND \"ParcelWidthCm\" > 0 AND \"ParcelHeightCm\" > 0 AND \"ParcelDeclaredValueIrr\" > 0 AND \"ParcelIsFragile\" IS NOT NULL)");
             // سقف برگشت: جمع برگشت هر نوع نور از سهم پرداخت واقعی همان نوع بیشتر نمی‌شود؛ خرید بدون سهم برگشت ندارد.
             table.HasCheckConstraint("CK_PhysicalProductPurchases_RefundCap",
                 "\"RefundedRegularInNoor\" >= 0 AND \"RefundedGiftInNoor\" >= 0 AND " +
@@ -58,6 +60,15 @@ public class PhysicalProductPurchaseConfiguration : IEntityTypeConfiguration<Phy
         builder.Property(x => x.ExternalProductId).HasMaxLength(100).IsRequired();
         builder.Property(x => x.ProductTitle).HasMaxLength(255).IsRequired();
         builder.Property(x => x.Quantity).IsRequired();
+        builder.OwnsOne(x => x.Parcel, parcel =>
+        {
+            parcel.Property(x => x.WeightGrams).HasColumnName("ParcelWeightGrams");
+            parcel.Property(x => x.LengthCm).HasColumnName("ParcelLengthCm");
+            parcel.Property(x => x.WidthCm).HasColumnName("ParcelWidthCm");
+            parcel.Property(x => x.HeightCm).HasColumnName("ParcelHeightCm");
+            parcel.Property(x => x.DeclaredValueIrr).HasColumnName("ParcelDeclaredValueIrr");
+            parcel.Property(x => x.IsFragile).HasColumnName("ParcelIsFragile");
+        });
         builder.Property(x => x.UnitPriceInNoor).HasPrecision(18, 4).IsRequired();
         builder.Property(x => x.PaidAmountInNoor).HasPrecision(18, 4).IsRequired();
         builder.Property(x => x.RegularAmountInNoor).HasPrecision(18, 4);
@@ -70,6 +81,7 @@ public class PhysicalProductPurchaseConfiguration : IEntityTypeConfiguration<Phy
             .IsRequired();
         builder.Property(x => x.ShippedAtUtc);
         builder.Property(x => x.DeliveredAtUtc);
+        builder.Property(x => x.CarrierReturnedAtUtc);
         builder.Property(x => x.TrackingCode).HasMaxLength(PhysicalProductPurchase.TrackingCodeMaxLength);
         builder.Property(x => x.TrackingProvider).HasMaxLength(PhysicalProductPurchase.TrackingProviderMaxLength);
         builder.Property(x => x.ProviderParcelId).HasMaxLength(PhysicalProductPurchase.ProviderParcelIdMaxLength);

@@ -123,6 +123,49 @@ public sealed class CartPricingClientTests
     }
 
     [Fact]
+    public async Task ProductQuoteCarriesFrozenParcelFacts()
+    {
+        const string productWithParcel = """{"externalCourseId":"p","type":"product","title":"Book","basePriceInNoor":10,"itemDiscountInNoor":0,"couponDiscountInNoor":0,"priceInNoor":10,"parcel":{"weightGrams":750,"lengthCm":15,"widthCm":10,"heightCm":5,"declaredValueIrr":60000000,"isFragile":true}}""";
+        var client = Client(new CapturingHandler(QuoteJson(productWithParcel, FullAddressJson)));
+
+        var result = await client.PrepareAsync(
+            new CartQuoteRequest(CartId, "buyer", null, [new CartItemInput("p", ProductItemType.Product, 1)]), default);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Items.Single().Parcel.Should().Be(
+            new ParcelFacts(750, 15, 10, 5, 60_000_000, true));
+    }
+
+    [Theory]
+    [InlineData("""{"weightGrams":0,"lengthCm":15,"widthCm":10,"heightCm":5,"declaredValueIrr":60000000,"isFragile":true}""")]
+    [InlineData("""{"weightGrams":750,"lengthCm":15,"widthCm":10,"heightCm":5,"declaredValueIrr":null,"isFragile":true}""")]
+    [InlineData("""{"weightGrams":750,"lengthCm":15,"widthCm":10,"declaredValueIrr":60000000,"isFragile":true}""")]
+    public async Task IncompleteProductParcelIsNotMapped(string parcelJson)
+    {
+        var item = $$"""{"externalCourseId":"p","type":"product","title":"Book","basePriceInNoor":10,"itemDiscountInNoor":0,"couponDiscountInNoor":0,"priceInNoor":10,"parcel":{{parcelJson}}}""";
+        var client = Client(new CapturingHandler(QuoteJson(item, FullAddressJson)));
+
+        var result = await client.PrepareAsync(
+            new CartQuoteRequest(CartId, "buyer", null, [new CartItemInput("p", ProductItemType.Product, 1)]), default);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Items.Single().Parcel.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task CourseQuoteIgnoresParcelFactors()
+    {
+        const string courseJson = """{"externalCourseId":"c","type":"course","title":"Course","basePriceInNoor":10,"itemDiscountInNoor":0,"couponDiscountInNoor":0,"priceInNoor":10,"parcel":{"weightGrams":750,"lengthCm":15,"widthCm":10,"heightCm":5,"declaredValueIrr":60000000,"isFragile":true}}""";
+        var client = Client(new CapturingHandler(QuoteJson(courseJson)));
+
+        var result = await client.PrepareAsync(
+            new CartQuoteRequest(CartId, "buyer", null, [new CartItemInput("c")]), default);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Items.Single().Parcel.Should().BeNull();
+    }
+
+    [Fact]
     public void DomainAcceptsGenericParentButRejectsSelfParent()
     {
         var cart = Cart.Create(Guid.NewGuid(), Guid.NewGuid(), "buyer", [new CartItemInput("x", ProductItemType.Product)], null);

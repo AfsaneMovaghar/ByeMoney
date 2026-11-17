@@ -1,3 +1,5 @@
+using ByeMoney.Domain.Modules.Purchases;
+
 namespace ByeMoney.Application.Modules.Purchases.Delivery.Interfaces;
 
 /// <summary>
@@ -16,14 +18,12 @@ public sealed record ShipmentParty(
     string? PostalCode,
     string? CityDocumentId = null);
 
-/// <summary>مشخصات بسته؛ واحد وزن گرم و ارزش اظهارشده به واحد پول همان واسط است.</summary>
+/// <summary>مشخصات بسته؛ عوامل مرسولهٔ فریزشدهٔ همان قلم و بدون پیش‌فرض.</summary>
 public sealed record ShipmentParcelDetails(
     string IdempotencyKey,
     string? ItemTitle,
     int Quantity,
-    int WeightGrams,
-    long DeclaredValueMinorUnits,
-    string CurrencyCode);
+    ParcelFacts Facts);
 
 /// <summary>
 /// درخواست ساخت مرسوله؛ فرستنده از پروفایل مبدأ فریزشدهٔ سبد در تنظیمات همان واسط خوانده می‌شود.
@@ -71,7 +71,8 @@ public interface IShipmentProviderClient
     bool IsConfigured { get; }
 
     /// <summary>
-    /// اول با کلید یکتا می‌خواند؛ اگر نبود می‌سازد. تکرار امن است و نباید مرسولهٔ دوم بسازد.
+    /// اول با کلید یکتا می‌خواند؛ فقط پاسخ ۴۰۴ یعنی مرسوله نیست. خطای خواندن ساخت را شروع نمی‌کند.
+    /// تکرار نباید مرسولهٔ دوم بسازد. <see cref="ShipmentCreateOutcome.PendingPayment"/> ارسال‌شده نیست.
     /// </summary>
     Task<ShipmentCreateResult> CreateOrGetParcelAsync(ShipmentCreateRequest request, CancellationToken ct);
 }

@@ -1,7 +1,9 @@
 using System.Net;
 using System.Text;
+using System.Text.Json;
 using ByeMoney.Application.Modules.Purchases.Delivery.Interfaces;
 using ByeMoney.Application.Resources;
+using ByeMoney.Domain.Modules.Purchases;
 using ByeMoney.Infrastructure.Modules.PostexIntegration;
 using ByeMoney.Infrastructure.Modules.PostexIntegration.Clients;
 using FluentAssertions;
@@ -61,15 +63,193 @@ public sealed class PostexShipmentCityCodeTests
         http.Paths.Should().NotContain(path => path.Contains("parcels/bulk", StringComparison.Ordinal));
     }
 
-    private static PostexShipmentClient Client(RecordingHandler http, FakeCityCodeReader reader)
+    [Fact]
+    public async Task ReadFailureDoesNotCreateAnotherParcel()
+    {
+        var http = new RecordingHandler { ReadStatus = HttpStatusCode.InternalServerError };
+        var client = Client(http, new FakeCityCodeReader { Result = DeliveryCityCodeRead.Found(301) });
+
+        var result = await client.CreateOrGetParcelAsync(Request("city-mashhad"), CancellationToken.None);
+
+        result.Outcome.Should().Be(ShipmentCreateOutcome.Failed);
+        result.ErrorMessage.Should().Be(OrderErrors.ShipmentReadFailed);
+        http.Paths.Should().NotContain(path => path.Contains("parcels/bulk", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task SuccessWithoutParcelNumberDoesNotCreateAnotherParcel()
+    {
+        var http = new RecordingHandler { ExistingParcel = true, ExistingBody = """{"status_name":"IN_TRANSIT"}""" };
+        var client = Client(http, new FakeCityCodeReader { Result = DeliveryCityCodeRead.Found(301) });
+
+        var result = await client.CreateOrGetParcelAsync(Request("city-mashhad"), CancellationToken.None);
+
+        result.Outcome.Should().Be(ShipmentCreateOutcome.Failed);
+        result.ErrorMessage.Should().Be(OrderErrors.ShipmentReadFailed);
+        http.Paths.Should().NotContain(path => path.Contains("parcels/bulk", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task UnpaidExistingParcelIsPendingAndSkipsCreate()
+    {
+        var http = new RecordingHandler
+        {
+            ExistingParcel = true,
+            ExistingBody = """{"parcel_no":99,"parent":{"code":1,"name":"PAYMENT_PENDING"},"status_code":10000,"tracking_number":"**********"}"""
+        };
+        var client = Client(http, new FakeCityCodeReader { Result = DeliveryCityCodeRead.Found(301) });
+
+        var result = await client.CreateOrGetParcelAsync(Request("city-mashhad"), CancellationToken.None);
+
+        result.Outcome.Should().Be(ShipmentCreateOutcome.PendingPayment);
+        result.ProviderParcelId.Should().Be("99");
+        result.TrackingCode.Should().BeNull();
+        result.ErrorMessage.Should().Be(OrderErrors.ShipmentPaymentPending);
+        http.Paths.Should().NotContain(path => path.Contains("parcels/bulk", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task PaymentRequiredResponseStaysPendingAfterReread()
+    {
+        var http = new RecordingHandler { PaymentRequired = true };
+        var client = Client(http, new FakeCityCodeReader { Result = DeliveryCityCodeRead.Found(301) });
+
+        var result = await client.CreateOrGetParcelAsync(Request("city-mashhad"), CancellationToken.None);
+
+        result.Outcome.Should().Be(ShipmentCreateOutcome.PendingPayment);
+        result.ProviderParcelId.Should().Be("1319906676294");
+        http.Paths.Count(path => path.Contains("parcels/bulk", StringComparison.Ordinal)).Should().Be(1);
+    }
+
+    [Fact]
+    public async Task IncompleteParcelIsRejectedBeforeReadOrBulk()
+    {
+        var http = new RecordingHandler();
+        var client = Client(http, new FakeCityCodeReader { Result = DeliveryCityCodeRead.Found(301) });
+        var request = Request("city-mashhad") with
+        {
+            Parcel = new ShipmentParcelDetails(
+                "BM-1", "شمش", 1, new ParcelFacts(0, 15, 10, 5, 60_000_000, true))
+        };
+
+        var result = await client.CreateOrGetParcelAsync(request, CancellationToken.None);
+
+        result.Outcome.Should().Be(ShipmentCreateOutcome.Failed);
+        result.ErrorMessage.Should().Be(OrderErrors.ShipmentParcelRequired);
+        http.Paths.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task BulkBodyCarriesFrozenParcelFactsAndNoBoxType()
+    {
+        var http = new RecordingHandler();
+        var client = Client(http, new FakeCityCodeReader { Result = DeliveryCityCodeRead.Found(301) });
+
+        var result = await client.CreateOrGetParcelAsync(Request("city-mashhad"), CancellationToken.None);
+
+        result.Outcome.Should().Be(ShipmentCreateOutcome.Failed);
+        using var body = JsonDocument.Parse(http.LastPostBody!);
+        var parcel = body.RootElement.GetProperty("parcels").EnumerateArray().Single();
+        var properties = parcel.GetProperty("parcel_properties");
+        properties.GetProperty("length").GetInt32().Should().Be(15);
+        properties.GetProperty("width").GetInt32().Should().Be(10);
+        properties.GetProperty("height").GetInt32().Should().Be(5);
+        properties.GetProperty("total_weight").GetInt32().Should().Be(750);
+        properties.GetProperty("total_value").GetInt64().Should().Be(60_000_000);
+        properties.GetProperty("is_fragile").GetBoolean().Should().BeTrue();
+        properties.TryGetProperty("box_type_id", out _).Should().BeFalse();
+
+        var item = parcel.GetProperty("parcel_items").EnumerateArray().Single();
+        item.GetProperty("description").GetString().Should().Be("شمش");
+        item.GetProperty("quantity").GetInt32().Should().Be(1);
+        item.GetProperty("weight").GetInt32().Should().Be(750);
+        item.GetProperty("price").GetInt64().Should().Be(60_000_000);
+
+        parcel.GetProperty("courier").GetProperty("name").GetString().Should().Be("IR_POST");
+        parcel.GetProperty("courier").GetProperty("service_type").GetString().Should().Be("EXPRESS");
+        parcel.GetProperty("courier").GetProperty("payment_type").GetString().Should().Be("SENDER");
+        parcel.TryGetProperty("added_service", out _).Should().BeFalse();
+        parcel.GetProperty("from").GetProperty("location").GetProperty("lat").GetDouble().Should().Be(36.92);
+        parcel.GetProperty("from").GetProperty("location").GetProperty("lon").GetDouble().Should().Be(50.65);
+    }
+
+    [Fact]
+    public async Task PickUpWithoutOriginCoordinatesStopsBeforeBulk()
+    {
+        var http = new RecordingHandler();
+        var reader = new FakeCityCodeReader { Result = DeliveryCityCodeRead.Found(301) };
+        var client = Client(
+            http,
+            reader,
+            lat: null,
+            lon: null);
+
+        var result = await client.CreateOrGetParcelAsync(Request("city-mashhad"), CancellationToken.None);
+
+        result.Outcome.Should().Be(ShipmentCreateOutcome.Failed);
+        result.ErrorMessage.Should().Be(OrderErrors.ShipmentOriginCoordinatesRequired);
+        reader.Calls.Should().Be(0);
+        http.Paths.Should().NotContain(path => path.Contains("parcels/bulk", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task DropOffDoesNotNeedCoordinatesAndKeepsCollectionType()
+    {
+        var http = new RecordingHandler();
+        var client = Client(
+            http,
+            new FakeCityCodeReader { Result = DeliveryCityCodeRead.Found(301) },
+            lat: null,
+            lon: null,
+            collectionType: "postex_drop_off");
+
+        await client.CreateOrGetParcelAsync(Request("city-mashhad"), CancellationToken.None);
+
+        using var body = JsonDocument.Parse(http.LastPostBody!);
+        body.RootElement.GetProperty("collection_type").GetString().Should().Be("postex_drop_off");
+        body.RootElement.GetProperty("parcels").EnumerateArray().Single()
+            .GetProperty("from").GetProperty("location").GetProperty("lat").ValueKind
+            .Should().Be(JsonValueKind.Null);
+    }
+
+    [Fact]
+    public async Task ValidationErrorsAndInvalidFieldsAreIncludedInMessage()
+    {
+        const string modelErrors = """{"title":"One or more validation errors occurred.","status":400,"errors":{"Parcels[0].To.Contact.TelephoneNo":["The TelephoneNo field is required."]},"traceId":"0af"}""";
+        var http = new RecordingHandler { BulkBody = modelErrors };
+        var client = Client(http, new FakeCityCodeReader { Result = DeliveryCityCodeRead.Found(301) });
+
+        var result = await client.CreateOrGetParcelAsync(Request("city-mashhad"), CancellationToken.None);
+
+        result.Outcome.Should().Be(ShipmentCreateOutcome.Failed);
+        result.ErrorMessage.Should().Contain("Parcels[0].To.Contact.TelephoneNo")
+            .And.Contain("The TelephoneNo field is required.");
+
+        const string businessErrors = """{"invalid_fields":{"courier":["The Courier field is required."]},"isSuccess":false,"message":"خطا در داده های ورودی"}""";
+        var businessHttp = new RecordingHandler { BulkBody = businessErrors };
+        var businessClient = Client(businessHttp, new FakeCityCodeReader { Result = DeliveryCityCodeRead.Found(301) });
+
+        var businessResult = await businessClient.CreateOrGetParcelAsync(Request("city-mashhad"), CancellationToken.None);
+
+        businessResult.ErrorMessage.Should().Contain("courier: The Courier field is required.")
+            .And.Contain("خطا در داده های ورودی");
+    }
+
+    private static PostexShipmentClient Client(
+        RecordingHandler http,
+        FakeCityCodeReader reader,
+        double? lat = 36.92,
+        double? lon = 50.65,
+        string collectionType = "pick_up")
     {
         var options = new PostexOptions
         {
             Enabled = true,
             ApiKey = "test-key",
+            CollectionType = collectionType,
             Origins = new Dictionary<string, PostexSenderOptions>(StringComparer.OrdinalIgnoreCase)
             {
-                ["ramsar"] = new PostexSenderOptions()
+                ["ramsar"] = new PostexSenderOptions { Lat = lat, Lon = lon }
             }
         };
         return new PostexShipmentClient(
@@ -83,8 +263,17 @@ public sealed class PostexShipmentCityCodeTests
             new ShipmentParty(
                 "علی محمدی", "09121111111", null, null, null,
                 "خیابان نمونه", "مشهد", "خراسان رضوی", "1234567890", cityDocumentId),
-            new ShipmentParcelDetails("BM-1", "شمش", 1, 0, 0, "IRR"),
+            new ShipmentParcelDetails("BM-1", "شمش", 1, SampleParcel()),
             OriginId: "ramsar");
+
+    private static ParcelFacts SampleParcel() =>
+        new(
+            WeightGrams: 750,
+            LengthCm: 15,
+            WidthCm: 10,
+            HeightCm: 5,
+            DeclaredValueIrr: 60_000_000,
+            IsFragile: true);
 
     private sealed class FakeCityCodeReader : IDeliveryCityCodeReader
     {
@@ -117,6 +306,18 @@ public sealed class PostexShipmentCityCodeTests
 
         public bool ExistingParcel { get; init; }
 
+        public string? ExistingBody { get; init; }
+
+        public HttpStatusCode? ReadStatus { get; init; }
+
+        public HttpStatusCode BulkStatus { get; init; } = HttpStatusCode.BadRequest;
+
+        public string? BulkBody { get; init; }
+
+        public bool PaymentRequired { get; init; }
+
+        private int _reads;
+
         protected override async Task<HttpResponseMessage> SendAsync(
             HttpRequestMessage request, CancellationToken cancellationToken)
         {
@@ -129,12 +330,34 @@ public sealed class PostexShipmentCityCodeTests
 
             if (path.Contains("custom-order-no", StringComparison.Ordinal))
             {
-                return ExistingParcel
-                    ? Json(HttpStatusCode.OK, """{"parcel_no":"99","tracking_number":"TRACK"}""")
-                    : new HttpResponseMessage(HttpStatusCode.NotFound);
+                var read = Interlocked.Increment(ref _reads);
+                if (ReadStatus is HttpStatusCode status)
+                {
+                    return new HttpResponseMessage(status);
+                }
+
+                if (ExistingParcel)
+                {
+                    return Json(HttpStatusCode.OK, ExistingBody ?? """{"parcel_no":"99","tracking_number":"TRACK"}""");
+                }
+
+                if (PaymentRequired && read > 1)
+                {
+                    return Json(HttpStatusCode.OK,
+                        """{"parcel_no":1319906676294,"parent":{"code":1},"status_code":10000,"tracking_number":"**********"}""");
+                }
+
+                return new HttpResponseMessage(HttpStatusCode.NotFound);
             }
 
-            return new HttpResponseMessage(HttpStatusCode.BadRequest);
+            if (PaymentRequired)
+            {
+                return Json(HttpStatusCode.PaymentRequired, """{"Message":"موجودی کافی نیست"}""");
+            }
+
+            return BulkBody is null
+                ? new HttpResponseMessage(BulkStatus)
+                : Json(BulkStatus, BulkBody);
         }
 
         private static HttpResponseMessage Json(HttpStatusCode status, string json) =>

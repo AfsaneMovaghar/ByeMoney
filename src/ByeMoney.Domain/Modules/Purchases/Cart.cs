@@ -202,7 +202,10 @@ public sealed class Cart
             IsAdminFree ? 0m : x.PriceInNoor,
             x.Type,
             x.ParentExternalId,
-            x.Quantity)));
+            x.Quantity)
+        {
+            Parcel = x.Type == ProductItemType.Product && x.Parcel is { IsComplete: true } ? x.Parcel : null
+        }));
         ItemDiscountInNoor = items.Sum(x => x.ItemDiscountInNoor);
         CouponDiscountInNoor = items.Sum(x => x.CouponDiscountInNoor);
         ShippingAmountInNoor = IsAdminFree ? 0m : shippingAmountInNoor;

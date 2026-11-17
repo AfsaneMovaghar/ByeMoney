@@ -85,6 +85,28 @@ public sealed class PhysicalProductCartFinancialTests
         physicalPurchase.GiftAmountInNoor.Should().Be(0m);
     }
 
+    [Fact]
+    public void ProductParcelFactsAreFrozenOnCartAndPurchase()
+    {
+        var buyer = new UserId(Guid.NewGuid());
+        var userAccount = Account.CreateUserAccount(buyer);
+        var wallet = Wallet.Create(userAccount.Id, buyer);
+        wallet.ApplyCredit(100m);
+        var systemAccount = Account.CreateSystemAccount();
+        var cart = Cart.Create(Guid.NewGuid(), buyer.Value, "buyer-ext-parcel", [
+            new CartItemInput("book", ProductItemType.Product, 2)
+        ], null);
+        var parcel = new ParcelFacts(750, 15, 10, 5, 60_000_000, true);
+        cart.SetQuote([
+            new CartQuoteItem("book", "Book", 50m, 0m, 0m, 100m, ProductItemType.Product, null, 2, parcel)
+        ], shippingAmountInNoor: 0m);
+
+        var payment = CartPayment.Apply(cart, new ProvisionedUserWallet(userAccount, wallet), systemAccount);
+
+        cart.Items.Single().Parcel.Should().Be(parcel);
+        payment.PhysicalPurchases.Single().Parcel.Should().Be(parcel);
+    }
+
     private static decimal DebitOf(CartPaymentRecords payment, string referenceId) =>
         -payment.LedgerEntries.Where(e => e.ReferenceId == referenceId && e.Amount < 0).Sum(e => e.Amount);
 
