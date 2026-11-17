@@ -251,6 +251,28 @@ public sealed class OrderSettlementTests
     }
 
     [Fact]
+    public async Task Candidates_ExcludeOrderWithCarrierReturnedRemainingPhysicalItem()
+    {
+        var fixture = new HandlerFixture();
+        fixture.AddPaidShippedPhysicalCart(carrierReturned: true);
+
+        var orders = await fixture.CandidatesAsync();
+
+        orders.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Candidates_IncludeShippedPhysicalOrderWithoutCarrierReturn()
+    {
+        var fixture = new HandlerFixture();
+        var orderId = fixture.AddPaidShippedPhysicalCart(carrierReturned: false);
+
+        var orders = await fixture.CandidatesAsync();
+
+        orders.Should().ContainSingle().Which.OrderId.Should().Be(orderId);
+    }
+
+    [Fact]
     public void ClosePeriod_RejectsEmptyAndDuplicateOrders()
     {
         var admin = new UserId(Guid.NewGuid());
@@ -303,10 +325,14 @@ public sealed class OrderSettlementTests
             Paid, nameof(OrderDeliveryStatus.Pending));
 
     private static OrderItem PhysicalItem(
-        PhysicalDeliveryStatus status, string externalId = "book", int quantity = 1, int cancelledQuantity = 0) =>
+        PhysicalDeliveryStatus status,
+        string externalId = "book",
+        int quantity = 1,
+        int cancelledQuantity = 0,
+        DateTime? carrierReturnedAtUtc = null) =>
         new(externalId, externalId, 10m, 10m, Guid.NewGuid(), Guid.NewGuid(), DateTime.UtcNow,
             Paid, nameof(OrderDeliveryStatus.Pending), Product, null, quantity, status.ToString(),
-            cancelledQuantity);
+            cancelledQuantity, CarrierReturnedAtUtc: carrierReturnedAtUtc);
 
     private sealed class HandlerFixture
     {
@@ -404,6 +430,33 @@ public sealed class OrderSettlementTests
             ShippingByCart[cart.Id] = new PaymentShares(10m, 0m);
             _physicalPurchases.AddRange([book, pen]);
             _cancellations.Add(cancellation);
+            return "cart:" + cart.Id.ToString("D");
+        }
+
+        public string AddPaidShippedPhysicalCart(bool carrierReturned)
+        {
+            var buyerId = new UserId(_buyer.Id);
+            var cart = Cart.Create(Guid.NewGuid(), _buyer.Id, _buyer.ExternalUserId, [
+                new CartItemInput("book", ProductItemType.Product, 1)
+            ], null);
+            cart.SetQuote([
+                new CartQuoteItem("book", "Book", 50, 0, 0, 50, ProductItemType.Product, null, 1)
+            ], shippingAmountInNoor: 10);
+            cart.MarkPaid();
+
+            var book = PhysicalProductPurchase.Create(
+                PhysicalProductPurchaseId.New(), cart.Id, buyerId, "book", "Book", 1, 50, 50);
+            book.MarkDebited(cart.Id);
+            book.RecordPaymentShares(new PaymentShares(50m, 0m));
+            book.MarkShipped();
+            if (carrierReturned)
+            {
+                book.MarkCarrierReturned(DateTime.UtcNow);
+            }
+
+            _carts.Add(cart);
+            ShippingByCart[cart.Id] = new PaymentShares(10m, 0m);
+            _physicalPurchases.Add(book);
             return "cart:" + cart.Id.ToString("D");
         }
 

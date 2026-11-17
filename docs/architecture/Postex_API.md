@@ -93,8 +93,7 @@
         "is_liquid": false,
         "total_value": 50000000,
         "pre_paid_amount": 0,
-        "total_value_currency": "IRR",
-        "box_type_id": 1
+        "total_value_currency": "IRR"
       }
     }
   ],
@@ -185,7 +184,6 @@
         }
       ],
       "parcel_properties": {
-        "box_type_id": 1,
         "length": 15,
         "width": 10,
         "height": 4,
@@ -328,7 +326,7 @@
 1. کلاینت `PostexTrackingClient` پیاده‌سازی پورت عمومی `ITrackingProviderClient` با کلید منبع `PostEx` است و با استعلام دوره‌ای از اندپوینت `GET /api/v1/parcels/{parcel-no}/status` آخرین وضعیت را می‌خواند. شناسهٔ ارجاع مرسوله (`providerParcelId`) برای این منبع اجباری است؛ مسیر جایگزین `GET /api/v1/tracking/events/{courier}/{tracking-code}` استفاده نمی‌شود.
 2. با هدر `x-api-key` احراز هویت صورت می‌گیرد.
 3. در صورت دریافت وضعیت `Delivered`، متد `PhysicalDeliverySyncService.SyncExternalAsync` وضعیت قلم کالا در بای‌مانی را به `Delivered` تغییر می‌دهد و شناسه تاریخ تحویل ثبت می‌شود. این متد به نام فروشنده وابسته نیست و واسط هر قلم را از منبع همان قلم انتخاب می‌کند.
-4. اگر وضعیت مرسوله `Returned` شود، سیستم هشدار (`LogWarning`) ثبت کرده و وضعیت را تغییر نمی‌دهد تا واحد پشتیبانی بررسی کند.
+4. اگر وضعیت مرسوله `Returned` شود، `CarrierReturnedAtUtc` یک‌بار ثبت می‌شود (بدون تغییر `DeliveryStatus` و بدون برگشت نور)، از تأیید خودکار ۱۴روزه و از فهرست قابل‌تسویه خارج می‌ماند تا رسیدگی دستی ادمین.
 
 ### ۸.۲. اسلایس ب: ساخت مرسوله با وب‌سرویس (`SHIP-TRACKING-B` — اجرا ۲۰۲۶-۱۱-۱۵)
 ساخت از پورت عمومی `IShipmentProviderClient` و پیاده‌سازی `PostexShipmentClient` است (افزودن واسط بعدی فقط یک کلاینت تازه):
