@@ -214,6 +214,14 @@
 ## SHIP-ORIGIN-CITY-TABLE — استان/شهر و مبدأ دراپ‌داون — ۱۶ نوامبر ۲۰۲۶
 
 - تغییر (استرپی): نوع‌های `province`/`city` با `externalId` (بدون برند حامل در دامنه/پنل)؛ آداپتور همگام‌سازی فعلی پستکس (`postexLocalitySync` + `POST /api/cities/sync-localities`)؛ `shipping-origin` فقط رابطه به شهر (بدون اسنپ‌شات cityId/cityName)؛ quote از `city.externalId`؛ کالای بدون مبدأ → رامسر؛ چند مبدأ تعارض؛ برچسب فارسی بدون نام حامل. ByeMoney و front-end تغییر نکردند.
-- گام ۲ (آدرس خریدار از همین جداول) در TASKS یادداشت شد؛ این اسلایس انجام نشد.
+- گام ۲ بعداً جدا اجرا شد (بخش بعدی).
 - اختلاف سند: متن قبلی SHIP-MULTI-ORIGIN «نبود مبدأ روی کالا = تعارض» می‌گفت؛ رفتار کد اکنون پیش‌فرض رامسر است.
 - آزمون: Jest `shippingOrigins` + `postexLocalitySync` + `shippingCmLabels` + `cartShipping` + `postexShippingQuote` — ۲۱ موفق (پس از اصلاح `externalId` و حذف اسنپ‌شات مبدأ).
+
+## BUYER-ADDRESS-LOCALITY-DROPDOWN — آدرس خریدار از جدول استان/شهر — ۱۶ نوامبر ۲۰۲۶
+
+- تغییر (استرپی): `GET /api/localities` فقط‌خواندنی با `auth: false` → `{ data: [{ name, cities: [name, ...] }] }` (مرتب، بدون id/`externalId`، بدون صفحه‌بندی)؛ سرویس `localities`؛ lifecycle آدرس `beforeCreate`/`beforeUpdate` فقط جفت رسمی استان/شهر را بعد از trim می‌پذیرد. رابطهٔ شهر روی `address` اضافه نشد.
+- تغییر (فرانت): پروکسی نشست‌دار `GET /api/localities`؛ کنترل مشترک `ProvinceCitySelects` در `AddressModal` و `ProfileForm`؛ payload همچنان رشته‌های `province`/`city`.
+- ByeMoney: بدون تغییر؛ شکل `addressSnapshot` حفظ شد.
+- آزمون: استرپی Jest سه فایل localities/lifecycle/route — ۱۵ موفق. فرانت Jest مدال آدرس + کنترل مشترک + ProfileForm + route localities — ۱۷ موفق.
+- محدودیت: تا `sync-localities`/bootstrap جدول پر نشود فرم ذخیره نمی‌کند؛ آدرس قدیمی با املای غیررسمی باید دوباره از لیست انتخاب شود؛ حفرهٔ نبود بررسی نشست روی `/api/addresses` خارج از دامنه ماند.
