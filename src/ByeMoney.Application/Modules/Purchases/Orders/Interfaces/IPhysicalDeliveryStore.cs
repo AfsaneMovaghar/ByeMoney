@@ -30,6 +30,12 @@ public interface IPhysicalDeliveryStore
     Task<IReadOnlyList<PhysicalDeliveryCandidate>> GetShippedAsync(
         DateTime shippedAtOrBeforeUtc, IReadOnlyCollection<string> providers, int limit, CancellationToken ct);
 
+    /// <summary>
+    /// قلم‌های «آماده‌سازی» که شناسهٔ ارجاع واسط دارند و کد پستی واقعی هنوز نیامده است.
+    /// </summary>
+    Task<IReadOnlyList<PhysicalDeliveryCandidate>> GetPreparingWithCarrierReferenceAsync(
+        IReadOnlyCollection<string> providers, int limit, CancellationToken ct);
+
     Task<T> ExecuteLockedAsync<T>(Guid buyerId, Guid cartId, Func<Task<T>> work, CancellationToken ct);
 }
 

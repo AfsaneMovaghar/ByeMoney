@@ -86,6 +86,52 @@ public sealed class PhysicalDeliverySyncTests
     }
 
     [Fact]
+    public async Task RealBarcodePromotesPreparingParcelToShippedWithoutDeliveringIt()
+    {
+        var purchase = PhysicalProductPurchase.Create(
+            PhysicalProductPurchaseId.New(), Guid.NewGuid(), new UserId(Guid.NewGuid()),
+            "product-1", "Book", 1, 50m, 50m);
+        purchase.RememberCarrierParcel(PhysicalProductPurchase.PostexProvider, "12345");
+        var alreadyShipped = CreateShipped(PhysicalProductPurchase.PostexProvider, "999");
+        var waitingCandidate = CandidateFor(purchase);
+        var store = new FakeStore(waitingCandidate, CandidateFor(alreadyShipped))
+        {
+            AwaitingTracking = [waitingCandidate]
+        };
+        var repository = new FakeRepository(purchase, alreadyShipped);
+        var client = new FakeTrackingClient(
+            PhysicalProductPurchase.PostexProvider, TrackingOutcome.Delivered, "IR-200");
+
+        var changed = await CreateService(store, repository, client).SyncExternalAsync(CancellationToken.None);
+
+        changed.Should().Be(2);
+        purchase.DeliveryStatus.Should().Be(PhysicalDeliveryStatus.Shipped);
+        purchase.TrackingCode.Should().Be("IR-200");
+        purchase.DeliveredAtUtc.Should().BeNull();
+        purchase.ProviderParcelId.Should().Be("12345");
+        alreadyShipped.DeliveryStatus.Should().Be(PhysicalDeliveryStatus.Delivered);
+    }
+
+    [Fact]
+    public async Task MaskedBarcodeKeepsPreparingParcelWaiting()
+    {
+        var purchase = PhysicalProductPurchase.Create(
+            PhysicalProductPurchaseId.New(), Guid.NewGuid(), new UserId(Guid.NewGuid()),
+            "product-1", "Book", 1, 50m, 50m);
+        purchase.RememberCarrierParcel(PhysicalProductPurchase.PostexProvider, "12345");
+        var store = new FakeStore { AwaitingTracking = [CandidateFor(purchase)] };
+        var repository = new FakeRepository(purchase);
+        var client = new FakeTrackingClient(PhysicalProductPurchase.PostexProvider, TrackingOutcome.InTransit);
+
+        var changed = await CreateService(store, repository, client).SyncExternalAsync(CancellationToken.None);
+
+        changed.Should().Be(0);
+        purchase.DeliveryStatus.Should().Be(PhysicalDeliveryStatus.Preparing);
+        purchase.TrackingCode.Should().BeNull();
+        purchase.ShippedAtUtc.Should().BeNull();
+    }
+
+    [Fact]
     public async Task ReturnedOutcomePersistsCarrierReturnedOnceWithoutChangingDeliveryStatus()
     {
         var purchase = CreateShipped(PhysicalProductPurchase.PostexProvider, "12345");
@@ -225,7 +271,8 @@ public sealed class PhysicalDeliverySyncTests
         new(purchase.Id.Value, purchase.BuyerId.Value, purchase.CartId,
             purchase.TrackingCode, purchase.TrackingProvider, purchase.ProviderParcelId, purchase.ShippedAtUtc);
 
-    private sealed class FakeTrackingClient(string provider, TrackingOutcome outcome) : ITrackingProviderClient
+    private sealed class FakeTrackingClient(
+        string provider, TrackingOutcome outcome, string? trackingCode = null) : ITrackingProviderClient
     {
         public string Provider => provider;
 
@@ -239,7 +286,7 @@ public sealed class PhysicalDeliverySyncTests
         {
             Calls++;
             LastLookup = lookup;
-            return Task.FromResult(new TrackingResult(outcome));
+            return Task.FromResult(new TrackingResult(outcome, TrackingCode: trackingCode));
         }
     }
 
@@ -267,6 +314,8 @@ public sealed class PhysicalDeliverySyncTests
         public Task<string?> GetCartShippingOriginIdAsync(Guid cartId, CancellationToken ct) =>
             Task.FromResult<string?>(null);
 
+        public IReadOnlyList<PhysicalDeliveryCandidate> AwaitingTracking { get; init; } = [];
+
         public Task<IReadOnlyList<PhysicalDeliveryCandidate>> GetShippedAsync(
             DateTime shippedAtOrBeforeUtc, IReadOnlyCollection<string> providers, int limit, CancellationToken ct)
         {
@@ -275,6 +324,10 @@ public sealed class PhysicalDeliverySyncTests
             LastProviders = providers;
             return Task.FromResult<IReadOnlyList<PhysicalDeliveryCandidate>>(candidates);
         }
+
+        public Task<IReadOnlyList<PhysicalDeliveryCandidate>> GetPreparingWithCarrierReferenceAsync(
+            IReadOnlyCollection<string> providers, int limit, CancellationToken ct) =>
+            Task.FromResult(AwaitingTracking);
 
         public Task<T> ExecuteLockedAsync<T>(Guid buyerId, Guid cartId, Func<Task<T>> work, CancellationToken ct) =>
             work();

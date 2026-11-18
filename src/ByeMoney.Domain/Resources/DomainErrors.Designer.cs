@@ -299,6 +299,7 @@ namespace ByeMoney.Domain.Resources {
         public static string PhysicalProductPurchase_CancellationInvalid => ResourceManager.GetString("PhysicalProductPurchase_CancellationInvalid", resourceCulture)!;
         public static string PhysicalProductPurchase_InvalidDeliveryTransition => ResourceManager.GetString("PhysicalProductPurchase_InvalidDeliveryTransition", resourceCulture)!;
         public static string PhysicalProductPurchase_InvalidTrackingCode => ResourceManager.GetString("PhysicalProductPurchase_InvalidTrackingCode", resourceCulture)!;
+        public static string PhysicalProductPurchase_TrackingCodeRequired => ResourceManager.GetString("PhysicalProductPurchase_TrackingCodeRequired", resourceCulture)!;
         public static string PhysicalProductPurchase_InvalidTrackingProvider => ResourceManager.GetString("PhysicalProductPurchase_InvalidTrackingProvider", resourceCulture)!;
         public static string PhysicalProductPurchase_InvalidProviderParcelId => ResourceManager.GetString("PhysicalProductPurchase_InvalidProviderParcelId", resourceCulture)!;
         public static string PhysicalProductPurchase_DeliveryBlockedByCarrierReturn => ResourceManager.GetString("PhysicalProductPurchase_DeliveryBlockedByCarrierReturn", resourceCulture)!;

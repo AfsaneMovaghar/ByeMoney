@@ -466,7 +466,14 @@ public sealed class PhysicalDeliveryHttpPostgresTests : IAsyncLifetime
             client, HttpMethod.Put, $"/api/admin/physical-purchases/{Guid.NewGuid()}/delivery-status",
             admin, new { status = "Shipped" })).StatusCode.Should().Be(HttpStatusCode.NotFound);
 
-        var shipped = await SendAsync(client, HttpMethod.Put, url, admin, new { status = "Shipped" });
+        (await SendAsync(client, HttpMethod.Put, url, admin, new { status = "Shipped" })).StatusCode
+            .Should().Be(HttpStatusCode.BadRequest);
+        (await SendAsync(client, HttpMethod.Put, url, admin, new { status = "Shipped", trackingCode = "**********" }))
+            .StatusCode.Should().Be(HttpStatusCode.BadRequest);
+
+        var shipped = await SendAsync(
+            client, HttpMethod.Put, url, admin,
+            new { status = "Shipped", trackingCode = "IR-100", trackingProvider = "Manual" });
         shipped.StatusCode.Should().Be(HttpStatusCode.OK);
         using var shippedBody = JsonDocument.Parse(await shipped.Content.ReadAsStringAsync());
         PropertyNames(shippedBody.RootElement).Should().BeEquivalentTo(DeliveryResponseKeys);

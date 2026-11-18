@@ -4,10 +4,12 @@ using MediatR;
 namespace ByeMoney.Application.Modules.Purchases.Commands.CreatePhysicalShipment;
 
 /// <summary>
-/// ساخت مرسوله نزد واسط پستی برای یک قلم کالای فیزیکی و ثبت وضعیت «ارسال‌شده».
+/// ساخت مرسوله نزد واسط پستی. «ارسال‌شده» فقط وقتی ثبت می‌شود که کد پستی واقعی آمده باشد.
+/// <c>CollectionType</c> روش همین درخواست است (<c>pick_up</c> یا <c>courier_drop_off</c>).
 /// <c>Provider</c> اختیاری است؛ پیش‌فرض اولین واسط پیکربندی‌شدهٔ ساخت مرسوله است.
 /// </summary>
-public sealed record CreatePhysicalShipmentCommand(Guid PurchaseId, string? Provider = null) :
+public sealed record CreatePhysicalShipmentCommand(
+    Guid PurchaseId, string? CollectionType, string? Provider = null) :
     IRequest<CreatePhysicalShipmentResponse>;
 
 public sealed record CreatePhysicalShipmentResponse(

@@ -19,14 +19,14 @@ public sealed class PostexOptions
 
     public int TimeoutSeconds { get; set; } = 20;
 
-    /// <summary>نوع جمع‌آوری: <c>pick_up</c> یا <c>postex_drop_off</c>.</summary>
+    /// <summary>دیگر در ساخت مرسوله خوانده نمی‌شود؛ روش جمع‌آوری از درخواست ادمین می‌آید.</summary>
     public string CollectionType { get; set; } = "pick_up";
 
     public string DefaultCourier { get; set; } = "IR_POST";
 
     public string DefaultServiceType { get; set; } = "EXPRESS";
 
-    /// <summary>اگر false باشد مرسوله بدون اعلام آمادگی جمع‌آوری ثبت می‌شود.</summary>
+    /// <summary>دیگر در ساخت مرسوله خوانده نمی‌شود؛ فقط <c>pick_up</c> همان درخواست <c>ready_to_accept</c> می‌فرستد.</summary>
     public bool ReadyToAccept { get; set; }
 
     /// <summary>

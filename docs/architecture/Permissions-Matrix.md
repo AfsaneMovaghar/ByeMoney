@@ -47,8 +47,8 @@
 | AdminPhysicalCancellations | `POST` | `/api/admin/physical-purchases/restocks/{operationId:guid}/resolve` | نیازمند پالیسی `RequireNoorInject` | `Noor.Inject` |
 | AdminPhysicalCancellations | `POST` | `/api/admin/physical-purchases/restocks/{operationId:guid}/retry` | نیازمند پالیسی `RequireNoorInject` | `Noor.Inject` |
 | AdminPhysicalPurchases | `POST` | `/api/admin/physical-purchases/{purchaseId:guid}/shipments` | نیازمند پالیسی `RequireCoursesManage` | `Courses.Manage` |
-| AdminPhysicalPurchases | `PUT` | `/api/admin/physical-purchases/{purchaseId:guid}/delivery-status` | نیازمند پالیسی `RequireCoursesManage` | `Courses.Manage` |
 | AdminPhysicalPurchases | `POST` | `/api/admin/physical-purchases/{purchaseId:guid}/carrier-return/resolve` | نیازمند پالیسی `RequireCoursesManage` | `Courses.Manage` |
+| AdminPhysicalPurchases | `PUT` | `/api/admin/physical-purchases/{purchaseId:guid}/delivery-status` | نیازمند پالیسی `RequireCoursesManage` | `Courses.Manage` |
 | AdminPurchases | `GET` | `/api/admin/purchases` | نیازمند پالیسی `RequirePurchasesView` | `Purchases.View` |
 | AdminPurchases | `GET` | `/api/admin/purchases/{purchaseId:guid}` | نیازمند پالیسی `RequirePurchasesView` | `Purchases.View` |
 | AdminTopUp | `POST` | `/api/admin/topups/{id:guid}/confirm` | نیازمند پالیسی `RequireTopUpReview` | `TopUp.Review` |

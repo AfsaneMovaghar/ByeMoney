@@ -32,7 +32,8 @@ public sealed record ShipmentCreateRequest(
     ShipmentParty Recipient,
     ShipmentParcelDetails Parcel,
     string? Remark = null,
-    string? OriginId = null);
+    string? OriginId = null,
+    string? CollectionType = null);
 
 public enum ShipmentCreateOutcome
 {

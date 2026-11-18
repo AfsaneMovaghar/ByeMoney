@@ -28,6 +28,9 @@ public static class OrderErrors
     public static string ShipmentCityUnavailable => Get(nameof(ShipmentCityUnavailable));
     public static string ShipmentReadFailed => Get(nameof(ShipmentReadFailed));
     public static string ShipmentPaymentPending => Get(nameof(ShipmentPaymentPending));
+    public static string ShipmentTrackingCodePending => Get(nameof(ShipmentTrackingCodePending));
+    public static string ShipmentCollectionTypeRequired => Get(nameof(ShipmentCollectionTypeRequired));
+    public static string ShipmentDropOffOfficeRequired => Get(nameof(ShipmentDropOffOfficeRequired));
     public static string PhysicalPurchase_DeliveryBlockedByCarrierReturn => Get(nameof(PhysicalPurchase_DeliveryBlockedByCarrierReturn));
     public static string CarrierReturn_BuyerConfirmationBlocked => Get(nameof(CarrierReturn_BuyerConfirmationBlocked));
     public static string CarrierReturn_InvalidResolution => Get(nameof(CarrierReturn_InvalidResolution));

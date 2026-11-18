@@ -258,7 +258,7 @@ public sealed class OrderSettlementPostgresTests : IAsyncLifetime
         await using var db = new ApplicationDbContext(_options);
         var purchase = await db.Set<PhysicalProductPurchase>()
             .SingleAsync(item => item.Id == new PhysicalProductPurchaseId(purchaseId));
-        purchase.MarkShipped();
+        purchase.MarkShipped("TRACK-1");
         await db.SaveChangesAsync();
     }
 

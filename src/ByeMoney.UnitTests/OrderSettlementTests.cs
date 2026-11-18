@@ -436,7 +436,7 @@ public sealed class OrderSettlementTests
                 PhysicalProductPurchaseId.New(), cart.Id, buyerId, "book", "Book", 2, 50, 100);
             book.MarkDebited(cart.Id);
             book.RecordPaymentShares(new PaymentShares(80m, 20m));
-            book.MarkShipped();
+            book.MarkShipped("TRACK-1");
 
             var pen = PhysicalProductPurchase.Create(
                 PhysicalProductPurchaseId.New(), cart.Id, buyerId, "pen", "Pen", 1, 20, 20);
@@ -470,7 +470,7 @@ public sealed class OrderSettlementTests
                 PhysicalProductPurchaseId.New(), cart.Id, buyerId, "book", "Book", 1, 50, 50);
             book.MarkDebited(cart.Id);
             book.RecordPaymentShares(new PaymentShares(50m, 0m));
-            book.MarkShipped();
+            book.MarkShipped("TRACK-1");
             if (carrierReturned)
             {
                 book.MarkCarrierReturned(DateTime.UtcNow);

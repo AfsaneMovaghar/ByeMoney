@@ -148,6 +148,7 @@
   <data name="PhysicalProductPurchase_CancellationInvalid" xml:space="preserve"><value>لغو این قلم کالا با وضعیت ارسال، تعداد باقی‌مانده یا سهم پرداخت آن سازگار نیست.</value></data>
   <data name="PhysicalProductPurchase_InvalidDeliveryTransition" xml:space="preserve"><value>تغییر وضعیت تحویل کالا از «{0}» به «{1}» مجاز نیست.</value></data>
   <data name="PhysicalProductPurchase_InvalidTrackingCode" xml:space="preserve"><value>کد رهگیری نامعتبر است؛ حداکثر ۵۰ نویسه و بدون نویسهٔ کنترلی.</value></data>
+  <data name="PhysicalProductPurchase_TrackingCodeRequired" xml:space="preserve"><value>رفتن به ارسال‌شده فقط با کد رهگیری پستی واقعی ممکن است.</value></data>
   <data name="PhysicalProductPurchase_InvalidTrackingProvider" xml:space="preserve"><value>منبع کد رهگیری نامعتبر است.</value></data>
   <data name="PhysicalProductPurchase_InvalidProviderParcelId" xml:space="preserve"><value>شناسهٔ مرسوله نامعتبر است؛ حداکثر ۵۰ نویسه و بدون نویسهٔ کنترلی.</value></data>
   <data name="PhysicalProductPurchase_DeliveryBlockedByCarrierReturn" xml:space="preserve"><value>این کالا برگشتی از واسط پستی دارد و تا تعیین تکلیف نهایی نمی‌تواند به تحویل‌شده تغییر کند.</value></data>

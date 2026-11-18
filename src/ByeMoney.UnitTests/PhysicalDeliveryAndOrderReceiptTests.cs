@@ -41,20 +41,20 @@ public sealed class PhysicalDeliveryAndOrderReceiptTests
         var skip = () => purchase.MarkDelivered();
         skip.Should().Throw<DomainException>();
 
-        purchase.MarkShipped();
+        purchase.MarkShipped("TRACK-1");
         purchase.DeliveryStatus.Should().Be(PhysicalDeliveryStatus.Shipped);
         purchase.ShippedAtUtc.Should().NotBeNull();
         purchase.DeliveredAtUtc.Should().BeNull();
 
         var shippedAt = purchase.ShippedAtUtc;
-        purchase.MarkShipped();
+        purchase.MarkShipped("TRACK-1");
         purchase.ShippedAtUtc.Should().Be(shippedAt);
 
         purchase.MarkDelivered();
         purchase.DeliveryStatus.Should().Be(PhysicalDeliveryStatus.Delivered);
         purchase.DeliveredAtUtc.Should().NotBeNull();
 
-        var back = () => purchase.MarkShipped();
+        var back = () => purchase.MarkShipped("TRACK-1");
         back.Should().Throw<DomainException>();
         purchase.MarkDelivered();
         purchase.DeliveryStatus.Should().Be(PhysicalDeliveryStatus.Delivered);
@@ -68,7 +68,7 @@ public sealed class PhysicalDeliveryAndOrderReceiptTests
         var balanceBefore = paid.Wallet.WithdrawableBalance;
         var ledgerCountBefore = paid.Payment.LedgerEntries.Count;
 
-        physical.MarkShipped();
+        physical.MarkShipped("TRACK-1");
         physical.MarkDelivered();
 
         paid.Wallet.WithdrawableBalance.Should().Be(balanceBefore).And.Be(825m);
@@ -108,7 +108,7 @@ public sealed class PhysicalDeliveryAndOrderReceiptTests
         var physical = paid.Payment.PhysicalPurchases.Single();
         var course = paid.Payment.Purchases.Single();
 
-        physical.MarkShipped();
+        physical.MarkShipped("TRACK-1");
         var shipped = OrderMapping.Build(Snapshot(paid)).Single().Details;
         shipped.DeliveryStatus.Should().Be("Pending");
         shipped.Items.Single(item => item.ItemType == "Product").PhysicalDeliveryStatus.Should().Be("Shipped");
@@ -176,7 +176,7 @@ public sealed class PhysicalDeliveryAndOrderReceiptTests
     {
         var paid = PayMixedCart();
         var physical = paid.Payment.PhysicalPurchases.Single();
-        physical.MarkShipped();
+        physical.MarkShipped("TRACK-1");
         physical.MarkDelivered();
         var snapshot = Snapshot(paid);
         var order = OrderMapping.Build(snapshot).Single().Details;
@@ -244,7 +244,7 @@ public sealed class PhysicalDeliveryAndOrderReceiptTests
         preparing.DeliveredAtUtc.Should().BeNull();
         preparing.CartSummary!.ShippingAmountInNoor.Should().Be(Shipping);
 
-        physical.MarkShipped();
+        physical.MarkShipped("TRACK-1");
         PurchaseHistoryMapping.ToReceipt(new PurchaseReceiptData(null, paid.Cart, physical))
             .DeliveryStatus.Should().Be("Pending");
 
@@ -312,7 +312,9 @@ public sealed class PhysicalDeliveryAndOrderReceiptTests
             repository.Object, deliveryStore.Object, unitOfWork.Object);
 
         var response = await handler.Handle(
-            new UpdatePhysicalDeliveryStatusCommand(physical.Id.Value, "Shipped"), CancellationToken.None);
+            new UpdatePhysicalDeliveryStatusCommand(
+                physical.Id.Value, "Shipped", "IR-100", PhysicalProductPurchase.ManualProvider),
+                CancellationToken.None);
 
         response.DeliveryStatus.Should().Be("Shipped");
         response.ShippedAtUtc.Should().NotBeNull();

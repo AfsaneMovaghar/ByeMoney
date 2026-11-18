@@ -1,5 +1,6 @@
 using System.Text.Json;
 using ByeMoney.Application.Modules.Purchases.Delivery.Interfaces;
+using ByeMoney.Domain.Modules.Purchases;
 
 namespace ByeMoney.Infrastructure.Modules.PostexIntegration.Clients;
 
@@ -56,9 +57,10 @@ public static class PostexStatusParser
                 return new TrackingResult(TrackingOutcome.Failed, statusName, statusTitle);
             }
 
+            var trackingCode = ReadUsableTrackingCode(root);
             if (ExceptionStatusCodes.Contains(code))
             {
-                return new TrackingResult(TrackingOutcome.InTransit, statusName, statusTitle);
+                return new TrackingResult(TrackingOutcome.InTransit, statusName, statusTitle, trackingCode);
             }
 
             var parentCode = TryReadNestedInt(root, "parent", "code", out var parent)
@@ -67,10 +69,11 @@ public static class PostexStatusParser
 
             return parentCode switch
             {
-                DeliveredParentCode => new TrackingResult(TrackingOutcome.Delivered, statusName, statusTitle),
+                DeliveredParentCode => new TrackingResult(
+                    TrackingOutcome.Delivered, statusName, statusTitle, trackingCode),
                 ReturnedParentCode or CanceledParentCode =>
-                    new TrackingResult(TrackingOutcome.Returned, statusName, statusTitle),
-                _ => new TrackingResult(TrackingOutcome.InTransit, statusName, statusTitle)
+                    new TrackingResult(TrackingOutcome.Returned, statusName, statusTitle, trackingCode),
+                _ => new TrackingResult(TrackingOutcome.InTransit, statusName, statusTitle, trackingCode)
             };
         }
         catch (JsonException)
@@ -87,6 +90,12 @@ public static class PostexStatusParser
         statusCode is DeliveredParentCode or ReturnedParentCode or CanceledParentCode
             ? statusCode
             : 0;
+
+    private static string? ReadUsableTrackingCode(JsonElement root)
+    {
+        var tracking = ReadString(root, "tracking_number") ?? ReadString(root, "tracking_no");
+        return PhysicalProductPurchase.IsUsablePostalTrackingCode(tracking) ? tracking!.Trim() : null;
+    }
 
     private static bool LooksLikeNotFound(string? json) =>
         !string.IsNullOrWhiteSpace(json) &&

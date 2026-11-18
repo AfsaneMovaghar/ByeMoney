@@ -178,6 +178,12 @@ public class PhysicalProductPurchase : BaseEntity<PhysicalProductPurchaseId>
 
         if (DeliveryStatus == PhysicalDeliveryStatus.Shipped)
         {
+            // اصلاح کد فقط با بارکد واقعی؛ کد ستاره‌ای یا خالی کد ذخیره‌شده را عوض نمی‌کند.
+            if (trackingCode is not null && !IsUsablePostalTrackingCode(code))
+            {
+                throw new DomainException(DomainErrors.PhysicalProductPurchase_TrackingCodeRequired);
+            }
+
             // ارسال دوبارهٔ Shipped فقط کد و منبع را اصلاح می‌کند؛ زمان ارسال و بقیهٔ داده دست نمی‌خورد.
             TrackingCode = trackingCode is null ? TrackingCode : code;
             TrackingProvider = trackingProvider is null ? TrackingProvider : provider;
@@ -194,6 +200,18 @@ public class PhysicalProductPurchase : BaseEntity<PhysicalProductPurchaseId>
             throw InvalidDeliveryTransition(PhysicalDeliveryStatus.Shipped);
         }
 
+        if (!IsUsablePostalTrackingCode(code))
+        {
+            throw new DomainException(DomainErrors.PhysicalProductPurchase_TrackingCodeRequired);
+        }
+
+        // شناسهٔ پستکس از قبل ذخیره شده؛ کد دستی همان مرسوله را تکمیل می‌کند و منبع را عوض نمی‌کند.
+        if (!string.IsNullOrWhiteSpace(ProviderParcelId) && !IsManual(TrackingProvider))
+        {
+            provider = TrackingProvider;
+            providerParcelId = ProviderParcelId;
+        }
+
         var now = DateTime.UtcNow;
         DeliveryStatus = PhysicalDeliveryStatus.Shipped;
         ShippedAtUtc = now;
@@ -201,6 +219,48 @@ public class PhysicalProductPurchase : BaseEntity<PhysicalProductPurchaseId>
         TrackingProvider = provider;
         ProviderParcelId = NormalizeProviderParcelId(provider, providerParcelId);
         UpdatedAt = now;
+    }
+
+    /// <summary>
+    /// شناسهٔ ارجاع واسط را پیش از آمدن کد پستی نگه می‌دارد. وضعیت «آماده‌سازی» می‌ماند
+    /// تا خواندن بعدی همان مرسوله، با کد واقعی، <see cref="MarkShipped"/> شود.
+    /// </summary>
+    public void RememberCarrierParcel(string trackingProvider, string providerParcelId)
+    {
+        if (DeliveryStatus != PhysicalDeliveryStatus.Preparing || RemainingQuantity == 0)
+        {
+            throw InvalidDeliveryTransition(PhysicalDeliveryStatus.Shipped);
+        }
+
+        var provider = NormalizeTrackingProvider(trackingProvider);
+        var parcelId = NormalizeProviderParcelId(provider, providerParcelId);
+        if (provider is null || parcelId is null)
+        {
+            throw new DomainException(DomainErrors.PhysicalProductPurchase_InvalidProviderParcelId);
+        }
+
+        if (ProviderParcelId is not null)
+        {
+            return;
+        }
+
+        TrackingProvider = provider;
+        ProviderParcelId = parcelId;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// بارکد قابل‌استفاده نویسهٔ خالی یا فقط ستاره نیست. شمارهٔ داخلی مرسوله در این فیلد نمی‌آید.
+    /// </summary>
+    public static bool IsUsablePostalTrackingCode(string? tracking)
+    {
+        if (string.IsNullOrWhiteSpace(tracking))
+        {
+            return false;
+        }
+
+        var trimmed = tracking.Trim();
+        return trimmed.Any(char.IsLetterOrDigit) && !trimmed.All(ch => ch == '*');
     }
 
     public void MarkDelivered()

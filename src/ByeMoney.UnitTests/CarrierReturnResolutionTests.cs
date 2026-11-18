@@ -385,7 +385,7 @@ public sealed class CarrierReturnResolutionTests
             PhysicalProductPurchaseId.New(), CartId, new UserId(BuyerId), "prod-1", "Product 1", 1, 50, 50);
         purchase.MarkDebited(CartId);
         purchase.RecordPaymentShares(new PaymentShares(50m, 0m));
-        purchase.MarkShipped();
+        purchase.MarkShipped("TRACK-1");
         return purchase;
     }
 

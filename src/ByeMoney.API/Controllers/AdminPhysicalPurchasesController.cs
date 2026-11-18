@@ -34,7 +34,7 @@ public sealed class AdminPhysicalPurchasesController(ISender sender) : Controlle
     }
 
     /// <summary>
-    /// ساخت مرسوله نزد واسط پستی پیکربندی‌شده و ثبت وضعیت «ارسال‌شده» با شناسهٔ ارجاع و کد رهگیری.
+    /// ساخت مرسوله نزد واسط پستی. «ارسال‌شده» فقط با کد پستی واقعی ثبت می‌شود.
     /// </summary>
     [HttpPost("{purchaseId:guid}/shipments")]
     [ProducesResponseType(typeof(CreatePhysicalShipmentResponse), StatusCodes.Status200OK)]
@@ -48,7 +48,7 @@ public sealed class AdminPhysicalPurchasesController(ISender sender) : Controlle
         CancellationToken ct)
     {
         return Ok(await sender.Send(
-            new CreatePhysicalShipmentCommand(purchaseId, request?.Provider), ct));
+            new CreatePhysicalShipmentCommand(purchaseId, request?.CollectionType, request?.Provider), ct));
     }
 
     /// <summary>

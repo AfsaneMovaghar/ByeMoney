@@ -52,16 +52,23 @@ public sealed class PhysicalDeliverySyncService(
 
         // زمان Shipped شرط انتخاب نیست؛ مرسولهٔ تازه‌هم استعلام می‌شود.
         var providers = clients.Keys.ToArray();
+        var promotedIds = await PromoteWhenTrackingCodeArrivesAsync(clients, providers, ct);
         var candidates = await store.GetShippedAsync(DateTime.UtcNow, providers, BatchSize, ct);
         if (candidates.Count == 0)
         {
-            return 0;
+            return promotedIds.Count;
         }
 
         var delivered = new List<PhysicalDeliveryCandidate>();
         var returned = 0;
         foreach (var candidate in candidates)
         {
+            // قلمی که همین نوبت ارسال‌شده شده، تا نوبت بعد تحویل‌شده نمی‌شود.
+            if (promotedIds.Contains(candidate.PurchaseId))
+            {
+                continue;
+            }
+
             if (candidate.TrackingProvider is null ||
                 !clients.TryGetValue(candidate.TrackingProvider, out var client))
             {
@@ -101,7 +108,56 @@ public sealed class PhysicalDeliverySyncService(
         }
 
         var deliveredCount = delivered.Count == 0 ? 0 : await DeliverAsync(delivered, "provider", ct);
-        return deliveredCount + returned;
+        return deliveredCount + returned + promotedIds.Count;
+    }
+
+    /// <summary>
+    /// خریدِ هنوز «آماده‌سازی» که شناسهٔ ارجاع دارد، با آمدن بارکد واقعی فقط «ارسال‌شده» می‌شود.
+    /// حتی اگر همان پاسخ تحویل را هم بگوید، در این مرحله به «تحویل‌شده» نمی‌رود.
+    /// </summary>
+    private async Task<HashSet<Guid>> PromoteWhenTrackingCodeArrivesAsync(
+        Dictionary<string, ITrackingProviderClient> clients,
+        string[] providers,
+        CancellationToken ct)
+    {
+        var waiting = await store.GetPreparingWithCarrierReferenceAsync(providers, BatchSize, ct);
+        var promoted = new HashSet<Guid>();
+        foreach (var candidate in waiting)
+        {
+            if (candidate.TrackingProvider is null ||
+                !clients.TryGetValue(candidate.TrackingProvider, out var client))
+            {
+                continue;
+            }
+
+            var result = await client.GetTrackingAsync(
+                new TrackingLookup(candidate.ProviderParcelId, candidate.TrackingCode), ct);
+            if (!PhysicalProductPurchase.IsUsablePostalTrackingCode(result.TrackingCode))
+            {
+                continue;
+            }
+
+            var changed = await store.ExecuteLockedAsync(candidate.BuyerId, candidate.CartId, async () =>
+            {
+                var purchase = await repository.GetByIdAsync(
+                    new PhysicalProductPurchaseId(candidate.PurchaseId), ct);
+                if (purchase is null || purchase.DeliveryStatus != PhysicalDeliveryStatus.Preparing)
+                {
+                    return 0;
+                }
+
+                purchase.MarkShipped(result.TrackingCode, client.Provider, purchase.ProviderParcelId);
+                repository.Update(purchase);
+                await unitOfWork.SaveChangesAsync(ct);
+                return 1;
+            }, ct);
+            if (changed > 0)
+            {
+                promoted.Add(candidate.PurchaseId);
+            }
+        }
+
+        return promoted;
     }
 
     private Dictionary<string, ITrackingProviderClient> ConfiguredClients() =>

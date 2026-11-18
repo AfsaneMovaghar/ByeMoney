@@ -68,6 +68,25 @@ public sealed class PhysicalDeliveryStore(ApplicationDbContext db) : IPhysicalDe
             .ToListAsync(ct);
     }
 
+    public async Task<IReadOnlyList<PhysicalDeliveryCandidate>> GetPreparingWithCarrierReferenceAsync(
+        IReadOnlyCollection<string> providers, int limit, CancellationToken ct)
+    {
+        var providerKeys = providers.ToArray();
+        return await db.Set<PhysicalProductPurchase>()
+            .AsNoTracking()
+            .Where(x => x.DeliveryStatus == PhysicalDeliveryStatus.Preparing &&
+                x.ProviderParcelId != null &&
+                x.TrackingProvider != null &&
+                x.CancelledQuantity < x.Quantity &&
+                providerKeys.Contains(x.TrackingProvider))
+            .OrderBy(x => x.CreatedAtUtc)
+            .Take(limit)
+            .Select(x => new PhysicalDeliveryCandidate(
+                x.Id.Value, x.BuyerId.Value, x.CartId,
+                x.TrackingCode, x.TrackingProvider, x.ProviderParcelId, x.ShippedAtUtc))
+            .ToListAsync(ct);
+    }
+
     public async Task<T> ExecuteLockedAsync<T>(Guid buyerId, Guid cartId, Func<Task<T>> work, CancellationToken ct)
     {
         // ترتیب قفل‌ها (خریدار، سپس سبد) همان ترتیب لغو است؛ استثنای کار بدون commit تراکنش را برمی‌گرداند.

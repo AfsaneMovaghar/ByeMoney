@@ -748,8 +748,10 @@ public sealed class PhysicalCancellationPostgresTests : IAsyncLifetime
     private async Task<PhysicalDeliveryStatusResponse> SendDeliveryStatusAsync(Guid purchaseId, string status)
     {
         using var scope = _provider.CreateScope();
+        var trackingCode = status == nameof(PhysicalDeliveryStatus.Shipped) ? "TRACK-1" : null;
+        var provider = trackingCode is null ? null : PhysicalProductPurchase.ManualProvider;
         return await scope.ServiceProvider.GetRequiredService<ISender>()
-            .Send(new UpdatePhysicalDeliveryStatusCommand(purchaseId, status));
+            .Send(new UpdatePhysicalDeliveryStatusCommand(purchaseId, status, trackingCode, provider));
     }
 
     private async Task<bool> TrySendDeliveryStatusAsync(Guid purchaseId, string status)
@@ -877,7 +879,7 @@ public sealed class PhysicalCancellationPostgresTests : IAsyncLifetime
         using var scope = _provider.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
         var purchase = await db.Set<PhysicalProductPurchase>().SingleAsync(x => x.Id == id);
-        purchase.MarkShipped();
+        purchase.MarkShipped("TRACK-1");
         await db.SaveChangesAsync();
     }
 

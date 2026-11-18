@@ -53,7 +53,12 @@ public sealed class PostexShipmentClient(
             return AsExisting(existing.Parcel!);
         }
 
-        var collectionType = ResolveCollectionType();
+        if (!TryResolveCollection(request.CollectionType, out var collectionType, out var courierPickup))
+        {
+            return new ShipmentCreateResult(ShipmentCreateOutcome.Failed,
+                ErrorMessage: OrderErrors.ShipmentCollectionTypeRequired);
+        }
+
         var sender = options.ResolveOrigin(request.OriginId);
         if (sender is null || !IsSenderConfigured(sender))
         {
@@ -61,7 +66,7 @@ public sealed class PostexShipmentClient(
                 ErrorMessage: OrderErrors.ShipmentOriginProfileIncomplete);
         }
 
-        if (RequiresPickUpCoordinates(collectionType) && !HasCoordinates(sender))
+        if (courierPickup && !HasCoordinates(sender))
         {
             return new ShipmentCreateResult(ShipmentCreateOutcome.Failed,
                 ErrorMessage: OrderErrors.ShipmentOriginCoordinatesRequired);
@@ -83,7 +88,9 @@ public sealed class PostexShipmentClient(
         try
         {
             using var response = await http.PostAsJsonAsync(
-                "api/v1/parcels/bulk", BuildBulkBody(request, cityId, sender, collectionType), ct);
+                "api/v1/parcels/bulk",
+                BuildBulkBody(request, cityId, sender, collectionType, courierPickup),
+                ct);
             var body = await response.Content.ReadAsStringAsync(ct);
 
             if (response.StatusCode == HttpStatusCode.PaymentRequired)
@@ -111,14 +118,20 @@ public sealed class PostexShipmentClient(
             if (!response.IsSuccessStatusCode)
             {
                 return new ShipmentCreateResult(ShipmentCreateOutcome.Failed,
-                    ErrorMessage: ExtractErrorMessage(body) ?? $"ثبت مرسوله ناموفق بود ({(int)response.StatusCode}).");
+                    ErrorMessage: PresentError(
+                        collectionType,
+                        ExtractErrorMessage(body) ?? $"ثبت مرسوله ناموفق بود ({(int)response.StatusCode}).",
+                        body));
             }
 
             var bulkFailed = TryReadBulkFailure(body);
             if (bulkFailed is not null)
             {
                 // حتی وقتی HTTP 200 و isSuccess=false است، گاهی مرسوله ساخته شده؛ دوباره می‌خوانیم.
-                return await ResultAfterWriteAsync(request.Parcel.IdempotencyKey.Trim(), bulkFailed, ct);
+                return await ResultAfterWriteAsync(
+                    request.Parcel.IdempotencyKey.Trim(),
+                    PresentError(collectionType, bulkFailed, body)!,
+                    ct);
             }
 
             var created = await ReadParcelAsync(request.Parcel.IdempotencyKey.Trim(), ct);
@@ -153,18 +166,52 @@ public sealed class PostexShipmentClient(
         !string.IsNullOrWhiteSpace(sender.MobileNo) &&
         !string.IsNullOrWhiteSpace(sender.TelephoneNo);
 
-    private string ResolveCollectionType() =>
-        string.IsNullOrWhiteSpace(options.CollectionType) ? "pick_up" : options.CollectionType.Trim();
+    private static bool TryResolveCollection(string? collectionType, out string normalized, out bool courierPickup)
+    {
+        if (string.Equals(collectionType?.Trim(), "pick_up", StringComparison.OrdinalIgnoreCase))
+        {
+            normalized = "pick_up";
+            courierPickup = true;
+            return true;
+        }
 
-    private static bool RequiresPickUpCoordinates(string collectionType) =>
-        string.Equals(collectionType, "pick_up", StringComparison.OrdinalIgnoreCase);
+        if (string.Equals(collectionType?.Trim(), "courier_drop_off", StringComparison.OrdinalIgnoreCase))
+        {
+            normalized = "courier_drop_off";
+            courierPickup = false;
+            return true;
+        }
+
+        normalized = string.Empty;
+        courierPickup = false;
+        return false;
+    }
+
+    private static string? PresentError(string collectionType, string? message, string? rawBody)
+    {
+        if (string.Equals(collectionType, "courier_drop_off", StringComparison.OrdinalIgnoreCase))
+        {
+            var haystack = (message ?? string.Empty) + "\n" + (rawBody ?? string.Empty);
+            if (haystack.Contains("drop_off_location", StringComparison.OrdinalIgnoreCase) ||
+                haystack.Contains("DropOffLocation", StringComparison.Ordinal))
+            {
+                return OrderErrors.ShipmentDropOffOfficeRequired;
+            }
+        }
+
+        return message;
+    }
 
     private static bool HasCoordinates(PostexSenderOptions sender) =>
         sender.Lat is >= -90 and <= 90 &&
         sender.Lon is >= -180 and <= 180;
 
     private object BuildBulkBody(
-        ShipmentCreateRequest request, int toCityId, PostexSenderOptions sender, string collectionType)
+        ShipmentCreateRequest request,
+        int toCityId,
+        PostexSenderOptions sender,
+        string collectionType,
+        bool courierPickup)
     {
         var (firstName, lastName) = SplitName(request.Recipient.FullName);
         var (senderFirst, senderLast) = (
@@ -182,7 +229,7 @@ public sealed class PostexShipmentClient(
                 new
                 {
                     custom_order_no = request.Parcel.IdempotencyKey.Trim(),
-                    ready_to_accept = options.ReadyToAccept,
+                    ready_to_accept = courierPickup,
                     submit_channel = "api",
                     from = new
                     {
@@ -349,7 +396,7 @@ public sealed class PostexShipmentClient(
         return new ShipmentCreateResult(
             unpaid ? ShipmentCreateOutcome.PendingPayment : ShipmentCreateOutcome.Created,
             ProviderParcelId: parcelNo,
-            TrackingCode: IsUsableTracking(tracking) ? tracking : null,
+            TrackingCode: PhysicalProductPurchase.IsUsablePostalTrackingCode(tracking) ? tracking!.Trim() : null,
             StatusName: statusName,
             ErrorMessage: unpaid ? OrderErrors.ShipmentPaymentPending : null);
     }
@@ -467,11 +514,6 @@ public sealed class PostexShipmentClient(
 
         return null;
     }
-
-    private static bool IsUsableTracking(string? tracking) =>
-        !string.IsNullOrWhiteSpace(tracking) &&
-        tracking.Any(char.IsLetterOrDigit) &&
-        !tracking.All(ch => ch == '*');
 
     private static (string First, string Last) SplitName(string fullName)
     {

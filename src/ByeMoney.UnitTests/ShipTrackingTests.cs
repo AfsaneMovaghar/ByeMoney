@@ -1,4 +1,5 @@
 using ByeMoney.Application.Modules.Purchases.Delivery.Interfaces;
+using ByeMoney.Domain.Resources;
 using ByeMoney.Application.Modules.Purchases.Orders.DTOs;
 using ByeMoney.Application.Modules.Purchases.Orders.Services;
 using ByeMoney.Domain.Common.Exceptions;
@@ -54,14 +55,20 @@ public sealed class ShipTrackingTests
         purchase.TrackingCode.Should().Be("CODE");
     }
 
-    [Fact]
-    public void BlankCodeIsStoredAsNull()
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    [InlineData("**********")]
+    public void ShippedWithoutARealPostalCodeIsRejected(string? trackingCode)
     {
         var purchase = CreatePhysical();
 
-        purchase.MarkShipped("   ", PhysicalProductPurchase.ManualProvider, null);
+        var act = () => purchase.MarkShipped(trackingCode, PhysicalProductPurchase.ManualProvider, null);
 
-        purchase.TrackingCode.Should().BeNull();
+        act.Should().Throw<DomainException>()
+            .WithMessage(DomainErrors.PhysicalProductPurchase_TrackingCodeRequired);
+        purchase.DeliveryStatus.Should().Be(PhysicalDeliveryStatus.Preparing);
     }
 
     [Fact]
@@ -93,6 +100,41 @@ public sealed class ShipTrackingTests
         purchase.MarkShipped("CODE", PhysicalProductPurchase.ManualProvider, "999");
 
         purchase.ProviderParcelId.Should().BeNull();
+        purchase.TrackingProvider.Should().Be(PhysicalProductPurchase.ManualProvider);
+    }
+
+    [Fact]
+    public void ManualCodeOnARememberedParcelKeepsTheCarrierReference()
+    {
+        var purchase = CreatePhysical();
+        purchase.RememberCarrierParcel(PhysicalProductPurchase.PostexProvider, "1319906676294");
+
+        purchase.MarkShipped("IR-100", PhysicalProductPurchase.ManualProvider, null);
+
+        purchase.DeliveryStatus.Should().Be(PhysicalDeliveryStatus.Shipped);
+        purchase.TrackingCode.Should().Be("IR-100");
+        purchase.TrackingProvider.Should().Be(PhysicalProductPurchase.PostexProvider);
+        purchase.ProviderParcelId.Should().Be("1319906676294");
+    }
+
+    [Theory]
+    [InlineData("**********")]
+    [InlineData("   ")]
+    public void CorrectingAShippedCodeWithAnUnusableValueIsRejected(string trackingCode)
+    {
+        var purchase = CreatePhysical();
+        purchase.MarkShipped("IR-100", PhysicalProductPurchase.PostexProvider, "12345");
+        var shippedAt = purchase.ShippedAtUtc;
+
+        var act = () => purchase.MarkShipped(trackingCode, PhysicalProductPurchase.ManualProvider, null);
+
+        act.Should().Throw<DomainException>()
+            .WithMessage(DomainErrors.PhysicalProductPurchase_TrackingCodeRequired);
+        purchase.DeliveryStatus.Should().Be(PhysicalDeliveryStatus.Shipped);
+        purchase.TrackingCode.Should().Be("IR-100");
+        purchase.TrackingProvider.Should().Be(PhysicalProductPurchase.PostexProvider);
+        purchase.ProviderParcelId.Should().Be("12345");
+        purchase.ShippedAtUtc.Should().Be(shippedAt);
     }
 
     [Theory]
@@ -135,6 +177,18 @@ public sealed class ShipTrackingTests
 
         result.Outcome.Should().Be(TrackingOutcome.InTransit);
         result.StatusName.Should().Be("PAYMENT_PENDING");
+        result.TrackingCode.Should().BeNull();
+    }
+
+    [Fact]
+    public void PostexStatusKeepsAnUnmaskedBarcode()
+    {
+        var result = PostexStatusParser.Parse(
+            "{\"parent\":{\"code\":3},\"status_code\":11208,\"tracking_number\":\"  IR-100  \"}",
+            200);
+
+        result.Outcome.Should().Be(TrackingOutcome.InTransit);
+        result.TrackingCode.Should().Be("IR-100");
     }
 
     [Fact]

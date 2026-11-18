@@ -77,7 +77,7 @@ public sealed class CreatePhysicalShipmentCommandHandler(
             }
 
             var createResult = await client.CreateOrGetParcelAsync(
-                BuildRequest(locked, address, originId, parcelFacts), ct);
+                BuildRequest(locked, address, originId, parcelFacts, request.CollectionType), ct);
 
             if (createResult.Outcome is ShipmentCreateOutcome.Failed or ShipmentCreateOutcome.NotConfigured)
             {
@@ -103,10 +103,22 @@ public sealed class CreatePhysicalShipmentCommandHandler(
                         : createResult.ErrorMessage);
             }
 
-            locked.MarkShipped(
-                createResult.TrackingCode,
-                client.Provider,
-                createResult.ProviderParcelId);
+            var outcome = createResult.Outcome.ToString();
+            string? warning = null;
+            if (PhysicalProductPurchase.IsUsablePostalTrackingCode(createResult.TrackingCode))
+            {
+                locked.MarkShipped(
+                    createResult.TrackingCode,
+                    client.Provider,
+                    createResult.ProviderParcelId);
+            }
+            else
+            {
+                locked.RememberCarrierParcel(client.Provider, createResult.ProviderParcelId);
+                outcome = "AwaitingTrackingCode";
+                warning = OrderErrors.ShipmentTrackingCodePending;
+            }
+
             repository.Update(locked);
             await unitOfWork.SaveChangesAsync(ct);
 
@@ -115,7 +127,8 @@ public sealed class CreatePhysicalShipmentCommandHandler(
                     locked.Id.Value, locked.DeliveryStatus.ToString(), locked.ShippedAtUtc, locked.DeliveredAtUtc,
                     locked.TrackingCode, locked.TrackingProvider),
                 createResult.ProviderParcelId,
-                createResult.Outcome.ToString());
+                outcome,
+                warning);
         }, ct);
     }
 
@@ -151,7 +164,11 @@ public sealed class CreatePhysicalShipmentCommandHandler(
     }
 
     private static ShipmentCreateRequest BuildRequest(
-        PhysicalProductPurchase purchase, ShippingAddress address, string originId, ParcelFacts parcelFacts)
+        PhysicalProductPurchase purchase,
+        ShippingAddress address,
+        string originId,
+        ParcelFacts parcelFacts,
+        string? collectionType)
     {
         // کلید یکتا در سطح بای‌مانی؛ پستکس خودش تکرار را مسدود نمی‌کند.
         var idempotencyKey = $"BM-{purchase.Id.Value:N}";
@@ -174,7 +191,8 @@ public sealed class CreatePhysicalShipmentCommandHandler(
                 purchase.RemainingQuantity,
                 parcelFacts),
             Remark: $"ByeMoney purchase {purchase.Id.Value:N}",
-            OriginId: originId.Trim());
+            OriginId: originId.Trim(),
+            CollectionType: collectionType);
     }
 
     private static ParcelFacts RequireParcelFacts(PhysicalProductPurchase purchase) =>

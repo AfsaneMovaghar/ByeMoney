@@ -171,6 +171,8 @@ public sealed class PostexShipmentCityCodeTests
         parcel.TryGetProperty("added_service", out _).Should().BeFalse();
         parcel.GetProperty("from").GetProperty("location").GetProperty("lat").GetDouble().Should().Be(36.92);
         parcel.GetProperty("from").GetProperty("location").GetProperty("lon").GetDouble().Should().Be(50.65);
+        body.RootElement.GetProperty("collection_type").GetString().Should().Be("pick_up");
+        parcel.GetProperty("ready_to_accept").GetBoolean().Should().BeTrue();
     }
 
     [Fact]
@@ -200,16 +202,31 @@ public sealed class PostexShipmentCityCodeTests
             http,
             new FakeCityCodeReader { Result = DeliveryCityCodeRead.Found(301) },
             lat: null,
-            lon: null,
-            collectionType: "postex_drop_off");
+            lon: null);
 
-        await client.CreateOrGetParcelAsync(Request("city-mashhad"), CancellationToken.None);
+        await client.CreateOrGetParcelAsync(
+            Request("city-mashhad", "courier_drop_off"), CancellationToken.None);
 
         using var body = JsonDocument.Parse(http.LastPostBody!);
-        body.RootElement.GetProperty("collection_type").GetString().Should().Be("postex_drop_off");
-        body.RootElement.GetProperty("parcels").EnumerateArray().Single()
-            .GetProperty("from").GetProperty("location").GetProperty("lat").ValueKind
+        body.RootElement.GetProperty("collection_type").GetString().Should().Be("courier_drop_off");
+        var parcel = body.RootElement.GetProperty("parcels").EnumerateArray().Single();
+        parcel.GetProperty("ready_to_accept").GetBoolean().Should().BeFalse();
+        parcel.GetProperty("from").GetProperty("location").GetProperty("lat").ValueKind
             .Should().Be(JsonValueKind.Null);
+    }
+
+    [Fact]
+    public async Task DropOffRejectedForMissingOfficeReturnsDomainMessage()
+    {
+        const string body = """{"invalid_fields":{"drop_off_location_id":["required"]},"message":"خطا"}""";
+        var http = new RecordingHandler { BulkStatus = HttpStatusCode.BadRequest, BulkBody = body };
+        var client = Client(http, new FakeCityCodeReader { Result = DeliveryCityCodeRead.Found(301) }, lat: null, lon: null);
+
+        var result = await client.CreateOrGetParcelAsync(
+            Request("city-mashhad", "courier_drop_off"), CancellationToken.None);
+
+        result.Outcome.Should().Be(ShipmentCreateOutcome.Failed);
+        result.ErrorMessage.Should().Be(OrderErrors.ShipmentDropOffOfficeRequired);
     }
 
     [Fact]
@@ -239,14 +256,14 @@ public sealed class PostexShipmentCityCodeTests
         RecordingHandler http,
         FakeCityCodeReader reader,
         double? lat = 36.92,
-        double? lon = 50.65,
-        string collectionType = "pick_up")
+        double? lon = 50.65)
     {
         var options = new PostexOptions
         {
             Enabled = true,
             ApiKey = "test-key",
-            CollectionType = collectionType,
+            CollectionType = "postex_drop_off",
+            ReadyToAccept = false,
             Origins = new Dictionary<string, PostexSenderOptions>(StringComparer.OrdinalIgnoreCase)
             {
                 ["ramsar"] = new PostexSenderOptions { Lat = lat, Lon = lon }
@@ -258,13 +275,14 @@ public sealed class PostexShipmentCityCodeTests
             reader);
     }
 
-    private static ShipmentCreateRequest Request(string? cityDocumentId) =>
+    private static ShipmentCreateRequest Request(string? cityDocumentId, string? collectionType = "pick_up") =>
         new(
             new ShipmentParty(
                 "علی محمدی", "09121111111", null, null, null,
                 "خیابان نمونه", "مشهد", "خراسان رضوی", "1234567890", cityDocumentId),
             new ShipmentParcelDetails("BM-1", "شمش", 1, SampleParcel()),
-            OriginId: "ramsar");
+            OriginId: "ramsar",
+            CollectionType: collectionType);
 
     private static ParcelFacts SampleParcel() =>
         new(

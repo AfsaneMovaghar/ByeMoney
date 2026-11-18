@@ -164,7 +164,7 @@ public sealed class PurchaseHistoryPostgresTests : IAsyncLifetime
         var book = PhysicalProductPurchase.Create(
             PhysicalProductPurchaseId.New(), cart.Id, buyer.Id, "book", "Book", 2, 50, 100);
         book.MarkDebited(cart.Id);
-        book.MarkShipped();
+        book.MarkShipped("TRACK-1");
         book.MarkDelivered();
         var pen = PhysicalProductPurchase.Create(
             PhysicalProductPurchaseId.New(), cart.Id, buyer.Id, "pen", "Pen", 1, 20, 20);

@@ -28,7 +28,10 @@ public enum TrackingOutcome
 }
 
 public sealed record TrackingResult(
-    TrackingOutcome Outcome, string? StatusName = null, string? StatusTitle = null);
+    TrackingOutcome Outcome,
+    string? StatusName = null,
+    string? StatusTitle = null,
+    string? TrackingCode = null);
 
 /// <summary>
 /// استعلام وضعیت مرسوله از یک واسط پستی. هر پیاده‌سازی کلید منبع خودش را اعلام می‌کند تا
