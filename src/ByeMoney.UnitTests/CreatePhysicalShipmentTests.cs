@@ -261,9 +261,10 @@ public sealed class CreatePhysicalShipmentTests
             WeightGrams: 750,
             LengthCm: 15,
             WidthCm: 10,
-            HeightCm: 5,
+            HeightCm: 20,
             DeclaredValueIrr: 60_000_000,
-            IsFragile: true);
+            IsFragile: true,
+            BoxTypeId: 5);
 
     private static ShippingAddress SampleAddress() =>
         new("ver", "خراسان رضوی", "مشهد", "1234567890", "خیابان نمونه", "علی محمدی", "09121111111", "city-mashhad");

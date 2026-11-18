@@ -49,7 +49,7 @@ public sealed class CartConfiguration : IEntityTypeConfiguration<Cart>
                 table.HasCheckConstraint("CK_CartItems_Allocation",
                     "\"AllocatedAmountInNoor\" >= 0 AND trunc(\"AllocatedAmountInNoor\") = \"AllocatedAmountInNoor\" AND \"AllocatedAmountInNoor\" <= \"Quantity\" * \"PriceInNoor\"");
                 table.HasCheckConstraint("CK_CartItems_ParcelFacts",
-                    "(\"ParcelWeightGrams\" IS NULL AND \"ParcelLengthCm\" IS NULL AND \"ParcelWidthCm\" IS NULL AND \"ParcelHeightCm\" IS NULL AND \"ParcelDeclaredValueIrr\" IS NULL AND \"ParcelIsFragile\" IS NULL) OR (\"ParcelWeightGrams\" > 0 AND \"ParcelLengthCm\" > 0 AND \"ParcelWidthCm\" > 0 AND \"ParcelHeightCm\" > 0 AND \"ParcelDeclaredValueIrr\" > 0 AND \"ParcelIsFragile\" IS NOT NULL)");
+                    "(\"ParcelWeightGrams\" IS NULL AND \"ParcelLengthCm\" IS NULL AND \"ParcelWidthCm\" IS NULL AND \"ParcelHeightCm\" IS NULL AND \"ParcelDeclaredValueIrr\" IS NULL AND \"ParcelIsFragile\" IS NULL AND \"ParcelBoxTypeId\" IS NULL) OR (\"ParcelWeightGrams\" > 0 AND \"ParcelLengthCm\" > 0 AND \"ParcelWidthCm\" > 0 AND \"ParcelHeightCm\" > 0 AND \"ParcelDeclaredValueIrr\" > 0 AND \"ParcelIsFragile\" IS NOT NULL AND \"ParcelBoxTypeId\" >= 1 AND \"ParcelBoxTypeId\" <= 12)");
             });
             items.WithOwner().HasForeignKey("CartId");
             items.HasKey("CartId", nameof(CartItem.ExternalItemId), nameof(CartItem.ItemType));
@@ -68,6 +68,7 @@ public sealed class CartConfiguration : IEntityTypeConfiguration<Cart>
                 parcel.Property(x => x.HeightCm).HasColumnName("ParcelHeightCm");
                 parcel.Property(x => x.DeclaredValueIrr).HasColumnName("ParcelDeclaredValueIrr");
                 parcel.Property(x => x.IsFragile).HasColumnName("ParcelIsFragile");
+                parcel.Property(x => x.BoxTypeId).HasColumnName("ParcelBoxTypeId");
             });
         });
         b.Navigation(x => x.Items).HasField("_items").UsePropertyAccessMode(PropertyAccessMode.Field);

@@ -129,7 +129,7 @@ public sealed class PostexShipmentCityCodeTests
         var request = Request("city-mashhad") with
         {
             Parcel = new ShipmentParcelDetails(
-                "BM-1", "شمش", 1, new ParcelFacts(0, 15, 10, 5, 60_000_000, true))
+                "BM-1", "شمش", 1, new ParcelFacts(0, 15, 10, 20, 60_000_000, true, 5))
         };
 
         var result = await client.CreateOrGetParcelAsync(request, CancellationToken.None);
@@ -140,7 +140,7 @@ public sealed class PostexShipmentCityCodeTests
     }
 
     [Fact]
-    public async Task BulkBodyCarriesFrozenParcelFactsAndNoBoxType()
+    public async Task BulkBodyCarriesFrozenParcelFactsAndBoxType()
     {
         var http = new RecordingHandler();
         var client = Client(http, new FakeCityCodeReader { Result = DeliveryCityCodeRead.Found(301) });
@@ -151,13 +151,13 @@ public sealed class PostexShipmentCityCodeTests
         using var body = JsonDocument.Parse(http.LastPostBody!);
         var parcel = body.RootElement.GetProperty("parcels").EnumerateArray().Single();
         var properties = parcel.GetProperty("parcel_properties");
+        properties.GetProperty("box_type_id").GetInt32().Should().Be(5);
         properties.GetProperty("length").GetInt32().Should().Be(15);
         properties.GetProperty("width").GetInt32().Should().Be(10);
-        properties.GetProperty("height").GetInt32().Should().Be(5);
+        properties.GetProperty("height").GetInt32().Should().Be(20);
         properties.GetProperty("total_weight").GetInt32().Should().Be(750);
         properties.GetProperty("total_value").GetInt64().Should().Be(60_000_000);
         properties.GetProperty("is_fragile").GetBoolean().Should().BeTrue();
-        properties.TryGetProperty("box_type_id", out _).Should().BeFalse();
 
         var item = parcel.GetProperty("parcel_items").EnumerateArray().Single();
         item.GetProperty("description").GetString().Should().Be("شمش");
@@ -289,9 +289,10 @@ public sealed class PostexShipmentCityCodeTests
             WeightGrams: 750,
             LengthCm: 15,
             WidthCm: 10,
-            HeightCm: 5,
+            HeightCm: 20,
             DeclaredValueIrr: 60_000_000,
-            IsFragile: true);
+            IsFragile: true,
+            BoxTypeId: 5);
 
     private sealed class FakeCityCodeReader : IDeliveryCityCodeReader
     {

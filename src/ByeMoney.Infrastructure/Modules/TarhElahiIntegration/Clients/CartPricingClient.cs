@@ -157,13 +157,16 @@ public sealed class CartPricingClient(HttpClient http) : ICartPricingClient
             parcel.LengthCm is not int lengthCm || lengthCm < 1 ||
             parcel.WidthCm is not int widthCm || widthCm < 1 ||
             parcel.HeightCm is not int heightCm || heightCm < 1 ||
-            parcel.DeclaredValueIrr is not long declaredValueIrr || declaredValueIrr < 1)
+            parcel.DeclaredValueIrr is not long declaredValueIrr || declaredValueIrr < 1 ||
+            parcel.BoxTypeId is not int boxTypeId ||
+            boxTypeId < ParcelFacts.MinBoxTypeId ||
+            boxTypeId > ParcelFacts.MaxBoxTypeId)
         {
             return null;
         }
 
         return new ParcelFacts(
-            weightGrams, lengthCm, widthCm, heightCm, declaredValueIrr, parcel.IsFragile == true);
+            weightGrams, lengthCm, widthCm, heightCm, declaredValueIrr, parcel.IsFragile == true, boxTypeId);
     }
 
     /// <summary>

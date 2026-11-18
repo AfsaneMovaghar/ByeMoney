@@ -132,7 +132,7 @@ public sealed class CartPostgresTests : IAsyncLifetime
             [new CartItemInput(productId, ProductItemType.Product, 2)],
             null);
         (await Store.CreateAsync(cart, default)).IsSuccess.Should().BeTrue();
-        var parcel = new ParcelFacts(750, 15, 10, 5, 60_000_000, true);
+        var parcel = new ParcelFacts(750, 15, 10, 20, 60_000_000, true, 5);
         cart = await Store.SetQuoteAsync(
             cart.Id,
             _buyer.Id.Value,

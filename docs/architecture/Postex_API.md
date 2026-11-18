@@ -85,9 +85,10 @@
       "to_city_code": 102,
       "payment_type": "SENDER",
       "parcel_properties": {
+        "box_type_id": 5,
         "length": 15,
         "width": 10,
-        "height": 5,
+        "height": 20,
         "total_weight": 250,
         "is_fragile": false,
         "is_liquid": false,
@@ -184,9 +185,10 @@
         }
       ],
       "parcel_properties": {
+        "box_type_id": 5,
         "length": 15,
         "width": 10,
-        "height": 4,
+        "height": 20,
         "total_weight": 150,
         "total_value": 65000000,
         "total_value_currency": "IRR",
@@ -335,7 +337,7 @@
 1. اول `GET /api/v1/parcels/custom-order-no/{custom-order-no}` برای idempotency؛ فقط ۴۰۴ یعنی مرسوله نیست و بعد `POST /api/v1/parcels/bulk`. خطای خواندن ساخت را شروع نمی‌کند. فراخوانی داخل قفل خریدار/سبد است تا دو درخواست هم‌زمان هر دو `bulk` نزنند.
 2. **فرستنده:** پروفایل مبدأ از `Postex:Origins[{shippingOriginId}]` (شناسهٔ فریزشدهٔ سبد، مشترک با استرپی؛ مثل `ramsar` با `city_id=573`). سازگاری عقب‌رو: اگر `Origins` خالی باشد، `Postex:Sender` قدیمی به‌عنوان `ramsar` نقشه‌برداری می‌شود. برای `collection_type=pick_up` داشتن `lat`/`lon` معتبر در همین پروفایل اجباری است؛ نبودشان ساخت را پیش از `bulk` با پیام روشن متوقف می‌کند.
 3. **گیرنده:** نسخهٔ ثابت آدرس سبد بای‌مانی؛ `city_id` همان کد حامل است که از جدول محل استرپی خوانده می‌شود (شناسهٔ فریزشده، یا برای سفارش قدیمی نام دقیق) و در بای‌مانی ذخیره نمی‌شود. `locality/cities/all` برای گیرنده خوانده نمی‌شود.
-4. **بسته:** فقط عوامل فریزشدهٔ خرید (`ParcelFacts`) فرستاده می‌شود: `length`/`width`/`height` سانتی‌متر، `total_weight` گرم، `total_value` ریال و `is_fragile`؛ `parcel_items` یک ردیف با `description` عنوان، `quantity` تعداد باقی‌مانده، `weight` وزن فریزشده و `price` ارزش فریزشده دارد. `box_type_id` و پیش‌فرض وزن/ارزش حذف شده‌اند؛ نبود عوامل کامل، ساخت را پیش از فراخوانی واسط رد می‌کند. کوریر پیش‌فرض `IR_POST`/`EXPRESS`، پرداخت `SENDER` و بدون `added_service` می‌ماند.
+4. **بسته:** فقط عوامل فریزشدهٔ خرید (`ParcelFacts`) فرستاده می‌شود: `box_type_id` (۱…۱۲)، `length`/`width`/`height` سانتی‌متر هم‌خوان با همان جعبه، `total_weight` گرم، `total_value` ریال و `is_fragile`؛ `parcel_items` یک ردیف با `description` عنوان، `quantity` تعداد باقی‌مانده، `weight` وزن فریزشده و `price` ارزش فریزشده دارد. پیش‌فرض وزن/جعبه/ارزش حذف شده‌اند؛ نبود عوامل کامل (از جمله جعبه)، ساخت را پیش از فراخوانی واسط رد می‌کند. کوریر پیش‌فرض `IR_POST`/`EXPRESS`، پرداخت `SENDER` و بدون `added_service` می‌ماند.
 5. **`custom_order_no`:** `BM-{PurchaseId:N}`؛ کلید در سطح بای‌مانی یکتا است چون پستکس تکرار را مسدود نمی‌کند.
 6. **خروجی:** `parcel_no` → `ProviderParcelId`؛ بارکد غیرماسک → `TrackingCode`. فقط با بارکد غیرماسک خرید `Shipped` می‌شود. شمارهٔ داخلی یا بارکد ستاره‌ای خرید را `Preparing` نگه می‌دارد، شناسهٔ ارجاع را ذخیره می‌کند و به ادمین می‌گوید کد پستی هنوز نیامده. خواندن دوره‌ای بعدی همان مرسوله، با آمدن بارکد واقعی، وضعیت را `Shipped` می‌کند و در همان مرحله `Delivered` نمی‌کند. پاسخ `402` یا والد `1` (`PAYMENT_PENDING`) خرید را `Preparing` نگه می‌دارد، تسویه باز نمی‌کند و خطای دامنه برمی‌گرداند. تکرار همان کلید مرسولهٔ دوم نمی‌سازد. `collection_type` از درخواست ادمین است: `pick_up` با `ready_to_accept=true`، یا `courier_drop_off` بدون اعلام پیک و بدون شناسهٔ دفتر.
 7. **خطای اعتبارسنجی:** `ExtractErrorMessage` علاوه بر `Message`/`message`/`title`، خطاهای فیلدی `errors` و `invalid_fields` را با نام فیلد و پیام‌ها در خطای دامنه نشان می‌دهد.
@@ -550,6 +552,8 @@
 ### ۱۰.۱. استعلام هزینه — پاسخ کامل
 
 درخواست معتبر باید `courier` داشته باشد. بدون آن: `400` و `invalid_fields.courier = ["The Courier field is required."]`.
+
+**اثر `box_type_id` (سنجش ۲۰۲۶-۱۱-۱۸، کلید Development، فقط `quotes`):** مبدأ `573`، مقصد `1`، کوریر `IR_POST`/`EXPRESS`، وزن ۲۵۰ گرم، ارزش ۵۰ میلیون ریال، ابعاد جعبهٔ ۵ (`15×10×20`). بدون `box_type_id`: HTTP `400` با پیام «هیچ سرویس دهنده پستی امکان ارسال این مرسوله را ندارد». با `box_type_id: 5` و همان ابعاد: HTTP `200` و `total_cost = 3166000`. با همان شناسه و ابعاد ناسازگار `15×10×5`: همان `total_cost = 3166000` — قیمت از جعبه می‌آید نه از ابعاد آزاد. بنابراین استعلام و `parcels/bulk` باید `box_type_id` را همراه ابعاد بفرستند.
 
 ```json
 {

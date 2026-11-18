@@ -222,6 +222,14 @@
 - آزمون: `dotnet test` کامل ۶۶۵ موفق و ۰ ناموفق (شامل `ShipTrackingTests`، `CreatePhysicalShipmentTests`، `PhysicalDeliverySyncTests`). فرانت `PhysicalDeliveryControl.test.jsx` ۷ موفق. استعلام زندهٔ مرسولهٔ تستی با کلید Development: HTTP ۲۰۰ و وضعیت `PAYMENT_PENDING` → InTransit.
 - محدودیت: ساخت مرسوله روی قلم Preparing واقعی و پذیرش مرورگر/Swagger و مرسولهٔ Delivered هنوز باز است؛ بارکد تا پرداخت کیف‌پول پستکس ممکن است ماسک بماند.
 
+## SHIP-BOX-TYPE — جعبهٔ استاندارد پستکس — ۱۸ نوامبر ۲۰۲۶
+
+- تغییر (استرپی): فیلد `boxTypeId` (enumeration جعبه‌های ۱…۱۲ با نام و ابعاد)؛ حذف `length`/`width`/`height` از کالا؛ جدول ثابت `postexBoxes`؛ انتشار بدون جعبه با middleware رد می‌شود؛ استعلام و prepare با `box_type_id`+ابعاد مشتق؛ نبود جعبه → «جعبهٔ کالا تعیین نشده» (+ مهاجرت `2026.11.18T12.00.00.product-box-type`).
+- تغییر (بای‌مانی): `boxTypeId` در قرارداد prepare و `ParcelFacts`؛ ستون nullable `ParcelBoxTypeId` + قید همه‌یا‌هیچ (migration `20261118061509_AddParcelBoxTypeId`؛ عوامل قدیمی بدون جعبه در Up خالی شد)؛ `parcels/bulk` با `box_type_id`.
+- اسناد: D08، I09-PH، Postex_API بندهای ۴.۱/۵.۱/۸.۲.۴ و شاهد ۱۰.۱.
+- آزمون: Jest استرپی `postexBoxes`+`cartShipping`+`postexShippingQuote` — ۱۷ موفق. بای‌مانی فیلتر parcel/shipment/cart pricing — ۸۴ موفق. استعلام زنده: بدون جعبه ۴۰۰؛ با جعبهٔ ۵ مبلغ `3166000`.
+- محدودیت: پذیرش Swagger prepare/ساخت مرسوله و انتخاب جعبه در Content-Manager باقی است؛ `parcels/bulk` زنده زده نشد. فرانت ویترین/ادمین Next این فیلد را ویرایش نمی‌کند.
+
 ## SHIP-PARCEL-FACTORS — عوامل واقعی مرسوله — ۱۷ نوامبر ۲۰۲۶
 
 - تغییر (استرپی): فیلدهای `length`/`width`/`height`/`isFragile` روی کالا (+ مهاجرت `2026.11.17T12.00.00.product-parcel-factors`)؛ `weight` موجود گرم است. در `postex` هر قلم جدا استعلام می‌شود با وزن×تعداد، ابعاد واقعی، ارزش ریالی قلم، `is_fragile` کالا، بدون `box_type_id`؛ هزینهٔ سبد جمع استعلام‌هاست؛ نبود وزن/ابعاد → تعارض. کف ۵۰ میلیون فقط پس از رد پستکس. خطای اعتبارسنجی پستکس (`errors`/`invalid_fields`) در پیام تعارض می‌آید. prepare روی ردیف کالا `parcel` با عوامل فریزشدنی برمی‌گرداند.

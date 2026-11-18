@@ -96,7 +96,7 @@ public sealed class PhysicalProductCartFinancialTests
         var cart = Cart.Create(Guid.NewGuid(), buyer.Value, "buyer-ext-parcel", [
             new CartItemInput("book", ProductItemType.Product, 2)
         ], null);
-        var parcel = new ParcelFacts(750, 15, 10, 5, 60_000_000, true);
+        var parcel = new ParcelFacts(750, 15, 10, 20, 60_000_000, true, 5);
         cart.SetQuote([
             new CartQuoteItem("book", "Book", 50m, 0m, 0m, 100m, ProductItemType.Product, null, 2, parcel)
         ], shippingAmountInNoor: 0m);

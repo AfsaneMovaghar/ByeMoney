@@ -778,7 +778,7 @@ namespace ByeMoney.Infrastructure.Migrations
 
                             t.HasCheckConstraint("CK_PhysicalProductPurchases_NonNegativeAmounts", "\"UnitPriceInNoor\" >= 0 AND \"PaidAmountInNoor\" >= 0 AND trunc(\"UnitPriceInNoor\") = \"UnitPriceInNoor\" AND trunc(\"PaidAmountInNoor\") = \"PaidAmountInNoor\"");
 
-                            t.HasCheckConstraint("CK_PhysicalProductPurchases_ParcelFacts", "(\"ParcelWeightGrams\" IS NULL AND \"ParcelLengthCm\" IS NULL AND \"ParcelWidthCm\" IS NULL AND \"ParcelHeightCm\" IS NULL AND \"ParcelDeclaredValueIrr\" IS NULL AND \"ParcelIsFragile\" IS NULL) OR (\"ParcelWeightGrams\" > 0 AND \"ParcelLengthCm\" > 0 AND \"ParcelWidthCm\" > 0 AND \"ParcelHeightCm\" > 0 AND \"ParcelDeclaredValueIrr\" > 0 AND \"ParcelIsFragile\" IS NOT NULL)");
+                            t.HasCheckConstraint("CK_PhysicalProductPurchases_ParcelFacts", "(\"ParcelWeightGrams\" IS NULL AND \"ParcelLengthCm\" IS NULL AND \"ParcelWidthCm\" IS NULL AND \"ParcelHeightCm\" IS NULL AND \"ParcelDeclaredValueIrr\" IS NULL AND \"ParcelIsFragile\" IS NULL AND \"ParcelBoxTypeId\" IS NULL) OR (\"ParcelWeightGrams\" > 0 AND \"ParcelLengthCm\" > 0 AND \"ParcelWidthCm\" > 0 AND \"ParcelHeightCm\" > 0 AND \"ParcelDeclaredValueIrr\" > 0 AND \"ParcelIsFragile\" IS NOT NULL AND \"ParcelBoxTypeId\" >= 1 AND \"ParcelBoxTypeId\" <= 12)");
 
                             t.HasCheckConstraint("CK_PhysicalProductPurchases_PaymentShares", "(\"RegularAmountInNoor\" IS NULL AND \"GiftAmountInNoor\" IS NULL) OR (\"RegularAmountInNoor\" >= 0 AND \"GiftAmountInNoor\" >= 0 AND \"RegularAmountInNoor\" + \"GiftAmountInNoor\" = \"PaidAmountInNoor\")");
 
@@ -1548,7 +1548,7 @@ namespace ByeMoney.Infrastructure.Migrations
 
                                     t.HasCheckConstraint("CK_CartItems_NonNegativeAmounts", "\"PriceInNoor\" >= 0");
 
-                                    t.HasCheckConstraint("CK_CartItems_ParcelFacts", "(\"ParcelWeightGrams\" IS NULL AND \"ParcelLengthCm\" IS NULL AND \"ParcelWidthCm\" IS NULL AND \"ParcelHeightCm\" IS NULL AND \"ParcelDeclaredValueIrr\" IS NULL AND \"ParcelIsFragile\" IS NULL) OR (\"ParcelWeightGrams\" > 0 AND \"ParcelLengthCm\" > 0 AND \"ParcelWidthCm\" > 0 AND \"ParcelHeightCm\" > 0 AND \"ParcelDeclaredValueIrr\" > 0 AND \"ParcelIsFragile\" IS NOT NULL)");
+                                    t.HasCheckConstraint("CK_CartItems_ParcelFacts", "(\"ParcelWeightGrams\" IS NULL AND \"ParcelLengthCm\" IS NULL AND \"ParcelWidthCm\" IS NULL AND \"ParcelHeightCm\" IS NULL AND \"ParcelDeclaredValueIrr\" IS NULL AND \"ParcelIsFragile\" IS NULL AND \"ParcelBoxTypeId\" IS NULL) OR (\"ParcelWeightGrams\" > 0 AND \"ParcelLengthCm\" > 0 AND \"ParcelWidthCm\" > 0 AND \"ParcelHeightCm\" > 0 AND \"ParcelDeclaredValueIrr\" > 0 AND \"ParcelIsFragile\" IS NOT NULL AND \"ParcelBoxTypeId\" >= 1 AND \"ParcelBoxTypeId\" <= 12)");
 
                                     t.HasCheckConstraint("CK_CartItems_Quantity", "\"Quantity\" >= 1");
 
@@ -1569,6 +1569,10 @@ namespace ByeMoney.Infrastructure.Migrations
                                     b2.Property<string>("CartItemItemType")
                                         .ValueGeneratedOnAdd()
                                         .HasColumnType("character varying(30)");
+
+                                    b2.Property<int>("BoxTypeId")
+                                        .HasColumnType("integer")
+                                        .HasColumnName("ParcelBoxTypeId");
 
                                     b2.Property<long>("DeclaredValueIrr")
                                         .HasColumnType("bigint")
@@ -1812,6 +1816,10 @@ namespace ByeMoney.Infrastructure.Migrations
                         {
                             b1.Property<Guid>("PhysicalProductPurchaseId")
                                 .HasColumnType("uuid");
+
+                            b1.Property<int>("BoxTypeId")
+                                .HasColumnType("integer")
+                                .HasColumnName("ParcelBoxTypeId");
 
                             b1.Property<long>("DeclaredValueIrr")
                                 .HasColumnType("bigint")

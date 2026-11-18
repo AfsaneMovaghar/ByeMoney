@@ -125,7 +125,7 @@ public sealed class CartPricingClientTests
     [Fact]
     public async Task ProductQuoteCarriesFrozenParcelFacts()
     {
-        const string productWithParcel = """{"externalCourseId":"p","type":"product","title":"Book","basePriceInNoor":10,"itemDiscountInNoor":0,"couponDiscountInNoor":0,"priceInNoor":10,"parcel":{"weightGrams":750,"lengthCm":15,"widthCm":10,"heightCm":5,"declaredValueIrr":60000000,"isFragile":true}}""";
+        const string productWithParcel = """{"externalCourseId":"p","type":"product","title":"Book","basePriceInNoor":10,"itemDiscountInNoor":0,"couponDiscountInNoor":0,"priceInNoor":10,"parcel":{"weightGrams":750,"lengthCm":15,"widthCm":10,"heightCm":20,"declaredValueIrr":60000000,"isFragile":true,"boxTypeId":5}}""";
         var client = Client(new CapturingHandler(QuoteJson(productWithParcel, FullAddressJson)));
 
         var result = await client.PrepareAsync(
@@ -133,13 +133,15 @@ public sealed class CartPricingClientTests
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Items.Single().Parcel.Should().Be(
-            new ParcelFacts(750, 15, 10, 5, 60_000_000, true));
+            new ParcelFacts(750, 15, 10, 20, 60_000_000, true, 5));
     }
 
     [Theory]
-    [InlineData("""{"weightGrams":0,"lengthCm":15,"widthCm":10,"heightCm":5,"declaredValueIrr":60000000,"isFragile":true}""")]
-    [InlineData("""{"weightGrams":750,"lengthCm":15,"widthCm":10,"heightCm":5,"declaredValueIrr":null,"isFragile":true}""")]
-    [InlineData("""{"weightGrams":750,"lengthCm":15,"widthCm":10,"declaredValueIrr":60000000,"isFragile":true}""")]
+    [InlineData("""{"weightGrams":0,"lengthCm":15,"widthCm":10,"heightCm":20,"declaredValueIrr":60000000,"isFragile":true,"boxTypeId":5}""")]
+    [InlineData("""{"weightGrams":750,"lengthCm":15,"widthCm":10,"heightCm":20,"declaredValueIrr":null,"isFragile":true,"boxTypeId":5}""")]
+    [InlineData("""{"weightGrams":750,"lengthCm":15,"widthCm":10,"declaredValueIrr":60000000,"isFragile":true,"boxTypeId":5}""")]
+    [InlineData("""{"weightGrams":750,"lengthCm":15,"widthCm":10,"heightCm":20,"declaredValueIrr":60000000,"isFragile":true}""")]
+    [InlineData("""{"weightGrams":750,"lengthCm":15,"widthCm":10,"heightCm":20,"declaredValueIrr":60000000,"isFragile":true,"boxTypeId":13}""")]
     public async Task IncompleteProductParcelIsNotMapped(string parcelJson)
     {
         var item = $$"""{"externalCourseId":"p","type":"product","title":"Book","basePriceInNoor":10,"itemDiscountInNoor":0,"couponDiscountInNoor":0,"priceInNoor":10,"parcel":{{parcelJson}}}""";
@@ -155,7 +157,7 @@ public sealed class CartPricingClientTests
     [Fact]
     public async Task CourseQuoteIgnoresParcelFactors()
     {
-        const string courseJson = """{"externalCourseId":"c","type":"course","title":"Course","basePriceInNoor":10,"itemDiscountInNoor":0,"couponDiscountInNoor":0,"priceInNoor":10,"parcel":{"weightGrams":750,"lengthCm":15,"widthCm":10,"heightCm":5,"declaredValueIrr":60000000,"isFragile":true}}""";
+        const string courseJson = """{"externalCourseId":"c","type":"course","title":"Course","basePriceInNoor":10,"itemDiscountInNoor":0,"couponDiscountInNoor":0,"priceInNoor":10,"parcel":{"weightGrams":750,"lengthCm":15,"widthCm":10,"heightCm":20,"declaredValueIrr":60000000,"isFragile":true,"boxTypeId":5}}""";
         var client = Client(new CapturingHandler(QuoteJson(courseJson)));
 
         var result = await client.PrepareAsync(

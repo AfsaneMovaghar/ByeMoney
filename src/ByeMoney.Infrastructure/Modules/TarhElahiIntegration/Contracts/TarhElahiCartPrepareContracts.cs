@@ -78,7 +78,7 @@ internal sealed record TarhElahiCartPrepareResponseItem(
     TarhElahiParcelFacts? Parcel = null);
 
 /// <summary>
-/// عوامل مرسولهٔ همین ردیف کالا در prepare؛ وزن گرم کل ردیف (واحد×تعداد) و ابعاد سانتی‌متر.
+/// عوامل مرسولهٔ همین ردیف کالا در prepare؛ وزن گرم کل ردیف، ابعاد سانتی‌متر و شناسهٔ جعبهٔ استاندارد.
 /// فیلدها nullableاند تا نبود یا ناقص‌بودن داده در بای‌مانی به عدد جایگزین تبدیل نشود.
 /// </summary>
 internal sealed record TarhElahiParcelFacts(
@@ -87,4 +87,5 @@ internal sealed record TarhElahiParcelFacts(
     int? WidthCm,
     int? HeightCm,
     long? DeclaredValueIrr,
-    bool? IsFragile);
+    bool? IsFragile,
+    int? BoxTypeId = null);

@@ -286,6 +286,7 @@ public sealed class PostexShipmentClient(
                     },
                     parcel_properties = new
                     {
+                        box_type_id = parcelFacts.BoxTypeId,
                         length = parcelFacts.LengthCm,
                         width = parcelFacts.WidthCm,
                         height = parcelFacts.HeightCm,
