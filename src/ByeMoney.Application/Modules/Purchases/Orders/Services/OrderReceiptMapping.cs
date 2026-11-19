@@ -66,6 +66,7 @@ public static class OrderReceiptMapping
             item.CancelledQuantity, item.RefundedRegularInNoor, item.RefundedGiftInNoor,
             item.TrackingCode, item.TrackingProvider, item.ShippedAtUtc,
             item.CarrierReturnedAtUtc ?? physical?.CarrierReturnedAtUtc,
-            item.CarrierReturnResolution ?? physical?.CarrierReturnResolution?.ToString());
+            item.CarrierReturnResolution ?? physical?.CarrierReturnResolution?.ToString(),
+            physical?.ProviderParcelId, physical?.CarrierPaymentPendingSinceUtc);
     }
 }

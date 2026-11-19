@@ -21,6 +21,11 @@ public class PhysicalProductPurchaseConfiguration : IEntityTypeConfiguration<Phy
             table.HasCheckConstraint("CK_PhysicalProductPurchases_TrackingProvider",
                 "\"TrackingProvider\" IS NULL OR \"TrackingProvider\" IN (" +
                 string.Join(", ", PhysicalProductPurchase.AllowedTrackingProviders.Select(provider => $"'{provider}'")) + ")");
+            // نشان «در انتظار پرداخت» فقط روی قلم آماده‌سازیِ دارای شناسهٔ مرسوله معنا دارد.
+            table.HasCheckConstraint("CK_PhysicalProductPurchases_CarrierPaymentPending",
+                "\"CarrierPaymentPendingSinceUtc\" IS NULL OR (\"ProviderParcelId\" IS NOT NULL AND \"DeliveryStatus\" = 'Preparing')");
+            table.HasCheckConstraint("CK_PhysicalProductPurchases_CarrierParcelQuantity",
+                "\"CarrierParcelQuantity\" IS NULL OR \"CarrierParcelQuantity\" >= 1");
             table.HasCheckConstraint("CK_PhysicalProductPurchases_CancelledQuantity",
                 "\"CancelledQuantity\" >= 0 AND \"CancelledQuantity\" <= \"Quantity\"");
             table.HasCheckConstraint("CK_PhysicalProductPurchases_ParcelFacts",
@@ -95,6 +100,9 @@ public class PhysicalProductPurchaseConfiguration : IEntityTypeConfiguration<Phy
         builder.Property(x => x.TrackingCode).HasMaxLength(PhysicalProductPurchase.TrackingCodeMaxLength);
         builder.Property(x => x.TrackingProvider).HasMaxLength(PhysicalProductPurchase.TrackingProviderMaxLength);
         builder.Property(x => x.ProviderParcelId).HasMaxLength(PhysicalProductPurchase.ProviderParcelIdMaxLength);
+        builder.Property(x => x.CarrierParcelQuantity);
+        builder.Property(x => x.CarrierPaymentPendingSinceUtc);
+        builder.Property(x => x.ShipmentRequestStartedAtUtc);
         builder.HasIndex(x => new { x.DeliveryStatus, x.ShippedAtUtc });
         builder.HasIndex(x => x.TrackingCode);
         builder.Property(x => x.CancelledQuantity).HasDefaultValue(0).IsRequired();

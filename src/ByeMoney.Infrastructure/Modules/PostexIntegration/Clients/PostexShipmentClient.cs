@@ -98,7 +98,8 @@ public sealed class PostexShipmentClient(
                 var afterPayment = await ReadParcelAsync(request.Parcel.IdempotencyKey.Trim(), ct);
                 if (afterPayment.Kind == ParcelReadKind.Failed)
                 {
-                    return new ShipmentCreateResult(ShipmentCreateOutcome.Failed,
+                    // مرسوله احتمالاً ساخته شده و شناسه‌اش خوانده نشد؛ رزرو آزاد نمی‌شود.
+                    return new ShipmentCreateResult(ShipmentCreateOutcome.Uncertain,
                         ErrorMessage: OrderErrors.ShipmentReadFailed);
                 }
 
@@ -117,7 +118,12 @@ public sealed class PostexShipmentClient(
 
             if (!response.IsSuccessStatusCode)
             {
-                return new ShipmentCreateResult(ShipmentCreateOutcome.Failed,
+                // خطای ۵xx یعنی پاسخ قطعی نیست و شاید مرسوله ثبت شده باشد؛ بقیهٔ 4xx رد صریح است.
+                var outcome = (int)response.StatusCode >= 500
+                    ? ShipmentCreateOutcome.Uncertain
+                    : ShipmentCreateOutcome.Failed;
+
+                return new ShipmentCreateResult(outcome,
                     ErrorMessage: PresentError(
                         collectionType,
                         ExtractErrorMessage(body) ?? $"ثبت مرسوله ناموفق بود ({(int)response.StatusCode}).",
@@ -137,7 +143,7 @@ public sealed class PostexShipmentClient(
             var created = await ReadParcelAsync(request.Parcel.IdempotencyKey.Trim(), ct);
             if (created.Kind == ParcelReadKind.Failed)
             {
-                return new ShipmentCreateResult(ShipmentCreateOutcome.Failed,
+                return new ShipmentCreateResult(ShipmentCreateOutcome.Uncertain,
                     ErrorMessage: OrderErrors.ShipmentReadFailed);
             }
 
@@ -146,7 +152,8 @@ public sealed class PostexShipmentClient(
                 return AsWritten(created.Parcel!);
             }
 
-            return new ShipmentCreateResult(ShipmentCreateOutcome.Failed,
+            // درخواست موفق بوده ولی مرسوله خوانده نشد؛ ممکن است بعداً ظاهر شود.
+            return new ShipmentCreateResult(ShipmentCreateOutcome.Uncertain,
                 ErrorMessage: "مرسوله ثبت شد ولی شناسهٔ ارجاع از واسط خوانده نشد.");
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
@@ -155,9 +162,39 @@ public sealed class PostexShipmentClient(
         }
         catch (Exception ex) when (ex is HttpRequestException or OperationCanceledException)
         {
-            return new ShipmentCreateResult(ShipmentCreateOutcome.Failed,
-                ErrorMessage: "ارتباط با واسط پستی برقرار نشد.");
+            // درخواست ممکن است به واسط رسیده باشد؛ نتیجه نامعلوم است و رزرو باید بماند.
+            return new ShipmentCreateResult(ShipmentCreateOutcome.Uncertain,
+                ErrorMessage: OrderErrors.ShipmentOutcomeUnknown);
         }
+    }
+
+    /// <summary>
+    /// خواندن مرسوله با کلید یکتا؛ هیچ ساخت یا تغییری انجام نمی‌شود.
+    /// </summary>
+    public async Task<ShipmentCreateResult> GetParcelAsync(string idempotencyKey, CancellationToken ct)
+    {
+        if (!IsConfigured)
+        {
+            return new ShipmentCreateResult(ShipmentCreateOutcome.NotConfigured,
+                ErrorMessage: "واسط پستی پیکربندی نشده است.");
+        }
+
+        if (string.IsNullOrWhiteSpace(idempotencyKey))
+        {
+            return new ShipmentCreateResult(ShipmentCreateOutcome.Failed,
+                ErrorMessage: "کلید یکتای مرسوله خالی است.");
+        }
+
+        var read = await ReadParcelAsync(idempotencyKey.Trim(), ct);
+        if (read.Kind == ParcelReadKind.Found)
+        {
+            return read.Parcel!;
+        }
+
+        return read.Kind == ParcelReadKind.NotFound
+            ? new ShipmentCreateResult(ShipmentCreateOutcome.NotFound)
+            : new ShipmentCreateResult(ShipmentCreateOutcome.Failed,
+                ErrorMessage: OrderErrors.ShipmentReadFailed);
     }
 
     private static bool IsSenderConfigured(PostexSenderOptions sender) =>
@@ -316,7 +353,7 @@ public sealed class PostexShipmentClient(
         var read = await ReadParcelAsync(customOrderNo, ct);
         if (read.Kind == ParcelReadKind.Failed)
         {
-            return new ShipmentCreateResult(ShipmentCreateOutcome.Failed,
+            return new ShipmentCreateResult(ShipmentCreateOutcome.Uncertain,
                 ErrorMessage: OrderErrors.ShipmentReadFailed);
         }
 

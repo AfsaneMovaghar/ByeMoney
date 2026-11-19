@@ -16,4 +16,5 @@ public sealed record UpdatePhysicalDeliveryStatusCommand(
 
 public sealed record PhysicalDeliveryStatusResponse(
     Guid PurchaseId, string DeliveryStatus, DateTime? ShippedAtUtc, DateTime? DeliveredAtUtc,
-    string? TrackingCode = null, string? TrackingProvider = null);
+    string? TrackingCode = null, string? TrackingProvider = null,
+    DateTime? CarrierPaymentPendingSinceUtc = null);

@@ -141,8 +141,20 @@ public sealed class PhysicalDeliverySyncService(
             {
                 var purchase = await repository.GetByIdAsync(
                     new PhysicalProductPurchaseId(candidate.PurchaseId), ct);
-                if (purchase is null || purchase.DeliveryStatus != PhysicalDeliveryStatus.Preparing)
+                if (purchase is null ||
+                    purchase.DeliveryStatus != PhysicalDeliveryStatus.Preparing ||
+                    purchase.RemainingQuantity == 0)
                 {
+                    return 0;
+                }
+
+                // تعداد قلم پس از ساخت مرسوله عوض شده؛ مرسولهٔ واسط با تعداد دیگری ساخته شده است.
+                // ارتقای خودکار مجاز نیست؛ نشان انتظار پرداخت هم معنا ندارد و پاک می‌شود.
+                if (purchase.CarrierParcelQuantity != purchase.RemainingQuantity)
+                {
+                    purchase.ClearCarrierPaymentPending();
+                    repository.Update(purchase);
+                    await unitOfWork.SaveChangesAsync(ct);
                     return 0;
                 }
 
@@ -173,7 +185,9 @@ public sealed class PhysicalDeliverySyncService(
         {
             var purchase = await repository.GetByIdAsync(
                 new PhysicalProductPurchaseId(candidate.PurchaseId), ct);
-            if (purchase is null || purchase.CarrierReturnedAtUtc.HasValue)
+            if (purchase is null ||
+                purchase.DeliveryStatus != PhysicalDeliveryStatus.Shipped ||
+                purchase.CarrierReturnedAtUtc.HasValue)
             {
                 return 0;
             }

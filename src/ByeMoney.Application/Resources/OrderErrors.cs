@@ -28,6 +28,13 @@ public static class OrderErrors
     public static string ShipmentCityUnavailable => Get(nameof(ShipmentCityUnavailable));
     public static string ShipmentReadFailed => Get(nameof(ShipmentReadFailed));
     public static string ShipmentPaymentPending => Get(nameof(ShipmentPaymentPending));
+    public static string ShipmentPaymentPendingHelp => Get(nameof(ShipmentPaymentPendingHelp));
+    public static string ShipmentOutcomeUnknown => Get(nameof(ShipmentOutcomeUnknown));
+    public static string ShipmentRequestInProgress => Get(nameof(ShipmentRequestInProgress));
+    public static string ShipmentRefreshNotAllowed => Get(nameof(ShipmentRefreshNotAllowed));
+    public static string ShipmentStatusUnavailable => Get(nameof(ShipmentStatusUnavailable));
+    public static string ShipmentParcelNotFound => Get(nameof(ShipmentParcelNotFound));
+    public static string ShipmentQuantityMismatch => Get(nameof(ShipmentQuantityMismatch));
     public static string ShipmentTrackingCodePending => Get(nameof(ShipmentTrackingCodePending));
     public static string ShipmentCollectionTypeRequired => Get(nameof(ShipmentCollectionTypeRequired));
     public static string ShipmentDropOffOfficeRequired => Get(nameof(ShipmentDropOffOfficeRequired));

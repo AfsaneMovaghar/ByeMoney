@@ -23,6 +23,7 @@ public static class PhysicalCancellationErrors
     public static string WarningCouponRemoved => Get("Warning_CouponRemoved");
     public static string WarningFreeShippingRemoved => Get("Warning_FreeShippingRemoved");
     public static string WarningShippingNotRefunded => Get("Warning_ShippingNotRefunded");
+    public static string WarningCarrierPaymentPending => Get("Warning_CarrierPaymentPending");
 
     private static string Get(string name) => Resources.GetString(name)
         ?? throw new MissingManifestResourceException(name);

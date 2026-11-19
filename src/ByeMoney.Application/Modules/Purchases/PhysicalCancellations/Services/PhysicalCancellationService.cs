@@ -44,7 +44,7 @@ public sealed class PhysicalCancellationService(
 
         var purchases = await store.GetPurchasesAsync(cartId, ct);
         var plan = await PlanAsync(cart, purchases, BuyerTargets(purchases), ct);
-        return Preview(cartId, plan);
+        return Preview(cartId, plan, includeCarrierWarnings: false);
     }
 
     public async Task<Result<PhysicalCancellationPreviewResponse>> PreviewForAdminAsync(
@@ -59,7 +59,7 @@ public sealed class PhysicalCancellationService(
         var cart = await store.FindCartAsync(owner.CartId, ct);
         var purchases = await store.GetPurchasesAsync(owner.CartId, ct);
         var plan = await PlanAsync(cart!, purchases, AdminTargets(purchases, purchaseId, quantity), ct);
-        return Preview(owner.CartId, plan);
+        return Preview(owner.CartId, plan, includeCarrierWarnings: true);
     }
 
     public async Task<Result<PhysicalCancellationResponse>> CancelForBuyerAsync(
@@ -314,8 +314,12 @@ public sealed class PhysicalCancellationService(
             rows[0].CreatedAtUtc);
     }
 
+    /// <summary>
+    /// پیش‌نمایش لغو. هشدار مرسولهٔ پرداخت‌نشده فقط برای ادمین نمایش داده می‌شود؛
+    /// خریدار نیازی به دانستن وضعیت داخلی واسط پستی ندارد و برگشت نور او تغییری نمی‌کند.
+    /// </summary>
     private static Result<PhysicalCancellationPreviewResponse> Preview(
-        Guid cartId, Result<PhysicalCancellationPlan> planResult)
+        Guid cartId, Result<PhysicalCancellationPlan> planResult, bool includeCarrierWarnings)
     {
         if (planResult.IsFailure)
         {
@@ -330,6 +334,8 @@ public sealed class PhysicalCancellationService(
             .ToArray();
         var total = plan.Lines.Sum(x => x.Refund.TotalInNoor) + plan.ShippingRefund.TotalInNoor;
         var warnings = plan.WarningCodes
+            .Where(code => includeCarrierWarnings ||
+                !string.Equals(code, PhysicalCancellationWarningCodes.CarrierPaymentPending, StringComparison.Ordinal))
             .Select(code => new PhysicalCancellationWarning(code, WarningMessage(code)))
             .ToArray();
 
@@ -347,6 +353,7 @@ public sealed class PhysicalCancellationService(
     {
         PhysicalCancellationWarningCodes.CouponRemoved => PhysicalCancellationErrors.WarningCouponRemoved,
         PhysicalCancellationWarningCodes.FreeShippingRemoved => PhysicalCancellationErrors.WarningFreeShippingRemoved,
+        PhysicalCancellationWarningCodes.CarrierPaymentPending => PhysicalCancellationErrors.WarningCarrierPaymentPending,
         _ => PhysicalCancellationErrors.WarningShippingNotRefunded
     };
 

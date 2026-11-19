@@ -77,7 +77,8 @@ public sealed class CreatePhysicalShipmentTests
     public async Task LaterRealCodeShipsTheSameParcelWithoutDeliveringIt()
     {
         var purchase = CreatePreparing();
-        purchase.RememberCarrierParcel(PhysicalProductPurchase.PostexProvider, "1319906676294");
+        purchase.RememberCarrierParcel(
+            PhysicalProductPurchase.PostexProvider, "1319906676294", purchase.RemainingQuantity);
         var store = new FakeDeliveryStore(purchase, SampleAddress());
         var repository = new FakeRepository(purchase);
         var client = new FakeShipmentClient(PhysicalProductPurchase.PostexProvider)
@@ -190,9 +191,10 @@ public sealed class CreatePhysicalShipmentTests
     }
 
     [Fact]
-    public async Task UnpaidParcelStaysPreparingAndIsNotSettleableAsShipped()
+    public async Task PendingPaymentParcelIsStoredAndStaysPreparing()
     {
         var purchase = CreatePreparing();
+        var paidAmount = purchase.PaidAmountInNoor;
         var store = new FakeDeliveryStore(purchase, SampleAddress());
         var repository = new FakeRepository(purchase);
         var client = new FakeShipmentClient(PhysicalProductPurchase.PostexProvider)
@@ -201,18 +203,32 @@ public sealed class CreatePhysicalShipmentTests
                 ShipmentCreateOutcome.PendingPayment, "99", ErrorMessage: OrderErrors.ShipmentPaymentPending)
         };
 
-        var act = () => new CreatePhysicalShipmentCommandHandler(repository, store, [client], repository)
+        var response = await new CreatePhysicalShipmentCommandHandler(repository, store, [client], repository)
             .Handle(new CreatePhysicalShipmentCommand(purchase.Id.Value, "pick_up"), CancellationToken.None);
 
-        (await act.Should().ThrowAsync<DomainException>())
-            .Which.Message.Should().Be(OrderErrors.ShipmentPaymentPending);
+        // مرسولهٔ پرداخت‌نشده نه خطاست و نه ارسال؛ شناسه و نشان انتظار ذخیره می‌شود.
+        response.DeliveryStatus.Should().Be(nameof(PhysicalDeliveryStatus.Preparing));
+        response.Outcome.Should().Be(nameof(ShipmentCreateOutcome.PendingPayment));
+        response.ProviderParcelId.Should().Be("99");
+        response.CarrierPaymentPendingSinceUtc.Should().NotBeNull();
+        response.Warning.Should().Be(OrderErrors.ShipmentPaymentPendingHelp);
+
         purchase.DeliveryStatus.Should().Be(PhysicalDeliveryStatus.Preparing);
-        purchase.ProviderParcelId.Should().BeNull();
+        purchase.ProviderParcelId.Should().Be("99");
+        purchase.HasPendingCarrierPayment.Should().BeTrue();
+        purchase.CarrierParcelQuantity.Should().Be(1);
+        purchase.ShipmentRequestStartedAtUtc.Should().BeNull();
+
+        // بی‌اثر مالی: مبلغ پرداخت و برگشتی‌ها دست نمی‌خورند و ارسال‌شده هم نیست.
+        purchase.PaidAmountInNoor.Should().Be(paidAmount);
+        purchase.RefundedRegularInNoor.Should().Be(0m);
+        purchase.RefundedGiftInNoor.Should().Be(0m);
+        purchase.ShippedAtUtc.Should().BeNull();
         client.Calls.Should().Be(1);
     }
 
     [Fact]
-    public async Task SecondCreateWhileFirstIsInFlightDoesNotCallProviderAgain()
+    public async Task SecondCreateWhileFirstIsInFlightIsRejectedWithoutProviderCall()
     {
         var purchase = CreatePreparing();
         var store = new FakeDeliveryStore(purchase, SampleAddress());
@@ -233,16 +249,94 @@ public sealed class CreatePhysicalShipmentTests
 
         var first = handler.Handle(command, CancellationToken.None);
         await entered.Task.WaitAsync(TimeSpan.FromSeconds(2));
-        var second = handler.Handle(command, CancellationToken.None);
-        await Task.Delay(50);
+
+        // رزرو کوتاه در دیتابیس تا پایان فراخوانی واسط باقی می‌ماند.
+        var act = () => handler.Handle(command, CancellationToken.None);
+        (await act.Should().ThrowAsync<ConflictDomainException>())
+            .Which.Message.Should().Be(OrderErrors.ShipmentRequestInProgress);
         client.Calls.Should().Be(1);
 
         release.TrySetResult();
-        await Task.WhenAll(first, second);
+        await first;
 
         client.Calls.Should().Be(1);
         purchase.DeliveryStatus.Should().Be(PhysicalDeliveryStatus.Shipped);
         purchase.ProviderParcelId.Should().Be("99");
+        purchase.ShipmentRequestStartedAtUtc.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task UncertainOutcomeKeepsTheReservationForTheNextAttempt()
+    {
+        var purchase = CreatePreparing();
+        var store = new FakeDeliveryStore(purchase, SampleAddress());
+        var repository = new FakeRepository(purchase);
+        var client = new FakeShipmentClient(PhysicalProductPurchase.PostexProvider)
+        {
+            Result = new ShipmentCreateResult(
+                ShipmentCreateOutcome.Uncertain, ErrorMessage: OrderErrors.ShipmentOutcomeUnknown)
+        };
+
+        var act = () => new CreatePhysicalShipmentCommandHandler(repository, store, [client], repository)
+            .Handle(new CreatePhysicalShipmentCommand(purchase.Id.Value, "pick_up"), CancellationToken.None);
+
+        (await act.Should().ThrowAsync<DomainException>())
+            .Which.Message.Should().Be(OrderErrors.ShipmentOutcomeUnknown);
+
+        // نتیجهٔ نامعلوم رزرو را آزاد نمی‌کند؛ تلاش بعدی باید اول بخواند و مرسولهٔ دوم نسازد.
+        purchase.ShipmentRequestStartedAtUtc.Should().NotBeNull();
+        purchase.ProviderParcelId.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task ExplicitProviderRejectionReleasesTheReservation()
+    {
+        var purchase = CreatePreparing();
+        var store = new FakeDeliveryStore(purchase, SampleAddress());
+        var repository = new FakeRepository(purchase);
+        var client = new FakeShipmentClient(PhysicalProductPurchase.PostexProvider)
+        {
+            Result = new ShipmentCreateResult(ShipmentCreateOutcome.Failed, ErrorMessage: "رد شد")
+        };
+
+        var handler = new CreatePhysicalShipmentCommandHandler(repository, store, [client], repository);
+        var command = new CreatePhysicalShipmentCommand(purchase.Id.Value, "pick_up");
+
+        var act = () => handler.Handle(command, CancellationToken.None);
+        (await act.Should().ThrowAsync<DomainException>()).Which.Message.Should().Be("رد شد");
+        purchase.ShipmentRequestStartedAtUtc.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task CancellationDuringProviderCallStillStoresTheParcelReference()
+    {
+        var purchase = CreatePreparing();
+        purchase.RecordPaymentShares(new PaymentShares(100m, 0m));
+        var store = new FakeDeliveryStore(purchase, SampleAddress());
+        var repository = new FakeRepository(purchase);
+        var client = new FakeShipmentClient(PhysicalProductPurchase.PostexProvider)
+        {
+            Result = new ShipmentCreateResult(
+                ShipmentCreateOutcome.PendingPayment, "99", ErrorMessage: OrderErrors.ShipmentPaymentPending),
+            BeforeResult = _ =>
+            {
+                // لغو کامل در همان فاصلهٔ فراخوانی واسط؛ پول برمی‌گردد و قلم چیزی برای ارسال ندارد.
+                purchase.RecordCancellation(1, new PaymentShares(100m, 0m));
+                return Task.CompletedTask;
+            }
+        };
+
+        var response = await new CreatePhysicalShipmentCommandHandler(repository, store, [client], repository)
+            .Handle(new CreatePhysicalShipmentCommand(purchase.Id.Value, "pick_up"), CancellationToken.None);
+
+        response.DeliveryStatus.Should().Be(nameof(PhysicalDeliveryStatus.Preparing));
+        response.Warning.Should().Be(OrderErrors.ShipmentQuantityMismatch);
+        purchase.RemainingQuantity.Should().Be(0);
+        purchase.ProviderParcelId.Should().Be("99");
+        purchase.HasPendingCarrierPayment.Should().BeTrue();
+        purchase.DeliveryStatus.Should().Be(PhysicalDeliveryStatus.Preparing);
+        purchase.RefundedRegularInNoor.Should().Be(100m);
+        purchase.ShippedAtUtc.Should().BeNull();
     }
 
     private static PhysicalProductPurchase CreatePreparing() =>
@@ -286,6 +380,9 @@ public sealed class CreatePhysicalShipmentTests
 
         public Func<CancellationToken, Task>? BeforeResult { get; init; }
 
+        public ShipmentCreateResult ReadResult { get; init; } =
+            new(ShipmentCreateOutcome.NotFound);
+
         public async Task<ShipmentCreateResult> CreateOrGetParcelAsync(
             ShipmentCreateRequest request, CancellationToken ct)
         {
@@ -298,6 +395,9 @@ public sealed class CreatePhysicalShipmentTests
 
             return Result;
         }
+
+        public Task<ShipmentCreateResult> GetParcelAsync(string idempotencyKey, CancellationToken ct) =>
+            Task.FromResult(ReadResult);
     }
 
     private sealed class FakeDeliveryStore(

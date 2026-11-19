@@ -66,6 +66,27 @@ public class PhysicalProductPurchase : BaseEntity<PhysicalProductPurchaseId>
     /// <summary>شناسهٔ ارجاع مرسوله نزد واسط پستی برای استعلام وضعیت؛ فقط برای منابع خودکار پر می‌شود.</summary>
     public string? ProviderParcelId { get; private set; }
 
+    /// <summary>تعداد قلم در لحظهٔ ساخت مرسوله؛ نگهبان ارتقای خودکار آن را با تعداد باقی‌مانده می‌سنجد.</summary>
+    public int? CarrierParcelQuantity { get; private set; }
+
+    /// <summary>
+    /// زمان تشخیص «در انتظار پرداخت» مرسولهٔ واسط. وضعیت تحویل را عوض نمی‌کند،
+    /// چون نه ارسال شده و نه پول کرایه پرداخت شده است.
+    /// </summary>
+    public DateTime? CarrierPaymentPendingSinceUtc { get; private set; }
+
+    /// <summary>
+    /// زمان شروع آخرین تلاش ساخت مرسوله؛ رزرو کوتاه در دیتابیس تا دو نمونه هم‌زمان دو مرسوله نسازند.
+    /// تا ثبت نتیجه یا انقضای مهلت پاک نمی‌شود.
+    /// </summary>
+    public DateTime? ShipmentRequestStartedAtUtc { get; private set; }
+
+    /// <summary>مرسوله در واسط ساخته شده ولی کرایه‌اش پرداخت نشده است.</summary>
+    public bool HasPendingCarrierPayment => CarrierPaymentPendingSinceUtc.HasValue;
+
+    /// <summary>قلم شناسهٔ ارجاع مرسولهٔ واسط دارد.</summary>
+    public bool HasCarrierParcel => !string.IsNullOrWhiteSpace(ProviderParcelId);
+
     public const int TrackingCodeMaxLength = 50;
     public const int TrackingProviderMaxLength = 20;
     public const int ProviderParcelIdMaxLength = 50;
@@ -190,6 +211,8 @@ public class PhysicalProductPurchase : BaseEntity<PhysicalProductPurchaseId>
             ProviderParcelId = provider is null
                 ? ProviderParcelId
                 : NormalizeProviderParcelId(provider, providerParcelId);
+            ShipmentRequestStartedAtUtc = null;
+            CarrierPaymentPendingSinceUtc = null;
             UpdatedAt = DateTime.UtcNow;
             return;
         }
@@ -218,18 +241,28 @@ public class PhysicalProductPurchase : BaseEntity<PhysicalProductPurchaseId>
         TrackingCode = code;
         TrackingProvider = provider;
         ProviderParcelId = NormalizeProviderParcelId(provider, providerParcelId);
+        ShipmentRequestStartedAtUtc = null;
+        CarrierPaymentPendingSinceUtc = null;
         UpdatedAt = now;
     }
 
     /// <summary>
     /// شناسهٔ ارجاع واسط را پیش از آمدن کد پستی نگه می‌دارد. وضعیت «آماده‌سازی» می‌ماند
     /// تا خواندن بعدی همان مرسوله، با کد واقعی، <see cref="MarkShipped"/> شود.
+    /// تعداد همان لحظه هم ثبت می‌شود تا ارتقای خودکار با تعداد فعلی سنجیده شود.
+    /// قلمی که در همین فاصله کامل لغو شده هم ارجاع می‌گیرد تا مرسولهٔ واسط گم نشود؛
+    /// <see cref="MarkShipped"/> همچنان با تعداد صفر کار نمی‌کند.
     /// </summary>
-    public void RememberCarrierParcel(string trackingProvider, string providerParcelId)
+    public void RememberCarrierParcel(string trackingProvider, string providerParcelId, int quantity)
     {
-        if (DeliveryStatus != PhysicalDeliveryStatus.Preparing || RemainingQuantity == 0)
+        if (DeliveryStatus != PhysicalDeliveryStatus.Preparing)
         {
             throw InvalidDeliveryTransition(PhysicalDeliveryStatus.Shipped);
+        }
+
+        if (quantity < 1)
+        {
+            throw new ArgumentOutOfRangeException(nameof(quantity));
         }
 
         var provider = NormalizeTrackingProvider(trackingProvider);
@@ -246,6 +279,97 @@ public class PhysicalProductPurchase : BaseEntity<PhysicalProductPurchaseId>
 
         TrackingProvider = provider;
         ProviderParcelId = parcelId;
+        CarrierParcelQuantity = quantity;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// نشان «در انتظار پرداخت» را یک‌بار ثبت می‌کند؛ زمان اولین تشخیص نگه داشته می‌شود.
+    /// </summary>
+    public void MarkCarrierPaymentPending(DateTime utcNow)
+    {
+        if (DeliveryStatus != PhysicalDeliveryStatus.Preparing)
+        {
+            throw InvalidDeliveryTransition(PhysicalDeliveryStatus.Preparing);
+        }
+
+        if (ProviderParcelId is null)
+        {
+            throw new DomainException(DomainErrors.PhysicalProductPurchase_InvalidProviderParcelId);
+        }
+
+        if (CarrierPaymentPendingSinceUtc.HasValue)
+        {
+            return;
+        }
+
+        CarrierPaymentPendingSinceUtc = utcNow;
+        UpdatedAt = utcNow;
+    }
+
+    /// <summary>نشان «در انتظار پرداخت» با پذیرش مرسوله یا تعیین‌تکلیف آن پاک می‌شود.</summary>
+    public void ClearCarrierPaymentPending()
+    {
+        if (!CarrierPaymentPendingSinceUtc.HasValue)
+        {
+            return;
+        }
+
+        CarrierPaymentPendingSinceUtc = null;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// رزرو کوتاه ساخت مرسوله. تا وقتی رزرو تازه است درخواست دوم رد می‌شود؛
+    /// پس از انقضا تلاش بعدی آزاد است و خواندن پیش از ساخت، مرسولهٔ دوم نمی‌سازد.
+    /// </summary>
+    public bool TryBeginShipmentRequest(DateTime utcNow, TimeSpan lease)
+    {
+        if (DeliveryStatus != PhysicalDeliveryStatus.Preparing || RemainingQuantity == 0)
+        {
+            throw InvalidDeliveryTransition(PhysicalDeliveryStatus.Shipped);
+        }
+
+        if (ShipmentRequestStartedAtUtc is { } startedAt && startedAt > utcNow - lease)
+        {
+            return false;
+        }
+
+        ShipmentRequestStartedAtUtc = utcNow;
+        UpdatedAt = utcNow;
+        return true;
+    }
+
+    /// <summary>
+    /// آزادکردن رزرو فقط وقتی درخواست پیش از ارسال رد شده یا پاسخ قطعی ناموفق بوده است؛
+    /// در نتیجهٔ نامعلوم رزرو می‌ماند تا خودش منقضی شود.
+    /// </summary>
+    public void AbandonShipmentRequest()
+    {
+        if (!ShipmentRequestStartedAtUtc.HasValue)
+        {
+            return;
+        }
+
+        ShipmentRequestStartedAtUtc = null;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// پاک‌کردن ارجاع مرسوله وقتی واسط آن را نمی‌شناسد (مثلاً پشتیبانی حذف کرده است)،
+    /// تا ساخت دوباره با همان کلید یکتا مجاز شود.
+    /// </summary>
+    public void ClearCarrierParcelReference()
+    {
+        if (DeliveryStatus != PhysicalDeliveryStatus.Preparing)
+        {
+            throw InvalidDeliveryTransition(PhysicalDeliveryStatus.Preparing);
+        }
+
+        ProviderParcelId = null;
+        TrackingProvider = null;
+        CarrierParcelQuantity = null;
+        CarrierPaymentPendingSinceUtc = null;
         UpdatedAt = DateTime.UtcNow;
     }
 

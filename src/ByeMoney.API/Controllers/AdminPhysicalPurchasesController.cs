@@ -1,5 +1,6 @@
 using ByeMoney.API.Contracts.Purchases;
 using ByeMoney.Application.Modules.Purchases.Commands.CreatePhysicalShipment;
+using ByeMoney.Application.Modules.Purchases.Commands.RefreshPhysicalShipment;
 using ByeMoney.Application.Modules.Purchases.Commands.ResolveCarrierReturn;
 using ByeMoney.Application.Modules.Purchases.Commands.UpdatePhysicalDeliveryStatus;
 using ByeMoney.Domain.Modules.Identity.Constants;
@@ -49,6 +50,21 @@ public sealed class AdminPhysicalPurchasesController(ISender sender) : Controlle
     {
         return Ok(await sender.Send(
             new CreatePhysicalShipmentCommand(purchaseId, request?.CollectionType, request?.Provider), ct));
+    }
+
+    /// <summary>
+    /// بررسی وضعیت مرسولهٔ واسط بدون ساخت و بدون اثر مالی؛ همان مجوز ساخت مرسوله.
+    /// </summary>
+    [HttpPost("{purchaseId:guid}/shipments/refresh")]
+    [ProducesResponseType(typeof(PhysicalShipmentStateResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<PhysicalShipmentStateResponse>> RefreshShipment(
+        Guid purchaseId, CancellationToken ct)
+    {
+        return Ok(await sender.Send(new RefreshPhysicalShipmentCommand(purchaseId), ct));
     }
 
     /// <summary>

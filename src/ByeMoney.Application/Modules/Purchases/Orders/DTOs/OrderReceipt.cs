@@ -16,4 +16,5 @@ public sealed record OrderReceiptItem(
     decimal RefundedRegularInNoor = 0m, decimal RefundedGiftInNoor = 0m,
     string? TrackingCode = null, string? TrackingProvider = null, DateTime? ShippedAtUtc = null,
     DateTime? CarrierReturnedAtUtc = null,
-    string? CarrierReturnResolution = null);
+    string? CarrierReturnResolution = null,
+    string? ProviderParcelId = null, DateTime? CarrierPaymentPendingSinceUtc = null);

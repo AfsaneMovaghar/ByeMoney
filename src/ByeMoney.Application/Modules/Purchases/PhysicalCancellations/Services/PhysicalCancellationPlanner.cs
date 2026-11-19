@@ -67,12 +67,19 @@ public static class PhysicalCancellationPlanner
         }
 
         return Result<PhysicalCancellationPlan>.Success(
-            new PhysicalCancellationPlan(lines, shippingRefund, Warnings(cart, completesShipment)));
+            new PhysicalCancellationPlan(lines, shippingRefund, Warnings(cart, completesShipment, targets)));
     }
 
-    private static IReadOnlyList<string> Warnings(Cart cart, bool completesShipment)
+    private static IReadOnlyList<string> Warnings(
+        Cart cart, bool completesShipment, IReadOnlyList<PhysicalCancellationTarget> targets)
     {
         var warnings = new List<string>();
+
+        if (targets.Any(x => x.Purchase.HasPendingCarrierPayment))
+        {
+            // مرسولهٔ پرداخت‌نشده در واسط باقی می‌ماند؛ پاک‌سازی دستی است و شارژ کیف پول واسط خطر اعزام دارد.
+            warnings.Add(PhysicalCancellationWarningCodes.CarrierPaymentPending);
+        }
 
         if (cart.CouponCode is not null)
         {

@@ -20,4 +20,5 @@
   <data name="Warning_CouponRemoved" xml:space="preserve"><value>کوپن تخفیف این سفارش با لغو برنمی‌گردد و ظرفیت آن مصرف‌شده می‌ماند.</value></data>
   <data name="Warning_FreeShippingRemoved" xml:space="preserve"><value>ارسال رایگان این سفارش با لغو حذف می‌شود و دوباره محاسبه نمی‌شود.</value></data>
   <data name="Warning_ShippingNotRefunded" xml:space="preserve"><value>هزینهٔ ارسال فقط در لغو کامل مرسوله پیش از ارسال برمی‌گردد؛ در این لغو برگشت ارسال نیست.</value></data>
+  <data name="Warning_CarrierPaymentPending" xml:space="preserve"><value>مرسولهٔ پرداخت‌نشده در پستکس می‌ماند؛ اگر کیف پول پستکس شارژ شود ممکن است کرایه خودکار پرداخت شود و پیک اعزام شود. تا پاک‌سازی این مرسوله با پشتیبانی پستکس، کیف پول پستکس را شارژ نکنید.</value></data>
 </root>

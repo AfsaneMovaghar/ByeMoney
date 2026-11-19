@@ -20,7 +20,8 @@ public sealed record CreatePhysicalShipmentResponse(
     string? TrackingProvider,
     string? ProviderParcelId,
     string Outcome,
-    string? Warning = null)
+    string? Warning = null,
+    DateTime? CarrierPaymentPendingSinceUtc = null)
 {
     public static CreatePhysicalShipmentResponse From(
         PhysicalDeliveryStatusResponse delivery,
@@ -28,5 +29,6 @@ public sealed record CreatePhysicalShipmentResponse(
         string outcome,
         string? warning = null) =>
         new(delivery.PurchaseId, delivery.DeliveryStatus, delivery.ShippedAtUtc,
-            delivery.TrackingCode, delivery.TrackingProvider, providerParcelId, outcome, warning);
+            delivery.TrackingCode, delivery.TrackingProvider, providerParcelId, outcome, warning,
+            delivery.CarrierPaymentPendingSinceUtc);
 }

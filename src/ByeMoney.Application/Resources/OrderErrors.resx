@@ -23,6 +23,13 @@
   <data name="ShipmentCityUnavailable" xml:space="preserve"><value>خواندن شهر تحویل ناموفق بود و مرسوله ساخته نشد.</value></data>
   <data name="ShipmentReadFailed" xml:space="preserve"><value>وضعیت مرسوله از واسط خوانده نشد؛ برای جلوگیری از مرسولهٔ تکراری، ساخت انجام نشد.</value></data>
   <data name="ShipmentPaymentPending" xml:space="preserve"><value>مرسوله نزد واسط ثبت شده ولی پرداخت کرایه انجام نشده و ارسال‌شده حساب نمی‌شود.</value></data>
+  <data name="ShipmentPaymentPendingHelp" xml:space="preserve"><value>مرسوله در واسط پستی ساخته شد ولی کرایه پرداخت نشده است. کیف پول واسط را شارژ کنید و سپس «بررسی وضعیت» را بزنید.</value></data>
+  <data name="ShipmentOutcomeUnknown" xml:space="preserve"><value>نتیجهٔ ساخت مرسوله نامشخص است؛ مرسوله ممکن است ساخته شده باشد. چند دقیقه بعد دوباره تلاش کنید یا وضعیت را بررسی کنید.</value></data>
+  <data name="ShipmentRequestInProgress" xml:space="preserve"><value>ساخت مرسوله همین حالا در حال انجام است؛ چند دقیقه بعد وضعیت را بررسی کنید.</value></data>
+  <data name="ShipmentRefreshNotAllowed" xml:space="preserve"><value>بررسی وضعیت فقط برای قلم «آماده‌سازی» که مرسولهٔ واسط دارد ممکن است.</value></data>
+  <data name="ShipmentStatusUnavailable" xml:space="preserve"><value>وضعیت مرسوله از واسط خوانده نشد؛ هیچ تغییری اعمال نشد.</value></data>
+  <data name="ShipmentParcelNotFound" xml:space="preserve"><value>واسط این مرسوله را نمی‌شناسد. اگر پشتیبانی آن را حذف کرده باشد، ارجاع پاک شد و ساخت دوباره مجاز است.</value></data>
+  <data name="ShipmentQuantityMismatch" xml:space="preserve"><value>تعداد قلم پس از ساخت مرسوله عوض شده است؛ ارتقای خودکار انجام نشد. کد رهگیری دستی یا بررسی وضعیت را تعیین‌تکلیف کنید.</value></data>
   <data name="ShipmentTrackingCodePending" xml:space="preserve"><value>کد پستی هنوز نیامده.</value></data>
   <data name="ShipmentCollectionTypeRequired" xml:space="preserve"><value>روش جمع‌آوری باید «پیک بیاید» یا «تحویل به باجهٔ پست» باشد.</value></data>
   <data name="ShipmentDropOffOfficeRequired" xml:space="preserve"><value>پستکس تحویل حضوری را بدون شناسهٔ دفتر نپذیرفت. فهرست دفترها در این مرحله نیست.</value></data>

@@ -79,7 +79,8 @@ public sealed class PhysicalDeliveryStore(ApplicationDbContext db) : IPhysicalDe
                 x.TrackingProvider != null &&
                 x.CancelledQuantity < x.Quantity &&
                 providerKeys.Contains(x.TrackingProvider))
-            .OrderBy(x => x.CreatedAtUtc)
+            .OrderBy(x => x.CarrierPaymentPendingSinceUtc.HasValue)
+            .ThenBy(x => x.CreatedAtUtc)
             .Take(limit)
             .Select(x => new PhysicalDeliveryCandidate(
                 x.Id.Value, x.BuyerId.Value, x.CartId,

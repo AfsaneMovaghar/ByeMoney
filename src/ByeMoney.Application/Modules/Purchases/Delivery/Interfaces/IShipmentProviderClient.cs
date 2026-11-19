@@ -46,6 +46,15 @@ public enum ShipmentCreateOutcome
     /// <summary>مرسوله ثبت شد ولی پرداخت نزد واسط معلق است (مثلاً موجودی ناکافی).</summary>
     PendingPayment,
 
+    /// <summary>واسط با همین کلید یکتا مرسوله‌ای نمی‌شناسد؛ ساخت دوباره مجاز است.</summary>
+    NotFound,
+
+    /// <summary>
+    /// درخواست ساخت فرستاده شده و پاسخ قطعی نیست (تایم‌اوت، خطای سرور، یا نتیجه‌ای که خواندنش ناموفق بود).
+    /// رزرو ساخت باید بماند و تلاش بعدی اول بخواند.
+    /// </summary>
+    Uncertain,
+
     /// <summary>واسط پیکربندی نشده یا خاموش است.</summary>
     NotConfigured,
 
@@ -76,4 +85,10 @@ public interface IShipmentProviderClient
     /// تکرار نباید مرسولهٔ دوم بسازد. <see cref="ShipmentCreateOutcome.PendingPayment"/> ارسال‌شده نیست.
     /// </summary>
     Task<ShipmentCreateResult> CreateOrGetParcelAsync(ShipmentCreateRequest request, CancellationToken ct);
+
+    /// <summary>
+    /// خواندن مرسوله با همان کلید یکتای ساخت، بدون ساخت یا تغییر چیزی؛
+    /// برای «بررسی وضعیت» پس از شارژ کیف پول واسط.
+    /// </summary>
+    Task<ShipmentCreateResult> GetParcelAsync(string idempotencyKey, CancellationToken ct);
 }

@@ -91,7 +91,8 @@ public sealed class PhysicalDeliverySyncTests
         var purchase = PhysicalProductPurchase.Create(
             PhysicalProductPurchaseId.New(), Guid.NewGuid(), new UserId(Guid.NewGuid()),
             "product-1", "Book", 1, 50m, 50m);
-        purchase.RememberCarrierParcel(PhysicalProductPurchase.PostexProvider, "12345");
+        purchase.RememberCarrierParcel(
+            PhysicalProductPurchase.PostexProvider, "12345", purchase.RemainingQuantity);
         var alreadyShipped = CreateShipped(PhysicalProductPurchase.PostexProvider, "999");
         var waitingCandidate = CandidateFor(purchase);
         var store = new FakeStore(waitingCandidate, CandidateFor(alreadyShipped))
@@ -118,7 +119,8 @@ public sealed class PhysicalDeliverySyncTests
         var purchase = PhysicalProductPurchase.Create(
             PhysicalProductPurchaseId.New(), Guid.NewGuid(), new UserId(Guid.NewGuid()),
             "product-1", "Book", 1, 50m, 50m);
-        purchase.RememberCarrierParcel(PhysicalProductPurchase.PostexProvider, "12345");
+        purchase.RememberCarrierParcel(
+            PhysicalProductPurchase.PostexProvider, "12345", purchase.RemainingQuantity);
         var store = new FakeStore { AwaitingTracking = [CandidateFor(purchase)] };
         var repository = new FakeRepository(purchase);
         var client = new FakeTrackingClient(PhysicalProductPurchase.PostexProvider, TrackingOutcome.InTransit);
@@ -129,6 +131,56 @@ public sealed class PhysicalDeliverySyncTests
         purchase.DeliveryStatus.Should().Be(PhysicalDeliveryStatus.Preparing);
         purchase.TrackingCode.Should().BeNull();
         purchase.ShippedAtUtc.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task RealBarcodeWithChangedQuantityDoesNotPromoteAndClearsPendingMarker()
+    {
+        // مرسوله برای دو عدد ساخته شده ولی یک عدد پیش از رسیدن بارکد لغو شده است؛
+        // ارتقای خودکار مرسولهٔ دوعددی را «ارسال‌شده» ثبت نمی‌کند.
+        var purchase = PhysicalProductPurchase.Create(
+            PhysicalProductPurchaseId.New(), Guid.NewGuid(), new UserId(Guid.NewGuid()),
+            "product-1", "Book", 2, 50m, 100m);
+        purchase.RecordPaymentShares(new PaymentShares(100m, 0m));
+        purchase.RememberCarrierParcel(PhysicalProductPurchase.PostexProvider, "12345", 2);
+        purchase.MarkCarrierPaymentPending(DateTime.UtcNow);
+        purchase.RecordCancellation(1, new PaymentShares(50m, 0m));
+
+        var waitingCandidate = CandidateFor(purchase);
+        var store = new FakeStore { AwaitingTracking = [waitingCandidate] };
+        var repository = new FakeRepository(purchase);
+        var client = new FakeTrackingClient(
+            PhysicalProductPurchase.PostexProvider, TrackingOutcome.Delivered, "IR-200");
+
+        var changed = await CreateService(store, repository, client).SyncExternalAsync(CancellationToken.None);
+
+        changed.Should().Be(0);
+        purchase.DeliveryStatus.Should().Be(PhysicalDeliveryStatus.Preparing);
+        purchase.TrackingCode.Should().BeNull();
+        purchase.ShippedAtUtc.Should().BeNull();
+        purchase.ProviderParcelId.Should().Be("12345");
+        purchase.HasPendingCarrierPayment.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task ReturnedOutcomeForPreparingParcelDoesNotRecordCarrierReturn()
+    {
+        // لغو از سوی پشتیبانی واسط نباید روی قلم آماده‌سازی برگشتی ثبت کند؛ ارسال و برگشتی فقط برای Shipped است.
+        var purchase = PhysicalProductPurchase.Create(
+            PhysicalProductPurchaseId.New(), Guid.NewGuid(), new UserId(Guid.NewGuid()),
+            "product-1", "Book", 1, 50m, 50m);
+        purchase.RememberCarrierParcel(
+            PhysicalProductPurchase.PostexProvider, "12345", purchase.RemainingQuantity);
+        var waitingCandidate = CandidateFor(purchase);
+        var store = new FakeStore(waitingCandidate) { AwaitingTracking = [waitingCandidate] };
+        var repository = new FakeRepository(purchase);
+        var client = new FakeTrackingClient(PhysicalProductPurchase.PostexProvider, TrackingOutcome.Returned);
+
+        var changed = await CreateService(store, repository, client).SyncExternalAsync(CancellationToken.None);
+
+        changed.Should().Be(0);
+        purchase.CarrierReturnedAtUtc.Should().BeNull();
+        purchase.DeliveryStatus.Should().Be(PhysicalDeliveryStatus.Preparing);
     }
 
     [Fact]

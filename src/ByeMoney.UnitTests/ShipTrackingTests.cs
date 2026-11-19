@@ -107,7 +107,8 @@ public sealed class ShipTrackingTests
     public void ManualCodeOnARememberedParcelKeepsTheCarrierReference()
     {
         var purchase = CreatePhysical();
-        purchase.RememberCarrierParcel(PhysicalProductPurchase.PostexProvider, "1319906676294");
+        purchase.RememberCarrierParcel(
+            PhysicalProductPurchase.PostexProvider, "1319906676294", purchase.RemainingQuantity);
 
         purchase.MarkShipped("IR-100", PhysicalProductPurchase.ManualProvider, null);
 
