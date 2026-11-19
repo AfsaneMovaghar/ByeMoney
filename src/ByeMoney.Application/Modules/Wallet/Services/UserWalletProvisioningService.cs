@@ -40,13 +40,7 @@ public class UserWalletProvisioningService : IUserWalletProvisioningService
 
     public async Task<Account> GetOrCreateSystemAccountAsync(CancellationToken ct = default)
     {
-        var systemAccount = await _accountRepository.GetSystemAccountAsync(ct);
-        if (systemAccount is null)
-        {
-            systemAccount = Account.CreateSystemAccount();
-            await _accountRepository.AddAsync(systemAccount, ct);
-        }
-
-        return systemAccount;
+        return await _accountRepository.GetSystemAccountAsync(ct)
+            ?? throw new InvalidOperationException("System account has not been provisioned.");
     }
 }

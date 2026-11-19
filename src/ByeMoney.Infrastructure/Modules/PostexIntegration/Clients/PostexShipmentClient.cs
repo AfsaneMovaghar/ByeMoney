@@ -41,6 +41,37 @@ public sealed class PostexShipmentClient(
                 ErrorMessage: OrderErrors.ShipmentParcelRequired);
         }
 
+        if (!TryResolveCollection(request.CollectionType, out var collectionType, out var courierPickup))
+        {
+            return new ShipmentCreateResult(ShipmentCreateOutcome.Failed,
+                ErrorMessage: OrderErrors.ShipmentCollectionTypeRequired);
+        }
+
+        var sender = options.ResolveOrigin(request.OriginId);
+        if (sender is null)
+        {
+            return new ShipmentCreateResult(ShipmentCreateOutcome.Failed,
+                ErrorMessage: OrderErrors.ShipmentOriginNotConfigured);
+        }
+
+        if (IsSampleProfile(sender))
+        {
+            return new ShipmentCreateResult(ShipmentCreateOutcome.Failed,
+                ErrorMessage: OrderErrors.ShipmentOriginSampleProfile);
+        }
+
+        if (!IsSenderConfigured(sender))
+        {
+            return new ShipmentCreateResult(ShipmentCreateOutcome.Failed,
+                ErrorMessage: OrderErrors.ShipmentOriginProfileIncomplete);
+        }
+
+        if (courierPickup && !HasCoordinates(sender))
+        {
+            return new ShipmentCreateResult(ShipmentCreateOutcome.Failed,
+                ErrorMessage: OrderErrors.ShipmentOriginCoordinatesRequired);
+        }
+
         var existing = await ReadParcelAsync(request.Parcel.IdempotencyKey.Trim(), ct);
         if (existing.Kind == ParcelReadKind.Failed)
         {
@@ -51,25 +82,6 @@ public sealed class PostexShipmentClient(
         if (existing.Kind == ParcelReadKind.Found)
         {
             return AsExisting(existing.Parcel!);
-        }
-
-        if (!TryResolveCollection(request.CollectionType, out var collectionType, out var courierPickup))
-        {
-            return new ShipmentCreateResult(ShipmentCreateOutcome.Failed,
-                ErrorMessage: OrderErrors.ShipmentCollectionTypeRequired);
-        }
-
-        var sender = options.ResolveOrigin(request.OriginId);
-        if (sender is null || !IsSenderConfigured(sender))
-        {
-            return new ShipmentCreateResult(ShipmentCreateOutcome.Failed,
-                ErrorMessage: OrderErrors.ShipmentOriginProfileIncomplete);
-        }
-
-        if (courierPickup && !HasCoordinates(sender))
-        {
-            return new ShipmentCreateResult(ShipmentCreateOutcome.Failed,
-                ErrorMessage: OrderErrors.ShipmentOriginCoordinatesRequired);
         }
 
         var cityCode = await cityCodes.ReadAsync(
@@ -196,6 +208,19 @@ public sealed class PostexShipmentClient(
             : new ShipmentCreateResult(ShipmentCreateOutcome.Failed,
                 ErrorMessage: OrderErrors.ShipmentReadFailed);
     }
+
+    private const string SampleMobile = "09120000000";
+    private const string SampleTelephone = "02100000000";
+    private const string SampleAddress = "رامسر";
+
+    /// <summary>
+    /// پروفایل کلاس پیش‌فرض: موبایل یا تلفن نمونه، یا نشانی‌ای که فقط «رامسر» است.
+    /// نام شرکت «خاک تا افلاک» به‌تنهایی نشانهٔ نمونه نیست.
+    /// </summary>
+    private static bool IsSampleProfile(PostexSenderOptions sender) =>
+        string.Equals(sender.MobileNo?.Trim(), SampleMobile, StringComparison.Ordinal) ||
+        string.Equals(sender.TelephoneNo?.Trim(), SampleTelephone, StringComparison.Ordinal) ||
+        string.Equals(sender.Address?.Trim(), SampleAddress, StringComparison.Ordinal);
 
     private static bool IsSenderConfigured(PostexSenderOptions sender) =>
         sender.CityId > 0 &&

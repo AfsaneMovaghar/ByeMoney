@@ -139,7 +139,8 @@ public sealed class CartPricingClient(HttpClient http) : ICartPricingClient
             wire.PriceInNoor,
             address,
             hasProduct ? originId : null,
-            hasProduct ? originLabel : null);
+            hasProduct ? originLabel : null,
+            hasProduct ? wire.ShippingOriginCityId : null);
     }
 
     /// <summary>

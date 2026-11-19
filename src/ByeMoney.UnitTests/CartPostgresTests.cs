@@ -69,7 +69,7 @@ public sealed class CartPostgresTests : IAsyncLifetime
         await _provider.DisposeAsync();
         await using var connection = new NpgsqlConnection(_adminConnection);
         await connection.OpenAsync();
-        // Ù†Ø§Ù… schema ÙÙ‚Ø· Ø§Ø² GUID Ø§ÛŒÙ† Ø¢Ø²Ù…ÙˆÙ† Ø³Ø§Ø®ØªÙ‡ Ø´Ø¯Ù‡ Ø§Ø³Øª.
+        // نام schema فقط از GUID این آزمون ساخته شده است.
         await using var command = new NpgsqlCommand($"DROP SCHEMA \"{_schema}\" CASCADE", connection);
         await command.ExecuteNonQueryAsync();
     }
@@ -78,7 +78,7 @@ public sealed class CartPostgresTests : IAsyncLifetime
         var cart = Cart.Create(Guid.NewGuid(), _buyer.Id.Value, _buyer.ExternalUserId, ids ?? ["a", "b"], "OFF");
         (await Store.CreateAsync(cart, default)).IsSuccess.Should().BeTrue();
         return await Store.SetQuoteAsync(cart.Id, _buyer.Id.Value, cart.RequestedItemSignatures.Select((id, index) =>
-            new CartQuoteItem(id, "Ø¯ÙˆØ±Ù‡", 105, 0, free ? 105 : index == 0 ? 11 : 10, free ? 0 : index == 0 ? 94 : 95)).ToArray(), cart.ReservationId, default);
+            new CartQuoteItem(id, "دوره", 105, 0, free ? 105 : index == 0 ? 11 : 10, free ? 0 : index == 0 ? 94 : 95)).ToArray(), cart.ReservationId, default);
     }
     private async Task<(decimal Balance, int Purchases, decimal Debit, decimal Net)> Financials()
     {
@@ -103,7 +103,7 @@ public sealed class CartPostgresTests : IAsyncLifetime
         var cart = Cart.Create(Guid.NewGuid(), _buyer.Id.Value, _buyer.ExternalUserId, [chapterId], null);
         await Store.CreateAsync(cart, default);
         cart = await Store.SetQuoteAsync(cart.Id, _buyer.Id.Value,
-            [new(chapterId, "ÙØµÙ„", 120, 0, 20, 100, ProductItemType.CourseChapter, "parent")],
+            [new(chapterId, "فصل", 120, 0, 20, 100, ProductItemType.CourseChapter, "parent")],
             cart.ReservationId, default);
 
         (await Store.PayAsync(cart.Id, _buyer.Id.Value, cart.ReservationId, default)).IsSuccess.Should().BeTrue();
@@ -159,7 +159,7 @@ public sealed class CartPostgresTests : IAsyncLifetime
             var cart = Cart.Create(Guid.NewGuid(), _buyer.Id.Value, _buyer.ExternalUserId, [chapterId], null);
             await Store.CreateAsync(cart, default);
             return await Store.SetQuoteAsync(cart.Id, _buyer.Id.Value,
-                [new(chapterId, "ÙØµÙ„", 100, 0, 0, 100, ProductItemType.CourseChapter, "parent")],
+                [new(chapterId, "فصل", 100, 0, 0, 100, ProductItemType.CourseChapter, "parent")],
                 cart.ReservationId, default);
         }
 
@@ -175,7 +175,7 @@ public sealed class CartPostgresTests : IAsyncLifetime
         using var scope = _provider.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
         var duplicate = CoursePurchase.Create(_buyer.Id,
-            ProductSnapshot.Create(chapterId, "ÙØµÙ„", 100,
+            ProductSnapshot.Create(chapterId, "فصل", 100,
                 itemType: ProductItemType.CourseChapter, externalParentId: "parent"));
         db.Add(duplicate);
         Func<Task> saveDuplicate = async () => await db.SaveChangesAsync();
@@ -194,7 +194,7 @@ public sealed class CartPostgresTests : IAsyncLifetime
         var chapter = Cart.Create(Guid.NewGuid(), _buyer.Id.Value, _buyer.ExternalUserId, [chapterId], null);
         await Store.CreateAsync(chapter, default);
         chapter = await Store.SetQuoteAsync(chapter.Id, _buyer.Id.Value,
-            [new(chapterId, "ÙØµÙ„", 100, 0, 0, 100, ProductItemType.CourseChapter, "parent")],
+            [new(chapterId, "فصل", 100, 0, 0, 100, ProductItemType.CourseChapter, "parent")],
             chapter.ReservationId, default);
 
         (await Store.PayAsync(chapter.Id, _buyer.Id.Value, chapter.ReservationId, default)).IsSuccess.Should().BeFalse();
@@ -420,7 +420,7 @@ public sealed class CartPostgresTests : IAsyncLifetime
         await Store.RecordSynchronizationAsync(cart.Id, _buyer.Id.Value, true, null, cart.ReservationId, default);
         var reopened = (await Store.ReopenAsync(cart.Id, _buyer.Id.Value, cart.ReservationId, default)).Value;
         (await Store.FindAsync(cart.Id, _buyer.Id.Value, default))!.Items.Should().BeEmpty();
-        CartQuoteItem[] quote = [new("a", "Ù‚ÛŒÙ…Øª ØªØ§Ø²Ù‡", 200, 10, 20, 170), new("b", "Ø±Ø§ÛŒÚ¯Ø§Ù†", 100, 100, 0, 0)];
+        CartQuoteItem[] quote = [new("a", "قیمت تازه", 200, 10, 20, 170), new("b", "رایگان", 100, 100, 0, 0)];
         await Store.SetQuoteAsync(cart.Id, _buyer.Id.Value, quote, reopened.ReservationId, default);
         var loaded = (await Store.FindAsync(cart.Id, _buyer.Id.Value, default))!;
         loaded.Items.Should().Equal(quote.Select(x => new CartItem(x.ExternalItemId, x.Title, x.BasePriceInNoor, x.PriceInNoor)));
@@ -681,13 +681,13 @@ public sealed class CartPostgresTests : IAsyncLifetime
         {
             var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
             var topUp = await db.Set<TopUpRequest>().FindAsync(new TopUpRequestId(previousTopUp));
-            topUp!.CancelGateway("SEP", "Ù„ØºÙˆ Ù‚Ø·Ø¹ÛŒ Ø¢Ø²Ù…ÙˆÙ†");
+            topUp!.CancelGateway("SEP", "لغو قطعی آزمون");
             await db.SaveChangesAsync();
         }
         _pricing.Setup(x => x.PrepareAsync(It.IsAny<CartQuoteRequest>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((CartQuoteRequest request, CancellationToken _) => Result<CartQuote>.Success(
                 new(request.CartId, request.BuyerExternalUserId, request.CouponCode,
-                    [new("a", "Ø§Ù„Ù", 200, 0, 20, 180), new("b", "Ø¨", 100, 0, 10, 90)])));
+                    [new("a", "الف", 200, 0, 20, 180), new("b", "ب", 100, 0, 10, 90)])));
         using var serviceScope = _provider.CreateScope();
         var service = serviceScope.ServiceProvider.GetRequiredService<CartService>();
         var previews = await Task.WhenAll(Enumerable.Range(0, 3).Select(async _ =>
@@ -700,7 +700,7 @@ public sealed class CartPostgresTests : IAsyncLifetime
         var current = (await Store.FindAsync(cart.Id, _buyer.Id.Value, default))!;
         current.ReservationId.Should().NotBe(cart.ReservationId);
         (await Store.FindByTopUpAsync(previousTopUp, _buyer.Id.Value, default))!.Id.Should().Be(cart.Id);
-        // Ù¾Ø§Ø³Ø® Ùˆ Ú©Ø§Ø± Ø¨Ø§Ø²ÛŒØ§Ø¨ÛŒ Ù†Ø³Ù„ Ù‚Ø¨Ù„ÛŒ Ù†Ø¨Ø§ÛŒØ¯ Ø³Ø¨Ø¯ ØªØ§Ø²Ù‡ Ø±Ø§ Ø¨Ø¨Ù†Ø¯Ù†Ø¯ ÛŒØ§ Ø±Ø²Ø±Ùˆ ØªØ§Ø²Ù‡ Ø±Ø§ Ø¢Ø²Ø§Ø¯Ø´Ø¯Ù‡ Ø§Ø¹Ù„Ø§Ù… Ú©Ù†Ù†Ø¯.
+        // پاسخ و کار بازیابی نسل قبلی نباید سبد تازه را ببندند یا رزرو تازه را آزادشده اعلام کنند.
         await Store.FailAsync(cart.Id, _buyer.Id.Value, false, cart.ReservationId, default);
         await Store.RecordSynchronizationAsync(cart.Id, _buyer.Id.Value, true, null, cart.ReservationId, default);
         (await Store.PayAsync(cart.Id, _buyer.Id.Value, cart.ReservationId, default)).IsFailure.Should().BeTrue();
@@ -737,7 +737,7 @@ public sealed class CartPostgresTests : IAsyncLifetime
         _pricing.Setup(x => x.PrepareAsync(It.IsAny<CartQuoteRequest>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((CartQuoteRequest request, CancellationToken _) => Result<CartQuote>.Success(
                 new(request.CartId, request.BuyerExternalUserId, request.CouponCode,
-                    [new("a", "Ø§Ù„Ù", 200, 0, 20, 180), new("b", "Ø¨", 100, 0, 10, 90)])));
+                    [new("a", "الف", 200, 0, 20, 180), new("b", "ب", 100, 0, 10, 90)])));
 
         using var serviceScope = _provider.CreateScope();
         var service = serviceScope.ServiceProvider.GetRequiredService<CartService>();
@@ -797,7 +797,7 @@ public sealed class CartPostgresTests : IAsyncLifetime
         _pricing.Setup(x => x.PrepareAsync(It.IsAny<CartQuoteRequest>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((CartQuoteRequest request, CancellationToken _) => Result<CartQuote>.Success(
                 new(request.CartId, request.BuyerExternalUserId, request.CouponCode,
-                    [new("a", "Ø§Ù„Ù", 200, 0, 20, 180), new("b", "Ø¨", 100, 0, 10, 90)])));
+                    [new("a", "الف", 200, 0, 20, 180), new("b", "ب", 100, 0, 10, 90)])));
 
         using var serviceScope = _provider.CreateScope();
         var service = serviceScope.ServiceProvider.GetRequiredService<CartService>();
@@ -850,7 +850,7 @@ public sealed class CartPostgresTests : IAsyncLifetime
         _pricing.Setup(x => x.PrepareAsync(It.IsAny<CartQuoteRequest>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((CartQuoteRequest request, CancellationToken _) => Result<CartQuote>.Success(
                 new(request.CartId, request.BuyerExternalUserId, request.CouponCode,
-                    [new("a", "Ø§Ù„Ù", 200, 0, 20, 180), new("b", "Ø¨", 100, 0, 10, 90)])));
+                    [new("a", "الف", 200, 0, 20, 180), new("b", "ب", 100, 0, 10, 90)])));
 
         using var serviceScope = _provider.CreateScope();
         var service = serviceScope.ServiceProvider.GetRequiredService<CartService>();
@@ -874,7 +874,7 @@ public sealed class CartPostgresTests : IAsyncLifetime
         var financialsAfterPurchase = await Financials();
         financialsAfterPurchase.Purchases.Should().Be(2);
 
-        // ØªØ£ÛŒÛŒØ¯ Ø¯ÛŒØ±Ù‡Ù†Ú¯Ø§Ù… Ø´Ø§Ø±Ú˜ Ù‚Ø¨Ù„ÛŒ Ø¯Ø± Ø­Ø§Ù„ Ø¨Ø±Ø±Ø³ÛŒ
+        // تأیید دیرهنگام شارژ قبلی در حال بررسی
         using (var lateScope = _provider.CreateScope())
         {
             var db = lateScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
@@ -883,7 +883,7 @@ public sealed class CartPostgresTests : IAsyncLifetime
             await lateScope.ServiceProvider.GetRequiredService<ITopUpSettlementService>().SettleAsync(oldTopUp);
         }
 
-        // Ù¾Ø±Ø¯Ø§Ø²Ø´ Ù…Ø¬Ø¯Ø¯ Ø³Ø¨Ø¯ ØªÙˆØ³Ø· Ø±ÛŒÚ©Ø§ÙˆØ±ÛŒ Ù¾Ø³â€ŒØ²Ù…ÛŒÙ†Ù‡
+        // پردازش مجدد سبد توسط ریکاوری پس‌زمینه
         await service.ProcessAsync(current, default);
 
         var financialsAfterLateConfirm = await Financials();
@@ -908,7 +908,7 @@ public sealed class CartPostgresTests : IAsyncLifetime
             topUp.OpenFinancialReview("case-refund-prot", FinancialReviewReasonCodes.ReverseUnknown);
             topUp.ResolveManualReview("case-refund-prot", FinancialReviewOutcomeCodes.ManualRefund, null,
                 new(Guid.NewGuid(), 1, new DateOnly(2026, 10, 27), null, null, null, null, null, "bank-refund-slip-999"),
-                Guid.NewGuid(), "Ù…Ø¯ÛŒØ± Ù…Ø§Ù„ÛŒ").IsSuccess.Should().BeTrue();
+                Guid.NewGuid(), "مدیر مالی").IsSuccess.Should().BeTrue();
 
             topUp.Status.Should().Be(TopUpStatus.ManuallyRefunded);
             topUp.ManualRefundReference.Should().Be("bank-refund-slip-999");
@@ -946,7 +946,7 @@ public sealed class CartPostgresTests : IAsyncLifetime
         _pricing.Setup(x => x.PrepareAsync(It.IsAny<CartQuoteRequest>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((CartQuoteRequest request, CancellationToken _) => Result<CartQuote>.Success(
                 new(request.CartId, request.BuyerExternalUserId, request.CouponCode,
-                    [new("a", "Ø§Ù„Ù", 200, 0, 20, 180), new("b", "Ø¨", 100, 0, 10, 90)])));
+                    [new("a", "الف", 200, 0, 20, 180), new("b", "ب", 100, 0, 10, 90)])));
 
         using var serviceScope = _provider.CreateScope();
         var service = serviceScope.ServiceProvider.GetRequiredService<CartService>();
@@ -976,7 +976,7 @@ public sealed class CartPostgresTests : IAsyncLifetime
         using var scope = _provider.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
-        // Û±. Ø¨Ø±Ø±Ø³ÛŒ Ù…Ø¯Ù„ EF Core
+        // ۱. بررسی مدل EF Core
         var entityType = db.Model.FindEntityType(typeof(CoursePurchase));
         entityType.Should().NotBeNull();
         var ownership = entityType!.FindNavigation(nameof(CoursePurchase.Snapshot))!.TargetEntityType;
@@ -986,7 +986,7 @@ public sealed class CartPostgresTests : IAsyncLifetime
         efIndex!.IsUnique.Should().BeTrue();
         efIndex.Properties.Select(p => p.GetColumnName()).Should().Contain(["UserId", "ExternalProductId", "ItemType"]);
 
-        // Û². Ø¨Ø±Ø±Ø³ÛŒ ÙˆØ¬ÙˆØ¯ ÙˆØ§Ù‚Ø¹ÛŒ Ø¯Ø± Ú©Ø§ØªØ§Ù„ÙˆÚ¯ Ø¯ÛŒØªØ§Ø¨ÛŒØ³ Ù¾Ø³ØªÚ¯Ø±Ø³ (pg_indexes)
+        // ۲. بررسی وجود واقعی در کاتالوگ دیتابیس پستگرس (pg_indexes)
         var connection = (NpgsqlConnection)db.Database.GetDbConnection();
         if (connection.State != System.Data.ConnectionState.Open)
         {
@@ -1002,13 +1002,13 @@ public sealed class CartPostgresTests : IAsyncLifetime
         indexDef.Should().Contain("\"UserId\", \"ExternalProductId\", \"ItemType\"");
         await reader.CloseAsync();
 
-        // Û³. Ø¨Ø±Ø±Ø³ÛŒ Ø±ÙØªØ§Ø± Ø¹ÛŒÙ†ÛŒ Ø¯ÛŒØªØ§Ø¨ÛŒØ³ Ø¯Ø± Ø«Ø¨Øª ØªÚ©Ø±Ø§Ø±ÛŒ (Unique Violation 23505)
+        // ۳. بررسی رفتار عینی دیتابیس در ثبت تکراری (Unique Violation 23505)
         var courseId = Guid.NewGuid().ToString("N");
-        var first = CoursePurchase.Create(_buyer.Id, ProductSnapshot.Create(courseId, "Ø¯ÙˆØ±Ù‡ Ø¢Ø²Ù…Ø§ÛŒØ´ÛŒ", 100));
+        var first = CoursePurchase.Create(_buyer.Id, ProductSnapshot.Create(courseId, "دوره آزمایشی", 100));
         db.Add(first);
         await db.SaveChangesAsync();
 
-        var duplicate = CoursePurchase.Create(_buyer.Id, ProductSnapshot.Create(courseId, "Ø¯ÙˆØ±Ù‡ Ø¢Ø²Ù…Ø§ÛŒØ´ÛŒ Ù…Ø¬Ø¯Ø¯", 100));
+        var duplicate = CoursePurchase.Create(_buyer.Id, ProductSnapshot.Create(courseId, "دوره آزمایشی مجدد", 100));
         db.Add(duplicate);
         Func<Task> saveDuplicate = async () => await db.SaveChangesAsync();
         var ex = await saveDuplicate.Should().ThrowAsync<DbUpdateException>();
@@ -1029,16 +1029,16 @@ public sealed class CartPostgresTests : IAsyncLifetime
             topUp!.OpenFinancialReview("case-unres", FinancialReviewReasonCodes.NoCallback);
             topUp.ResolveManualReview("case-unres", FinancialReviewOutcomeCodes.NoMatchingDeposit, null,
                 new(Guid.NewGuid(), 1, new DateOnly(2026, 9, 30), false, null, null, null, null, null),
-                Guid.NewGuid(), "Ø­Ø³Ø§Ø¨Ø¯Ø§Ø±").IsSuccess.Should().BeTrue();
+                Guid.NewGuid(), "حسابدار").IsSuccess.Should().BeTrue();
             await db.SaveChangesAsync();
         }
 
         _pricing.Setup(x => x.PrepareAsync(It.IsAny<CartQuoteRequest>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((CartQuoteRequest request, CancellationToken _) => Result<CartQuote>.Success(
                 new(request.CartId, request.BuyerExternalUserId, request.CouponCode,
-                    [new("a", "Ø§Ù„Ù", 200, 0, 20, 180), new("b", "Ø¨", 100, 0, 10, 90)])));
+                    [new("a", "الف", 200, 0, 20, 180), new("b", "ب", 100, 0, 10, 90)])));
 
-        // Ù…Ø³ÛŒØ± Û±: Ú©Ø§Ø±Ø¨Ø± Ø¯Ø± Ø­Ø§Ù„ÛŒ Ú©Ù‡ Ø³Ø¨Ø¯ Ù‡Ù†ÙˆØ² AwaitingTopUp Ø§Ø³Øª Ù…Ø³ØªÙ‚ÛŒÙ…Ø§Ù‹ PrepareAsync Ø±Ø§ ØµØ¯Ø§ Ù…ÛŒâ€ŒØ²Ù†Ø¯
+        // مسیر ۱: کاربر در حالی که سبد هنوز AwaitingTopUp است مستقیماً PrepareAsync را صدا می‌زند
         using var serviceScope = _provider.CreateScope();
         var service = serviceScope.ServiceProvider.GetRequiredService<CartService>();
         var preview = await service.PrepareAsync(_buyer.Id.Value, cart.Id, ["a", "b"], "OFF", default);
@@ -1051,7 +1051,7 @@ public sealed class CartPostgresTests : IAsyncLifetime
         current.TopUpRequestId.Should().BeNull();
         (await TopUpIdsOfCartAsync(cart.Id)).Should().Contain(previousTopUp);
 
-        // Ù¾Ø±Ø¯Ø§Ø®Øª ØªØ§Ø²Ù‡ Ø¨Ø§ Ø´Ù†Ø§Ø³Ù‡ Ùˆ Ø¯Ø±Ú¯Ø§Ù‡ ØªØ§Ø²Ù‡
+        // پرداخت تازه با شناسه و درگاه تازه
         var attempts = await Task.WhenAll(Enumerable.Range(0, 3).Select(_ => Store.CreateTopUpAsync(cart.Id, _buyer.Id.Value, default)));
         attempts.Should().OnlyContain(x => x.IsSuccess);
         var retryTopUpId = attempts[0].Value.TopUpRequestId;
@@ -1068,7 +1068,7 @@ public sealed class CartPostgresTests : IAsyncLifetime
         (await service.GetAsync(_buyer.Id.Value, cart.Id, default)).Value.Status.Should().Be("Paid");
         (await Financials()).Should().Be((.2m, 2, 270m, 0m));
 
-        // Ù¾Ø±Ø¯Ø§Ø®Øª Ø¯ÛŒØ±Ù‡Ù†Ú¯Ø§Ù… Ø´Ø§Ø±Ú˜ Ù‚Ø¯ÛŒÙ…ÛŒ Ø¨Ù‡ ØµÙˆØ±Øª Verified Ù†Ø¨Ø§ÛŒØ¯ Ø«Ø¨Øª Ø´ÙˆØ¯
+        // پرداخت دیرهنگام شارژ قدیمی به صورت Verified نباید ثبت شود
         var oldTopUp = await verifyDb.Set<TopUpRequest>().FindAsync(new TopUpRequestId(previousTopUp));
         oldTopUp!.RecordGatewayResult("evt-late", "SEP", GatewayResultKinds.Verified, "late-ref", "late-rrn", "0", 10000, 10000, DateTime.UtcNow)
             .IsFailure.Should().BeTrue();
@@ -1086,11 +1086,11 @@ public sealed class CartPostgresTests : IAsyncLifetime
             topUp!.OpenFinancialReview("case-refund", FinancialReviewReasonCodes.NoCallback);
             topUp.ResolveManualReview("case-refund", FinancialReviewOutcomeCodes.ManualRefund, null,
                 new(Guid.NewGuid(), 1, new DateOnly(2026, 9, 30), null, null, null, null, null, "refund-ref-123"),
-                Guid.NewGuid(), "Ø­Ø³Ø§Ø¨Ø¯Ø§Ø±").IsSuccess.Should().BeTrue();
+                Guid.NewGuid(), "حسابدار").IsSuccess.Should().BeTrue();
             await db.SaveChangesAsync();
         }
 
-        // Ù…Ø³ÛŒØ± Û²: Ø¨Ú©â€ŒÚ¯Ø±Ø§Ù†Ø¯ ProcessAsync Ø§Ø¨ØªØ¯Ø§ Ø§Ø¬Ø±Ø§ Ù…ÛŒâ€ŒØ´ÙˆØ¯ Ùˆ Ø³Ø¨Ø¯ Ø±Ø§ Ø¨Ù‡ Failed Ù…Ù†ØªÙ‚Ù„ Ù…ÛŒâ€ŒÚ©Ù†Ø¯
+        // مسیر ۲: بک‌گراند ProcessAsync ابتدا اجرا می‌شود و سبد را به Failed منتقل می‌کند
         using var recoveryScope = _provider.CreateScope();
         await recoveryScope.ServiceProvider.GetRequiredService<CartService>().ProcessAsync(cart, default);
 
@@ -1100,7 +1100,7 @@ public sealed class CartPostgresTests : IAsyncLifetime
         _pricing.Setup(x => x.PrepareAsync(It.IsAny<CartQuoteRequest>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((CartQuoteRequest request, CancellationToken _) => Result<CartQuote>.Success(
                 new(request.CartId, request.BuyerExternalUserId, request.CouponCode,
-                    [new("a", "Ø§Ù„Ù", 200, 0, 20, 180), new("b", "Ø¨", 100, 0, 10, 90)])));
+                    [new("a", "الف", 200, 0, 20, 180), new("b", "ب", 100, 0, 10, 90)])));
 
         using var serviceScope = _provider.CreateScope();
         var service = serviceScope.ServiceProvider.GetRequiredService<CartService>();
@@ -1123,7 +1123,7 @@ public sealed class CartPostgresTests : IAsyncLifetime
         oldTopUp!.ManualRefundReference.Should().Be("refund-ref-123");
         oldTopUp.Status.Should().Be(TopUpStatus.ManuallyRefunded);
 
-        // Ù¾Ø±Ø¯Ø§Ø®Øª Ø¯ÛŒØ±Ù‡Ù†Ú¯Ø§Ù… Ø¨Ø±Ø§ÛŒ Ø´Ø§Ø±Ú˜ Ø¨Ø§ Ù…Ø±Ø¬Ø¹ Ø¨Ø§Ø²Ù¾Ø±Ø¯Ø§Ø®Øª Ø¯Ø³ØªÛŒ Ù†Ø§Ù…Ø¹ØªØ¨Ø± Ø§Ø³Øª Ùˆ Ù†Ø¨Ø§ÛŒØ¯ Ù¾Ø°ÛŒØ±ÙØªÙ‡ Ø´ÙˆØ¯
+        // پرداخت دیرهنگام برای شارژ با مرجع بازپرداخت دستی نامعتبر است و نباید پذیرفته شود
         oldTopUp.RecordGatewayResult("evt-late-refund", "SEP", GatewayResultKinds.Verified, "late-ref", "late-rrn", "0", 10000, 10000, DateTime.UtcNow)
             .IsFailure.Should().BeTrue();
     }

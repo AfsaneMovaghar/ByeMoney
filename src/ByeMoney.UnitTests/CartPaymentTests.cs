@@ -27,7 +27,7 @@ public sealed class CartPaymentTests
         var json = $$"""
             {"cartId":"{{cart.Id}}","buyerExternalUserId":"buyer","couponCode":null,
              "items":[{"externalCourseId":"chapter-uuid","type":"course_chapter",
-             "parentExternalId":"parent-document","title":"ÙØµÙ„","basePriceInNoor":120,
+             "parentExternalId":"parent-document","title":"فصل","basePriceInNoor":120,
              "itemDiscountInNoor":0,"couponDiscountInNoor":20,"priceInNoor":100}]}
             """;
         using var http = new HttpClient(new QuoteResponseHandler(json)) { BaseAddress = new Uri("https://strapi.test/") };
@@ -81,8 +81,8 @@ public sealed class CartPaymentTests
         var firstPayment = 105 - firstDiscount - firstCoupon;
         var secondPayment = 105 - secondDiscount - secondCoupon;
         cart.SetQuote([
-            new("a", "Ø§Ù„Ù", 105, firstDiscount, firstCoupon, firstPayment),
-            new("b", "Ø¨", 105, secondDiscount, secondCoupon, secondPayment)
+            new("a", "الف", 105, firstDiscount, firstCoupon, firstPayment),
+            new("b", "ب", 105, secondDiscount, secondCoupon, secondPayment)
         ]);
 
         var payment = CartPayment.Apply(cart, new ProvisionedUserWallet(account, wallet),
@@ -114,8 +114,8 @@ public sealed class CartPaymentTests
         var cart = Cart.Create(Guid.NewGuid(), buyer.Value, "buyer-free", ["course-free-1", "course-free-2"], "100OFF");
 
         cart.SetQuote([
-            new("course-free-1", "Ø¯ÙˆØ±Ù‡ Ø§ÙˆÙ„", 200m, 0m, 200m, 0m),
-            new("course-free-2", "Ø¯ÙˆØ±Ù‡ Ø¯ÙˆÙ…", 150m, 50m, 100m, 0m)
+            new("course-free-1", "دوره اول", 200m, 0m, 200m, 0m),
+            new("course-free-2", "دوره دوم", 150m, 50m, 100m, 0m)
         ], shippingAmountInNoor: 0m);
 
         cart.Total.Should().Be(0m);

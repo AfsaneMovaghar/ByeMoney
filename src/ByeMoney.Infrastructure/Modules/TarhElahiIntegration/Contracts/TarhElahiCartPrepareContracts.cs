@@ -35,7 +35,8 @@ internal sealed record TarhElahiCartPrepareResponse(
     TarhElahiCartAddressSnapshot? AddressSnapshot = null,
     string? AddressVersion = null,
     string? ShippingOriginId = null,
-    string? ShippingOriginLabel = null);
+    string? ShippingOriginLabel = null,
+    int? ShippingOriginCityId = null);
 
 /// <summary>
 /// آدرس تحویل در پاسخ prepare (I09-PH). <c>postalCode</c> اختیاری است.

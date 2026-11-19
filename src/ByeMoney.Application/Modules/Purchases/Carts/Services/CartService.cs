@@ -1,4 +1,5 @@
 using ByeMoney.Application.Modules.Purchases.Carts.Constants;
+using ByeMoney.Application.Modules.Purchases.Delivery.Interfaces;
 using ByeMoney.Application.Modules.Purchases.Carts.DTOs;
 using ByeMoney.Application.Modules.Purchases.Orders.DTOs;
 using ByeMoney.Application.Modules.Purchases.Carts.Interfaces;
@@ -23,7 +24,8 @@ public sealed class CartService(
     IWalletRepository wallets,
     ISystemSettingRepository settings,
     ICoursePurchaseRepository purchases,
-    ITopUpRequestRepository topUps)
+    ITopUpRequestRepository topUps,
+    IShippingOriginCityReader? originCities = null)
 {
     public Task<Result<CartResponse>> PrepareAsync(
         Guid buyerId,
@@ -209,6 +211,12 @@ public sealed class CartService(
                 return Result<CartResponse>.Conflict(CartErrors.Conflict, CartErrorCodes.Conflict);
             }
 
+            if (quote.Value.ShippingOriginCityId is int quotedCityId &&
+                originCities?.GetCityId(quote.Value.ShippingOriginId) != quotedCityId)
+            {
+                return Result<CartResponse>.Conflict(CartErrors.OriginCityMismatch, CartErrorCodes.Conflict);
+            }
+
             try
             {
                 cart = await store.SetQuoteAsync(
@@ -220,6 +228,7 @@ public sealed class CartService(
                     quote.Value.ShippingAddress,
                     quote.Value.ShippingOriginId,
                     quote.Value.ShippingOriginLabel,
+                    quote.Value.ShippingOriginCityId,
                     cart.ReservationId,
                     ct);
             }

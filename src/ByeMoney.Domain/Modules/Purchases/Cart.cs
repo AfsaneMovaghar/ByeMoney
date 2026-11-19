@@ -40,6 +40,12 @@ public sealed class Cart
     /// </summary>
     public string? ShippingOriginLabel { get; private set; }
 
+    /// <summary>
+    /// شناسهٔ شهر مبدأ در لحظهٔ قیمت‌گذاری. در پاسخ خریدار و ادمین نمی‌آید.
+    /// سفارش قدیمی این مقدار را ندارد و ساخت مرسوله را به‌خاطر نبودنش متوقف نمی‌کند.
+    /// </summary>
+    public int? ShippingOriginCityId { get; private set; }
+
     public const int ShippingOriginIdMaxLength = 50;
     public const int ShippingOriginLabelMaxLength = 200;
 
@@ -155,7 +161,8 @@ public sealed class Cart
         string? shippingRuleLabel = null,
         ShippingAddress? shippingAddress = null,
         string? shippingOriginId = null,
-        string? shippingOriginLabel = null)
+        string? shippingOriginLabel = null,
+        int? shippingOriginCityId = null)
     {
         if (Status != CartStatus.Preparing)
         {
@@ -214,6 +221,7 @@ public sealed class Cart
         // الزام مبدأ در prepare زنده (CartPricingClient) و ساخت مرسوله است؛ اینجا فقط فریز می‌شود.
         ShippingOriginId = hasProduct ? normalizedOriginId : null;
         ShippingOriginLabel = hasProduct && normalizedOriginId is not null ? normalizedOriginLabel : null;
+        ShippingOriginCityId = hasProduct ? shippingOriginCityId : null;
 
         if (_items.Sum(x => x.AllocatedAmountInNoor) + ShippingAmountInNoor != Total)
         {
@@ -263,6 +271,7 @@ public sealed class Cart
         ShippingRuleLabel = null;
         ShippingOriginId = null;
         ShippingOriginLabel = null;
+        ShippingOriginCityId = null;
         ShippingAddress = null;
         Status = CartStatus.Preparing;
         Synchronized = false;

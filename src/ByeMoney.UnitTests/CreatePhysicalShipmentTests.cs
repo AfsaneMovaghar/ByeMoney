@@ -139,6 +139,42 @@ public sealed class CreatePhysicalShipmentTests
     }
 
     [Fact]
+    public async Task RejectsWhenFrozenOriginCityDiffersBeforeAnyProviderCall()
+    {
+        var purchase = CreatePreparing();
+        var store = new FakeDeliveryStore(purchase, SampleAddress(), originCityId: 259);
+        var repository = new FakeRepository(purchase);
+        var client = new FakeShipmentClient(PhysicalProductPurchase.PostexProvider);
+
+        var act = () => new CreatePhysicalShipmentCommandHandler(
+            repository, store, [client], repository, new FixedOriginCity(573))
+            .Handle(new CreatePhysicalShipmentCommand(purchase.Id.Value, "pick_up"), CancellationToken.None);
+
+        (await act.Should().ThrowAsync<DomainException>())
+            .Which.Message.Should().Be(OrderErrors.ShipmentOriginCityMismatch);
+        client.Calls.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task MatchingFrozenOriginCityStillCreatesTheParcel()
+    {
+        var purchase = CreatePreparing();
+        var store = new FakeDeliveryStore(purchase, SampleAddress(), originCityId: 573);
+        var repository = new FakeRepository(purchase);
+        var client = new FakeShipmentClient(PhysicalProductPurchase.PostexProvider)
+        {
+            Result = new ShipmentCreateResult(ShipmentCreateOutcome.Created, "1", "TRACK-1")
+        };
+
+        var response = await new CreatePhysicalShipmentCommandHandler(
+            repository, store, [client], repository, new FixedOriginCity(573))
+            .Handle(new CreatePhysicalShipmentCommand(purchase.Id.Value, "pick_up"), CancellationToken.None);
+
+        response.Outcome.Should().Be(nameof(ShipmentCreateOutcome.Created));
+        client.Calls.Should().Be(1);
+    }
+
+    [Fact]
     public async Task RejectsLegacyPurchaseWithoutParcelFacts()
     {
         var purchase = CreatePreparingWithoutParcel();
@@ -400,10 +436,16 @@ public sealed class CreatePhysicalShipmentTests
             Task.FromResult(ReadResult);
     }
 
+    private sealed class FixedOriginCity(int? cityId) : IShippingOriginCityReader
+    {
+        public int? GetCityId(string? shippingOriginId) => cityId;
+    }
+
     private sealed class FakeDeliveryStore(
         PhysicalProductPurchase purchase,
         ShippingAddress? address,
-        string? originId = "ramsar") : IPhysicalDeliveryStore
+        string? originId = "ramsar",
+        int? originCityId = null) : IPhysicalDeliveryStore
     {
         public Task<PhysicalPurchaseOwner?> FindOwnerAsync(Guid purchaseId, CancellationToken ct) =>
             Task.FromResult<PhysicalPurchaseOwner?>(
@@ -423,6 +465,9 @@ public sealed class CreatePhysicalShipmentTests
 
         public Task<string?> GetCartShippingOriginIdAsync(Guid cartId, CancellationToken ct) =>
             Task.FromResult(originId);
+
+        public Task<int?> GetCartShippingOriginCityIdAsync(Guid cartId, CancellationToken ct) =>
+            Task.FromResult(originCityId);
 
         public Task<IReadOnlyList<PhysicalDeliveryCandidate>> GetShippedAsync(
             DateTime shippedAtOrBeforeUtc, IReadOnlyCollection<string> providers, int limit,

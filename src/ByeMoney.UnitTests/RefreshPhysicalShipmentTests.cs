@@ -206,6 +206,9 @@ public sealed class RefreshPhysicalShipmentTests
         public Task<string?> GetCartShippingOriginIdAsync(Guid cartId, CancellationToken ct) =>
             Task.FromResult<string?>(null);
 
+        public Task<int?> GetCartShippingOriginCityIdAsync(Guid cartId, CancellationToken ct) =>
+            Task.FromResult<int?>(null);
+
         public Task<IReadOnlyList<PhysicalDeliveryCandidate>> GetShippedAsync(
             DateTime shippedAtOrBeforeUtc, IReadOnlyCollection<string> providers, int limit,
             bool excludeOpenCarrierAlerts, CancellationToken ct) =>

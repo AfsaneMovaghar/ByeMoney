@@ -41,12 +41,10 @@ public static class AddPostexIntegrationModule
             options.Origins ?? new Dictionary<string, PostexSenderOptions>(),
             StringComparer.OrdinalIgnoreCase);
         options.EnsureLegacySenderMapped();
-        if (options.Origins.Count == 0)
-        {
-            options.Origins[PostexOptions.DefaultOriginId] = new PostexSenderOptions();
-        }
 
         services.AddSingleton(options);
+        services.AddSingleton<IShippingOriginCityReader, PostexOriginCityReader>();
+        services.AddHostedService<PostexConfigFingerprintLogger>();
 
         services.AddHttpClient(HttpClientName, client =>
         {

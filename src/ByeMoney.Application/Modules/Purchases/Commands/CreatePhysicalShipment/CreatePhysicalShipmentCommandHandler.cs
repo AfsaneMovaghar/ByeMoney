@@ -22,7 +22,8 @@ public sealed class CreatePhysicalShipmentCommandHandler(
     IRepository<PhysicalProductPurchase, PhysicalProductPurchaseId> repository,
     IPhysicalDeliveryStore deliveryStore,
     IEnumerable<IShipmentProviderClient> shipmentClients,
-    IUnitOfWork unitOfWork) :
+    IUnitOfWork unitOfWork,
+    IShippingOriginCityReader? originCities = null) :
     IRequestHandler<CreatePhysicalShipmentCommand, CreatePhysicalShipmentResponse>
 {
     /// <summary>
@@ -69,6 +70,13 @@ public sealed class CreatePhysicalShipmentCommandHandler(
         if (string.IsNullOrWhiteSpace(originId))
         {
             throw new DomainException(OrderErrors.ShipmentOriginRequired);
+        }
+
+        var frozenCityId = await deliveryStore.GetCartShippingOriginCityIdAsync(owner.CartId, ct);
+        if (frozenCityId is int quotedCityId &&
+            originCities?.GetCityId(originId) != quotedCityId)
+        {
+            throw new DomainException(OrderErrors.ShipmentOriginCityMismatch);
         }
 
         // تعدادی که در همین درخواست به واسط می‌رود؛ روی مرسوله ثبت می‌شود تا نگهبان ارتقای خودکار

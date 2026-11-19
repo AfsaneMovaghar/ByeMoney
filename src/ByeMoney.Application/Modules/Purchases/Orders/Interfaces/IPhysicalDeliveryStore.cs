@@ -23,6 +23,9 @@ public interface IPhysicalDeliveryStore
     /// <summary>شناسهٔ مبدأ فریزشدهٔ سبد؛ باید با پروفایل فرستندهٔ واسط یکی باشد.</summary>
     Task<string?> GetCartShippingOriginIdAsync(Guid cartId, CancellationToken ct);
 
+    /// <summary>شهر مبدأ فریزشده؛ null یعنی سفارش قدیمی و مانع ساخت مرسوله نیست.</summary>
+    Task<int?> GetCartShippingOriginCityIdAsync(Guid cartId, CancellationToken ct);
+
     /// <summary>
     /// قلم‌های Shipped با زمان ارسال تا <paramref name="shippedAtOrBeforeUtc"/>؛ قدیمی‌ترها اول برمی‌گردند.
     /// <paramref name="providers"/> کلیدهای منبع برای استعلام بیرونی است؛ فهرست خالی یعنی همهٔ منابع.

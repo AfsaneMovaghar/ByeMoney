@@ -14,6 +14,9 @@
   <data name="ShipmentProviderUnavailable" xml:space="preserve"><value>واسط پستی انتخاب‌شده در دسترس یا پیکربندی‌شده نیست.</value></data>
   <data name="ShipmentAddressRequired" xml:space="preserve"><value>آدرس تحویل سبد برای ساخت مرسوله موجود نیست.</value></data>
   <data name="ShipmentOriginRequired" xml:space="preserve"><value>مبدأ ارسال سبد برای ساخت مرسوله موجود نیست یا در تنظیمات واسط تعریف نشده است.</value></data>
+  <data name="ShipmentOriginNotConfigured" xml:space="preserve"><value>پروفایل مبدأ ارسال در تنظیمات پستکس تعریف نشده است.</value></data>
+  <data name="ShipmentOriginSampleProfile" xml:space="preserve"><value>پروفایل نمونهٔ فرستنده مجاز نیست؛ تلفن و نشانی واقعی مبدأ را وارد کنید.</value></data>
+  <data name="ShipmentOriginCityMismatch" xml:space="preserve"><value>شهر مبدأ فریزشدهٔ سبد با شهر همین مبدأ در تنظیمات پستکس یکی نیست.</value></data>
   <data name="ShipmentParcelRequired" xml:space="preserve"><value>جعبه، وزن، ابعاد یا ارزش اظهارشدهٔ این قلم ثبت نشده است؛ بدون عوامل کامل مرسوله، ساخت ارسال انجام نمی‌شود.</value></data>
   <data name="ShipmentOriginCoordinatesRequired" xml:space="preserve"><value>مختصات مبدأ (عرض و طول جغرافیایی) برای جمع‌آوری از محل تنظیم نشده است؛ مرسوله ساخته نشد.</value></data>
   <data name="ShipmentOriginProfileIncomplete" xml:space="preserve"><value>تنظیمات مبدأ/فرستندهٔ پستکس ناقص است یا مبدأ سبد در تنظیمات تعریف نشده.</value></data>

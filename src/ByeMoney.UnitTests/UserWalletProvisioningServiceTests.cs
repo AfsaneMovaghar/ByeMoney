@@ -1,4 +1,4 @@
-﻿using ByeMoney.Application.Modules.Wallet.Interfaces;
+using ByeMoney.Application.Modules.Wallet.Interfaces;
 using ByeMoney.Application.Modules.Wallet.Services;
 using ByeMoney.Domain.Modules.Identity.Users;
 using ByeMoney.Domain.Modules.Wallet.Accounts;
@@ -171,29 +171,22 @@ public class UserWalletProvisioningServiceTests
     }
 
     [Fact]
-    public async Task GetOrCreateSystemAccountAsync_ShouldCreateSystemAccount_WhenDoesNotExist()
+    public async Task GetOrCreateSystemAccountAsync_ShouldThrowInvalidOperationException_WhenDoesNotExist()
     {
         // Arrange
         _accountRepositoryMock
             .Setup(r => r.GetSystemAccountAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync((Account?)null);
 
-        Account? addedSystemAccount = null;
-        _accountRepositoryMock
-            .Setup(r => r.AddAsync(It.IsAny<Account>(), It.IsAny<CancellationToken>()))
-            .Callback<Account, CancellationToken>((acc, _) => addedSystemAccount = acc)
-            .Returns(Task.CompletedTask);
-
         // Act
-        var result = await _service.GetOrCreateSystemAccountAsync(CancellationToken.None);
+        var act = () => _service.GetOrCreateSystemAccountAsync(CancellationToken.None);
 
         // Assert
-        result.Should().NotBeNull();
-        result.Type.Should().Be(AccountType.System);
-        result.UserId.Should().BeNull();
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("System account has not been provisioned.");
 
         _accountRepositoryMock.Verify(
             r => r.AddAsync(It.IsAny<Account>(), It.IsAny<CancellationToken>()),
-            Times.Once);
+            Times.Never);
     }
 }

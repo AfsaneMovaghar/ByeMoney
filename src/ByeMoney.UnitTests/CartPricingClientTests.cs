@@ -86,6 +86,21 @@ public sealed class CartPricingClientTests
             new ShippingAddress("abc123", "P", "C", null, "Street 1", "R", "09120000000", "city-c"));
         result.Value.ShippingOriginId.Should().Be("ramsar");
         result.Value.ShippingOriginLabel.Should().Be("رامسر");
+        result.Value.ShippingOriginCityId.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task ProductQuoteReadsOptionalOriginCityId()
+    {
+        var client = Client(new CapturingHandler(QuoteJson(
+            ProductItemJson,
+            FullAddressJson + """ ,"shippingOriginCityId":573""")));
+
+        var result = await client.PrepareAsync(
+            new CartQuoteRequest(CartId, "buyer", null, [new CartItemInput("p", ProductItemType.Product, 1)]), default);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.ShippingOriginCityId.Should().Be(573);
     }
 
     [Theory]

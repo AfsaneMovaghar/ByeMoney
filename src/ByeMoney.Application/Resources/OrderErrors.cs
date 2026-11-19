@@ -19,6 +19,9 @@ public static class OrderErrors
     public static string ShipmentProviderUnavailable => Get(nameof(ShipmentProviderUnavailable));
     public static string ShipmentAddressRequired => Get(nameof(ShipmentAddressRequired));
     public static string ShipmentOriginRequired => Get(nameof(ShipmentOriginRequired));
+    public static string ShipmentOriginNotConfigured => Get(nameof(ShipmentOriginNotConfigured));
+    public static string ShipmentOriginSampleProfile => Get(nameof(ShipmentOriginSampleProfile));
+    public static string ShipmentOriginCityMismatch => Get(nameof(ShipmentOriginCityMismatch));
     public static string ShipmentParcelRequired => Get(nameof(ShipmentParcelRequired));
     public static string ShipmentOriginCoordinatesRequired => Get(nameof(ShipmentOriginCoordinatesRequired));
     public static string ShipmentOriginProfileIncomplete => Get(nameof(ShipmentOriginProfileIncomplete));

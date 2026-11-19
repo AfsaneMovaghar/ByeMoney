@@ -439,6 +439,9 @@ public sealed class PhysicalDeliverySyncTests
         public Task<string?> GetCartShippingOriginIdAsync(Guid cartId, CancellationToken ct) =>
             Task.FromResult<string?>(null);
 
+        public Task<int?> GetCartShippingOriginCityIdAsync(Guid cartId, CancellationToken ct) =>
+            Task.FromResult<int?>(null);
+
         public IReadOnlyList<PhysicalDeliveryCandidate> AwaitingTracking { get; init; } = [];
 
         public bool? LastExcludeOpenCarrierAlerts { get; private set; }

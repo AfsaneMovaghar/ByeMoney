@@ -38,8 +38,8 @@ public sealed class PhysicalProductCartFinancialTests
         // Cart.Total: 200 - 30 - 20 + 25 = 175
         // Allocations: 80 + 70 = 150. Allocations (150) + Shipping (25) == 175
         cart.SetQuote([
-            new CartQuoteItem("course-1", "Ø¯ÙˆØ±Ù‡ Ø¢Ù…ÙˆØ²Ø´ÛŒ", 100m, 10m, 10m, 80m, ProductItemType.Course, null, 1),
-            new CartQuoteItem("product-1", "Ú©ØªØ§Ø¨ ÙÛŒØ²ÛŒÚ©ÛŒ", 50m, 20m, 10m, 70m, ProductItemType.Product, null, 2)
+            new CartQuoteItem("course-1", "دوره آموزشی", 100m, 10m, 10m, 80m, ProductItemType.Course, null, 1),
+            new CartQuoteItem("product-1", "کتاب فیزیکی", 50m, 20m, 10m, 70m, ProductItemType.Product, null, 2)
         ], shippingAmountInNoor: 25m);
 
         cart.OriginalTotal.Should().Be(200m);
@@ -64,7 +64,7 @@ public sealed class PhysicalProductCartFinancialTests
         payment.PhysicalPurchases.Should().HaveCount(1);
         var physicalPurchase = payment.PhysicalPurchases.Single();
         physicalPurchase.ExternalProductId.Should().Be("product-1");
-        physicalPurchase.ProductTitle.Should().Be("Ú©ØªØ§Ø¨ ÙÛŒØ²ÛŒÚ©ÛŒ");
+        physicalPurchase.ProductTitle.Should().Be("کتاب فیزیکی");
         physicalPurchase.Quantity.Should().Be(2);
         physicalPurchase.UnitPriceInNoor.Should().Be(50m);
         physicalPurchase.PaidAmountInNoor.Should().Be(70m);
@@ -125,7 +125,7 @@ public sealed class PhysicalProductCartFinancialTests
 
         // 100% discount on item, but shipping fee is 30
         cart.SetQuote([
-            new CartQuoteItem("product-gift", "Ù‡Ø¯ÛŒÙ‡", 50m, 50m, 0m, 0m, ProductItemType.Product, null, 1)
+            new CartQuoteItem("product-gift", "هدیه", 50m, 50m, 0m, 0m, ProductItemType.Product, null, 1)
         ], shippingAmountInNoor: 30m);
 
         cart.Total.Should().Be(30m);
@@ -156,7 +156,7 @@ public sealed class PhysicalProductCartFinancialTests
         ], null);
 
         cart.SetQuote([
-            new CartQuoteItem("product-free", "Ø±Ø§ÛŒÚ¯Ø§Ù†", 0m, 0m, 0m, 0m, ProductItemType.Product, null, 1)
+            new CartQuoteItem("product-free", "رایگان", 0m, 0m, 0m, 0m, ProductItemType.Product, null, 1)
         ], shippingAmountInNoor: 0m);
 
         cart.Total.Should().Be(0m);
@@ -177,7 +177,7 @@ public sealed class PhysicalProductCartFinancialTests
             Guid.NewGuid(),
             UserId.New(),
             "prod-1",
-            "Ú©ØªØ§Ø¨",
+            "کتاب",
             1,
             100m,
             100m);
@@ -195,7 +195,7 @@ public sealed class PhysicalProductCartFinancialTests
             Guid.NewGuid(),
             UserId.New(),
             "prod-free",
-            "Ù‡Ø¯ÛŒÙ‡",
+            "هدیه",
             1,
             0m,
             0m);
@@ -244,8 +244,8 @@ public sealed class PhysicalProductCartFinancialTests
 
         // Quote with duplicate items throws ArgumentException
         Action setDuplicateQuote = () => cart.SetQuote([
-            new CartQuoteItem("product-1", "Ú©Ø§Ù„Ø§ Û±", 10m, 0m, 0m, 10m, ProductItemType.Product, null, 1),
-            new CartQuoteItem("product-1", "Ú©Ø§Ù„Ø§ Û± ØªÚ©Ø±Ø§Ø±ÛŒ", 10m, 0m, 0m, 10m, ProductItemType.Product, null, 1)
+            new CartQuoteItem("product-1", "کالا ۱", 10m, 0m, 0m, 10m, ProductItemType.Product, null, 1),
+            new CartQuoteItem("product-1", "کالا ۱ تکراری", 10m, 0m, 0m, 10m, ProductItemType.Product, null, 1)
         ]);
 
         setDuplicateQuote.Should().Throw<ArgumentException>();
@@ -260,7 +260,7 @@ public sealed class PhysicalProductCartFinancialTests
             Guid.NewGuid(),
             buyer,
             "prod-repeat",
-            "Ú©ØªØ§Ø¨ ØªÚ©Ø±Ø§Ø±ÛŒ",
+            "کتاب تکراری",
             1,
             100m,
             100m);
@@ -270,7 +270,7 @@ public sealed class PhysicalProductCartFinancialTests
             Guid.NewGuid(),
             buyer,
             "prod-repeat",
-            "Ú©ØªØ§Ø¨ ØªÚ©Ø±Ø§Ø±ÛŒ",
+            "کتاب تکراری",
             3,
             100m,
             300m);
@@ -296,7 +296,7 @@ public sealed class PhysicalProductCartFinancialTests
 
         // PriceInNoor arithmetic broken: LineTotal (100) - ItemDiscount(0) - CouponDiscount(0) != PriceInNoor(80)
         Action invalidPrice = () => cart.SetQuote([
-            new CartQuoteItem("product-err", "Ú©Ø§Ù„Ø§", 100m, 0m, 0m, 80m, ProductItemType.Product, null, 1)
+            new CartQuoteItem("product-err", "کالا", 100m, 0m, 0m, 80m, ProductItemType.Product, null, 1)
         ], shippingAmountInNoor: 10m);
 
         invalidPrice.Should().Throw<ArgumentException>();
@@ -312,11 +312,11 @@ public sealed class PhysicalProductCartFinancialTests
         ], null);
 
         cart.SetQuote([
-            new CartQuoteItem("product-label", "Ú©ØªØ§Ø¨", 100m, 0m, 0m, 100m, ProductItemType.Product, null, 1)
-        ], shippingAmountInNoor: 20m, shippingRuleLabel: "Ø§Ø±Ø³Ø§Ù„ Ø«Ø§Ø¨Øª Ø³Ø±Ø§Ø³Ø±ÛŒ");
+            new CartQuoteItem("product-label", "کتاب", 100m, 0m, 0m, 100m, ProductItemType.Product, null, 1)
+        ], shippingAmountInNoor: 20m, shippingRuleLabel: "ارسال ثابت سراسری");
 
         cart.ShippingAmountInNoor.Should().Be(20m);
-        cart.ShippingRuleLabel.Should().Be("Ø§Ø±Ø³Ø§Ù„ Ø«Ø§Ø¨Øª Ø³Ø±Ø§Ø³Ø±ÛŒ");
+        cart.ShippingRuleLabel.Should().Be("ارسال ثابت سراسری");
     }
 
     [Fact]
@@ -329,8 +329,8 @@ public sealed class PhysicalProductCartFinancialTests
 
         // 3 items * 50 = 150 base. Discounts: 30 item discount, 20 coupon discount => 100 paid
         cart.SetQuote([
-            new CartQuoteItem("product-book", "Ú©ØªØ§Ø¨ ÙÛŒØ²ÛŒÚ©ÛŒ", 50m, 30m, 20m, 100m, ProductItemType.Product, null, 3)
-        ], shippingAmountInNoor: 15m, shippingRuleLabel: "Ø§Ø±Ø³Ø§Ù„ ÙˆÛŒÚ˜Ù‡");
+            new CartQuoteItem("product-book", "کتاب فیزیکی", 50m, 30m, 20m, 100m, ProductItemType.Product, null, 3)
+        ], shippingAmountInNoor: 15m, shippingRuleLabel: "ارسال ویژه");
 
         var physicalId = PhysicalProductPurchaseId.New();
         var physical = PhysicalProductPurchase.Create(
@@ -338,7 +338,7 @@ public sealed class PhysicalProductCartFinancialTests
             cart.Id,
             buyer,
             "product-book",
-            "Ú©ØªØ§Ø¨ ÙÛŒØ²ÛŒÚ©ÛŒ",
+            "کتاب فیزیکی",
             3,
             50m,
             100m);
@@ -351,7 +351,7 @@ public sealed class PhysicalProductCartFinancialTests
         receipt.CartId.Should().Be(cart.Id);
         receipt.TransactionId.Should().Be(cart.Id);
         receipt.ExternalItemId.Should().Be("product-book");
-        receipt.ItemTitle.Should().Be("Ú©ØªØ§Ø¨ ÙÛŒØ²ÛŒÚ©ÛŒ");
+        receipt.ItemTitle.Should().Be("کتاب فیزیکی");
         receipt.BaseAmountInNoor.Should().Be(150m);
         receipt.DiscountAmountInNoor.Should().Be(50m);
         receipt.FinalAmountInNoor.Should().Be(100m);
@@ -370,13 +370,13 @@ public sealed class PhysicalProductCartFinancialTests
         var row = new PurchaseReadRow(
             Guid.NewGuid(),
             Guid.NewGuid(),
-            "Ú©Ø§Ù„Ø§ÛŒ Ø¢Ø²Ù…Ø§ÛŒØ´ÛŒ",
+            "کالای آزمایشی",
             200m,
             DateTime.UtcNow,
             CoursePurchaseStatus.Debited,
             "user-ext",
-            "Ø¹Ù„ÛŒ",
-            "Ù…Ø­Ù…Ø¯ÛŒ",
+            "علی",
+            "محمدی",
             ProductItemType.Product);
 
         var item = PurchaseHistoryMapping.ToListItem(row);

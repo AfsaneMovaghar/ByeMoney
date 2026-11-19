@@ -191,7 +191,7 @@ public sealed class PostexShipmentCityCodeTests
         result.Outcome.Should().Be(ShipmentCreateOutcome.Failed);
         result.ErrorMessage.Should().Be(OrderErrors.ShipmentOriginCoordinatesRequired);
         reader.Calls.Should().Be(0);
-        http.Paths.Should().NotContain(path => path.Contains("parcels/bulk", StringComparison.Ordinal));
+        http.Paths.Should().BeEmpty();
     }
 
     [Fact]
@@ -252,11 +252,86 @@ public sealed class PostexShipmentCityCodeTests
             .And.Contain("خطا در داده های ورودی");
     }
 
+    [Fact]
+    public async Task EmptyOriginsAreRejectedBeforeHttp()
+    {
+        var http = new RecordingHandler();
+        var options = new PostexOptions
+        {
+            Enabled = true,
+            ApiKey = "test-key",
+            Origins = new Dictionary<string, PostexSenderOptions>(StringComparer.OrdinalIgnoreCase)
+        };
+        var client = new PostexShipmentClient(
+            new HttpClient(http) { BaseAddress = new Uri("https://postex.test/") },
+            options,
+            new FakeCityCodeReader());
+
+        var result = await client.CreateOrGetParcelAsync(Request("city-mashhad"), CancellationToken.None);
+
+        result.Outcome.Should().Be(ShipmentCreateOutcome.Failed);
+        result.ErrorMessage.Should().Be(OrderErrors.ShipmentOriginNotConfigured);
+        http.Paths.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task SampleProfileWithDropOffIsRejectedBeforeHttp()
+    {
+        var http = new RecordingHandler();
+        var client = ClientWithSender(http, new PostexSenderOptions
+        {
+            Lat = 36.92,
+            Lon = 50.65,
+            CompanyName = "خاک تا افلاک"
+        });
+
+        var result = await client.CreateOrGetParcelAsync(
+            Request("city-mashhad", "courier_drop_off"), CancellationToken.None);
+
+        result.Outcome.Should().Be(ShipmentCreateOutcome.Failed);
+        result.ErrorMessage.Should().Be(OrderErrors.ShipmentOriginSampleProfile);
+        http.Paths.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task SampleProfileWithCoordinatesUsesSampleMessageNotMissingCoordinates()
+    {
+        var http = new RecordingHandler();
+        var client = ClientWithSender(http, new PostexSenderOptions { Lat = 36.92, Lon = 50.65 });
+
+        var result = await client.CreateOrGetParcelAsync(Request("city-mashhad"), CancellationToken.None);
+
+        result.Outcome.Should().Be(ShipmentCreateOutcome.Failed);
+        result.ErrorMessage.Should().Be(OrderErrors.ShipmentOriginSampleProfile);
+        result.ErrorMessage.Should().NotBe(OrderErrors.ShipmentOriginCoordinatesRequired);
+        http.Paths.Should().BeEmpty();
+    }
+
     private static PostexShipmentClient Client(
         RecordingHandler http,
         FakeCityCodeReader reader,
         double? lat = 36.92,
-        double? lon = 50.65)
+        double? lon = 50.65) =>
+        ClientWithSender(http, WarehouseSender(lat, lon), reader);
+
+    private static PostexSenderOptions WarehouseSender(double? lat, double? lon) => new()
+    {
+        FirstName = "خاک",
+        LastName = "تا افلاک",
+        CompanyName = "خاک تا افلاک",
+        MobileNo = "09115520000",
+        TelephoneNo = "01155220000",
+        Address = "رامسر، خیابان ساحلی، پلاک ۱۲",
+        CityId = 573,
+        CityName = "رامسر",
+        Lat = lat,
+        Lon = lon
+    };
+
+    private static PostexShipmentClient ClientWithSender(
+        RecordingHandler http,
+        PostexSenderOptions sender,
+        FakeCityCodeReader? reader = null)
     {
         var options = new PostexOptions
         {
@@ -266,13 +341,13 @@ public sealed class PostexShipmentCityCodeTests
             ReadyToAccept = false,
             Origins = new Dictionary<string, PostexSenderOptions>(StringComparer.OrdinalIgnoreCase)
             {
-                ["ramsar"] = new PostexSenderOptions { Lat = lat, Lon = lon }
+                ["ramsar"] = sender
             }
         };
         return new PostexShipmentClient(
             new HttpClient(http) { BaseAddress = new Uri("https://postex.test/") },
             options,
-            reader);
+            reader ?? new FakeCityCodeReader());
     }
 
     private static ShipmentCreateRequest Request(string? cityDocumentId, string? collectionType = "pick_up") =>
