@@ -226,7 +226,7 @@ public sealed class GatewayTopUpService(
             return Result.Conflict(ApplicationErrors.TopUpRequest_PaymentMethodInvalid,
                 GatewayTopUpErrorCodes.InvalidVerificationData);
         if (topUp.ManualRefundReference is not null && command.Kind is GatewayResultKinds.Verified or GatewayResultKinds.ReverseSucceeded)
-            return Result.Conflict(ApplicationErrors.TopUpRequest_ReviewRefundUnsupported,
+            return Result.Conflict(ApplicationErrors.TopUpRequest_GatewayResultAfterManualRefund,
                 GatewayTopUpErrorCodes.ReviewRefundUnsupported);
         var repeated = topUp.GatewayEventId == command.EventId;
         if (!repeated && topUp.Status == TopUpStatus.Confirmed && command.Kind == GatewayResultKinds.Verified &&
@@ -338,7 +338,7 @@ public sealed class GatewayTopUpService(
                 ApplicationErrors.TopUpRequest_PaymentMethodInvalid,
                 GatewayTopUpErrorCodes.InvalidVerificationData));
         if (topUp.ManualRefundReference is not null)
-            return new GatewayConfirmationOutcome(Result.Conflict(ApplicationErrors.TopUpRequest_ReviewRefundUnsupported,
+            return new GatewayConfirmationOutcome(Result.Conflict(ApplicationErrors.TopUpRequest_GatewayResultAfterManualRefund,
                 GatewayTopUpErrorCodes.ReviewRefundUnsupported));
 
         if (topUp.AmountRial is null ||

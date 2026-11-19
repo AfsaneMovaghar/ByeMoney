@@ -473,6 +473,7 @@ namespace ByeMoney.Application.Resources {
         public static string TopUpRequest_ReviewOutcomeInvalid => ResourceManager.GetString("TopUpRequest_ReviewOutcomeInvalid", resourceCulture)!;
         public static string TopUpRequest_ReviewFinancialReferenceInvalid => ResourceManager.GetString("TopUpRequest_ReviewFinancialReferenceInvalid", resourceCulture)!;
         public static string TopUpRequest_ReviewRefundUnsupported => ResourceManager.GetString("TopUpRequest_ReviewRefundUnsupported", resourceCulture)!;
+        public static string TopUpRequest_GatewayResultAfterManualRefund => ResourceManager.GetString("TopUpRequest_GatewayResultAfterManualRefund", resourceCulture)!;
         public static string TopUpRequest_PendingItemRequired => ResourceManager.GetString("TopUpRequest_PendingItemRequired", resourceCulture)!;
         public static string TopUpRequest_PendingItemTypeInvalid => ResourceManager.GetString("TopUpRequest_PendingItemTypeInvalid", resourceCulture)!;
         public static string Gift_IdempotencyKeyRequired => ResourceManager.GetString("Gift_IdempotencyKeyRequired", resourceCulture)!;
