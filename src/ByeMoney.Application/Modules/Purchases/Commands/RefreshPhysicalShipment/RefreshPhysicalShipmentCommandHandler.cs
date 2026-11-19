@@ -91,11 +91,13 @@ public sealed class RefreshPhysicalShipmentCommandHandler(
         if (hasBarcode && quantityMatches)
         {
             purchase.MarkShipped(result.TrackingCode, provider, purchase.ProviderParcelId);
+            purchase.RememberTrackingUrl(result.TrackingUrl);
             await SaveAsync(purchase, ct);
             return State(purchase, PhysicalShipmentRefreshOutcome.Shipped);
         }
 
         // ارجاع و تاریخ پذیرش به‌روز می‌شود؛ نشان «در انتظار پرداخت» دیگر معنا ندارد.
+        purchase.RememberTrackingUrl(result.TrackingUrl);
         purchase.ClearCarrierPaymentPending();
         await SaveAsync(purchase, ct);
 

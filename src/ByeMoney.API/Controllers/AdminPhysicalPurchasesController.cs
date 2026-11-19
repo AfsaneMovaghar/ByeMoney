@@ -1,6 +1,7 @@
 using ByeMoney.API.Contracts.Purchases;
 using ByeMoney.Application.Modules.Purchases.Commands.CreatePhysicalShipment;
 using ByeMoney.Application.Modules.Purchases.Commands.RefreshPhysicalShipment;
+using ByeMoney.Application.Modules.Purchases.Commands.ResolveCarrierAlert;
 using ByeMoney.Application.Modules.Purchases.Commands.ResolveCarrierReturn;
 using ByeMoney.Application.Modules.Purchases.Commands.UpdatePhysicalDeliveryStatus;
 using ByeMoney.Domain.Modules.Identity.Constants;
@@ -83,6 +84,25 @@ public sealed class AdminPhysicalPurchasesController(ISender sender) : Controlle
         CancellationToken ct)
     {
         return Ok(await sender.Send(new ResolveCarrierReturnCommand(
+            purchaseId, request.Resolution, request.Note), ct));
+    }
+
+    /// <summary>
+    /// تعیین‌تکلیف هشدار خسارت یا مفقودی. از مسیر برگشتی جداست و تأیید خریدار را نمی‌بندد.
+    /// </summary>
+    [HttpPost("{purchaseId:guid}/carrier-alert/resolve")]
+    [ProducesResponseType(typeof(CarrierAlertResolutionResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<CarrierAlertResolutionResponse>> ResolveCarrierAlert(
+        Guid purchaseId,
+        [FromBody] ResolveCarrierReturnApiRequest request,
+        CancellationToken ct)
+    {
+        return Ok(await sender.Send(new ResolveCarrierAlertCommand(
             purchaseId, request.Resolution, request.Note), ct));
     }
 }

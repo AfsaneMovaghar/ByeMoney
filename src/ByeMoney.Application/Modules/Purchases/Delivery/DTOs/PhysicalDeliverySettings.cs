@@ -12,8 +12,8 @@ public sealed class PhysicalDeliverySettings
     /// مهلت پشتیبان تحویل خودکار برای قلمی که استعلام واسط برایش ممکن نیست؛
     /// صفر یعنی خاموش.
     /// </summary>
-    public int AutoConfirmAfterDays { get; set; } = 14;
+    public int AutoConfirmAfterDays { get; set; } = 30;
 
     /// <summary>فاصلهٔ چرخهٔ استعلام وضعیت مرسوله‌ها در میزبان پس‌زمینه.</summary>
-    public int PollIntervalMinutes { get; set; } = 60;
+    public int PollIntervalMinutes { get; set; } = 15;
 }

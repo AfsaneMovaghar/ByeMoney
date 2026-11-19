@@ -21,10 +21,8 @@ public static class PostexStatusParser
     private const int CanceledParentCode = 8;
 
     /// <summary>
-    /// کدهایی که والدشان با معنای واقعی هم‌خوان نیست (بند ۷.۳):
-    /// توزیع مجدد زیر والد تحویل، و مسیر ناموجود زیر والد لغو.
+    /// فقط ۱۱۳۱۱ استثناست: «شروع توزیع مجدد» زیر والد تحویل است و نباید تحویل ثبت شود.
     /// </summary>
-    private static readonly HashSet<int> ExceptionStatusCodes = [11311, 11310];
 
     public static TrackingResult Parse(string? json, int statusCode)
     {
@@ -58,29 +56,89 @@ public static class PostexStatusParser
             }
 
             var trackingCode = ReadUsableTrackingCode(root);
-            if (ExceptionStatusCodes.Contains(code))
+            var trackingUrl = ReadHttpsTrackingUrl(root);
+            var hasParent = TryReadNestedInt(root, "parent", "code", out var parent);
+            int? parentCode = hasParent ? parent : null;
+
+            // شروع توزیع مجدد زیر والد تحویل است؛ تحویل ثبت نمی‌شود.
+            if (code == PhysicalProductPurchase.DeliveryRetryStatusCode)
             {
-                return new TrackingResult(TrackingOutcome.InTransit, statusName, statusTitle, trackingCode);
+                return Result(TrackingOutcome.InTransit, statusName, statusTitle, trackingCode, code, parentCode, trackingUrl);
             }
 
-            var parentCode = TryReadNestedInt(root, "parent", "code", out var parent)
-                ? parent
-                : InferParentCode(code);
-
-            return parentCode switch
+            // خسارت و مفقودی حتی با والد دیگر هم تحویل یا برگشتی نمی‌شوند.
+            if (PhysicalProductPurchase.IsDurableCarrierAlertCode(code))
             {
-                DeliveredParentCode => new TrackingResult(
-                    TrackingOutcome.Delivered, statusName, statusTitle, trackingCode),
-                ReturnedParentCode or CanceledParentCode =>
-                    new TrackingResult(TrackingOutcome.Returned, statusName, statusTitle, trackingCode),
-                _ => new TrackingResult(TrackingOutcome.InTransit, statusName, statusTitle, trackingCode)
+                return Result(
+                    TrackingOutcome.InTransit, statusName, statusTitle, trackingCode, code, parentCode, trackingUrl,
+                    durableAlert: true);
+            }
+
+            // مسیر ناموجود با والد ۸، یا بدون والد، برگشتی است. والدِ دیگر همان والد را تصمیم می‌گیرد.
+            if (code == PhysicalProductPurchase.RouteNotFoundStatusCode &&
+                (!hasParent || parent == PhysicalProductPurchase.CanceledParentCode))
+            {
+                return Result(TrackingOutcome.Returned, statusName, statusTitle, trackingCode, code, parentCode, trackingUrl);
+            }
+
+            var effectiveParent = hasParent ? parent : InferParentCode(code);
+            var mismatch = code == PhysicalProductPurchase.RouteNotFoundStatusCode &&
+                hasParent && parent != PhysicalProductPurchase.CanceledParentCode;
+            var outcome = effectiveParent switch
+            {
+                DeliveredParentCode => TrackingOutcome.Delivered,
+                ReturnedParentCode or CanceledParentCode => TrackingOutcome.Returned,
+                _ => TrackingOutcome.InTransit
             };
+            return Result(
+                outcome, statusName, statusTitle, trackingCode, code, parentCode, trackingUrl, parentMismatch: mismatch);
         }
         catch (JsonException)
         {
             return new TrackingResult(TrackingOutcome.Failed);
         }
     }
+
+    /// <summary>
+    /// نشانی رهگیری از ریشه یا از <c>shipment[].tracking.tracking_url</c>. فقط https مطلق برمی‌گردد.
+    /// </summary>
+    public static string? ReadHttpsTrackingUrl(JsonElement root)
+    {
+        var raw = ReadString(root, "tracking_url");
+        if (string.IsNullOrWhiteSpace(raw) &&
+            root.ValueKind == JsonValueKind.Object &&
+            root.TryGetProperty("shipment", out var shipment) &&
+            shipment.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var item in shipment.EnumerateArray())
+            {
+                if (item.ValueKind == JsonValueKind.Object &&
+                    item.TryGetProperty("tracking", out var tracking) &&
+                    tracking.ValueKind == JsonValueKind.Object)
+                {
+                    raw = ReadString(tracking, "tracking_url");
+                    if (!string.IsNullOrWhiteSpace(raw))
+                    {
+                        break;
+                    }
+                }
+            }
+        }
+
+        return PhysicalProductPurchase.NormalizeHttpsTrackingUrl(raw);
+    }
+
+    private static TrackingResult Result(
+        TrackingOutcome outcome,
+        string? statusName,
+        string? statusTitle,
+        string? trackingCode,
+        int statusCode,
+        int? parentCode,
+        string? trackingUrl,
+        bool durableAlert = false,
+        bool parentMismatch = false) =>
+        new(outcome, statusName, statusTitle, trackingCode, statusCode, parentCode, trackingUrl, durableAlert, parentMismatch);
 
     /// <summary>
     /// اگر فقط کد فرزند آمده باشد، همان کدهای والد شناخته‌شده را برمی‌گرداند؛

@@ -48,14 +48,55 @@ public class PhysicalProductPurchase : BaseEntity<PhysicalProductPurchaseId>
     /// <summary>شناسهٔ داخلی ادمین تعیین‌تکلیف‌کننده.</summary>
     public Guid? CarrierReturnResolvedByUserId { get; private set; }
 
+    /// <summary>کد وضعیت خسارت (۱۱۳۰۴) یا مفقودی (۱۱۳۰۵). وضعیت تحویل را عوض نمی‌کند.</summary>
+    public int? CarrierAlertCode { get; private set; }
+
+    /// <summary>زمان ثبت هشدار خسارت یا مفقودی.</summary>
+    public DateTime? CarrierAlertAtUtc { get; private set; }
+
+    /// <summary>تعیین‌تکلیف ادمین برای هشدار خسارت یا مفقودی؛ جدا از برگشتی.</summary>
+    public CarrierReturnResolution? CarrierAlertResolution { get; private set; }
+
+    /// <summary>یادداشت ادمین برای تعیین‌تکلیف هشدار.</summary>
+    public string? CarrierAlertResolutionNote { get; private set; }
+
+    /// <summary>زمان تعیین‌تکلیف هشدار.</summary>
+    public DateTime? CarrierAlertResolvedAtUtc { get; private set; }
+
+    /// <summary>شناسهٔ داخلی ادمین تعیین‌تکلیف‌کنندهٔ هشدار.</summary>
+    public Guid? CarrierAlertResolvedByUserId { get; private set; }
+
+    /// <summary>نشانی مطلق https رهگیری، اگر واسط آن را داده باشد. از روی کد ساخته نمی‌شود.</summary>
+    public string? TrackingUrl { get; private set; }
+
     public const int CarrierReturnResolutionMaxLength = 30;
     public const int CarrierReturnResolutionNoteMaxLength = 1000;
+    public const int TrackingUrlMaxLength = 1000;
+    public const int DamagedParcelStatusCode = 11304;
+    public const int MissingShipmentStatusCode = 11305;
+    public const int RouteNotFoundStatusCode = 11310;
+    public const int DeliveryRetryStatusCode = 11311;
+    public const int OthersParentCode = 10;
+    public const int CanceledParentCode = 8;
 
     /// <summary>مرسوله برگشتی دارد و هنوز توسط ادمین تعیین‌تکلیف نشده است.</summary>
     public bool HasUnresolvedCarrierReturn => CarrierReturnedAtUtc != null && CarrierReturnResolution == null;
 
     /// <summary>مرسوله برگشتی با تصمیم عدم تسویه بسته شده و برای همیشه از تسویه و تحویل خارج است.</summary>
     public bool HasClosedWithoutSettlementReturn => CarrierReturnedAtUtc != null && CarrierReturnResolution == Purchases.CarrierReturnResolution.ClosedWithoutSettlement;
+
+    /// <summary>هشدار خسارت یا مفقودی هنوز تعیین‌تکلیف نشده است. تأیید خریدار آن را نمی‌بندد.</summary>
+    public bool HasUnresolvedCarrierAlert => CarrierAlertCode != null && CarrierAlertResolution == null;
+
+    /// <summary>
+    /// هشدارِ حل‌نشده یا بسته‌شده بدون تسویه. تحویل خودکار و همگام این قلم را Delivered نمی‌کند.
+    /// </summary>
+    public bool ExcludedFromAutomaticDeliveryByAlert =>
+        CarrierAlertCode != null && CarrierAlertResolution != Purchases.CarrierReturnResolution.DeliveryConfirmed;
+
+    /// <summary>فقط دو کد خسارت و مفقودی هشدار پایدار می‌سازند.</summary>
+    public static bool IsDurableCarrierAlertCode(int statusCode) =>
+        statusCode is DamagedParcelStatusCode or MissingShipmentStatusCode;
 
     /// <summary>کد رهگیری مرسوله که به خریدار نشان داده می‌شود؛ تا پیش از «تحویل‌شده» قابل اصلاح است.</summary>
     public string? TrackingCode { get; private set; }
@@ -213,6 +254,11 @@ public class PhysicalProductPurchase : BaseEntity<PhysicalProductPurchaseId>
                 : NormalizeProviderParcelId(provider, providerParcelId);
             ShipmentRequestStartedAtUtc = null;
             CarrierPaymentPendingSinceUtc = null;
+            if (IsManual(TrackingProvider))
+            {
+                TrackingUrl = null;
+            }
+
             UpdatedAt = DateTime.UtcNow;
             return;
         }
@@ -243,6 +289,11 @@ public class PhysicalProductPurchase : BaseEntity<PhysicalProductPurchaseId>
         ProviderParcelId = NormalizeProviderParcelId(provider, providerParcelId);
         ShipmentRequestStartedAtUtc = null;
         CarrierPaymentPendingSinceUtc = null;
+        if (IsManual(TrackingProvider))
+        {
+            TrackingUrl = null;
+        }
+
         UpdatedAt = now;
     }
 
@@ -368,9 +419,50 @@ public class PhysicalProductPurchase : BaseEntity<PhysicalProductPurchaseId>
 
         ProviderParcelId = null;
         TrackingProvider = null;
+        TrackingUrl = null;
         CarrierParcelQuantity = null;
         CarrierPaymentPendingSinceUtc = null;
         UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// نشانی مطلق https را نگه می‌دارد. http، نشانی نسبی و منبع دستی نادیده گرفته می‌شوند.
+    /// اگر نشانی عوض نشده باشد هیچ نوشتنی لازم نیست.
+    /// </summary>
+    public bool RememberTrackingUrl(string? url)
+    {
+        var normalized = NormalizeHttpsTrackingUrl(url);
+        if (normalized is null || IsManual(TrackingProvider) || TrackingUrl == normalized)
+        {
+            return false;
+        }
+
+        TrackingUrl = normalized;
+        UpdatedAt = DateTime.UtcNow;
+        return true;
+    }
+
+    /// <summary>فقط نشانی مطلق با طرح https پذیرفته می‌شود.</summary>
+    public static string? NormalizeHttpsTrackingUrl(string? url)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+        {
+            return null;
+        }
+
+        var trimmed = url.Trim();
+        if (trimmed.Length > TrackingUrlMaxLength || trimmed.Any(char.IsControl))
+        {
+            return null;
+        }
+
+        if (!Uri.TryCreate(trimmed, UriKind.Absolute, out var parsed) ||
+            !string.Equals(parsed.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        return trimmed;
     }
 
     /// <summary>
@@ -420,8 +512,79 @@ public class PhysicalProductPurchase : BaseEntity<PhysicalProductPurchaseId>
             return;
         }
 
+        if (DeliveryStatus != PhysicalDeliveryStatus.Shipped)
+        {
+            throw new DomainException(DomainErrors.PhysicalProductPurchase_CarrierReturnRequiresShipped);
+        }
+
         CarrierReturnedAtUtc = detectedAtUtc;
         UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// ثبت یک‌بارهٔ هشدار خسارت یا مفقودی، فقط روی قلم ارسال‌شده، بدون تغییر وضعیت و بدون Ledger.
+    /// </summary>
+    public void MarkCarrierAlert(int statusCode, DateTime detectedAtUtc)
+    {
+        if (CarrierAlertCode.HasValue)
+        {
+            return;
+        }
+
+        if (!IsDurableCarrierAlertCode(statusCode))
+        {
+            throw new DomainException(DomainErrors.PhysicalProductPurchase_InvalidCarrierAlertCode);
+        }
+
+        if (DeliveryStatus != PhysicalDeliveryStatus.Shipped)
+        {
+            throw new DomainException(DomainErrors.PhysicalProductPurchase_CarrierAlertRequiresShipped);
+        }
+
+        CarrierAlertCode = statusCode;
+        CarrierAlertAtUtc = detectedAtUtc;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// تعیین‌تکلیف هشدار خسارت یا مفقودی. تأیید خریدار این هشدار را نمی‌بندد.
+    /// <see cref="CarrierReturnResolution.DeliveryConfirmed"/> اگر قلم هنوز ارسال‌شده باشد آن را تحویل‌شده می‌کند.
+    /// <see cref="CarrierReturnResolution.ClosedWithoutSettlement"/> وضعیت را به عقب برنمی‌گرداند.
+    /// </summary>
+    public void ResolveCarrierAlert(CarrierReturnResolution resolution, string note, Guid adminUserId, DateTime utcNow)
+    {
+        if (!CarrierAlertCode.HasValue)
+        {
+            throw new DomainException(DomainErrors.PhysicalProductPurchase_NotCarrierAlert);
+        }
+
+        if (string.IsNullOrWhiteSpace(note) || note.Length > CarrierReturnResolutionNoteMaxLength)
+        {
+            throw new DomainException(DomainErrors.PhysicalProductPurchase_InvalidCarrierAlertResolutionNote);
+        }
+
+        if (CarrierAlertResolution.HasValue)
+        {
+            if (CarrierAlertResolution == resolution && CarrierAlertResolutionNote == note)
+            {
+                return;
+            }
+
+            throw new ConflictDomainException(DomainErrors.PhysicalProductPurchase_CarrierAlertResolutionConflict);
+        }
+
+        CarrierAlertResolution = resolution;
+        CarrierAlertResolutionNote = note;
+        CarrierAlertResolvedAtUtc = utcNow;
+        CarrierAlertResolvedByUserId = adminUserId;
+        UpdatedAt = utcNow;
+
+        if (resolution == Purchases.CarrierReturnResolution.DeliveryConfirmed &&
+            DeliveryStatus == PhysicalDeliveryStatus.Shipped)
+        {
+            DeliveryStatus = PhysicalDeliveryStatus.Delivered;
+            DeliveredAtUtc ??= utcNow;
+        }
     }
 
     /// <summary>

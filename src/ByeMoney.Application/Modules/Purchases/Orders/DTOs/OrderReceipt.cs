@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using ByeMoney.Application.Modules.Purchases.History.DTOs;
 
 namespace ByeMoney.Application.Modules.Purchases.Orders.DTOs;
@@ -17,4 +18,8 @@ public sealed record OrderReceiptItem(
     string? TrackingCode = null, string? TrackingProvider = null, DateTime? ShippedAtUtc = null,
     DateTime? CarrierReturnedAtUtc = null,
     string? CarrierReturnResolution = null,
-    string? ProviderParcelId = null, DateTime? CarrierPaymentPendingSinceUtc = null);
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    string? ProviderParcelId = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    DateTime? CarrierPaymentPendingSinceUtc = null,
+    string? TrackingUrl = null);

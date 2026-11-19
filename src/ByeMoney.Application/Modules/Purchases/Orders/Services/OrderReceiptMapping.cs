@@ -9,7 +9,7 @@ public static class OrderReceiptMapping
     /// <summary>
     /// رسید فقط برای سفارش با موفقیت مالی کامل ساخته می‌شود؛ در غیر این صورت null برمی‌گردد.
     /// </summary>
-    public static OrderReceipt? Build(OrderDetails order, OrderSnapshot snapshot)
+    public static OrderReceipt? Build(OrderDetails order, OrderSnapshot snapshot, bool includeAdminCarrierFields = false)
     {
         var isPaid = order.FinancialStatus == OrderFinancialStatus.Paid.ToString();
         var isComplete = order.Items.All(item => item.PurchaseId is not null && item.FinalAmountInNoor is not null);
@@ -20,7 +20,8 @@ public static class OrderReceiptMapping
 
         var coursePurchases = snapshot.Purchases.ToDictionary(purchase => purchase.Id.Value);
         var physicalPurchases = snapshot.PhysicalPurchases.ToDictionary(purchase => purchase.Id.Value);
-        var items = order.Items.Select(item => MapItem(item, order.CreatedAtUtc, coursePurchases, physicalPurchases)).ToArray();
+        var items = order.Items.Select(item =>
+            MapItem(item, order.CreatedAtUtc, coursePurchases, physicalPurchases, includeAdminCarrierFields)).ToArray();
         var transactionIds = order.Items.Select(item => item.TransactionId).Distinct().ToArray();
         var cart = order.CartId.HasValue
             ? snapshot.Carts.SingleOrDefault(item => item.Id == order.CartId.Value)
@@ -39,7 +40,8 @@ public static class OrderReceiptMapping
         OrderItem item,
         DateTime orderCreatedAtUtc,
         IReadOnlyDictionary<Guid, CoursePurchase> coursePurchases,
-        IReadOnlyDictionary<Guid, PhysicalProductPurchase> physicalPurchases)
+        IReadOnlyDictionary<Guid, PhysicalProductPurchase> physicalPurchases,
+        bool includeAdminCarrierFields)
     {
         var purchaseId = item.PurchaseId!.Value;
         var finalAmount = item.FinalAmountInNoor!.Value;
@@ -67,6 +69,8 @@ public static class OrderReceiptMapping
             item.TrackingCode, item.TrackingProvider, item.ShippedAtUtc,
             item.CarrierReturnedAtUtc ?? physical?.CarrierReturnedAtUtc,
             item.CarrierReturnResolution ?? physical?.CarrierReturnResolution?.ToString(),
-            physical?.ProviderParcelId, physical?.CarrierPaymentPendingSinceUtc);
+            includeAdminCarrierFields ? physical?.ProviderParcelId : null,
+            includeAdminCarrierFields ? physical?.CarrierPaymentPendingSinceUtc : null,
+            physical?.TrackingUrl);
     }
 }

@@ -45,6 +45,11 @@ public static class OrderErrors
     public static string CarrierReturn_NoteTooLong => Get(nameof(CarrierReturn_NoteTooLong));
     public static string CarrierReturn_NotReturned => Get(nameof(CarrierReturn_NotReturned));
     public static string CarrierReturn_ResolutionConflict => Get(nameof(CarrierReturn_ResolutionConflict));
+    public static string CarrierAlert_InvalidResolution => Get(nameof(CarrierAlert_InvalidResolution));
+    public static string CarrierAlert_NoteRequired => Get(nameof(CarrierAlert_NoteRequired));
+    public static string CarrierAlert_NoteTooLong => Get(nameof(CarrierAlert_NoteTooLong));
+    public static string CarrierAlert_NotAlerted => Get(nameof(CarrierAlert_NotAlerted));
+    public static string CarrierAlert_ResolutionConflict => Get(nameof(CarrierAlert_ResolutionConflict));
 
     private static string Get(string name) => Resources.GetString(name)
         ?? throw new MissingManifestResourceException(name);

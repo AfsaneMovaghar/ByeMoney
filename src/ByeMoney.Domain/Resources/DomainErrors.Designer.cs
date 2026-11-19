@@ -306,6 +306,12 @@ namespace ByeMoney.Domain.Resources {
         public static string PhysicalProductPurchase_NotCarrierReturned => ResourceManager.GetString("PhysicalProductPurchase_NotCarrierReturned", resourceCulture)!;
         public static string PhysicalProductPurchase_CarrierReturnResolutionConflict => ResourceManager.GetString("PhysicalProductPurchase_CarrierReturnResolutionConflict", resourceCulture)!;
         public static string PhysicalProductPurchase_InvalidCarrierReturnResolutionNote => ResourceManager.GetString("PhysicalProductPurchase_InvalidCarrierReturnResolutionNote", resourceCulture)!;
+        public static string PhysicalProductPurchase_CarrierReturnRequiresShipped => ResourceManager.GetString("PhysicalProductPurchase_CarrierReturnRequiresShipped", resourceCulture)!;
+        public static string PhysicalProductPurchase_InvalidCarrierAlertCode => ResourceManager.GetString("PhysicalProductPurchase_InvalidCarrierAlertCode", resourceCulture)!;
+        public static string PhysicalProductPurchase_CarrierAlertRequiresShipped => ResourceManager.GetString("PhysicalProductPurchase_CarrierAlertRequiresShipped", resourceCulture)!;
+        public static string PhysicalProductPurchase_NotCarrierAlert => ResourceManager.GetString("PhysicalProductPurchase_NotCarrierAlert", resourceCulture)!;
+        public static string PhysicalProductPurchase_InvalidCarrierAlertResolutionNote => ResourceManager.GetString("PhysicalProductPurchase_InvalidCarrierAlertResolutionNote", resourceCulture)!;
+        public static string PhysicalProductPurchase_CarrierAlertResolutionConflict => ResourceManager.GetString("PhysicalProductPurchase_CarrierAlertResolutionConflict", resourceCulture)!;
         public static string GiftCampaign_AmountCannotBeNegative => ResourceManager.GetString("GiftCampaign_AmountCannotBeNegative", resourceCulture)!;
         public static string GiftCampaign_StartDateCannotBeAfterEndDate => ResourceManager.GetString("GiftCampaign_StartDateCannotBeAfterEndDate", resourceCulture)!;
         public static string Wallet_CreditAmountMustBePositive => ResourceManager.GetString("Wallet_CreditAmountMustBePositive", resourceCulture)!;

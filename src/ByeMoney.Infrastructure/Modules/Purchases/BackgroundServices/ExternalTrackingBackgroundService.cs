@@ -27,7 +27,7 @@ public sealed class ExternalTrackingBackgroundService(
             return;
         }
 
-        var period = TimeSpan.FromMinutes(settings.PollIntervalMinutes > 0 ? settings.PollIntervalMinutes : 60);
+        var period = TimeSpan.FromMinutes(settings.PollIntervalMinutes > 0 ? settings.PollIntervalMinutes : 15);
 
         try
         {

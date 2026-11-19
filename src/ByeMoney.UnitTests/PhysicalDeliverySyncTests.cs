@@ -216,7 +216,7 @@ public sealed class PhysicalDeliverySyncTests
         var repository = new FakeRepository(purchase);
 
         var service = CreateService(
-            store, repository, new PhysicalDeliverySettings { AutoConfirmAfterDays = 14 });
+            store, repository, new PhysicalDeliverySettings { AutoConfirmAfterDays = 30 });
 
         var changed = await service.ConfirmExpiredAsync(CancellationToken.None);
 
@@ -285,14 +285,85 @@ public sealed class PhysicalDeliverySyncTests
         var repository = new FakeRepository(purchase);
 
         var service = CreateService(
-            store, repository, new PhysicalDeliverySettings { AutoConfirmAfterDays = 14 });
+            store, repository, new PhysicalDeliverySettings { AutoConfirmAfterDays = 30 });
 
         var changed = await service.ConfirmExpiredAsync(CancellationToken.None);
 
         changed.Should().Be(1);
         purchase.DeliveryStatus.Should().Be(PhysicalDeliveryStatus.Delivered);
         store.LastProviders.Should().BeEmpty();
-        store.LastThreshold.Should().BeCloseTo(DateTime.UtcNow.AddDays(-14), TimeSpan.FromMinutes(5));
+        store.LastExcludeOpenCarrierAlerts.Should().BeTrue();
+        store.LastThreshold.Should().BeCloseTo(DateTime.UtcNow.AddDays(-30), TimeSpan.FromMinutes(5));
+    }
+
+    [Fact]
+    public void DefaultDeliveryWindowIsThirtyDaysAndPollIsFifteenMinutes()
+    {
+        var settings = new PhysicalDeliverySettings();
+        settings.AutoConfirmAfterDays.Should().Be(30);
+        settings.PollIntervalMinutes.Should().Be(15);
+    }
+
+    [Fact]
+    public async Task ExpiredAndProviderDeliverySkipUnresolvedAlertAndClosedWithoutSettlement()
+    {
+        var unresolved = CreateShipped(PhysicalProductPurchase.PostexProvider, "12345");
+        unresolved.MarkCarrierAlert(PhysicalProductPurchase.DamagedParcelStatusCode, DateTime.UtcNow);
+        var closed = CreateShipped(PhysicalProductPurchase.PostexProvider, "77");
+        closed.MarkCarrierAlert(PhysicalProductPurchase.MissingShipmentStatusCode, DateTime.UtcNow);
+        closed.ResolveCarrierAlert(
+            CarrierReturnResolution.ClosedWithoutSettlement, "lost", Guid.NewGuid(), DateTime.UtcNow);
+
+        var store = new FakeStore(CandidateFor(unresolved), CandidateFor(closed));
+        var repository = new FakeRepository(unresolved, closed);
+        var client = new FakeTrackingClient(PhysicalProductPurchase.PostexProvider, TrackingOutcome.Delivered);
+        var service = CreateService(
+            store, repository, new PhysicalDeliverySettings { AutoConfirmAfterDays = 30 }, client);
+
+        var expired = await service.ConfirmExpiredAsync(CancellationToken.None);
+        var synced = await service.SyncExternalAsync(CancellationToken.None);
+
+        expired.Should().Be(0);
+        synced.Should().Be(0);
+        unresolved.DeliveryStatus.Should().Be(PhysicalDeliveryStatus.Shipped);
+        closed.DeliveryStatus.Should().Be(PhysicalDeliveryStatus.Shipped);
+        store.LastExcludeOpenCarrierAlerts.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task SyncRecordsAlertOnceOnShippedAndIgnoresPreparing()
+    {
+        var shipped = CreateShipped(PhysicalProductPurchase.PostexProvider, "12345");
+        var preparing = PhysicalProductPurchase.Create(
+            PhysicalProductPurchaseId.New(), Guid.NewGuid(), new UserId(Guid.NewGuid()),
+            "product-1", "Book", 1, 50m, 50m);
+        preparing.RememberCarrierParcel(PhysicalProductPurchase.PostexProvider, "88", 1);
+
+        var store = new FakeStore(CandidateFor(shipped))
+        {
+            AwaitingTracking = [CandidateFor(preparing)]
+        };
+        var repository = new FakeRepository(shipped, preparing);
+        var client = new FakeTrackingClient(PhysicalProductPurchase.PostexProvider, TrackingOutcome.InTransit)
+        {
+            Result = new TrackingResult(
+                TrackingOutcome.InTransit,
+                StatusCode: PhysicalProductPurchase.DamagedParcelStatusCode,
+                ParentCode: PhysicalProductPurchase.OthersParentCode,
+                DurableAlert: true,
+                TrackingCode: "CODE-REAL")
+        };
+
+        var service = CreateService(store, repository, client);
+        var first = await service.SyncExternalAsync(CancellationToken.None);
+        var second = await service.SyncExternalAsync(CancellationToken.None);
+
+        first.Should().Be(0);
+        second.Should().Be(0);
+        shipped.CarrierAlertCode.Should().Be(PhysicalProductPurchase.DamagedParcelStatusCode);
+        shipped.DeliveryStatus.Should().Be(PhysicalDeliveryStatus.Shipped);
+        preparing.CarrierAlertCode.Should().BeNull();
+        preparing.DeliveryStatus.Should().Be(PhysicalDeliveryStatus.Preparing);
     }
 
     private static PhysicalDeliverySyncService CreateService(
@@ -334,11 +405,13 @@ public sealed class PhysicalDeliverySyncTests
 
         public TrackingLookup? LastLookup { get; private set; }
 
+        public TrackingResult? Result { get; init; }
+
         public Task<TrackingResult> GetTrackingAsync(TrackingLookup lookup, CancellationToken ct)
         {
             Calls++;
             LastLookup = lookup;
-            return Task.FromResult(new TrackingResult(outcome, TrackingCode: trackingCode));
+            return Task.FromResult(Result ?? new TrackingResult(outcome, TrackingCode: trackingCode));
         }
     }
 
@@ -368,12 +441,16 @@ public sealed class PhysicalDeliverySyncTests
 
         public IReadOnlyList<PhysicalDeliveryCandidate> AwaitingTracking { get; init; } = [];
 
+        public bool? LastExcludeOpenCarrierAlerts { get; private set; }
+
         public Task<IReadOnlyList<PhysicalDeliveryCandidate>> GetShippedAsync(
-            DateTime shippedAtOrBeforeUtc, IReadOnlyCollection<string> providers, int limit, CancellationToken ct)
+            DateTime shippedAtOrBeforeUtc, IReadOnlyCollection<string> providers, int limit,
+            bool excludeOpenCarrierAlerts, CancellationToken ct)
         {
             ShippedQueryCount++;
             LastThreshold = shippedAtOrBeforeUtc;
             LastProviders = providers;
+            LastExcludeOpenCarrierAlerts = excludeOpenCarrierAlerts;
             return Task.FromResult<IReadOnlyList<PhysicalDeliveryCandidate>>(candidates);
         }
 

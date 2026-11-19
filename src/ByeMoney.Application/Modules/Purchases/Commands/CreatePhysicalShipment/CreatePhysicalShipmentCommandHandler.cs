@@ -179,6 +179,7 @@ public sealed class CreatePhysicalShipmentCommandHandler(
                 PhysicalProductPurchase.IsUsablePostalTrackingCode(createResult.TrackingCode))
             {
                 locked.MarkShipped(createResult.TrackingCode, client.Provider, parcelId);
+                locked.RememberTrackingUrl(createResult.TrackingUrl);
                 repository.Update(locked);
                 await unitOfWork.SaveChangesAsync(ct);
                 return Response(locked,
@@ -188,6 +189,7 @@ public sealed class CreatePhysicalShipmentCommandHandler(
             }
 
             locked.RememberCarrierParcel(client.Provider, parcelId, requestedQuantity);
+            locked.RememberTrackingUrl(createResult.TrackingUrl);
             // تلاش با نتیجهٔ معلوم تمام شد؛ رزرو آزاد می‌شود تا تلاش بعدی فقط با خواندن پاسخ بگیرد.
             locked.AbandonShipmentRequest();
             if (pendingPayment)

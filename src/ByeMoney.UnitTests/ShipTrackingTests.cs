@@ -201,7 +201,62 @@ public sealed class ShipTrackingTests
 
         PostexStatusParser.Parse(
             "{\"parent\":{\"code\":8,\"name\":\"CANCELED\"},\"status_code\":11310,\"status_name\":\"ROUTE_NOT_FOUND\"}",
-            200).Outcome.Should().Be(TrackingOutcome.InTransit);
+            200).Outcome.Should().Be(TrackingOutcome.Returned);
+    }
+
+    [Fact]
+    public void RouteNotFoundWithoutParentIsReturnedAndOtherParentIsLoggedByFlag()
+    {
+        PostexStatusParser.Parse("{\"status_code\":11310}", 200).Outcome
+            .Should().Be(TrackingOutcome.Returned);
+
+        var mismatch = PostexStatusParser.Parse(
+            "{\"parent\":{\"code\":3},\"status_code\":11310}", 200);
+        mismatch.Outcome.Should().Be(TrackingOutcome.InTransit);
+        mismatch.ParentMismatch.Should().BeTrue();
+    }
+
+    [Fact]
+    public void DamageAndLossCodesAreDurableAlertsWithoutDeliveryChange()
+    {
+        var damaged = PostexStatusParser.Parse(
+            "{\"parent\":{\"code\":10},\"status_code\":11304,\"status_name\":\"DAMAGED_PARCEL\"}", 200);
+        damaged.Outcome.Should().Be(TrackingOutcome.InTransit);
+        damaged.DurableAlert.Should().BeTrue();
+        damaged.StatusCode.Should().Be(11304);
+
+        var missing = PostexStatusParser.Parse(
+            "{\"parent\":{\"code\":5},\"status_code\":11305}", 200);
+        missing.DurableAlert.Should().BeTrue();
+        missing.Outcome.Should().Be(TrackingOutcome.InTransit);
+    }
+
+    [Fact]
+    public void OtherParentTenCodesDoNotAlertOrChangeStatus()
+    {
+        var sms = PostexStatusParser.Parse(
+            "{\"parent\":{\"code\":10},\"status_code\":11244,\"status_name\":\"SMSWasSent\"}", 200);
+        sms.Outcome.Should().Be(TrackingOutcome.InTransit);
+        sms.DurableAlert.Should().BeFalse();
+        sms.ParentCode.Should().Be(10);
+    }
+
+    [Fact]
+    public void TrackingUrlIsKeptOnlyWhenHttps()
+    {
+        var https = PostexStatusParser.Parse(
+            "{\"parent\":{\"code\":3},\"status_code\":11208,\"tracking_url\":\" https://track.example/1 \"}",
+            200);
+        https.TrackingUrl.Should().Be("https://track.example/1");
+
+        var nested = PostexStatusParser.Parse(
+            "{\"parent\":{\"code\":3},\"status_code\":11208,\"shipment\":[{\"tracking\":{\"tracking_url\":\"https://track.example/nested\"}}]}",
+            200);
+        nested.TrackingUrl.Should().Be("https://track.example/nested");
+
+        PostexStatusParser.Parse(
+            "{\"parent\":{\"code\":3},\"status_code\":11208,\"tracking_url\":\"http://track.example/1\"}",
+            200).TrackingUrl.Should().BeNull();
     }
 
     [Fact]

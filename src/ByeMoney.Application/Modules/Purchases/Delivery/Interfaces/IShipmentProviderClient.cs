@@ -67,7 +67,8 @@ public sealed record ShipmentCreateResult(
     string? ProviderParcelId = null,
     string? TrackingCode = null,
     string? StatusName = null,
-    string? ErrorMessage = null);
+    string? ErrorMessage = null,
+    string? TrackingUrl = null);
 
 /// <summary>
 /// ساخت مرسوله نزد یک واسط پستی. هر پیاده‌سازی کلید منبع خودش را اعلام می‌کند؛

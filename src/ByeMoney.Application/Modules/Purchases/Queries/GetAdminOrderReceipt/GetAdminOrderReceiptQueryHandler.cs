@@ -25,7 +25,7 @@ public sealed class GetAdminOrderReceiptQueryHandler(IOrderReader reader, ICurre
             throw new NotFoundException(PurchaseHistoryErrors.NotFound);
         }
 
-        var receipt = OrderReceiptMapping.Build(order, snapshot);
+        var receipt = OrderReceiptMapping.Build(order, snapshot, includeAdminCarrierFields: true);
         return receipt ?? throw new NotFoundException(PurchaseHistoryErrors.NotFound);
     }
 }

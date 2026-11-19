@@ -26,9 +26,14 @@ public interface IPhysicalDeliveryStore
     /// <summary>
     /// قلم‌های Shipped با زمان ارسال تا <paramref name="shippedAtOrBeforeUtc"/>؛ قدیمی‌ترها اول برمی‌گردند.
     /// <paramref name="providers"/> کلیدهای منبع برای استعلام بیرونی است؛ فهرست خالی یعنی همهٔ منابع.
+    /// وقتی <paramref name="excludeOpenCarrierAlerts"/> درست است، هشدار حل‌نشده و بسته‌شده بدون تسویه برنمی‌گردند.
     /// </summary>
     Task<IReadOnlyList<PhysicalDeliveryCandidate>> GetShippedAsync(
-        DateTime shippedAtOrBeforeUtc, IReadOnlyCollection<string> providers, int limit, CancellationToken ct);
+        DateTime shippedAtOrBeforeUtc,
+        IReadOnlyCollection<string> providers,
+        int limit,
+        bool excludeOpenCarrierAlerts,
+        CancellationToken ct);
 
     /// <summary>
     /// قلم‌های «آماده‌سازی» که شناسهٔ ارجاع واسط دارند و کد پستی واقعی هنوز نیامده است.
@@ -42,4 +47,5 @@ public interface IPhysicalDeliveryStore
 /// <summary>قلم نامزد تغییر خودکار وضعیت تحویل؛ بدون ردیابی تا خواندن داخل قفل انجام شود.</summary>
 public sealed record PhysicalDeliveryCandidate(
     Guid PurchaseId, Guid BuyerId, Guid CartId,
-    string? TrackingCode, string? TrackingProvider, string? ProviderParcelId, DateTime? ShippedAtUtc);
+    string? TrackingCode, string? TrackingProvider, string? ProviderParcelId, DateTime? ShippedAtUtc,
+    string? TrackingUrl = null);

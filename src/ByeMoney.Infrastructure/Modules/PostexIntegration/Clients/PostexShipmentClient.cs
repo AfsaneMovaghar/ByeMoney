@@ -436,7 +436,8 @@ public sealed class PostexShipmentClient(
             ProviderParcelId: parcelNo,
             TrackingCode: PhysicalProductPurchase.IsUsablePostalTrackingCode(tracking) ? tracking!.Trim() : null,
             StatusName: statusName,
-            ErrorMessage: unpaid ? OrderErrors.ShipmentPaymentPending : null);
+            ErrorMessage: unpaid ? OrderErrors.ShipmentPaymentPending : null,
+            TrackingUrl: PostexStatusParser.ReadHttpsTrackingUrl(root));
     }
 
     private static bool TryReadParcelNo(JsonElement root, out string parcelNo)

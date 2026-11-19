@@ -155,6 +155,12 @@
   <data name="PhysicalProductPurchase_NotCarrierReturned" xml:space="preserve"><value>این مرسوله برگشتی از واسط پستی ثبت نشده است.</value></data>
   <data name="PhysicalProductPurchase_CarrierReturnResolutionConflict" xml:space="preserve"><value>این مرسوله پیش‌تر با نتیجه یا یادداشت دیگری تعیین تکلیف شده است.</value></data>
   <data name="PhysicalProductPurchase_InvalidCarrierReturnResolutionNote" xml:space="preserve"><value>یادداشت تعیین تکلیف برگشتی الزامی است و حداکثر می‌تواند ۱۰۰۰ نویسه باشد.</value></data>
+  <data name="PhysicalProductPurchase_CarrierReturnRequiresShipped" xml:space="preserve"><value>ثبت برگشتی فقط برای قلم ارسال‌شده مجاز است.</value></data>
+  <data name="PhysicalProductPurchase_InvalidCarrierAlertCode" xml:space="preserve"><value>هشدار پایدار فقط برای کد خسارت یا مفقودی مجاز است.</value></data>
+  <data name="PhysicalProductPurchase_CarrierAlertRequiresShipped" xml:space="preserve"><value>ثبت هشدار خسارت یا مفقودی فقط برای قلم ارسال‌شده مجاز است.</value></data>
+  <data name="PhysicalProductPurchase_NotCarrierAlert" xml:space="preserve"><value>برای این قلم هشدار خسارت یا مفقودی ثبت نشده است.</value></data>
+  <data name="PhysicalProductPurchase_InvalidCarrierAlertResolutionNote" xml:space="preserve"><value>یادداشت تعیین تکلیف هشدار الزامی است و حداکثر می‌تواند ۱۰۰۰ نویسه باشد.</value></data>
+  <data name="PhysicalProductPurchase_CarrierAlertResolutionConflict" xml:space="preserve"><value>این هشدار پیش‌تر با نتیجه یا یادداشت دیگری تعیین تکلیف شده است.</value></data>
   <data name="GiftCampaign_AmountCannotBeNegative" xml:space="preserve"><value>مبلغ هدیه نمی‌تواند منفی باشد.</value></data>
   <data name="GiftCampaign_StartDateCannotBeAfterEndDate" xml:space="preserve"><value>تاریخ شروع هدیه نمی‌تواند بعد از تاریخ پایان باشد.</value></data>
   <data name="Wallet_CreditAmountMustBePositive" xml:space="preserve"><value>مبلغ افزایش موجودی باید بزرگتر از صفر باشد.</value></data>

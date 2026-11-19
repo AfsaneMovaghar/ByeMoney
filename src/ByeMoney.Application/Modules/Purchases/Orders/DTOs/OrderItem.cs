@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using ByeMoney.Domain.Modules.Purchases;
 
 namespace ByeMoney.Application.Modules.Purchases.Orders.DTOs;
@@ -21,4 +22,19 @@ public sealed record OrderItem(
     string? CarrierReturnResolution = null,
     string? CarrierReturnResolutionNote = null,
     DateTime? CarrierReturnResolvedAtUtc = null,
-    string? CarrierReturnResolvedByExternalUserId = null);
+    string? CarrierReturnResolvedByExternalUserId = null,
+    string? TrackingUrl = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    int? CarrierAlertCode = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    DateTime? CarrierAlertAtUtc = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    string? CarrierAlertResolution = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    string? CarrierAlertResolutionNote = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    DateTime? CarrierAlertResolvedAtUtc = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    string? CarrierAlertResolvedByExternalUserId = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    string? ProviderParcelId = null);

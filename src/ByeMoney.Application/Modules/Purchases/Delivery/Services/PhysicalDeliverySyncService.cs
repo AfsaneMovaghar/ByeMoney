@@ -31,8 +31,9 @@ public sealed class PhysicalDeliverySyncService(
         }
 
         var threshold = DateTime.UtcNow.AddDays(-settings.AutoConfirmAfterDays);
-        // GetShippedAsync قلم‌های دارای CarrierReturnedAtUtc را نمی‌آورد.
-        var candidates = await store.GetShippedAsync(threshold, providers: [], BatchSize, ct);
+        // GetShippedAsync قلم‌های دارای CarrierReturnedAtUtc و هشدارِ باز را برای تحویل خودکار نمی‌آورد.
+        var candidates = await store.GetShippedAsync(
+            threshold, providers: [], BatchSize, excludeOpenCarrierAlerts: true, ct);
         if (candidates.Count == 0)
         {
             return 0;
@@ -53,7 +54,8 @@ public sealed class PhysicalDeliverySyncService(
         // زمان Shipped شرط انتخاب نیست؛ مرسولهٔ تازه‌هم استعلام می‌شود.
         var providers = clients.Keys.ToArray();
         var promotedIds = await PromoteWhenTrackingCodeArrivesAsync(clients, providers, ct);
-        var candidates = await store.GetShippedAsync(DateTime.UtcNow, providers, BatchSize, ct);
+        var candidates = await store.GetShippedAsync(
+            DateTime.UtcNow, providers, BatchSize, excludeOpenCarrierAlerts: false, ct);
         if (candidates.Count == 0)
         {
             return promotedIds.Count;
@@ -80,6 +82,7 @@ public sealed class PhysicalDeliverySyncService(
 
             var result = await client.GetTrackingAsync(
                 new TrackingLookup(candidate.ProviderParcelId, candidate.TrackingCode), ct);
+            LogCarrierObservation(candidate.PurchaseId, result);
 
             switch (result.Outcome)
             {
@@ -105,6 +108,13 @@ public sealed class PhysicalDeliverySyncService(
                         client.Provider, candidate.PurchaseId, candidate.ProviderParcelId);
                     break;
             }
+
+            if (result.DurableAlert)
+            {
+                await MarkAlertAsync(candidate, result.StatusCode!.Value, client.Provider, ct);
+            }
+
+            await RememberTrackingUrlAsync(candidate, result.TrackingUrl, ct);
         }
 
         var deliveredCount = delivered.Count == 0 ? 0 : await DeliverAsync(delivered, "provider", ct);
@@ -132,8 +142,18 @@ public sealed class PhysicalDeliverySyncService(
 
             var result = await client.GetTrackingAsync(
                 new TrackingLookup(candidate.ProviderParcelId, candidate.TrackingCode), ct);
+            if (LeavesPreparingUnchanged(result))
+            {
+                logger.LogInformation(
+                    "Postex status {StatusCode} with parent {ParentCode} left purchase {PurchaseId} in preparation.",
+                    result.StatusCode, result.ParentCode, candidate.PurchaseId);
+                await RememberTrackingUrlAsync(candidate, result.TrackingUrl, ct);
+                continue;
+            }
+
             if (!PhysicalProductPurchase.IsUsablePostalTrackingCode(result.TrackingCode))
             {
+                await RememberTrackingUrlAsync(candidate, result.TrackingUrl, ct);
                 continue;
             }
 
@@ -153,12 +173,14 @@ public sealed class PhysicalDeliverySyncService(
                 if (purchase.CarrierParcelQuantity != purchase.RemainingQuantity)
                 {
                     purchase.ClearCarrierPaymentPending();
+                    purchase.RememberTrackingUrl(result.TrackingUrl);
                     repository.Update(purchase);
                     await unitOfWork.SaveChangesAsync(ct);
                     return 0;
                 }
 
                 purchase.MarkShipped(result.TrackingCode, client.Provider, purchase.ProviderParcelId);
+                purchase.RememberTrackingUrl(result.TrackingUrl);
                 repository.Update(purchase);
                 await unitOfWork.SaveChangesAsync(ct);
                 return 1;
@@ -185,10 +207,16 @@ public sealed class PhysicalDeliverySyncService(
         {
             var purchase = await repository.GetByIdAsync(
                 new PhysicalProductPurchaseId(candidate.PurchaseId), ct);
-            if (purchase is null ||
-                purchase.DeliveryStatus != PhysicalDeliveryStatus.Shipped ||
-                purchase.CarrierReturnedAtUtc.HasValue)
+            if (purchase is null || purchase.CarrierReturnedAtUtc.HasValue)
             {
+                return 0;
+            }
+
+            if (purchase.DeliveryStatus != PhysicalDeliveryStatus.Shipped)
+            {
+                logger.LogWarning(
+                    "{Provider} returned status ignored for purchase {PurchaseId} because delivery status is {Status}.",
+                    provider, candidate.PurchaseId, purchase.DeliveryStatus);
                 return 0;
             }
 
@@ -220,7 +248,8 @@ public sealed class PhysicalDeliverySyncService(
                     new PhysicalProductPurchaseId(candidate.PurchaseId), ct);
                 if (purchase is null ||
                     purchase.DeliveryStatus != PhysicalDeliveryStatus.Shipped ||
-                    purchase.CarrierReturnedAtUtc.HasValue)
+                    purchase.CarrierReturnedAtUtc.HasValue ||
+                    purchase.ExcludedFromAutomaticDeliveryByAlert)
                 {
                     return 0;
                 }
@@ -240,5 +269,83 @@ public sealed class PhysicalDeliverySyncService(
         }
 
         return delivered;
+    }
+
+    private static bool LeavesPreparingUnchanged(TrackingResult result) =>
+        result.DurableAlert || result.ParentCode == PhysicalProductPurchase.OthersParentCode;
+
+    private void LogCarrierObservation(Guid purchaseId, TrackingResult result)
+    {
+        if (result.ParentMismatch)
+        {
+            logger.LogWarning(
+                "Postex status {StatusCode} for purchase {PurchaseId} arrived with parent {ParentCode} instead of parent 8; outcome follows the parent.",
+                result.StatusCode, purchaseId, result.ParentCode);
+        }
+
+        if (result.ParentCode == PhysicalProductPurchase.OthersParentCode && !result.DurableAlert)
+        {
+            logger.LogInformation(
+                "Postex parent 10 status {StatusCode} left purchase {PurchaseId} unchanged.",
+                result.StatusCode, purchaseId);
+        }
+    }
+
+    private async Task MarkAlertAsync(
+        PhysicalDeliveryCandidate candidate, int statusCode, string provider, CancellationToken ct)
+    {
+        var changed = await store.ExecuteLockedAsync(candidate.BuyerId, candidate.CartId, async () =>
+        {
+            var purchase = await repository.GetByIdAsync(
+                new PhysicalProductPurchaseId(candidate.PurchaseId), ct);
+            if (purchase is null || purchase.CarrierAlertCode.HasValue)
+            {
+                return 0;
+            }
+
+            if (purchase.DeliveryStatus != PhysicalDeliveryStatus.Shipped)
+            {
+                logger.LogWarning(
+                    "{Provider} alert {StatusCode} ignored for purchase {PurchaseId} because delivery status is {Status}.",
+                    provider, statusCode, candidate.PurchaseId, purchase.DeliveryStatus);
+                return 0;
+            }
+
+            purchase.MarkCarrierAlert(statusCode, DateTime.UtcNow);
+            repository.Update(purchase);
+            await unitOfWork.SaveChangesAsync(ct);
+            return 1;
+        }, ct);
+
+        if (changed > 0)
+        {
+            logger.LogWarning(
+                "{Provider} recorded carrier alert {StatusCode} for purchase {PurchaseId}; settlement stays blocked until manual review.",
+                provider, statusCode, candidate.PurchaseId);
+        }
+    }
+
+    private async Task RememberTrackingUrlAsync(
+        PhysicalDeliveryCandidate candidate, string? trackingUrl, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(trackingUrl) ||
+            string.Equals(candidate.TrackingUrl, trackingUrl, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        await store.ExecuteLockedAsync(candidate.BuyerId, candidate.CartId, async () =>
+        {
+            var purchase = await repository.GetByIdAsync(
+                new PhysicalProductPurchaseId(candidate.PurchaseId), ct);
+            if (purchase is null || !purchase.RememberTrackingUrl(trackingUrl))
+            {
+                return 0;
+            }
+
+            repository.Update(purchase);
+            await unitOfWork.SaveChangesAsync(ct);
+            return 1;
+        }, ct);
     }
 }

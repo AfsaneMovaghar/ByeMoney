@@ -20,6 +20,7 @@ public sealed class GetMyOrderQueryHandler(IOrderReader reader, ICurrentUserServ
         var snapshot = await reader.ReadAsync(BuyerId, null, ct);
         var details = OrderMapping.Build(snapshot).SingleOrDefault(row => row.Details.OrderId == request.OrderId)?.Details
             ?? throw new NotFoundException(OrderErrors.NotFound);
+        details = OrderMapping.WithoutCarrierAdminFields(details);
 
         var cart = OrderShippingAddressFinder.FindCart(snapshot, details);
         var paid = cart?.Status == CartStatus.Paid ? cart : null;

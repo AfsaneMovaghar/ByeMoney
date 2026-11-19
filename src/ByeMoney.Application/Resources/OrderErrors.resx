@@ -40,4 +40,9 @@
   <data name="CarrierReturn_NoteTooLong" xml:space="preserve"><value>یادداشت تعیین تکلیف برگشتی نمی‌تواند بیشتر از ۱۰۰۰ نویسه باشد.</value></data>
   <data name="CarrierReturn_NotReturned" xml:space="preserve"><value>این مرسوله برگشتی از واسط پستی ثبت نشده است.</value></data>
   <data name="CarrierReturn_ResolutionConflict" xml:space="preserve"><value>این مرسوله پیش‌تر با نتیجه یا یادداشت دیگری تعیین تکلیف شده است.</value></data>
+  <data name="CarrierAlert_InvalidResolution" xml:space="preserve"><value>نتیجهٔ تعیین تکلیف هشدار باید یکی از مقادیر معتبر باشد.</value></data>
+  <data name="CarrierAlert_NoteRequired" xml:space="preserve"><value>یادداشت تعیین تکلیف هشدار الزامی است.</value></data>
+  <data name="CarrierAlert_NoteTooLong" xml:space="preserve"><value>یادداشت تعیین تکلیف هشدار نمی‌تواند بیشتر از ۱۰۰۰ نویسه باشد.</value></data>
+  <data name="CarrierAlert_NotAlerted" xml:space="preserve"><value>برای این قلم هشدار خسارت یا مفقودی ثبت نشده است.</value></data>
+  <data name="CarrierAlert_ResolutionConflict" xml:space="preserve"><value>این هشدار پیش‌تر با نتیجه یا یادداشت دیگری تعیین تکلیف شده است.</value></data>
 </root>

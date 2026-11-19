@@ -259,16 +259,31 @@ public static class OrderMapping
         string? note = null;
         DateTime? resolvedAtUtc = null;
         string? resolvedByExternalUserId = null;
+        string? alertNote = null;
+        DateTime? alertResolvedAtUtc = null;
+        string? alertResolvedByExternalUserId = null;
+        string? providerParcelId = null;
 
         if (includeAdminResolutionDetails)
         {
             note = physical.CarrierReturnResolutionNote;
             resolvedAtUtc = physical.CarrierReturnResolvedAtUtc;
-            if (physical.CarrierReturnResolvedByUserId.HasValue &&
-                externalUserIds != null &&
-                externalUserIds.TryGetValue(physical.CarrierReturnResolvedByUserId.Value, out var extId))
+            alertNote = physical.CarrierAlertResolutionNote;
+            alertResolvedAtUtc = physical.CarrierAlertResolvedAtUtc;
+            providerParcelId = physical.ProviderParcelId;
+            if (externalUserIds != null)
             {
-                resolvedByExternalUserId = extId;
+                if (physical.CarrierReturnResolvedByUserId.HasValue &&
+                    externalUserIds.TryGetValue(physical.CarrierReturnResolvedByUserId.Value, out var extId))
+                {
+                    resolvedByExternalUserId = extId;
+                }
+
+                if (physical.CarrierAlertResolvedByUserId.HasValue &&
+                    externalUserIds.TryGetValue(physical.CarrierAlertResolvedByUserId.Value, out var alertExtId))
+                {
+                    alertResolvedByExternalUserId = alertExtId;
+                }
             }
         }
 
@@ -281,8 +296,34 @@ public static class OrderMapping
             physical.TrackingCode, physical.TrackingProvider,
             physical.ShippedAtUtc, physical.CarrierReturnedAtUtc,
             physical.CarrierReturnResolution?.ToString(),
-            note, resolvedAtUtc, resolvedByExternalUserId);
+            note, resolvedAtUtc, resolvedByExternalUserId,
+            physical.TrackingUrl,
+            physical.CarrierAlertCode, physical.CarrierAlertAtUtc, physical.CarrierAlertResolution?.ToString(),
+            alertNote, alertResolvedAtUtc, alertResolvedByExternalUserId,
+            providerParcelId);
     }
+
+    /// <summary>
+    /// جزئیات خریدار: یادداشت تعیین‌تکلیف، شناسهٔ مرسوله و هشدار خسارت/مفقودی حذف می‌شوند.
+    /// کد رهگیری و نشانی https و علامت برگشتی می‌مانند.
+    /// </summary>
+    public static OrderDetails WithoutCarrierAdminFields(OrderDetails order) =>
+        order with
+        {
+            Items = order.Items.Select(item => item with
+            {
+                CarrierReturnResolutionNote = null,
+                CarrierReturnResolvedAtUtc = null,
+                CarrierReturnResolvedByExternalUserId = null,
+                CarrierAlertCode = null,
+                CarrierAlertAtUtc = null,
+                CarrierAlertResolution = null,
+                CarrierAlertResolutionNote = null,
+                CarrierAlertResolvedAtUtc = null,
+                CarrierAlertResolvedByExternalUserId = null,
+                ProviderParcelId = null
+            }).ToArray()
+        };
 
     private static bool CompletePurchases(
         OrderItemKey[] keys, CoursePurchase[] purchases, PhysicalProductPurchase[] physicalPurchases)

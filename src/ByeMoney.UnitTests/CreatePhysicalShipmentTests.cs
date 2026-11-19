@@ -426,7 +426,7 @@ public sealed class CreatePhysicalShipmentTests
 
         public Task<IReadOnlyList<PhysicalDeliveryCandidate>> GetShippedAsync(
             DateTime shippedAtOrBeforeUtc, IReadOnlyCollection<string> providers, int limit,
-            CancellationToken ct) =>
+            bool excludeOpenCarrierAlerts, CancellationToken ct) =>
             Task.FromResult<IReadOnlyList<PhysicalDeliveryCandidate>>([]);
 
         public Task<IReadOnlyList<PhysicalDeliveryCandidate>> GetPreparingWithCarrierReferenceAsync(

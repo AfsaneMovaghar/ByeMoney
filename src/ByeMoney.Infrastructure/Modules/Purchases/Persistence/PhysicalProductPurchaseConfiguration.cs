@@ -37,6 +37,10 @@ public class PhysicalProductPurchaseConfiguration : IEntityTypeConfiguration<Phy
                 "\"RefundedGiftInNoor\" <= COALESCE(\"GiftAmountInNoor\", 0)");
             table.HasCheckConstraint("CK_PhysicalProductPurchases_CarrierReturnResolution",
                 "\"CarrierReturnResolution\" IS NULL OR \"CarrierReturnResolution\" IN ('DeliveryConfirmed', 'ClosedWithoutSettlement')");
+            table.HasCheckConstraint("CK_PhysicalProductPurchases_CarrierAlertCode",
+                "\"CarrierAlertCode\" IS NULL OR \"CarrierAlertCode\" IN (11304, 11305)");
+            table.HasCheckConstraint("CK_PhysicalProductPurchases_CarrierAlertResolution",
+                "\"CarrierAlertResolution\" IS NULL OR (\"CarrierAlertCode\" IS NOT NULL AND \"CarrierAlertResolution\" IN ('DeliveryConfirmed', 'ClosedWithoutSettlement'))");
         });
 
         builder.HasKey(x => x.Id);
@@ -97,6 +101,16 @@ public class PhysicalProductPurchaseConfiguration : IEntityTypeConfiguration<Phy
             .HasMaxLength(PhysicalProductPurchase.CarrierReturnResolutionNoteMaxLength);
         builder.Property(x => x.CarrierReturnResolvedAtUtc);
         builder.Property(x => x.CarrierReturnResolvedByUserId);
+        builder.Property(x => x.CarrierAlertCode);
+        builder.Property(x => x.CarrierAlertAtUtc);
+        builder.Property(x => x.CarrierAlertResolution)
+            .HasConversion<string>()
+            .HasMaxLength(PhysicalProductPurchase.CarrierReturnResolutionMaxLength);
+        builder.Property(x => x.CarrierAlertResolutionNote)
+            .HasMaxLength(PhysicalProductPurchase.CarrierReturnResolutionNoteMaxLength);
+        builder.Property(x => x.CarrierAlertResolvedAtUtc);
+        builder.Property(x => x.CarrierAlertResolvedByUserId);
+        builder.Property(x => x.TrackingUrl).HasMaxLength(PhysicalProductPurchase.TrackingUrlMaxLength);
         builder.Property(x => x.TrackingCode).HasMaxLength(PhysicalProductPurchase.TrackingCodeMaxLength);
         builder.Property(x => x.TrackingProvider).HasMaxLength(PhysicalProductPurchase.TrackingProviderMaxLength);
         builder.Property(x => x.ProviderParcelId).HasMaxLength(PhysicalProductPurchase.ProviderParcelIdMaxLength);

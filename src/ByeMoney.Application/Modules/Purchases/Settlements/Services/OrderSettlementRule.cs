@@ -24,7 +24,8 @@ public static class OrderSettlementRule
             .ToArray();
 
         var remainingPhysical = remainingItems.Where(IsPhysical).ToArray();
-        if (remainingPhysical.Any(BlocksSettlementDueToCarrierReturn))
+        if (remainingPhysical.Any(BlocksSettlementDueToCarrierReturn) ||
+            remainingPhysical.Any(BlocksSettlementDueToCarrierAlert))
         {
             return false;
         }
@@ -53,4 +54,24 @@ public static class OrderSettlementRule
     private static bool BlocksSettlementDueToCarrierReturn(OrderItem item) =>
         (item.CarrierReturnedAtUtc.HasValue && string.IsNullOrEmpty(item.CarrierReturnResolution)) ||
         string.Equals(item.CarrierReturnResolution, nameof(CarrierReturnResolution.ClosedWithoutSettlement), StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// هشدار حل‌نشده حتی پس از تأیید خریدار مانع تسویه است.
+    /// <c>ClosedWithoutSettlement</c> برای همیشه خارج است و <c>DeliveryConfirmed</c> مانع نیست.
+    /// </summary>
+    private static bool BlocksSettlementDueToCarrierAlert(OrderItem item)
+    {
+        var isAlert = item.CarrierAlertCode is PhysicalProductPurchase.DamagedParcelStatusCode
+            or PhysicalProductPurchase.MissingShipmentStatusCode;
+        if (!isAlert)
+        {
+            return false;
+        }
+
+        return string.IsNullOrEmpty(item.CarrierAlertResolution) ||
+            string.Equals(
+                item.CarrierAlertResolution,
+                nameof(CarrierReturnResolution.ClosedWithoutSettlement),
+                StringComparison.OrdinalIgnoreCase);
+    }
 }

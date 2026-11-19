@@ -45,7 +45,11 @@ public sealed class PhysicalDeliveryStore(ApplicationDbContext db) : IPhysicalDe
     }
 
     public async Task<IReadOnlyList<PhysicalDeliveryCandidate>> GetShippedAsync(
-        DateTime shippedAtOrBeforeUtc, IReadOnlyCollection<string> providers, int limit, CancellationToken ct)
+        DateTime shippedAtOrBeforeUtc,
+        IReadOnlyCollection<string> providers,
+        int limit,
+        bool excludeOpenCarrierAlerts,
+        CancellationToken ct)
     {
         var providerKeys = providers.ToArray();
         var query = db.Set<PhysicalProductPurchase>()
@@ -53,6 +57,14 @@ public sealed class PhysicalDeliveryStore(ApplicationDbContext db) : IPhysicalDe
             .Where(x => x.DeliveryStatus == PhysicalDeliveryStatus.Shipped &&
                 x.CarrierReturnedAtUtc == null &&
                 x.ShippedAtUtc != null && x.ShippedAtUtc <= shippedAtOrBeforeUtc);
+
+        if (excludeOpenCarrierAlerts)
+        {
+            // هشدار حل‌نشده و بسته‌شده بدون تسویه تحویل خودکار نمی‌شوند؛ همگام‌سازی همچنان آن‌ها را می‌خواند.
+            query = query.Where(x =>
+                x.CarrierAlertCode == null ||
+                x.CarrierAlertResolution == CarrierReturnResolution.DeliveryConfirmed);
+        }
 
         if (providerKeys.Length > 0)
         {
@@ -64,7 +76,7 @@ public sealed class PhysicalDeliveryStore(ApplicationDbContext db) : IPhysicalDe
             .Take(limit)
             .Select(x => new PhysicalDeliveryCandidate(
                 x.Id.Value, x.BuyerId.Value, x.CartId,
-                x.TrackingCode, x.TrackingProvider, x.ProviderParcelId, x.ShippedAtUtc))
+                x.TrackingCode, x.TrackingProvider, x.ProviderParcelId, x.ShippedAtUtc, x.TrackingUrl))
             .ToListAsync(ct);
     }
 
@@ -84,7 +96,7 @@ public sealed class PhysicalDeliveryStore(ApplicationDbContext db) : IPhysicalDe
             .Take(limit)
             .Select(x => new PhysicalDeliveryCandidate(
                 x.Id.Value, x.BuyerId.Value, x.CartId,
-                x.TrackingCode, x.TrackingProvider, x.ProviderParcelId, x.ShippedAtUtc))
+                x.TrackingCode, x.TrackingProvider, x.ProviderParcelId, x.ShippedAtUtc, x.TrackingUrl))
             .ToListAsync(ct);
     }
 

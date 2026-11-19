@@ -87,6 +87,52 @@ public sealed class OrderSettlementTests
         OrderSettlementRule.IsSettleable(order).Should().BeFalse();
     }
 
+    [Theory]
+    [InlineData(PhysicalDeliveryStatus.Shipped)]
+    [InlineData(PhysicalDeliveryStatus.Delivered)]
+    public void UnresolvedCarrierAlert_IsNotSettleable_EvenAfterBuyerConfirmation(PhysicalDeliveryStatus status)
+    {
+        var order = Order(Paid, 100m, CourseItem(),
+            PhysicalItem(status, carrierAlertCode: 11304));
+
+        OrderSettlementRule.IsSettleable(order).Should().BeFalse();
+    }
+
+    [Fact]
+    public void CarrierAlertClosedWithoutSettlement_IsNotSettleable()
+    {
+        var order = Order(Paid, 100m, CourseItem(),
+            PhysicalItem(PhysicalDeliveryStatus.Shipped, carrierAlertCode: 11305,
+                carrierAlertResolution: nameof(CarrierReturnResolution.ClosedWithoutSettlement)));
+
+        OrderSettlementRule.IsSettleable(order).Should().BeFalse();
+    }
+
+    [Fact]
+    public void CarrierAlertDeliveryConfirmed_IsSettleable()
+    {
+        var order = Order(Paid, 100m, CourseItem(),
+            PhysicalItem(PhysicalDeliveryStatus.Delivered, carrierAlertCode: 11304,
+                carrierAlertResolution: nameof(CarrierReturnResolution.DeliveryConfirmed)));
+
+        OrderSettlementRule.IsSettleable(order).Should().BeTrue();
+    }
+
+    [Fact]
+    public void BuyerConfirmationDoesNotClearCarrierAlert()
+    {
+        var buyer = new UserId(Guid.NewGuid());
+        var purchase = PhysicalProductPurchase.Create(
+            PhysicalProductPurchaseId.New(), Guid.NewGuid(), buyer, "book", "Book", 1, 10m, 10m);
+        purchase.MarkShipped("TRACK-1");
+        purchase.MarkCarrierAlert(11304, DateTime.UtcNow);
+
+        purchase.MarkDelivered();
+
+        purchase.DeliveryStatus.Should().Be(PhysicalDeliveryStatus.Delivered);
+        purchase.HasUnresolvedCarrierAlert.Should().BeTrue();
+    }
+
     [Fact]
     public void CarrierReturnedOnFullyCancelledPhysicalItem_DoesNotBlockSettlement()
     {
@@ -351,10 +397,13 @@ public sealed class OrderSettlementTests
         string externalId = "book",
         int quantity = 1,
         int cancelledQuantity = 0,
-        DateTime? carrierReturnedAtUtc = null) =>
+        DateTime? carrierReturnedAtUtc = null,
+        int? carrierAlertCode = null,
+        string? carrierAlertResolution = null) =>
         new(externalId, externalId, 10m, 10m, Guid.NewGuid(), Guid.NewGuid(), DateTime.UtcNow,
             Paid, nameof(OrderDeliveryStatus.Pending), Product, null, quantity, status.ToString(),
-            cancelledQuantity, CarrierReturnedAtUtc: carrierReturnedAtUtc);
+            cancelledQuantity, CarrierReturnedAtUtc: carrierReturnedAtUtc,
+            CarrierAlertCode: carrierAlertCode, CarrierAlertResolution: carrierAlertResolution);
 
     private sealed class HandlerFixture
     {

@@ -31,7 +31,12 @@ public sealed record TrackingResult(
     TrackingOutcome Outcome,
     string? StatusName = null,
     string? StatusTitle = null,
-    string? TrackingCode = null);
+    string? TrackingCode = null,
+    int? StatusCode = null,
+    int? ParentCode = null,
+    string? TrackingUrl = null,
+    bool DurableAlert = false,
+    bool ParentMismatch = false);
 
 /// <summary>
 /// استعلام وضعیت مرسوله از یک واسط پستی. هر پیاده‌سازی کلید منبع خودش را اعلام می‌کند تا

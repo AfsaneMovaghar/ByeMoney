@@ -377,6 +377,134 @@ public sealed class CarrierReturnResolutionTests
         var receiptItem = receipt.Items.Single();
         receiptItem.CarrierReturnedAtUtc.Should().Be(returnedAt);
         receiptItem.CarrierReturnResolution.Should().Be(nameof(CarrierReturnResolution.DeliveryConfirmed));
+        receiptItem.ProviderParcelId.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task BuyerOrderHidesCarrierAlertAndParcelId_AdminKeepsThem()
+    {
+        var purchase = PhysicalProductPurchase.Create(
+            PhysicalProductPurchaseId.New(), CartId, new UserId(BuyerId), "prod-1", "Product 1", 1, 50, 50);
+        purchase.MarkDebited(CartId);
+        purchase.RecordPaymentShares(new PaymentShares(50m, 0m));
+        purchase.MarkShipped("TRACK-1", PhysicalProductPurchase.PostexProvider, "parcel-9");
+        purchase.RememberTrackingUrl("https://track.example/a");
+        var alertAt = DateTime.UtcNow.AddHours(-2);
+        purchase.MarkCarrierAlert(PhysicalProductPurchase.DamagedParcelStatusCode, alertAt);
+        purchase.ResolveCarrierAlert(
+            CarrierReturnResolution.DeliveryConfirmed, "alert note", AdminId, DateTime.UtcNow.AddHours(-1));
+
+        var buyer = new OrderBuyer(BuyerId, "buyer-ext-123", "Ali Reza");
+        var admin = new OrderBuyer(AdminId, "admin-ext-456", "Admin Super");
+        var cart = Cart.Create(CartId, BuyerId, "buyer-ext-123", [new CartItemInput("prod-1", ProductItemType.Product, 1)], null);
+        cart.SetQuote([new CartQuoteItem("prod-1", "Product 1", 50, 0, 0, 50, ProductItemType.Product, null, 1)], 0);
+        cart.MarkPaid();
+        var snapshot = new OrderSnapshot([cart], [], [], [buyer, admin], [purchase], []);
+
+        var mapped = OrderMapping.Build(snapshot).Single().Details.Items.Single();
+        mapped.CarrierAlertCode.Should().Be(PhysicalProductPurchase.DamagedParcelStatusCode);
+        mapped.TrackingUrl.Should().Be("https://track.example/a");
+        mapped.ProviderParcelId.Should().BeNull();
+
+        var reader = new Mock<IOrderReader>();
+        reader.Setup(r => r.ReadAsync(null, null, It.IsAny<CancellationToken>())).ReturnsAsync(snapshot);
+        reader.Setup(r => r.ReadAsync(BuyerId, null, It.IsAny<CancellationToken>())).ReturnsAsync(snapshot);
+
+        var orderId = OrderIdFormat.For(OrderSourceType.Cart, cart.Id);
+        var adminUser = new Mock<ICurrentUserService>();
+        adminUser.Setup(u => u.UserId).Returns(AdminId);
+        var buyerUser = new Mock<ICurrentUserService>();
+        buyerUser.Setup(u => u.UserId).Returns(BuyerId);
+
+        var adminItem = (await new GetAdminOrderQueryHandler(reader.Object, adminUser.Object)
+            .Handle(new GetAdminOrderQuery(orderId), default)).Order.Items.Single();
+        adminItem.ProviderParcelId.Should().Be("parcel-9");
+        adminItem.CarrierAlertResolutionNote.Should().Be("alert note");
+        adminItem.TrackingUrl.Should().Be("https://track.example/a");
+
+        var buyerItem = (await new GetMyOrderQueryHandler(reader.Object, buyerUser.Object)
+            .Handle(new GetMyOrderQuery(orderId), default)).Items.Single();
+        buyerItem.TrackingUrl.Should().Be("https://track.example/a");
+        buyerItem.CarrierAlertCode.Should().BeNull();
+        buyerItem.CarrierAlertResolution.Should().BeNull();
+        buyerItem.CarrierAlertResolutionNote.Should().BeNull();
+        buyerItem.ProviderParcelId.Should().BeNull();
+
+        var buyerReceipt = OrderReceiptMapping.Build(
+            OrderMapping.WithoutCarrierAdminFields(OrderMapping.Build(snapshot).Single().Details), snapshot)!;
+        buyerReceipt.Items.Single().ProviderParcelId.Should().BeNull();
+        buyerReceipt.Items.Single().CarrierPaymentPendingSinceUtc.Should().BeNull();
+        buyerReceipt.Items.Single().TrackingUrl.Should().Be("https://track.example/a");
+
+        var adminReceipt = OrderReceiptMapping.Build(
+            (await new GetAdminOrderQueryHandler(reader.Object, adminUser.Object)
+                .Handle(new GetAdminOrderQuery(orderId), default)).Order,
+            snapshot, includeAdminCarrierFields: true)!;
+        adminReceipt.Items.Single().ProviderParcelId.Should().Be("parcel-9");
+    }
+
+    [Fact]
+    public void MarkCarrierReturned_RequiresShippedAndIgnoresRepeat()
+    {
+        var preparing = PhysicalProductPurchase.Create(
+            PhysicalProductPurchaseId.New(), CartId, new UserId(BuyerId), "prod-1", "Product 1", 1, 50, 50);
+        var rejected = () => preparing.MarkCarrierReturned(DateTime.UtcNow);
+        rejected.Should().Throw<DomainException>();
+
+        var shipped = CreateShippedPurchase();
+        var at = DateTime.UtcNow.AddMinutes(-5);
+        shipped.MarkCarrierReturned(at);
+        shipped.MarkCarrierReturned(DateTime.UtcNow);
+        shipped.CarrierReturnedAtUtc.Should().Be(at);
+
+        var delivered = CreateShippedPurchase();
+        delivered.MarkDelivered();
+        var deliveredRejected = () => delivered.MarkCarrierReturned(DateTime.UtcNow);
+        deliveredRejected.Should().Throw<DomainException>();
+    }
+
+    [Fact]
+    public void ResolveCarrierAlert_ConfirmsDeliveryWithoutTouchingReturnAndKeepsClosedStatus()
+    {
+        var shipped = CreateShippedPurchase();
+        shipped.MarkCarrierAlert(PhysicalProductPurchase.DamagedParcelStatusCode, DateTime.UtcNow.AddHours(-1));
+        var at = DateTime.UtcNow;
+        shipped.ResolveCarrierAlert(CarrierReturnResolution.DeliveryConfirmed, "received", AdminId, at);
+        shipped.DeliveryStatus.Should().Be(PhysicalDeliveryStatus.Delivered);
+        shipped.CarrierAlertResolution.Should().Be(CarrierReturnResolution.DeliveryConfirmed);
+        shipped.CarrierReturnedAtUtc.Should().BeNull();
+
+        var repeat = () => shipped.ResolveCarrierAlert(
+            CarrierReturnResolution.DeliveryConfirmed, "received", AdminId, DateTime.UtcNow);
+        repeat.Should().NotThrow();
+
+        var conflict = () => shipped.ResolveCarrierAlert(
+            CarrierReturnResolution.ClosedWithoutSettlement, "other", AdminId, DateTime.UtcNow);
+        conflict.Should().Throw<ConflictDomainException>();
+    }
+
+    [Fact]
+    public void ResolveCarrierAlert_ClosedWithoutSettlementDoesNotRevertDelivery()
+    {
+        var purchase = CreateShippedPurchase();
+        purchase.MarkCarrierAlert(PhysicalProductPurchase.MissingShipmentStatusCode, DateTime.UtcNow);
+        purchase.MarkDelivered();
+        purchase.ResolveCarrierAlert(
+            CarrierReturnResolution.ClosedWithoutSettlement, "closed", AdminId, DateTime.UtcNow);
+
+        purchase.DeliveryStatus.Should().Be(PhysicalDeliveryStatus.Delivered);
+        purchase.HasUnresolvedCarrierAlert.Should().BeFalse();
+        purchase.ExcludedFromAutomaticDeliveryByAlert.Should().BeTrue();
+    }
+
+    [Fact]
+    public void ManualProviderDoesNotKeepTrackingUrl()
+    {
+        var purchase = CreateShippedPurchase();
+        purchase.RememberTrackingUrl("https://track.example/a").Should().BeTrue();
+        purchase.MarkShipped("OTHER", PhysicalProductPurchase.ManualProvider, null);
+        purchase.TrackingUrl.Should().BeNull();
+        purchase.RememberTrackingUrl("https://track.example/b").Should().BeFalse();
     }
 
     private static PhysicalProductPurchase CreateShippedPurchase()
