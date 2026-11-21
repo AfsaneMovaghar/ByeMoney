@@ -12,6 +12,8 @@ public static class OrderErrors
     public static string InvalidSourceType => Get(nameof(InvalidSourceType));
     public static string PhysicalPurchaseNotFound => Get(nameof(PhysicalPurchaseNotFound));
     public static string InvalidPurchaseId => Get(nameof(InvalidPurchaseId));
+    public static string InvalidCartId => Get(nameof(InvalidCartId));
+    public static string CartNotFound => Get(nameof(CartNotFound));
     public static string InvalidDeliveryStatus => Get(nameof(InvalidDeliveryStatus));
     public static string InvalidTrackingCode => Get(nameof(InvalidTrackingCode));
     public static string InvalidTrackingProvider => Get(nameof(InvalidTrackingProvider));
@@ -26,6 +28,10 @@ public static class OrderErrors
     public static string ShipmentOriginCoordinatesRequired => Get(nameof(ShipmentOriginCoordinatesRequired));
     public static string ShipmentOriginProfileIncomplete => Get(nameof(ShipmentOriginProfileIncomplete));
     public static string ShipmentNotAllowed => Get(nameof(ShipmentNotAllowed));
+    public static string ShipmentNoActiveItems => Get(nameof(ShipmentNoActiveItems));
+    public static string ShipmentAlreadyDispatched => Get(nameof(ShipmentAlreadyDispatched));
+    public static string InvalidBoxTypeId => Get(nameof(InvalidBoxTypeId));
+    public static string ShipmentScaledParcelInvalid => Get(nameof(ShipmentScaledParcelInvalid));
     public static string ShipmentCreateFailed => Get(nameof(ShipmentCreateFailed));
     public static string ShipmentCityNotFound => Get(nameof(ShipmentCityNotFound));
     public static string ShipmentCityUnavailable => Get(nameof(ShipmentCityUnavailable));

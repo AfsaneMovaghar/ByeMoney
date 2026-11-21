@@ -38,7 +38,7 @@ public sealed class RefreshPhysicalShipmentTests
         purchase.PaidAmountInNoor.Should().Be(paidAmount);
         purchase.RefundedRegularInNoor.Should().Be(0m);
         client.Calls.Should().Be(1);
-        client.LastKey.Should().Be($"BM-{purchase.Id.Value:N}");
+        client.LastKey.Should().Be($"BM-{purchase.CartId:N}");
     }
 
     [Fact]

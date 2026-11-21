@@ -1,5 +1,3 @@
-using ByeMoney.Domain.Modules.Purchases;
-
 namespace ByeMoney.Application.Modules.Purchases.Delivery.Interfaces;
 
 /// <summary>
@@ -18,12 +16,26 @@ public sealed record ShipmentParty(
     string? PostalCode,
     string? CityDocumentId = null);
 
-/// <summary>مشخصات بسته؛ عوامل مرسولهٔ فریزشدهٔ همان قلم و بدون پیش‌فرض.</summary>
+/// <summary>یک ردیف داخل مرسوله؛ وزن و ارزش از قبل با تعداد باقی‌مانده مقیاس شده‌اند.</summary>
+public sealed record ShipmentParcelItem(
+    string? Description,
+    int Quantity,
+    int WeightGrams,
+    long ValueIrr);
+
+/// <summary>
+/// مشخصات یک مرسولهٔ سبد. ابعاد از جدول جعبهٔ استاندارد است، نه از ادعای کلاینت.
+/// </summary>
 public sealed record ShipmentParcelDetails(
     string IdempotencyKey,
-    string? ItemTitle,
-    int Quantity,
-    ParcelFacts Facts);
+    IReadOnlyList<ShipmentParcelItem> Items,
+    int BoxTypeId,
+    int LengthCm,
+    int WidthCm,
+    int HeightCm,
+    int TotalWeightGrams,
+    long TotalValueIrr,
+    bool IsFragile);
 
 /// <summary>
 /// درخواست ساخت مرسوله؛ فرستنده از پروفایل مبدأ فریزشدهٔ سبد در تنظیمات همان واسط خوانده می‌شود.

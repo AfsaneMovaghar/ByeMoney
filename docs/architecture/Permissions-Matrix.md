@@ -24,6 +24,7 @@
 | :--- | :--- | :--- | :--- | :--- |
 | AdminAssistedTopUp | `POST` | `/api/admin/topups/assisted` | نیازمند پالیسی `RequireTopUpReview` | `TopUp.Review` |
 | AdminCartOrders | `POST` | `/api/admin/carts/orders` | نیازمند پالیسی `RequireCoursesManage` | `Courses.Manage` |
+| AdminCartOrders | `POST` | `/api/admin/carts/{cartId:guid}/shipments` | نیازمند پالیسی `RequireCoursesManage` | `Courses.Manage` |
 | AdminGatewayReview | `GET` | `/api/admin/topups/gateway-reviews/{clientReferenceCode}` | نیازمند پالیسی `RequireTopUpReview` | `TopUp.Review` |
 | AdminGatewayReview | `POST` | `/api/admin/topups/gateway-reviews/resolve` | نیازمند پالیسی `RequireTopUpReview` | `TopUp.Review` |
 | AdminGift | `POST` | `/api/admin/noor-gifts` | نیازمند پالیسی `RequireNoorGift` | `Noor.Gift` |
@@ -46,7 +47,6 @@
 | AdminPhysicalCancellations | `GET` | `/api/admin/physical-purchases/{purchaseId:guid}/cancellation-preview` | نیازمند پالیسی `RequireNoorInject` | `Noor.Inject` |
 | AdminPhysicalCancellations | `POST` | `/api/admin/physical-purchases/restocks/{operationId:guid}/resolve` | نیازمند پالیسی `RequireNoorInject` | `Noor.Inject` |
 | AdminPhysicalCancellations | `POST` | `/api/admin/physical-purchases/restocks/{operationId:guid}/retry` | نیازمند پالیسی `RequireNoorInject` | `Noor.Inject` |
-| AdminPhysicalPurchases | `POST` | `/api/admin/physical-purchases/{purchaseId:guid}/shipments` | نیازمند پالیسی `RequireCoursesManage` | `Courses.Manage` |
 | AdminPhysicalPurchases | `POST` | `/api/admin/physical-purchases/{purchaseId:guid}/shipments/refresh` | نیازمند پالیسی `RequireCoursesManage` | `Courses.Manage` |
 | AdminPhysicalPurchases | `POST` | `/api/admin/physical-purchases/{purchaseId:guid}/carrier-alert/resolve` | نیازمند پالیسی `RequireCoursesManage` | `Courses.Manage` |
 | AdminPhysicalPurchases | `POST` | `/api/admin/physical-purchases/{purchaseId:guid}/carrier-return/resolve` | نیازمند پالیسی `RequireCoursesManage` | `Courses.Manage` |

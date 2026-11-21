@@ -1,5 +1,4 @@
 using ByeMoney.API.Contracts.Purchases;
-using ByeMoney.Application.Modules.Purchases.Commands.CreatePhysicalShipment;
 using ByeMoney.Application.Modules.Purchases.Commands.RefreshPhysicalShipment;
 using ByeMoney.Application.Modules.Purchases.Commands.ResolveCarrierAlert;
 using ByeMoney.Application.Modules.Purchases.Commands.ResolveCarrierReturn;
@@ -33,24 +32,6 @@ public sealed class AdminPhysicalPurchasesController(ISender sender) : Controlle
         return Ok(await sender.Send(new UpdatePhysicalDeliveryStatusCommand(
             purchaseId, request.Status, request.TrackingCode, request.TrackingProvider,
             request.ProviderParcelId), ct));
-    }
-
-    /// <summary>
-    /// ساخت مرسوله نزد واسط پستی. «ارسال‌شده» فقط با کد پستی واقعی ثبت می‌شود.
-    /// </summary>
-    [HttpPost("{purchaseId:guid}/shipments")]
-    [ProducesResponseType(typeof(CreatePhysicalShipmentResponse), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    [ProducesResponseType(StatusCodes.Status403Forbidden)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<CreatePhysicalShipmentResponse>> CreateShipment(
-        Guid purchaseId,
-        [FromBody] CreatePhysicalShipmentApiRequest? request,
-        CancellationToken ct)
-    {
-        return Ok(await sender.Send(
-            new CreatePhysicalShipmentCommand(purchaseId, request?.CollectionType, request?.Provider), ct));
     }
 
     /// <summary>

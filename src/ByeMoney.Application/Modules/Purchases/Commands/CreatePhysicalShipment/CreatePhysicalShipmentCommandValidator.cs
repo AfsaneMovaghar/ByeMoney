@@ -8,11 +8,16 @@ public sealed class CreatePhysicalShipmentCommandValidator : AbstractValidator<C
 {
     public CreatePhysicalShipmentCommandValidator()
     {
+        ClassLevelCascadeMode = CascadeMode.Stop;
         RuleLevelCascadeMode = CascadeMode.Stop;
 
-        RuleFor(command => command.PurchaseId)
+        RuleFor(command => command.CartId)
             .NotEmpty()
-            .WithMessage(OrderErrors.InvalidPurchaseId);
+            .WithMessage(OrderErrors.InvalidCartId);
+
+        RuleFor(command => command.BoxTypeId)
+            .Must(IsAllowedBoxType)
+            .WithMessage(OrderErrors.InvalidBoxTypeId);
 
         RuleFor(command => command.Provider)
             .Must(IsAllowedProvider)
@@ -22,6 +27,10 @@ public sealed class CreatePhysicalShipmentCommandValidator : AbstractValidator<C
             .Must(IsAllowedCollectionType)
             .WithMessage(OrderErrors.ShipmentCollectionTypeRequired);
     }
+
+    private static bool IsAllowedBoxType(int? boxTypeId) =>
+        boxTypeId is null ||
+        (boxTypeId.Value >= ParcelFacts.MinBoxTypeId && boxTypeId.Value <= ParcelFacts.MaxBoxTypeId);
 
     private static bool IsAllowedCollectionType(string? collectionType) =>
         string.Equals(collectionType?.Trim(), "pick_up", StringComparison.OrdinalIgnoreCase) ||

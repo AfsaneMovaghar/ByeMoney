@@ -7,6 +7,8 @@
   <data name="InvalidSourceType" xml:space="preserve"><value>نوع منبع سفارش معتبر نیست.</value></data>
   <data name="PhysicalPurchaseNotFound" xml:space="preserve"><value>خرید کالای فیزیکی یافت نشد.</value></data>
   <data name="InvalidPurchaseId" xml:space="preserve"><value>شناسهٔ خرید معتبر نیست.</value></data>
+  <data name="InvalidCartId" xml:space="preserve"><value>شناسهٔ سبد معتبر نیست.</value></data>
+  <data name="CartNotFound" xml:space="preserve"><value>سبد مورد نظر یافت نشد.</value></data>
   <data name="InvalidDeliveryStatus" xml:space="preserve"><value>وضعیت تحویل باید «ارسال‌شده» (Shipped) یا «تحویل‌شده» (Delivered) باشد.</value></data>
   <data name="InvalidTrackingCode" xml:space="preserve"><value>کد رهگیری نامعتبر است؛ حداکثر ۵۰ نویسه و بدون نویسهٔ کنترلی.</value></data>
   <data name="InvalidTrackingProvider" xml:space="preserve"><value>منبع کد رهگیری نامعتبر است.</value></data>
@@ -21,6 +23,10 @@
   <data name="ShipmentOriginCoordinatesRequired" xml:space="preserve"><value>مختصات مبدأ (عرض و طول جغرافیایی) برای جمع‌آوری از محل تنظیم نشده است؛ مرسوله ساخته نشد.</value></data>
   <data name="ShipmentOriginProfileIncomplete" xml:space="preserve"><value>تنظیمات مبدأ/فرستندهٔ پستکس ناقص است یا مبدأ سبد در تنظیمات تعریف نشده.</value></data>
   <data name="ShipmentNotAllowed" xml:space="preserve"><value>ساخت مرسوله فقط برای قلم «آماده‌سازی» با تعداد باقی‌مانده مجاز است.</value></data>
+  <data name="ShipmentNoActiveItems" xml:space="preserve"><value>این سبد قلم فیزیکیِ قابل ارسال ندارد.</value></data>
+  <data name="ShipmentAlreadyDispatched" xml:space="preserve"><value>یکی از اقلام فعال این سبد قبلاً ارسال یا تحویل شده است؛ ساخت مرسولهٔ تازه مجاز نیست.</value></data>
+  <data name="InvalidBoxTypeId" xml:space="preserve"><value>شناسهٔ جعبه باید بین ۱ و ۱۲ باشد.</value></data>
+  <data name="ShipmentScaledParcelInvalid" xml:space="preserve"><value>وزن یا ارزش یکی از اقلام پس از مقیاس با تعداد باقی‌مانده برای مرسوله معتبر نیست.</value></data>
   <data name="ShipmentCreateFailed" xml:space="preserve"><value>ساخت مرسوله نزد واسط پستی ناموفق بود.</value></data>
   <data name="ShipmentCityNotFound" xml:space="preserve"><value>شهر تحویل در جدول محل یافت نشد و مرسوله ساخته نشد.</value></data>
   <data name="ShipmentCityUnavailable" xml:space="preserve"><value>خواندن شهر تحویل ناموفق بود و مرسوله ساخته نشد.</value></data>

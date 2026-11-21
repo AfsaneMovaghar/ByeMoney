@@ -1,5 +1,4 @@
 using ByeMoney.Application.Common.Interfaces;
-using ByeMoney.Application.Modules.Purchases.Commands.UpdatePhysicalDeliveryStatus;
 using ByeMoney.Application.Modules.Purchases.Delivery.Interfaces;
 using ByeMoney.Application.Modules.Purchases.Delivery.Services;
 using ByeMoney.Application.Modules.Purchases.Orders.Interfaces;
@@ -12,11 +11,10 @@ using MediatR;
 namespace ByeMoney.Application.Modules.Purchases.Commands.CreatePhysicalShipment;
 
 /// <summary>
-/// ساخت مرسوله از طریق پورت عمومی <see cref="IShipmentProviderClient"/>؛
-/// جزئیات پستکس/واسط دیگر در Infrastructure می‌ماند.
-/// فراخوانی واسط بیرون از تراکنش و قفل انجام می‌شود: اول یک رزرو کوتاه روی خرید ثبت می‌شود،
-/// بعد HTTP (بدون قفل) و در پایان نتیجه در یک تراکنش کوتاه ذخیره می‌شود. رزرو فقط با رد صریح
-/// پیش از ارسال یا پاسخ قطعی ناموفق آزاد می‌شود؛ در نتیجهٔ نامعلوم می‌ماند تا خودش منقضی شود.
+/// ساخت یک مرسوله برای همهٔ اقلام فیزیکیِ فعال یک سبد، از طریق پورت عمومی
+/// <see cref="IShipmentProviderClient"/>. فراخوانی واسط بیرون از تراکنش و قفل است:
+/// اول رزرو کوتاه روی همهٔ اقلام فعال، بعد HTTP، و در پایان نتیجه در یک تراکنش
+/// روی همان اقلام ذخیره می‌شود تا از هم جدا نمانند.
 /// </summary>
 public sealed class CreatePhysicalShipmentCommandHandler(
     IRepository<PhysicalProductPurchase, PhysicalProductPurchaseId> repository,
@@ -35,8 +33,11 @@ public sealed class CreatePhysicalShipmentCommandHandler(
     public async Task<CreatePhysicalShipmentResponse> Handle(
         CreatePhysicalShipmentCommand request, CancellationToken ct)
     {
-        var owner = await deliveryStore.FindOwnerAsync(request.PurchaseId, ct)
-            ?? throw new NotFoundException(OrderErrors.PhysicalPurchaseNotFound);
+        var owner = await deliveryStore.FindCartOwnerAsync(request.CartId, ct)
+            ?? throw new NotFoundException(OrderErrors.CartNotFound);
+
+        var active = ActiveItems(await deliveryStore.GetPurchasesAsync(request.CartId, ct));
+        EnsureShippable(active);
 
         var client = ShipmentClientSelector.Resolve(shipmentClients, request.Provider);
         if (client is null || !client.IsConfigured)
@@ -44,57 +45,32 @@ public sealed class CreatePhysicalShipmentCommandHandler(
             throw new DomainException(OrderErrors.ShipmentProviderUnavailable);
         }
 
-        var purchase = await repository.GetByIdAsync(new PhysicalProductPurchaseId(request.PurchaseId), ct)
-            ?? throw new NotFoundException(OrderErrors.PhysicalPurchaseNotFound);
-
-        if (IsTrackedShipment(purchase, client.Provider))
-        {
-            return AlreadyShipped(purchase);
-        }
-
-        if (purchase.DeliveryStatus != PhysicalDeliveryStatus.Preparing || purchase.RemainingQuantity == 0)
-        {
-            throw new DomainException(OrderErrors.ShipmentNotAllowed);
-        }
-
-        // عوامل مرسوله پیش از هر فراخوانی واسط بررسی می‌شوند؛ خرید قدیمی بدون parcel عدد جایگزین نمی‌گیرد.
-        var parcelFacts = RequireParcelFacts(purchase);
-
-        var address = await deliveryStore.GetCartShippingAddressAsync(owner.CartId, ct);
+        var address = await deliveryStore.GetCartShippingAddressAsync(request.CartId, ct);
         if (address is null || !address.IsValid())
         {
             throw new DomainException(OrderErrors.ShipmentAddressRequired);
         }
 
-        var originId = await deliveryStore.GetCartShippingOriginIdAsync(owner.CartId, ct);
+        var originId = await deliveryStore.GetCartShippingOriginIdAsync(request.CartId, ct);
         if (string.IsNullOrWhiteSpace(originId))
         {
             throw new DomainException(OrderErrors.ShipmentOriginRequired);
         }
 
-        var frozenCityId = await deliveryStore.GetCartShippingOriginCityIdAsync(owner.CartId, ct);
+        var frozenCityId = await deliveryStore.GetCartShippingOriginCityIdAsync(request.CartId, ct);
         if (frozenCityId is int quotedCityId &&
             originCities?.GetCityId(originId) != quotedCityId)
         {
             throw new DomainException(OrderErrors.ShipmentOriginCityMismatch);
         }
 
-        // تعدادی که در همین درخواست به واسط می‌رود؛ روی مرسوله ثبت می‌شود تا نگهبان ارتقای خودکار
-        // آن را با تعداد باقی‌مانده بسنجد.
-        var requestedQuantity = purchase.RemainingQuantity;
-
-        var early = await ClaimAsync(request.PurchaseId, client, owner, ct);
-        if (early is not null)
-        {
-            return early;
-        }
+        var claimed = await ClaimAsync(request.CartId, request.BoxTypeId, owner, ct);
 
         var createResult = await client.CreateOrGetParcelAsync(
-            BuildRequest(purchase, requestedQuantity, address, originId, parcelFacts, request.CollectionType), ct);
+            BuildRequest(request.CartId, claimed.Parcel, address, originId, request.CollectionType), ct);
 
         if (createResult.Outcome == ShipmentCreateOutcome.Uncertain)
         {
-            // درخواست ممکن است رسیده باشد؛ رزرو نمی‌شود تا تلاش بعدی اول بخواند.
             throw new DomainException(
                 string.IsNullOrWhiteSpace(createResult.ErrorMessage)
                     ? OrderErrors.ShipmentOutcomeUnknown
@@ -103,162 +79,228 @@ public sealed class CreatePhysicalShipmentCommandHandler(
 
         if (createResult.Outcome is ShipmentCreateOutcome.Failed or ShipmentCreateOutcome.NotConfigured)
         {
-            // رد صریح: مرسوله‌ای ساخته نشد، رزرو آزاد می‌شود.
-            await ReleaseReservationAsync(request.PurchaseId, owner, ct);
+            await ReleaseReservationAsync(request.CartId, claimed.Lines, owner, ct);
             throw new DomainException(
                 string.IsNullOrWhiteSpace(createResult.ErrorMessage)
                     ? OrderErrors.ShipmentCreateFailed
                     : createResult.ErrorMessage);
         }
 
-        return await CommitResultAsync(request.PurchaseId, client, createResult, requestedQuantity, owner, ct);
+        return await CommitResultAsync(request.CartId, claimed.Lines, client, createResult, owner, ct);
     }
 
-    /// <summary>اعتبارسنجی تکراری و رزرو کوتاه؛ هیچ فراخوانی واسط اینجا نیست.</summary>
-    private async Task<CreatePhysicalShipmentResponse?> ClaimAsync(
-        Guid purchaseId, IShipmentProviderClient client, PhysicalPurchaseOwner owner, CancellationToken ct) =>
-        await deliveryStore.ExecuteLockedAsync(owner.BuyerId, owner.CartId, async () =>
+    /// <summary>اعتبارسنجی دوباره، ساخت بدنهٔ مرسوله و رزرو همهٔ اقلام فعال؛ هیچ فراخوانی واسط اینجا نیست.</summary>
+    private async Task<ShipmentClaim> ClaimAsync(
+        Guid cartId, int? boxTypeId, PhysicalPurchaseOwner owner, CancellationToken ct) =>
+        await deliveryStore.ExecuteLockedAsync(owner.BuyerId, cartId, async () =>
         {
-            var locked = await LoadAsync(purchaseId, ct);
+            var active = ActiveItems(await deliveryStore.GetPurchasesAsync(cartId, ct));
+            EnsureShippable(active);
+            var parcel = CartShipmentParcel.Build(cartId, active, boxTypeId);
 
-            if (IsTrackedShipment(locked, client.Provider))
+            var now = DateTime.UtcNow;
+            var started = new List<PhysicalProductPurchase>();
+            foreach (var item in active)
             {
-                return AlreadyShipped(locked);
+                if (!item.TryBeginShipmentRequest(now, RequestLease))
+                {
+                    foreach (var startedItem in started)
+                    {
+                        startedItem.AbandonShipmentRequest();
+                    }
+
+                    throw new ConflictDomainException(OrderErrors.ShipmentRequestInProgress);
+                }
+
+                started.Add(item);
             }
 
-            if (locked.DeliveryStatus != PhysicalDeliveryStatus.Preparing || locked.RemainingQuantity == 0)
+            foreach (var item in started)
             {
-                throw new DomainException(OrderErrors.ShipmentNotAllowed);
+                repository.Update(item);
             }
 
-            if (!locked.TryBeginShipmentRequest(DateTime.UtcNow, RequestLease))
-            {
-                throw new ConflictDomainException(OrderErrors.ShipmentRequestInProgress);
-            }
-
-            repository.Update(locked);
             await unitOfWork.SaveChangesAsync(ct);
-            return (CreatePhysicalShipmentResponse?)null;
+            return new ShipmentClaim(
+                started.Select(item => new ClaimedLine(item.Id.Value, item.RemainingQuantity)).ToList(),
+                parcel);
         }, ct);
 
-    /// <summary>آزادکردن رزرو پس از رد صریح واسط؛ تراکنش کوتاه و مستقل تا پاک‌شدن رزرو حتماً commit شود.</summary>
+    /// <summary>آزادکردن رزرو پس از رد صریح واسط؛ یک تراکنش تا پاک‌شدن رزرو حتماً commit شود.</summary>
     private async Task ReleaseReservationAsync(
-        Guid purchaseId, PhysicalPurchaseOwner owner, CancellationToken ct) =>
-        await deliveryStore.ExecuteLockedAsync(owner.BuyerId, owner.CartId, async () =>
+        Guid cartId,
+        IReadOnlyList<ClaimedLine> claimed,
+        PhysicalPurchaseOwner owner,
+        CancellationToken ct) =>
+        await deliveryStore.ExecuteLockedAsync(owner.BuyerId, cartId, async () =>
         {
-            var locked = await LoadAsync(purchaseId, ct);
-            locked.AbandonShipmentRequest();
-            repository.Update(locked);
+            var purchases = await deliveryStore.GetPurchasesAsync(cartId, ct);
+            foreach (var line in claimed)
+            {
+                var item = purchases.FirstOrDefault(purchase => purchase.Id.Value == line.PurchaseId);
+                if (item is null)
+                {
+                    continue;
+                }
+
+                item.AbandonShipmentRequest();
+                repository.Update(item);
+            }
+
             await unitOfWork.SaveChangesAsync(ct);
             return true;
         }, ct);
 
     /// <summary>
-    /// ثبت نتیجهٔ واسط. قلم ممکن است در همین فاصله لغو شده باشد؛ در آن حالت ارجاع مرسوله
-    /// باز هم ذخیره می‌شود تا مرسولهٔ واسط گم نشود، ولی وضعیت تحویل عوض نمی‌شود.
+    /// ثبت نتیجه روی همهٔ اقلامی که در رزرو بودند. قلمی که در این فاصله کامل لغو شده
+    /// ارجاع مرسوله را می‌گیرد تا مرسوله گم نشود، ولی «ارسال‌شده» نمی‌شود.
     /// </summary>
     private async Task<CreatePhysicalShipmentResponse> CommitResultAsync(
-        Guid purchaseId,
+        Guid cartId,
+        IReadOnlyList<ClaimedLine> claimed,
         IShipmentProviderClient client,
         ShipmentCreateResult createResult,
-        int requestedQuantity,
         PhysicalPurchaseOwner owner,
         CancellationToken ct) =>
-        await deliveryStore.ExecuteLockedAsync(owner.BuyerId, owner.CartId, async () =>
+        await deliveryStore.ExecuteLockedAsync(owner.BuyerId, cartId, async () =>
         {
-            var locked = await LoadAsync(purchaseId, ct);
             var parcelId = createResult.ProviderParcelId;
-
             if (string.IsNullOrWhiteSpace(parcelId))
             {
-                // بدون شناسه نمی‌توان «در انتظار پرداخت» را ثبت کرد؛ رزرو عمداً آزاد نمی‌شود.
                 throw new DomainException(OrderErrors.ShipmentOutcomeUnknown);
             }
 
-            if (locked.DeliveryStatus != PhysicalDeliveryStatus.Preparing)
+            var purchases = await deliveryStore.GetPurchasesAsync(cartId, ct);
+            var targets = new List<PhysicalProductPurchase>(claimed.Count);
+            foreach (var line in claimed)
+            {
+                var item = purchases.FirstOrDefault(purchase => purchase.Id.Value == line.PurchaseId)
+                    ?? throw new NotFoundException(OrderErrors.PhysicalPurchaseNotFound);
+                targets.Add(item);
+            }
+
+            if (targets.Any(item =>
+                    item.RemainingQuantity > 0 &&
+                    item.DeliveryStatus != PhysicalDeliveryStatus.Preparing))
             {
                 throw new ConflictDomainException(OrderErrors.ShipmentNotAllowed);
             }
 
-            var cancelledMeanwhile = locked.RemainingQuantity == 0;
+            var now = DateTime.UtcNow;
             var pendingPayment = createResult.Outcome == ShipmentCreateOutcome.PendingPayment;
+            var hasBarcode = PhysicalProductPurchase.IsUsablePostalTrackingCode(createResult.TrackingCode);
+            var shippedAny = false;
+            var cancelledAny = false;
 
-            if (!cancelledMeanwhile && !pendingPayment &&
-                PhysicalProductPurchase.IsUsablePostalTrackingCode(createResult.TrackingCode))
+            foreach (var item in targets)
             {
-                locked.MarkShipped(createResult.TrackingCode, client.Provider, parcelId);
-                locked.RememberTrackingUrl(createResult.TrackingUrl);
-                repository.Update(locked);
-                await unitOfWork.SaveChangesAsync(ct);
-                return Response(locked,
-                    createResult.Outcome == ShipmentCreateOutcome.AlreadyExists
-                        ? nameof(ShipmentCreateOutcome.AlreadyExists)
-                        : nameof(ShipmentCreateOutcome.Created));
+                if (item.DeliveryStatus != PhysicalDeliveryStatus.Preparing)
+                {
+                    throw new ConflictDomainException(OrderErrors.ShipmentNotAllowed);
+                }
+
+                var line = claimed.First(entry => entry.PurchaseId == item.Id.Value);
+                var cancelled = item.RemainingQuantity == 0;
+                if (cancelled)
+                {
+                    cancelledAny = true;
+                }
+
+                if (!cancelled && !pendingPayment && hasBarcode)
+                {
+                    item.MarkShipped(createResult.TrackingCode, client.Provider, parcelId);
+                    item.RememberTrackingUrl(createResult.TrackingUrl);
+                    shippedAny = true;
+                }
+                else
+                {
+                    item.RememberCarrierParcel(client.Provider, parcelId, line.Quantity);
+                    item.RememberTrackingUrl(createResult.TrackingUrl);
+                    item.AbandonShipmentRequest();
+                    if (pendingPayment)
+                    {
+                        item.MarkCarrierPaymentPending(now);
+                    }
+                    else
+                    {
+                        item.ClearCarrierPaymentPending();
+                    }
+                }
+
+                repository.Update(item);
             }
 
-            locked.RememberCarrierParcel(client.Provider, parcelId, requestedQuantity);
-            locked.RememberTrackingUrl(createResult.TrackingUrl);
-            // تلاش با نتیجهٔ معلوم تمام شد؛ رزرو آزاد می‌شود تا تلاش بعدی فقط با خواندن پاسخ بگیرد.
-            locked.AbandonShipmentRequest();
-            if (pendingPayment)
-            {
-                locked.MarkCarrierPaymentPending(DateTime.UtcNow);
-            }
-            else
-            {
-                locked.ClearCarrierPaymentPending();
-            }
-
-            repository.Update(locked);
             await unitOfWork.SaveChangesAsync(ct);
 
-            if (cancelledMeanwhile)
-            {
-                return Response(locked, nameof(ShipmentCreateOutcome.AlreadyExists),
-                    OrderErrors.ShipmentQuantityMismatch);
-            }
+            var representative = targets.FirstOrDefault(item => item.RemainingQuantity > 0) ?? targets[0];
+            var warning = cancelledAny
+                ? OrderErrors.ShipmentQuantityMismatch
+                : pendingPayment
+                    ? OrderErrors.ShipmentPaymentPendingHelp
+                    : shippedAny
+                        ? null
+                        : OrderErrors.ShipmentTrackingCodePending;
 
-            return pendingPayment
-                ? Response(locked, nameof(ShipmentCreateOutcome.PendingPayment), OrderErrors.ShipmentPaymentPendingHelp)
-                : Response(locked, "AwaitingTrackingCode", OrderErrors.ShipmentTrackingCodePending);
+            var outcome = shippedAny
+                ? createResult.Outcome == ShipmentCreateOutcome.AlreadyExists
+                    ? nameof(ShipmentCreateOutcome.AlreadyExists)
+                    : nameof(ShipmentCreateOutcome.Created)
+                : cancelledAny
+                    ? nameof(ShipmentCreateOutcome.AlreadyExists)
+                    : pendingPayment
+                        ? nameof(ShipmentCreateOutcome.PendingPayment)
+                        : "AwaitingTrackingCode";
+
+            return new CreatePhysicalShipmentResponse(
+                cartId,
+                representative.DeliveryStatus.ToString(),
+                representative.ShippedAtUtc,
+                representative.TrackingCode,
+                representative.TrackingProvider,
+                representative.ProviderParcelId,
+                outcome,
+                warning,
+                representative.CarrierPaymentPendingSinceUtc);
         }, ct);
 
-    private async Task<PhysicalProductPurchase> LoadAsync(Guid purchaseId, CancellationToken ct) =>
-        await repository.GetByIdAsync(new PhysicalProductPurchaseId(purchaseId), ct)
-            ?? throw new NotFoundException(OrderErrors.PhysicalPurchaseNotFound);
+    private static List<PhysicalProductPurchase> ActiveItems(
+        IReadOnlyList<PhysicalProductPurchase> purchases) =>
+        purchases
+            .Where(purchase => purchase.RemainingQuantity > 0)
+            .OrderBy(purchase => purchase.Id.Value)
+            .ToList();
 
-    private static CreatePhysicalShipmentResponse Response(
-        PhysicalProductPurchase purchase, string outcome, string? warning = null) =>
-        CreatePhysicalShipmentResponse.From(
-            new PhysicalDeliveryStatusResponse(
-                purchase.Id.Value, purchase.DeliveryStatus.ToString(),
-                purchase.ShippedAtUtc, purchase.DeliveredAtUtc,
-                purchase.TrackingCode, purchase.TrackingProvider,
-                purchase.CarrierPaymentPendingSinceUtc),
-            purchase.ProviderParcelId, outcome, warning);
+    private static void EnsureShippable(IReadOnlyList<PhysicalProductPurchase> active)
+    {
+        if (active.Count == 0)
+        {
+            throw new DomainException(OrderErrors.ShipmentNoActiveItems);
+        }
 
-    private static bool IsTrackedShipment(PhysicalProductPurchase purchase, string provider) =>
-        purchase.DeliveryStatus == PhysicalDeliveryStatus.Shipped &&
-        !string.IsNullOrWhiteSpace(purchase.ProviderParcelId) &&
-        string.Equals(purchase.TrackingProvider, provider, StringComparison.OrdinalIgnoreCase);
+        if (active.Any(item =>
+                item.DeliveryStatus is PhysicalDeliveryStatus.Shipped or PhysicalDeliveryStatus.Delivered))
+        {
+            throw new DomainException(OrderErrors.ShipmentAlreadyDispatched);
+        }
 
-    private static CreatePhysicalShipmentResponse AlreadyShipped(PhysicalProductPurchase purchase) =>
-        new(purchase.Id.Value, purchase.DeliveryStatus.ToString(), purchase.ShippedAtUtc,
-            purchase.TrackingCode, purchase.TrackingProvider, purchase.ProviderParcelId,
-            nameof(ShipmentCreateOutcome.AlreadyExists), CarrierPaymentPendingSinceUtc: null);
+        if (active.Any(item => item.DeliveryStatus != PhysicalDeliveryStatus.Preparing))
+        {
+            throw new DomainException(OrderErrors.ShipmentNotAllowed);
+        }
+
+        if (active.Any(item => !item.HasParcelFacts))
+        {
+            throw new DomainException(OrderErrors.ShipmentParcelRequired);
+        }
+    }
 
     private static ShipmentCreateRequest BuildRequest(
-        PhysicalProductPurchase purchase,
-        int quantity,
+        Guid cartId,
+        ShipmentParcelDetails parcel,
         ShippingAddress address,
         string originId,
-        ParcelFacts parcelFacts,
-        string? collectionType)
-    {
-        // کلید یکتا در سطح بای‌مانی؛ پستکس خودش تکرار را مسدود نمی‌کند و کلید عوض نمی‌شود.
-        var idempotencyKey = $"BM-{purchase.Id.Value:N}";
-
-        return new ShipmentCreateRequest(
+        string? collectionType) =>
+        new(
             new ShipmentParty(
                 address.RecipientName,
                 address.RecipientPhone,
@@ -270,18 +312,12 @@ public sealed class CreatePhysicalShipmentCommandHandler(
                 address.Province,
                 address.PostalCode,
                 address.CityDocumentId),
-            new ShipmentParcelDetails(
-                idempotencyKey,
-                purchase.ProductTitle,
-                quantity,
-                parcelFacts),
-            Remark: $"ByeMoney purchase {purchase.Id.Value:N}",
+            parcel,
+            Remark: $"ByeMoney cart {cartId:N}",
             OriginId: originId.Trim(),
             CollectionType: collectionType);
-    }
 
-    private static ParcelFacts RequireParcelFacts(PhysicalProductPurchase purchase) =>
-        purchase.HasParcelFacts && purchase.Parcel is { } parcelFacts
-            ? parcelFacts
-            : throw new DomainException(OrderErrors.ShipmentParcelRequired);
+    private sealed record ClaimedLine(Guid PurchaseId, int Quantity);
+
+    private sealed record ShipmentClaim(IReadOnlyList<ClaimedLine> Lines, ShipmentParcelDetails Parcel);
 }

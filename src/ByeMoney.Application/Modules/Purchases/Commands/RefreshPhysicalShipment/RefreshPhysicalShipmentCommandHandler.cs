@@ -38,7 +38,7 @@ public sealed class RefreshPhysicalShipmentCommandHandler(
             throw new DomainException(OrderErrors.ShipmentProviderUnavailable);
         }
 
-        // خواندن واسط بدون تراکنش و قفل.
+        // کلید ساخت، شناسهٔ سبد است؛ خواندن واسط بدون تراکنش و قفل.
         var result = await client.GetParcelAsync(IdempotencyKey(purchase), ct);
 
         return await deliveryStore.ExecuteLockedAsync(owner.BuyerId, owner.CartId, async () =>
@@ -49,11 +49,16 @@ public sealed class RefreshPhysicalShipmentCommandHandler(
                 throw new DomainException(OrderErrors.ShipmentRefreshNotAllowed);
             }
 
+            var mates = await PreparingMatesAsync(locked, ct);
             switch (result.Outcome)
             {
                 case ShipmentCreateOutcome.NotFound:
-                    locked.ClearCarrierParcelReference();
-                    await SaveAsync(locked, ct);
+                    foreach (var mate in mates)
+                    {
+                        mate.ClearCarrierParcelReference();
+                    }
+
+                    await SaveAsync(mates, ct);
                     return State(locked, PhysicalShipmentRefreshOutcome.ParcelNotFound,
                         OrderErrors.ShipmentParcelNotFound);
 
@@ -64,53 +69,90 @@ public sealed class RefreshPhysicalShipmentCommandHandler(
                             OrderErrors.ShipmentStatusUnavailable);
                     }
 
-                    locked.MarkCarrierPaymentPending(DateTime.UtcNow);
-                    await SaveAsync(locked, ct);
+                    var now = DateTime.UtcNow;
+                    foreach (var mate in mates)
+                    {
+                        mate.MarkCarrierPaymentPending(now);
+                    }
+
+                    await SaveAsync(mates, ct);
                     return State(locked, PhysicalShipmentRefreshOutcome.PaymentPending,
                         OrderErrors.ShipmentPaymentPendingHelp);
 
                 case ShipmentCreateOutcome.Created:
                 case ShipmentCreateOutcome.AlreadyExists:
-                    return await ApplyAcceptedAsync(locked, client.Provider, result, ct);
+                    return await ApplyAcceptedAsync(locked, mates, client.Provider, result, ct);
 
                 default:
-                    // خطای خواندن یا واسط خاموش: چیزی عوض نمی‌شود تا وضعیت از دست نرود.
                     return State(locked, PhysicalShipmentRefreshOutcome.ReadFailed,
                         OrderErrors.ShipmentStatusUnavailable);
             }
         }, ct);
     }
 
-    /// <summary>مرسوله پذیرفته شده است؛ با بارکد واقعی و تعداد هم‌خوان «ارسال‌شده» می‌شود.</summary>
+    /// <summary>مرسوله پذیرفته شده است؛ هر قلم با بارکد واقعی و تعداد هم‌خوان «ارسال‌شده» می‌شود.</summary>
     private async Task<PhysicalShipmentStateResponse> ApplyAcceptedAsync(
-        PhysicalProductPurchase purchase, string provider, ShipmentCreateResult result, CancellationToken ct)
+        PhysicalProductPurchase requested,
+        IReadOnlyList<PhysicalProductPurchase> mates,
+        string provider,
+        ShipmentCreateResult result,
+        CancellationToken ct)
     {
-        var hasBarcode = PhysicalProductPurchase.IsUsablePostalTrackingCode(result.TrackingCode);
-        var quantityMatches = purchase.CarrierParcelQuantity == purchase.RemainingQuantity;
-
-        if (hasBarcode && quantityMatches)
+        foreach (var mate in mates)
         {
-            purchase.MarkShipped(result.TrackingCode, provider, purchase.ProviderParcelId);
-            purchase.RememberTrackingUrl(result.TrackingUrl);
-            await SaveAsync(purchase, ct);
-            return State(purchase, PhysicalShipmentRefreshOutcome.Shipped);
+            var hasBarcode = PhysicalProductPurchase.IsUsablePostalTrackingCode(result.TrackingCode);
+            var quantityMatches = mate.CarrierParcelQuantity == mate.RemainingQuantity;
+            if (hasBarcode && quantityMatches)
+            {
+                mate.MarkShipped(result.TrackingCode, provider, mate.ProviderParcelId);
+                mate.RememberTrackingUrl(result.TrackingUrl);
+                continue;
+            }
+
+            mate.RememberTrackingUrl(result.TrackingUrl);
+            mate.ClearCarrierPaymentPending();
         }
 
-        // ارجاع و تاریخ پذیرش به‌روز می‌شود؛ نشان «در انتظار پرداخت» دیگر معنا ندارد.
-        purchase.RememberTrackingUrl(result.TrackingUrl);
-        purchase.ClearCarrierPaymentPending();
-        await SaveAsync(purchase, ct);
+        await SaveAsync(mates, ct);
 
-        return hasBarcode
-            ? State(purchase, PhysicalShipmentRefreshOutcome.AwaitingTrackingCode,
+        var requestedHasBarcode = PhysicalProductPurchase.IsUsablePostalTrackingCode(result.TrackingCode);
+        var requestedMatches = requested.CarrierParcelQuantity == requested.RemainingQuantity;
+        if (requestedHasBarcode && requestedMatches)
+        {
+            return State(requested, PhysicalShipmentRefreshOutcome.Shipped);
+        }
+
+        return requestedHasBarcode
+            ? State(requested, PhysicalShipmentRefreshOutcome.AwaitingTrackingCode,
                 OrderErrors.ShipmentQuantityMismatch)
-            : State(purchase, PhysicalShipmentRefreshOutcome.AwaitingTrackingCode,
+            : State(requested, PhysicalShipmentRefreshOutcome.AwaitingTrackingCode,
                 OrderErrors.ShipmentTrackingCodePending);
     }
 
-    private async Task SaveAsync(PhysicalProductPurchase purchase, CancellationToken ct)
+    private async Task<IReadOnlyList<PhysicalProductPurchase>> PreparingMatesAsync(
+        PhysicalProductPurchase purchase, CancellationToken ct)
     {
-        repository.Update(purchase);
+        var mates = (await deliveryStore.GetPurchasesAsync(purchase.CartId, ct))
+            .Where(item =>
+                item.DeliveryStatus == PhysicalDeliveryStatus.Preparing &&
+                string.Equals(item.ProviderParcelId, purchase.ProviderParcelId, StringComparison.Ordinal))
+            .ToList();
+        if (mates.All(item => item.Id != purchase.Id))
+        {
+            mates.Add(purchase);
+        }
+
+        return mates;
+    }
+
+    private async Task SaveAsync(
+        IReadOnlyList<PhysicalProductPurchase> purchases, CancellationToken ct)
+    {
+        foreach (var purchase in purchases)
+        {
+            repository.Update(purchase);
+        }
+
         await unitOfWork.SaveChangesAsync(ct);
     }
 
@@ -119,7 +161,7 @@ public sealed class RefreshPhysicalShipmentCommandHandler(
             ?? throw new NotFoundException(OrderErrors.PhysicalPurchaseNotFound);
 
     private static string IdempotencyKey(PhysicalProductPurchase purchase) =>
-        $"BM-{purchase.Id.Value:N}";
+        $"BM-{purchase.CartId:N}";
 
     private static PhysicalShipmentStateResponse State(
         PhysicalProductPurchase purchase, PhysicalShipmentRefreshOutcome outcome, string? warning = null) =>

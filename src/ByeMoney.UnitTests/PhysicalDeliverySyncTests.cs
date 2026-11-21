@@ -366,6 +366,67 @@ public sealed class PhysicalDeliverySyncTests
         preparing.DeliveryStatus.Should().Be(PhysicalDeliveryStatus.Preparing);
     }
 
+    [Fact]
+    public async Task SharedParcelIsPolledOnceAndUpdatesEveryCartMate()
+    {
+        var cartId = Guid.NewGuid();
+        var buyer = new UserId(Guid.NewGuid());
+        var first = PhysicalProductPurchase.Create(
+            PhysicalProductPurchaseId.New(), cartId, buyer, "gold", "شمش", 1, 50m, 50m);
+        var second = PhysicalProductPurchase.Create(
+            PhysicalProductPurchaseId.New(), cartId, buyer, "coin", "سکه", 1, 50m, 50m);
+        first.MarkShipped("CODE-1", PhysicalProductPurchase.PostexProvider, "12345");
+        second.MarkShipped("CODE-1", PhysicalProductPurchase.PostexProvider, "12345");
+
+        var store = new FakeStore(CandidateFor(first))
+        {
+            Purchases = [first, second]
+        };
+        var client = new FakeTrackingClient(PhysicalProductPurchase.PostexProvider, TrackingOutcome.Delivered);
+
+        var changed = await CreateService(store, new FakeRepository(first, second), client)
+            .SyncExternalAsync(CancellationToken.None);
+
+        changed.Should().Be(2);
+        client.Calls.Should().Be(1);
+        first.DeliveryStatus.Should().Be(PhysicalDeliveryStatus.Delivered);
+        second.DeliveryStatus.Should().Be(PhysicalDeliveryStatus.Delivered);
+        second.ProviderParcelId.Should().Be("12345");
+    }
+
+    [Fact]
+    public async Task SharedPreparingParcelIsPromotedTogetherFromOnePoll()
+    {
+        var cartId = Guid.NewGuid();
+        var buyer = new UserId(Guid.NewGuid());
+        var first = PhysicalProductPurchase.Create(
+            PhysicalProductPurchaseId.New(), cartId, buyer, "gold", "شمش", 1, 50m, 50m);
+        var second = PhysicalProductPurchase.Create(
+            PhysicalProductPurchaseId.New(), cartId, buyer, "coin", "سکه", 1, 50m, 50m);
+        first.RememberCarrierParcel(PhysicalProductPurchase.PostexProvider, "12345", 1);
+        second.RememberCarrierParcel(PhysicalProductPurchase.PostexProvider, "12345", 1);
+
+        var store = new FakeStore
+        {
+            AwaitingTracking = [CandidateFor(first)],
+            Purchases = [first, second]
+        };
+        var client = new FakeTrackingClient(
+            PhysicalProductPurchase.PostexProvider, TrackingOutcome.Delivered, "IR-200");
+
+        var changed = await CreateService(store, new FakeRepository(first, second), client)
+            .SyncExternalAsync(CancellationToken.None);
+
+        changed.Should().Be(2);
+        client.Calls.Should().Be(1);
+        first.DeliveryStatus.Should().Be(PhysicalDeliveryStatus.Shipped);
+        second.DeliveryStatus.Should().Be(PhysicalDeliveryStatus.Shipped);
+        first.TrackingCode.Should().Be("IR-200");
+        second.TrackingCode.Should().Be("IR-200");
+        first.DeliveredAtUtc.Should().BeNull();
+        second.DeliveredAtUtc.Should().BeNull();
+    }
+
     private static PhysicalDeliverySyncService CreateService(
         FakeStore store,
         FakeRepository repository,
@@ -429,9 +490,11 @@ public sealed class PhysicalDeliverySyncTests
         public Task<PhysicalPurchaseOwner?> FindCartOwnerAsync(Guid cartId, CancellationToken ct) =>
             Task.FromResult<PhysicalPurchaseOwner?>(null);
 
+        public IReadOnlyList<PhysicalProductPurchase> Purchases { get; init; } = [];
+
         public Task<IReadOnlyList<PhysicalProductPurchase>> GetPurchasesAsync(
             Guid cartId, CancellationToken ct) =>
-            Task.FromResult<IReadOnlyList<PhysicalProductPurchase>>([]);
+            Task.FromResult(Purchases);
 
         public Task<ShippingAddress?> GetCartShippingAddressAsync(Guid cartId, CancellationToken ct) =>
             Task.FromResult<ShippingAddress?>(null);

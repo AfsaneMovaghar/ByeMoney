@@ -35,7 +35,7 @@ public sealed class PostexShipmentClient(
                 ErrorMessage: "کلید یکتای مرسوله خالی است.");
         }
 
-        if (!request.Parcel.Facts.IsComplete)
+        if (!IsParcelComplete(request.Parcel))
         {
             return new ShipmentCreateResult(ShipmentCreateOutcome.Failed,
                 ErrorMessage: OrderErrors.ShipmentParcelRequired);
@@ -228,6 +228,32 @@ public sealed class PostexShipmentClient(
         !string.IsNullOrWhiteSpace(sender.MobileNo) &&
         !string.IsNullOrWhiteSpace(sender.TelephoneNo);
 
+    private static bool IsParcelComplete(ShipmentParcelDetails parcel)
+    {
+        if (parcel.Items is null ||
+            parcel.Items.Count == 0 ||
+            parcel.TotalWeightGrams < 1 ||
+            parcel.TotalValueIrr < 1 ||
+            parcel.LengthCm < 1 ||
+            parcel.WidthCm < 1 ||
+            parcel.HeightCm < 1 ||
+            parcel.BoxTypeId < ParcelFacts.MinBoxTypeId ||
+            parcel.BoxTypeId > ParcelFacts.MaxBoxTypeId)
+        {
+            return false;
+        }
+
+        foreach (var item in parcel.Items)
+        {
+            if (item.Quantity < 1 || item.WeightGrams < 1 || item.ValueIrr < 1)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     private static bool TryResolveCollection(string? collectionType, out string normalized, out bool courierPickup)
     {
         if (string.Equals(collectionType?.Trim(), "pick_up", StringComparison.OrdinalIgnoreCase))
@@ -279,7 +305,7 @@ public sealed class PostexShipmentClient(
         var (senderFirst, senderLast) = (
             string.IsNullOrWhiteSpace(sender.FirstName) ? "فرستنده" : sender.FirstName.Trim(),
             string.IsNullOrWhiteSpace(sender.LastName) ? "شرکت" : sender.LastName.Trim());
-        var parcelFacts = request.Parcel.Facts;
+        var parcel = request.Parcel;
 
         return new
         {
@@ -336,27 +362,24 @@ public sealed class PostexShipmentClient(
                             post_code = request.Recipient.PostalCode
                         }
                     },
-                    parcel_items = new[]
+                    parcel_items = parcel.Items.Select(item => new
                     {
-                        new
-                        {
-                            description = request.Parcel.ItemTitle,
-                            quantity = request.Parcel.Quantity,
-                            weight = parcelFacts.WeightGrams,
-                            price = parcelFacts.DeclaredValueIrr
-                        }
-                    },
+                        description = item.Description,
+                        quantity = item.Quantity,
+                        weight = item.WeightGrams,
+                        price = item.ValueIrr
+                    }).ToArray(),
                     parcel_properties = new
                     {
-                        box_type_id = parcelFacts.BoxTypeId,
-                        length = parcelFacts.LengthCm,
-                        width = parcelFacts.WidthCm,
-                        height = parcelFacts.HeightCm,
-                        total_weight = parcelFacts.WeightGrams,
-                        total_value = parcelFacts.DeclaredValueIrr,
+                        box_type_id = parcel.BoxTypeId,
+                        length = parcel.LengthCm,
+                        width = parcel.WidthCm,
+                        height = parcel.HeightCm,
+                        total_weight = parcel.TotalWeightGrams,
+                        total_value = parcel.TotalValueIrr,
                         total_value_currency = "IRR",
                         pre_paid_amount = 0,
-                        is_fragile = parcelFacts.IsFragile,
+                        is_fragile = parcel.IsFragile,
                         is_liquid = false
                     },
                     courier = new

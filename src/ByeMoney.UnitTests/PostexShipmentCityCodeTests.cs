@@ -128,8 +128,7 @@ public sealed class PostexShipmentCityCodeTests
         var client = Client(http, new FakeCityCodeReader { Result = DeliveryCityCodeRead.Found(301) });
         var request = Request("city-mashhad") with
         {
-            Parcel = new ShipmentParcelDetails(
-                "BM-1", "شمش", 1, new ParcelFacts(0, 15, 10, 20, 60_000_000, true, 5))
+            Parcel = SampleDetails() with { TotalWeightGrams = 0 }
         };
 
         var result = await client.CreateOrGetParcelAsync(request, CancellationToken.None);
@@ -173,6 +172,55 @@ public sealed class PostexShipmentCityCodeTests
         parcel.GetProperty("from").GetProperty("location").GetProperty("lon").GetDouble().Should().Be(50.65);
         body.RootElement.GetProperty("collection_type").GetString().Should().Be("pick_up");
         parcel.GetProperty("ready_to_accept").GetBoolean().Should().BeTrue();
+        parcel.GetProperty("custom_order_no").GetString().Should().Be("BM-1");
+    }
+
+    [Fact]
+    public async Task BulkBodyListsEveryCartItemAndUsesAggregatedProperties()
+    {
+        var http = new RecordingHandler();
+        var client = Client(http, new FakeCityCodeReader { Result = DeliveryCityCodeRead.Found(301) });
+        var request = Request("city-mashhad") with
+        {
+            Parcel = new ShipmentParcelDetails(
+                "BM-cart",
+                [
+                    new ShipmentParcelItem("شمش", 1, 500, 40_000_000),
+                    new ShipmentParcelItem("سکه", 2, 250, 10_000_000)
+                ],
+                BoxTypeId: 6,
+                LengthCm: 20,
+                WidthCm: 15,
+                HeightCm: 20,
+                TotalWeightGrams: 750,
+                TotalValueIrr: 50_000_000,
+                IsFragile: true)
+        };
+
+        await client.CreateOrGetParcelAsync(request, CancellationToken.None);
+
+        using var body = JsonDocument.Parse(http.LastPostBody!);
+        var parcel = body.RootElement.GetProperty("parcels").EnumerateArray().Single();
+        parcel.GetProperty("custom_order_no").GetString().Should().Be("BM-cart");
+        var properties = parcel.GetProperty("parcel_properties");
+        properties.GetProperty("box_type_id").GetInt32().Should().Be(6);
+        properties.GetProperty("length").GetInt32().Should().Be(20);
+        properties.GetProperty("width").GetInt32().Should().Be(15);
+        properties.GetProperty("height").GetInt32().Should().Be(20);
+        properties.GetProperty("total_weight").GetInt32().Should().Be(750);
+        properties.GetProperty("total_value").GetInt64().Should().Be(50_000_000);
+        properties.GetProperty("is_fragile").GetBoolean().Should().BeTrue();
+
+        var items = parcel.GetProperty("parcel_items").EnumerateArray().ToArray();
+        items.Should().HaveCount(2);
+        items[0].GetProperty("description").GetString().Should().Be("شمش");
+        items[0].GetProperty("quantity").GetInt32().Should().Be(1);
+        items[0].GetProperty("weight").GetInt32().Should().Be(500);
+        items[0].GetProperty("price").GetInt64().Should().Be(40_000_000);
+        items[1].GetProperty("description").GetString().Should().Be("سکه");
+        items[1].GetProperty("quantity").GetInt32().Should().Be(2);
+        items[1].GetProperty("weight").GetInt32().Should().Be(250);
+        items[1].GetProperty("price").GetInt64().Should().Be(10_000_000);
     }
 
     [Fact]
@@ -355,19 +403,21 @@ public sealed class PostexShipmentCityCodeTests
             new ShipmentParty(
                 "علی محمدی", "09121111111", null, null, null,
                 "خیابان نمونه", "مشهد", "خراسان رضوی", "1234567890", cityDocumentId),
-            new ShipmentParcelDetails("BM-1", "شمش", 1, SampleParcel()),
+            SampleDetails(),
             OriginId: "ramsar",
             CollectionType: collectionType);
 
-    private static ParcelFacts SampleParcel() =>
+    private static ShipmentParcelDetails SampleDetails() =>
         new(
-            WeightGrams: 750,
+            "BM-1",
+            [new ShipmentParcelItem("شمش", 1, 750, 60_000_000)],
+            BoxTypeId: 5,
             LengthCm: 15,
             WidthCm: 10,
             HeightCm: 20,
-            DeclaredValueIrr: 60_000_000,
-            IsFragile: true,
-            BoxTypeId: 5);
+            TotalWeightGrams: 750,
+            TotalValueIrr: 60_000_000,
+            IsFragile: true);
 
     private sealed class FakeCityCodeReader : IDeliveryCityCodeReader
     {
