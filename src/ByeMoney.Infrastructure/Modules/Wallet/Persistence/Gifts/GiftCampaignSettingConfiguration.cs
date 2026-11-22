@@ -49,7 +49,7 @@ public class GiftCampaignSettingConfiguration : IEntityTypeConfiguration<GiftCam
         {
             Id = new Guid("88888888-8888-8888-8888-888888888888"),
             CampaignType = GiftCampaignType.Welcome,
-            AmountNoor = 50m,
+            AmountNoor = 50000m,
             IsEnabled = true,
             StartDateUtc = (DateTime?)null,
             EndDateUtc = (DateTime?)null,

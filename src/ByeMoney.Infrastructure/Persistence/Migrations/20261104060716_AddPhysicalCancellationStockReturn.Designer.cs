@@ -737,7 +737,7 @@ namespace ByeMoney.Infrastructure.Persistence.Migrations
                         new
                         {
                             Id = new Guid("88888888-8888-8888-8888-888888888888"),
-                            AmountNoor = 50m,
+                            AmountNoor = 50000m,
                             CampaignType = "Welcome",
                             CreatedAtUtc = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             IsEnabled = true,

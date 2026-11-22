@@ -34,7 +34,7 @@ namespace ByeMoney.Infrastructure.Persistence.Migrations
             migrationBuilder.InsertData(
                 table: "GiftCampaignSettings",
                 columns: new[] { "Id", "AmountNoor", "CampaignType", "CreatedAtUtc", "EndDateUtc", "IsEnabled", "StartDateUtc", "UpdatedAt", "UpdatedAtUtc", "UpdatedByAdminUserId" },
-                values: new object[] { new Guid("88888888-8888-8888-8888-888888888888"), 50m, 1, new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), null, true, null, null, new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), null });
+                values: new object[] { new Guid("88888888-8888-8888-8888-888888888888"), 50000m, 1, new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), null, true, null, null, new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), null });
 
             migrationBuilder.CreateIndex(
                 name: "IX_GiftCampaignSettings_CampaignType",
