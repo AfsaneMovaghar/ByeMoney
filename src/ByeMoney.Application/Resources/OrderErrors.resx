@@ -28,6 +28,11 @@
   <data name="InvalidBoxTypeId" xml:space="preserve"><value>شناسهٔ جعبه باید بین ۱ و ۱۲ باشد.</value></data>
   <data name="ShipmentScaledParcelInvalid" xml:space="preserve"><value>وزن یا ارزش یکی از اقلام پس از مقیاس با تعداد باقی‌مانده برای مرسوله معتبر نیست.</value></data>
   <data name="ShipmentCreateFailed" xml:space="preserve"><value>ساخت مرسوله نزد واسط پستی ناموفق بود.</value></data>
+  <data name="ShipmentNotConfigured" xml:space="preserve"><value>واسط پستی پیکربندی نشده است.</value></data>
+  <data name="ShipmentIdempotencyKeyRequired" xml:space="preserve"><value>کلید یکتای مرسوله خالی است.</value></data>
+  <data name="ShipmentCreateHttpFailed" xml:space="preserve"><value>ثبت مرسوله ناموفق بود ({0}).</value></data>
+  <data name="ShipmentReferenceMissing" xml:space="preserve"><value>مرسوله ثبت شد ولی شناسهٔ ارجاع از واسط خوانده نشد.</value></data>
+  <data name="ShipmentRejectedByCarrier" xml:space="preserve"><value>ثبت مرسوله توسط واسط رد شد.</value></data>
   <data name="ShipmentCityNotFound" xml:space="preserve"><value>شهر تحویل در جدول محل یافت نشد و مرسوله ساخته نشد.</value></data>
   <data name="ShipmentCityUnavailable" xml:space="preserve"><value>خواندن شهر تحویل ناموفق بود و مرسوله ساخته نشد.</value></data>
   <data name="ShipmentReadFailed" xml:space="preserve"><value>وضعیت مرسوله از واسط خوانده نشد؛ برای جلوگیری از مرسولهٔ تکراری، ساخت انجام نشد.</value></data>

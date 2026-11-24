@@ -26,13 +26,13 @@ public sealed class PostexShipmentClient(
         if (!IsConfigured)
         {
             return new ShipmentCreateResult(ShipmentCreateOutcome.NotConfigured,
-                ErrorMessage: "واسط پستی پیکربندی نشده است.");
+                ErrorMessage: OrderErrors.ShipmentNotConfigured);
         }
 
         if (string.IsNullOrWhiteSpace(request.Parcel.IdempotencyKey))
         {
             return new ShipmentCreateResult(ShipmentCreateOutcome.Failed,
-                ErrorMessage: "کلید یکتای مرسوله خالی است.");
+                ErrorMessage: OrderErrors.ShipmentIdempotencyKeyRequired);
         }
 
         if (!IsParcelComplete(request.Parcel))
@@ -138,7 +138,8 @@ public sealed class PostexShipmentClient(
                 return new ShipmentCreateResult(outcome,
                     ErrorMessage: PresentError(
                         collectionType,
-                        ExtractErrorMessage(body) ?? $"ثبت مرسوله ناموفق بود ({(int)response.StatusCode}).",
+                        ExtractErrorMessage(body) ?? string.Format(
+                            OrderErrors.ShipmentCreateHttpFailed, (int)response.StatusCode),
                         body));
             }
 
@@ -166,7 +167,7 @@ public sealed class PostexShipmentClient(
 
             // درخواست موفق بوده ولی مرسوله خوانده نشد؛ ممکن است بعداً ظاهر شود.
             return new ShipmentCreateResult(ShipmentCreateOutcome.Uncertain,
-                ErrorMessage: "مرسوله ثبت شد ولی شناسهٔ ارجاع از واسط خوانده نشد.");
+                ErrorMessage: OrderErrors.ShipmentReferenceMissing);
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
@@ -188,13 +189,13 @@ public sealed class PostexShipmentClient(
         if (!IsConfigured)
         {
             return new ShipmentCreateResult(ShipmentCreateOutcome.NotConfigured,
-                ErrorMessage: "واسط پستی پیکربندی نشده است.");
+                ErrorMessage: OrderErrors.ShipmentNotConfigured);
         }
 
         if (string.IsNullOrWhiteSpace(idempotencyKey))
         {
             return new ShipmentCreateResult(ShipmentCreateOutcome.Failed,
-                ErrorMessage: "کلید یکتای مرسوله خالی است.");
+                ErrorMessage: OrderErrors.ShipmentIdempotencyKeyRequired);
         }
 
         var read = await ReadParcelAsync(idempotencyKey.Trim(), ct);
@@ -271,8 +272,8 @@ public sealed class PostexShipmentClient(
         if (collectionType is ShippingCollectionTypes.CourierDropOff or ShippingCollectionTypes.PostexDropOff)
         {
             var haystack = (message ?? string.Empty) + "\n" + (rawBody ?? string.Empty);
-            if (haystack.Contains("drop_off_location", StringComparison.OrdinalIgnoreCase) ||
-                haystack.Contains("DropOffLocation", StringComparison.Ordinal))
+            if (haystack.Contains(PostexShipmentContract.DropOffLocationMarker, StringComparison.OrdinalIgnoreCase) ||
+                haystack.Contains(PostexShipmentContract.DropOffLocationMarkerPascal, StringComparison.Ordinal))
             {
                 return OrderErrors.ShipmentDropOffOfficeRequired;
             }
@@ -293,7 +294,7 @@ public sealed class PostexShipmentClient(
             ["address"] = sender.Address.Trim(),
             ["city_id"] = sender.CityId,
             ["city_name"] = sender.CityName,
-            ["country"] = "IR",
+            ["country"] = PostexShipmentContract.CountryCode,
             ["post_code"] = sender.PostCode,
         };
         if (courierPickup)
@@ -314,22 +315,26 @@ public sealed class PostexShipmentClient(
     {
         var (firstName, lastName) = SplitName(request.Recipient.FullName);
         var (senderFirst, senderLast) = (
-            string.IsNullOrWhiteSpace(sender.FirstName) ? "فرستنده" : sender.FirstName.Trim(),
-            string.IsNullOrWhiteSpace(sender.LastName) ? "شرکت" : sender.LastName.Trim());
+            string.IsNullOrWhiteSpace(sender.FirstName)
+                ? PostexShipmentContract.FallbackSenderFirstName
+                : sender.FirstName.Trim(),
+            string.IsNullOrWhiteSpace(sender.LastName)
+                ? PostexShipmentContract.FallbackSenderLastName
+                : sender.LastName.Trim());
         var parcel = request.Parcel;
 
         return new
         {
             collection_type = collectionType,
             remark = request.Remark,
-            custom_channel = "api",
+            custom_channel = PostexShipmentContract.ApiChannel,
             parcels = new[]
             {
                 new
                 {
                     custom_order_no = request.Parcel.IdempotencyKey.Trim(),
                     ready_to_accept = courierPickup,
-                    submit_channel = "api",
+                    submit_channel = PostexShipmentContract.ApiChannel,
                     from = new
                     {
                         contact = new
@@ -360,7 +365,7 @@ public sealed class PostexShipmentClient(
                             address = request.Recipient.Address.Trim(),
                             city_id = toCityId,
                             city_name = request.Recipient.CityName.Trim(),
-                            country = "IR",
+                            country = PostexShipmentContract.CountryCode,
                             post_code = request.Recipient.PostalCode
                         }
                     },
@@ -379,22 +384,22 @@ public sealed class PostexShipmentClient(
                         height = parcel.HeightCm,
                         total_weight = parcel.TotalWeightGrams,
                         total_value = parcel.TotalValueIrr,
-                        total_value_currency = "IRR",
-                        pre_paid_amount = 0,
+                        total_value_currency = PostexShipmentContract.ValueCurrency,
+                        pre_paid_amount = PostexShipmentContract.PrepaidAmount,
                         is_fragile = parcel.IsFragile,
-                        is_liquid = false
+                        is_liquid = PostexShipmentContract.ShipsLiquid
                     },
                     courier = new
                     {
                         name = ShippingDispatchCodes.NormalizeCourier(request.CourierCode),
                         service_type = ShippingDispatchCodes.NormalizeService(request.ServiceType),
-                        payment_type = "SENDER"
+                        payment_type = PostexShipmentContract.FreightPayer
                     },
                     added_service = new
                     {
-                        request_label = false,
-                        request_packaging = false,
-                        request_sms_notification = false
+                        request_label = PostexShipmentContract.RequestLabel,
+                        request_packaging = PostexShipmentContract.RequestPackaging,
+                        request_sms_notification = PostexShipmentContract.RequestSmsNotification
                     }
                 }
             }
@@ -522,11 +527,14 @@ public sealed class PostexShipmentClient(
     }
 
     /// <summary>
-    /// والد ۱ و کد ۱۰۰۰۰ هر دو «در انتظار پرداخت» هستند. نام فقط وقتی کد عددی نیست به کار می‌رود.
+    /// کدهای «در انتظار پرداخت» در <see cref="PostexShipmentContract"/> هستند.
+    /// نام فقط وقتی کد عددی در پاسخ نیست به کار می‌رود.
     /// </summary>
     private static bool IsPaymentPending(JsonElement root)
     {
-        if (ReadNestedInt(root, "parent", "code") == 1 || ReadInt(root, "status_code") is 1 or 10000)
+        if (ReadNestedInt(root, "parent", "code") == PostexShipmentContract.PaymentPendingCode ||
+            ReadInt(root, "status_code") is PostexShipmentContract.PaymentPendingCode
+                or PostexShipmentContract.PaymentPendingStatusCode)
         {
             return true;
         }
@@ -534,9 +542,10 @@ public sealed class PostexShipmentClient(
         if (root.ValueKind == JsonValueKind.Object &&
             root.TryGetProperty("current_status", out var current) &&
             current.ValueKind == JsonValueKind.Object &&
-            (ReadNestedInt(current, "parent", "code") == 1 ||
-                ReadInt(current, "code") == 1 ||
-                ReadInt(current, "status_code") is 1 or 10000))
+            (ReadNestedInt(current, "parent", "code") == PostexShipmentContract.PaymentPendingCode ||
+                ReadInt(current, "code") == PostexShipmentContract.PaymentPendingCode ||
+                ReadInt(current, "status_code") is PostexShipmentContract.PaymentPendingCode
+                    or PostexShipmentContract.PaymentPendingStatusCode))
         {
             return true;
         }
@@ -545,7 +554,7 @@ public sealed class PostexShipmentClient(
             ?? ReadNestedString(root, "current_status", "name")
             ?? ReadNestedString(root, "current_status", "status_name")
             ?? ReadNestedString(root, "parent", "name");
-        return string.Equals(name, "PAYMENT_PENDING", StringComparison.OrdinalIgnoreCase);
+        return string.Equals(name, PostexShipmentContract.PaymentPendingStatusName, StringComparison.OrdinalIgnoreCase);
     }
 
     private static int? ReadInt(JsonElement element, string name)
@@ -613,7 +622,9 @@ public sealed class PostexShipmentClient(
         var parts = fullName.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         if (parts.Length == 0)
         {
-            return ("گیرنده", "نامشخص");
+            return (
+                PostexShipmentContract.FallbackRecipientFirstName,
+                PostexShipmentContract.FallbackRecipientLastName);
         }
 
         if (parts.Length == 1)
@@ -641,7 +652,7 @@ public sealed class PostexShipmentClient(
                     flag.ValueKind == JsonValueKind.True;
                 if (!success)
                 {
-                    return ReadString(item, "message") ?? "ثبت مرسوله توسط واسط رد شد.";
+                    return ReadString(item, "message") ?? OrderErrors.ShipmentRejectedByCarrier;
                 }
             }
         }

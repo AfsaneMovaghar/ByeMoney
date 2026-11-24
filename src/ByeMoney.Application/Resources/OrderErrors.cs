@@ -33,6 +33,11 @@ public static class OrderErrors
     public static string InvalidBoxTypeId => Get(nameof(InvalidBoxTypeId));
     public static string ShipmentScaledParcelInvalid => Get(nameof(ShipmentScaledParcelInvalid));
     public static string ShipmentCreateFailed => Get(nameof(ShipmentCreateFailed));
+    public static string ShipmentNotConfigured => Get(nameof(ShipmentNotConfigured));
+    public static string ShipmentIdempotencyKeyRequired => Get(nameof(ShipmentIdempotencyKeyRequired));
+    public static string ShipmentCreateHttpFailed => Get(nameof(ShipmentCreateHttpFailed));
+    public static string ShipmentReferenceMissing => Get(nameof(ShipmentReferenceMissing));
+    public static string ShipmentRejectedByCarrier => Get(nameof(ShipmentRejectedByCarrier));
     public static string ShipmentCityNotFound => Get(nameof(ShipmentCityNotFound));
     public static string ShipmentCityUnavailable => Get(nameof(ShipmentCityUnavailable));
     public static string ShipmentReadFailed => Get(nameof(ShipmentReadFailed));

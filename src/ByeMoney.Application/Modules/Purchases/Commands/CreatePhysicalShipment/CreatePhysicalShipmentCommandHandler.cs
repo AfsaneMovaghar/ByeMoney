@@ -1,4 +1,5 @@
 using ByeMoney.Application.Common.Interfaces;
+using ByeMoney.Application.Modules.Purchases.Commands.RefreshPhysicalShipment;
 using ByeMoney.Application.Modules.Purchases.Delivery.Interfaces;
 using ByeMoney.Application.Modules.Purchases.Delivery.Services;
 using ByeMoney.Application.Modules.Purchases.Orders.Interfaces;
@@ -276,7 +277,7 @@ public sealed class CreatePhysicalShipmentCommandHandler(
                     ? nameof(ShipmentCreateOutcome.AlreadyExists)
                     : pendingPayment
                         ? nameof(ShipmentCreateOutcome.PendingPayment)
-                        : "AwaitingTrackingCode";
+                        : nameof(PhysicalShipmentRefreshOutcome.AwaitingTrackingCode);
 
             return new CreatePhysicalShipmentResponse(
                 cartId,
