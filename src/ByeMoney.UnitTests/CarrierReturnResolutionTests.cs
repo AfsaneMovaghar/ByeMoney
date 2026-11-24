@@ -330,16 +330,16 @@ public sealed class CarrierReturnResolutionTests
         var buyer = new OrderBuyer(BuyerId, "buyer-ext-123", "Ali Reza");
         var admin = new OrderBuyer(AdminId, "admin-ext-456", "Admin Super");
 
-        var cart = Cart.Create(CartId, BuyerId, "buyer-ext-123", [new CartItemInput("prod-1", ProductItemType.Product, 1)], null);
+        var cart = Cart.Create(CartId, BuyerId, "buyer-ext-123", [new CartItemInput("prod-1", ProductItemType.Product, 1)], null, FinancialScope.TarheElahi);
         cart.SetQuote([new CartQuoteItem("prod-1", "Product 1", 50, 0, 0, 50, ProductItemType.Product, null, 1)], 0);
         cart.MarkPaid();
 
         var snapshot = new OrderSnapshot([cart], [], [], [buyer, admin], [purchase], []);
 
         var reader = new Mock<IOrderReader>();
-        reader.Setup(r => r.ReadAsync(null, null, It.IsAny<CancellationToken>()))
+        reader.Setup(r => r.ReadAsync(null, null, It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(snapshot);
-        reader.Setup(r => r.ReadAsync(BuyerId, null, It.IsAny<CancellationToken>()))
+        reader.Setup(r => r.ReadAsync(BuyerId, null, It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(snapshot);
 
         var adminUser = new Mock<ICurrentUserService>();
@@ -383,8 +383,7 @@ public sealed class CarrierReturnResolutionTests
     [Fact]
     public async Task BuyerOrderHidesCarrierAlertAndParcelId_AdminKeepsThem()
     {
-        var purchase = PhysicalProductPurchase.Create(
-            PhysicalProductPurchaseId.New(), CartId, new UserId(BuyerId), "prod-1", "Product 1", 1, 50, 50);
+        var purchase = PhysicalProductPurchase.Create(PhysicalProductPurchaseId.New(), CartId, new UserId(BuyerId), "prod-1", "Product 1", 1, 50, 50, FinancialScope.TarheElahi);
         purchase.MarkDebited(CartId);
         purchase.RecordPaymentShares(new PaymentShares(50m, 0m));
         purchase.MarkShipped("TRACK-1", PhysicalProductPurchase.PostexProvider, "parcel-9");
@@ -396,7 +395,7 @@ public sealed class CarrierReturnResolutionTests
 
         var buyer = new OrderBuyer(BuyerId, "buyer-ext-123", "Ali Reza");
         var admin = new OrderBuyer(AdminId, "admin-ext-456", "Admin Super");
-        var cart = Cart.Create(CartId, BuyerId, "buyer-ext-123", [new CartItemInput("prod-1", ProductItemType.Product, 1)], null);
+        var cart = Cart.Create(CartId, BuyerId, "buyer-ext-123", [new CartItemInput("prod-1", ProductItemType.Product, 1)], null, FinancialScope.TarheElahi);
         cart.SetQuote([new CartQuoteItem("prod-1", "Product 1", 50, 0, 0, 50, ProductItemType.Product, null, 1)], 0);
         cart.MarkPaid();
         var snapshot = new OrderSnapshot([cart], [], [], [buyer, admin], [purchase], []);
@@ -407,8 +406,8 @@ public sealed class CarrierReturnResolutionTests
         mapped.ProviderParcelId.Should().BeNull();
 
         var reader = new Mock<IOrderReader>();
-        reader.Setup(r => r.ReadAsync(null, null, It.IsAny<CancellationToken>())).ReturnsAsync(snapshot);
-        reader.Setup(r => r.ReadAsync(BuyerId, null, It.IsAny<CancellationToken>())).ReturnsAsync(snapshot);
+        reader.Setup(r => r.ReadAsync(null, null, It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync(snapshot);
+        reader.Setup(r => r.ReadAsync(BuyerId, null, It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync(snapshot);
 
         var orderId = OrderIdFormat.For(OrderSourceType.Cart, cart.Id);
         var adminUser = new Mock<ICurrentUserService>();
@@ -446,8 +445,7 @@ public sealed class CarrierReturnResolutionTests
     [Fact]
     public void MarkCarrierReturned_RequiresShippedAndIgnoresRepeat()
     {
-        var preparing = PhysicalProductPurchase.Create(
-            PhysicalProductPurchaseId.New(), CartId, new UserId(BuyerId), "prod-1", "Product 1", 1, 50, 50);
+        var preparing = PhysicalProductPurchase.Create(PhysicalProductPurchaseId.New(), CartId, new UserId(BuyerId), "prod-1", "Product 1", 1, 50, 50, FinancialScope.TarheElahi);
         var rejected = () => preparing.MarkCarrierReturned(DateTime.UtcNow);
         rejected.Should().Throw<DomainException>();
 
@@ -509,8 +507,7 @@ public sealed class CarrierReturnResolutionTests
 
     private static PhysicalProductPurchase CreateShippedPurchase()
     {
-        var purchase = PhysicalProductPurchase.Create(
-            PhysicalProductPurchaseId.New(), CartId, new UserId(BuyerId), "prod-1", "Product 1", 1, 50, 50);
+        var purchase = PhysicalProductPurchase.Create(PhysicalProductPurchaseId.New(), CartId, new UserId(BuyerId), "prod-1", "Product 1", 1, 50, 50, FinancialScope.TarheElahi);
         purchase.MarkDebited(CartId);
         purchase.RecordPaymentShares(new PaymentShares(50m, 0m));
         purchase.MarkShipped("TRACK-1");

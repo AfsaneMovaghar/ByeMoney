@@ -7,6 +7,7 @@ using ByeMoney.Application.Modules.Wallet.Interfaces;
 using ByeMoney.Application.Resources;
 using ByeMoney.Domain.Common.Exceptions;
 using ByeMoney.Domain.Modules.Identity.Users;
+using ByeMoney.Domain.Modules.Wallet;
 using ByeMoney.Domain.Modules.Wallet.Gifts;
 using ByeMoney.Domain.Modules.Wallet.Ledgers;
 using MediatR;
@@ -93,6 +94,7 @@ public sealed class AdminGrantGiftNoorCommandHandler(
             request.IdempotencyKey,
             payloadHash,
             GiftGrantSource.AdminBatch,
+            FinancialScope.TarheElahi,
             request.Reason,
             request.AmountNoor,
             adminUserId,
@@ -103,6 +105,7 @@ public sealed class AdminGrantGiftNoorCommandHandler(
         foreach (var user in targetUsers)
         {
             var creditResult = await noorCreditService.CreditAsync(new NoorCreditRequest(
+                ScopeId: FinancialScope.TarheElahi,
                 UserId: user.Id,
                 AmountNoor: request.AmountNoor,
                 BalanceType: LedgerBalanceType.Gift,

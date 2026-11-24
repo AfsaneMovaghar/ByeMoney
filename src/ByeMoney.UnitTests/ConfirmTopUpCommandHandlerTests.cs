@@ -23,11 +23,11 @@ public class ConfirmTopUpCommandHandlerTests
         // Arrange
         var userId = UserId.New();
         var amount = 100_000m;
-        var topUp = TopUpRequest.Create(userId, amount, PaymentMethod.CardToCard);
+        var topUp = TopUpRequest.Create(userId, amount, PaymentMethod.CardToCard, FinancialScope.TarheElahi);
 
-        var userAccount = Account.CreateUserAccount(userId);
-        var systemAccount = Account.CreateSystemAccount();
-        var wallet = WalletEntity.Create(userAccount.Id, userId);
+        var userAccount = Account.CreateUserAccount(userId, FinancialScope.TarheElahi);
+        var systemAccount = Account.CreateSystemAccount(FinancialScope.TarheElahi);
+        var wallet = WalletEntity.Create(userAccount.Id, userId, FinancialScope.TarheElahi);
 
         var topUpRepoMock = new Mock<ITopUpRequestRepository>();
         var walletProvisioningMock = new Mock<IUserWalletProvisioningService>();
@@ -41,11 +41,11 @@ public class ConfirmTopUpCommandHandlerTests
             .ReturnsAsync(topUp);
 
         walletProvisioningMock
-            .Setup(s => s.GetOrCreateUserWalletAsync(userId, It.IsAny<CancellationToken>()))
+            .Setup(s => s.GetOrCreateUserWalletAsync(userId, It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ProvisionedUserWallet(userAccount, wallet));
 
         walletProvisioningMock
-            .Setup(s => s.GetOrCreateSystemAccountAsync(It.IsAny<CancellationToken>()))
+            .Setup(s => s.GetOrCreateSystemAccountAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(systemAccount);
 
         var savedLedgerEntries = new List<LedgerEntry>();
@@ -105,15 +105,11 @@ public class ConfirmTopUpCommandHandlerTests
         {
             new(PendingItemType.Course, "course-uuid-999", 1_000m)
         };
-        var topUp = TopUpRequest.Create(
-            userId,
-            amount,
-            PaymentMethod.CardToCard,
-            pendingItems: pendingItems);
+        var topUp = TopUpRequest.Create(userId, amount, PaymentMethod.CardToCard, FinancialScope.TarheElahi, pendingItems: pendingItems);
 
-        var userAccount = Account.CreateUserAccount(userId);
-        var systemAccount = Account.CreateSystemAccount();
-        var wallet = WalletEntity.Create(userAccount.Id, userId);
+        var userAccount = Account.CreateUserAccount(userId, FinancialScope.TarheElahi);
+        var systemAccount = Account.CreateSystemAccount(FinancialScope.TarheElahi);
+        var wallet = WalletEntity.Create(userAccount.Id, userId, FinancialScope.TarheElahi);
 
         var topUpRepoMock = new Mock<ITopUpRequestRepository>();
         var walletProvisioningMock = new Mock<IUserWalletProvisioningService>();
@@ -127,11 +123,11 @@ public class ConfirmTopUpCommandHandlerTests
             .ReturnsAsync(topUp);
 
         walletProvisioningMock
-            .Setup(s => s.GetOrCreateUserWalletAsync(userId, It.IsAny<CancellationToken>()))
+            .Setup(s => s.GetOrCreateUserWalletAsync(userId, It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ProvisionedUserWallet(userAccount, wallet));
 
         walletProvisioningMock
-            .Setup(s => s.GetOrCreateSystemAccountAsync(It.IsAny<CancellationToken>()))
+            .Setup(s => s.GetOrCreateSystemAccountAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(systemAccount);
 
         var handler = new ConfirmTopUpCommandHandler(
@@ -163,7 +159,7 @@ public class ConfirmTopUpCommandHandlerTests
         // Arrange
         var userId = UserId.New();
         var amount = 50_000m;
-        var topUp = TopUpRequest.Create(userId, amount, PaymentMethod.CardToCard);
+        var topUp = TopUpRequest.Create(userId, amount, PaymentMethod.CardToCard, FinancialScope.TarheElahi);
         topUp.Confirm("tx_idempotent_123");
 
         var topUpRepoMock = new Mock<ITopUpRequestRepository>();
@@ -200,7 +196,7 @@ public class ConfirmTopUpCommandHandlerTests
         // Arrange
         var userId = UserId.New();
         var amount = 50_000m;
-        var topUp = TopUpRequest.Create(userId, amount, PaymentMethod.CardToCard);
+        var topUp = TopUpRequest.Create(userId, amount, PaymentMethod.CardToCard, FinancialScope.TarheElahi);
         topUp.Confirm("tx_original_123");
 
         var topUpRepoMock = new Mock<ITopUpRequestRepository>();
@@ -238,7 +234,7 @@ public class ConfirmTopUpCommandHandlerTests
         // Arrange
         var userId = UserId.New();
         var amount = 100_000m;
-        var topUp = TopUpRequest.Create(userId, amount, PaymentMethod.CardToCard);
+        var topUp = TopUpRequest.Create(userId, amount, PaymentMethod.CardToCard, FinancialScope.TarheElahi);
 
         var topUpRepoMock = new Mock<ITopUpRequestRepository>();
         var walletProvisioningMock = new Mock<IUserWalletProvisioningService>();
@@ -276,7 +272,7 @@ public class ConfirmTopUpCommandHandlerTests
         // Arrange
         var userId = UserId.New();
         var amount = 100_000m;
-        var topUp = TopUpRequest.Create(userId, amount, PaymentMethod.CardToCard);
+        var topUp = TopUpRequest.Create(userId, amount, PaymentMethod.CardToCard, FinancialScope.TarheElahi);
         topUp.Reject("Invalid receipt");
 
         var topUpRepoMock = new Mock<ITopUpRequestRepository>();

@@ -33,4 +33,5 @@ public sealed record OrderSettlementPeriodResponse(
     decimal TotalGiftNetAmountInNoor,
     decimal TotalNetAmountInNoor,
     string ClosedByExternalUserId,
-    DateTime ClosedAtUtc);
+    DateTime ClosedAtUtc,
+    string ScopeId);

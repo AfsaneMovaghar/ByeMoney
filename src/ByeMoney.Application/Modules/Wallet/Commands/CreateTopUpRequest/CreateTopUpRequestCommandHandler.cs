@@ -5,6 +5,7 @@ using ByeMoney.Application.Modules.Wallet.Interfaces;
 using ByeMoney.Application.Resources;
 using ByeMoney.Domain.Common.Exceptions;
 using ByeMoney.Domain.Modules.Identity.Users;
+using ByeMoney.Domain.Modules.Wallet;
 using ByeMoney.Domain.Modules.Wallet.TopUps;
 using MediatR;
 
@@ -41,7 +42,7 @@ public class CreateTopUpRequestCommandHandler : IRequestHandler<CreateTopUpReque
             var amountNoor = request.AmountNoor;
             if (pendingItems.Count > 0)
             {
-                var wallet = await _wallets.GetByUserIdAsync(new UserId(request.UserId), cancellationToken);
+                var wallet = await _wallets.GetByUserIdAsync(new UserId(request.UserId), FinancialScope.TarheElahi, cancellationToken);
                 amountNoor = decimal.Ceiling(pendingItems.Sum(i => i.PriceNoorSnapshot) - (wallet?.TotalBalance ?? 0m));
                 if (amountNoor <= 0)
                     throw new DomainException(ApplicationErrors.TopUpRequest_AmountMustBeGreaterThanZero);
@@ -49,12 +50,12 @@ public class CreateTopUpRequestCommandHandler : IRequestHandler<CreateTopUpReque
             var rate = await _settings.GetRialToNoorConversionRateAsync(cancellationToken);
             if (rate <= 0 || decimal.Truncate(rate) != rate)
                 throw new DomainException(ApplicationErrors.TopUpRequest_InvalidRate);
-            topUp = TopUpRequest.CreateGateway(new UserId(request.UserId), amountNoor, rate, pendingItems);
+            topUp = TopUpRequest.CreateGateway(new UserId(request.UserId), amountNoor, rate, FinancialScope.TarheElahi, pendingItems);
         }
         else
         {
             topUp = TopUpRequest.Create(new UserId(request.UserId), request.AmountNoor,
-                request.PaymentMethod, request.ExternalTransactionId, pendingItems: pendingItems);
+                request.PaymentMethod, FinancialScope.TarheElahi, request.ExternalTransactionId, pendingItems: pendingItems);
         }
 
         await _topUpRequestRepository.AddAsync(topUp, cancellationToken);

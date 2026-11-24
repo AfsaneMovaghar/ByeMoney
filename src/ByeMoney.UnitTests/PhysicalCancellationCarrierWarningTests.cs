@@ -64,16 +64,14 @@ public sealed class PhysicalCancellationCarrierWarningTests
     }
 
     private static Cart CreateCart(PhysicalProductPurchase purchase) =>
-        Cart.Create(Guid.NewGuid(), purchase.BuyerId.Value, "buyer-ext", ["product-1"], couponCode: null);
+        Cart.Create(Guid.NewGuid(), purchase.BuyerId.Value, "buyer-ext", ["product-1"], couponCode: null, FinancialScope.TarheElahi);
 
     private static PhysicalProductPurchase CreatePendingPaymentPurchase() =>
         CreatePurchase(pendingPayment: true);
 
     private static PhysicalProductPurchase CreatePurchase(bool pendingPayment)
     {
-        var purchase = PhysicalProductPurchase.Create(
-            PhysicalProductPurchaseId.New(), Guid.NewGuid(), new UserId(Guid.NewGuid()),
-            "product-1", "Book", 1, 100m, 100m);
+        var purchase = PhysicalProductPurchase.Create(PhysicalProductPurchaseId.New(), Guid.NewGuid(), new UserId(Guid.NewGuid()), "product-1", "Book", 1, 100m, 100m, FinancialScope.TarheElahi);
         purchase.RecordPaymentShares(new PaymentShares(80m, 20m));
         purchase.RememberCarrierParcel(PhysicalProductPurchase.PostexProvider, "99", 1);
         if (pendingPayment)

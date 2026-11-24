@@ -200,7 +200,7 @@ public sealed class OrderTests
         var first = Purchase("a", 10);
         var second = Purchase("b", 20);
         Set(second, nameof(CoursePurchase.LedgerTransactionId), first.LedgerTransactionId);
-        var pending = CoursePurchase.Create(_buyer.Id, ProductSnapshot.Create("pending", "در انتظار", 10));
+        var pending = CoursePurchase.Create(_buyer.Id, ProductSnapshot.Create("pending", "در انتظار", 10), FinancialScope.TarheElahi);
         var rows = Map(topUps: [TopUp()], purchases: [first, second, pending]);
         rows.Should().HaveCount(3);
         rows.Should().OnlyContain(row => row.Details.SourceType == "Purchase");
@@ -229,7 +229,7 @@ public sealed class OrderTests
         Set(purchase, nameof(CoursePurchase.CreatedAtUtc), cart.CreatedAtUtc);
         var snapshot = Snapshot([cart], [], [purchase]);
         var reader = new Mock<IOrderReader>(MockBehavior.Strict);
-        reader.Setup(service => service.ReadAsync(_buyer.Id.Value, null, default)).ReturnsAsync(snapshot);
+        reader.Setup(service => service.ReadAsync(_buyer.Id.Value, null, FinancialScope.TarheElahi, default)).ReturnsAsync(snapshot);
         var current = new Mock<ICurrentUserService>();
         current.SetupGet(service => service.UserId).Returns(_buyer.Id.Value);
         var handler = new GetMyOrdersQueryHandler(reader.Object, current.Object);
@@ -288,7 +288,7 @@ public sealed class OrderTests
         topUp.Reject("پرداخت بانکی انجام نشده است.");
         var snapshot = Snapshot([cart], [topUp], []);
         var reader = new Mock<IOrderReader>();
-        reader.Setup(item => item.ReadAsync(null, null, It.IsAny<CancellationToken>())).ReturnsAsync(snapshot);
+        reader.Setup(item => item.ReadAsync(null, null, It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync(snapshot);
         var user = new Mock<ICurrentUserService>();
         user.SetupGet(item => item.UserId).Returns(Guid.NewGuid());
         var orderId = OrderIdFormat.For(OrderSourceType.Cart, cart.Id);
@@ -310,7 +310,7 @@ public sealed class OrderTests
     public async Task AdminDetailsRejectsMissingIdentityUnknownOrderAndMalformedId()
     {
         var reader = new Mock<IOrderReader>();
-        reader.Setup(item => item.ReadAsync(null, null, It.IsAny<CancellationToken>()))
+        reader.Setup(item => item.ReadAsync(null, null, It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(Snapshot([], [], []));
         var anonymous = new GetAdminOrderQueryHandler(reader.Object, Mock.Of<ICurrentUserService>());
         var missingIdentity = () => anonymous.Handle(
@@ -380,8 +380,7 @@ public sealed class OrderTests
     [Fact]
     public void FreeProductInPaidCartIsConsistentAndPaid()
     {
-        var cart = Cart.Create(Guid.NewGuid(), _buyer.Id.Value, _buyer.ExternalUserId,
-            [new CartItemInput("free-product", ProductItemType.Product, 1)], null);
+        var cart = Cart.Create(Guid.NewGuid(), _buyer.Id.Value, _buyer.ExternalUserId, [new CartItemInput("free-product", ProductItemType.Product, 1)], null, FinancialScope.TarheElahi);
         cart.SetQuote([new CartQuoteItem("free-product", "کالای رایگان", 50, 0, 50, 0, ProductItemType.Product)]);
         cart.MarkPaid();
         var product = PhysicalPurchase(cart, "free-product", quantity: 1, unitPrice: 50, paid: 0);
@@ -412,16 +411,14 @@ public sealed class OrderTests
     [Fact]
     public void PaidPurchaseWithDifferentTypeThanCartItemRequiresReview()
     {
-        var courseCart = Cart.Create(Guid.NewGuid(), _buyer.Id.Value, _buyer.ExternalUserId,
-            [new CartItemInput("1", ProductItemType.Course, 1)], null);
+        var courseCart = Cart.Create(Guid.NewGuid(), _buyer.Id.Value, _buyer.ExternalUserId, [new CartItemInput("1", ProductItemType.Course, 1)], null, FinancialScope.TarheElahi);
         courseCart.SetQuote([new CartQuoteItem("1", "دوره", 100, 0, 0, 100)]);
         courseCart.MarkPaid();
         var productInsteadOfCourse = PhysicalPurchase(courseCart, "1", quantity: 1, unitPrice: 100, paid: 100);
         Map([courseCart], physicalPurchases: [productInsteadOfCourse]).Single().Details
             .FinancialStatus.Should().Be("RequiresReview");
 
-        var productCart = Cart.Create(Guid.NewGuid(), _buyer.Id.Value, _buyer.ExternalUserId,
-            [new CartItemInput("1", ProductItemType.Product, 1)], null);
+        var productCart = Cart.Create(Guid.NewGuid(), _buyer.Id.Value, _buyer.ExternalUserId, [new CartItemInput("1", ProductItemType.Product, 1)], null, FinancialScope.TarheElahi);
         productCart.SetQuote([new CartQuoteItem("1", "کالا", 100, 0, 0, 100, ProductItemType.Product)]);
         productCart.MarkPaid();
         var courseInsteadOfProduct = Purchase("1", 100, productCart);
@@ -432,9 +429,9 @@ public sealed class OrderTests
     [Fact]
     public async Task OrderOfAnotherUserIsNotFoundForCurrentUser()
     {
-        var otherCart = Cart.Create(Guid.NewGuid(), Guid.NewGuid(), "other-buyer", ["a"], null);
+        var otherCart = Cart.Create(Guid.NewGuid(), Guid.NewGuid(), "other-buyer", ["a"], null, FinancialScope.TarheElahi);
         var reader = new Mock<IOrderReader>(MockBehavior.Strict);
-        reader.Setup(service => service.ReadAsync(_buyer.Id.Value, null, default))
+        reader.Setup(service => service.ReadAsync(_buyer.Id.Value, null, FinancialScope.TarheElahi, default))
             .ReturnsAsync(Snapshot([], [], []));
         var current = new Mock<ICurrentUserService>();
         current.SetupGet(service => service.UserId).Returns(_buyer.Id.Value);
@@ -454,7 +451,7 @@ public sealed class OrderTests
         var snapshot = Snapshot([cart], [], [Purchase("1", 100, cart)],
             [PhysicalPurchase(cart, "1", quantity: 2, unitPrice: 50, paid: 90)]);
         var reader = new Mock<IOrderReader>();
-        reader.Setup(item => item.ReadAsync(null, null, It.IsAny<CancellationToken>())).ReturnsAsync(snapshot);
+        reader.Setup(item => item.ReadAsync(null, null, It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync(snapshot);
         var user = new Mock<ICurrentUserService>();
         user.SetupGet(item => item.UserId).Returns(Guid.NewGuid());
 
@@ -473,7 +470,7 @@ public sealed class OrderTests
         var cart = Cart.Create(Guid.NewGuid(), _buyer.Id.Value, _buyer.ExternalUserId, [
             new CartItemInput("1", ProductItemType.Course, 1),
             new CartItemInput("1", ProductItemType.Product, productQuantity)
-        ], null);
+        ], null, FinancialScope.TarheElahi);
         var productLineTotal = productQuantity * 50m;
         cart.SetQuote([
             new CartQuoteItem("1", "دوره", 100, 0, 0, 100),
@@ -486,8 +483,7 @@ public sealed class OrderTests
     private PhysicalProductPurchase PhysicalPurchase(
         Cart cart, string productId, int quantity, decimal unitPrice, decimal paid)
     {
-        var purchase = PhysicalProductPurchase.Create(
-            PhysicalProductPurchaseId.New(), cart.Id, _buyer.Id, productId, "کالا", quantity, unitPrice, paid);
+        var purchase = PhysicalProductPurchase.Create(PhysicalProductPurchaseId.New(), cart.Id, _buyer.Id, productId, "کالا", quantity, unitPrice, paid, FinancialScope.TarheElahi);
         if (paid == 0)
         {
             purchase.MarkFree(cart.Id);
@@ -501,7 +497,7 @@ public sealed class OrderTests
     }
 
     private Cart CreateCart(params string[] ids) =>
-        Cart.Create(Guid.NewGuid(), _buyer.Id.Value, _buyer.ExternalUserId, ids, null);
+        Cart.Create(Guid.NewGuid(), _buyer.Id.Value, _buyer.ExternalUserId, ids, null, FinancialScope.TarheElahi);
 
     private Cart QuotedCart()
     {
@@ -515,13 +511,11 @@ public sealed class OrderTests
         new CartQuoteItem("b", "دوره ب", 40, 10, 0, 30)]);
 
     private TopUpRequest TopUp(IReadOnlyList<PendingItemSnapshot>? items = null) =>
-        TopUpRequest.CreateGateway(_buyer.Id, 20, 1000, items);
+        TopUpRequest.CreateGateway(_buyer.Id, 20, 1000, FinancialScope.TarheElahi, items);
 
     private CoursePurchase Purchase(string course, decimal amount, Cart? cart = null, CoursePurchaseId? purchaseId = null)
     {
-        var purchase = CoursePurchase.Create(_buyer.Id,
-            ProductSnapshot.Create(course, $"عنوان خرید {course}", amount, isFree: amount == 0),
-            isFree: amount == 0, purchaseId: purchaseId);
+        var purchase = CoursePurchase.Create(_buyer.Id, ProductSnapshot.Create(course, $"عنوان خرید {course}", amount, isFree: amount == 0), FinancialScope.TarheElahi, isFree: amount == 0, purchaseId: purchaseId);
         if (cart is not null)
         {
             purchase.AttachToCart(cart.Id);

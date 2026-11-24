@@ -20,9 +20,9 @@ public class WalletRepository : BaseRepository<WalletEntity, WalletId>, IWalletR
         return await DbSet.FirstOrDefaultAsync(w => w.AccountId == accountId, ct);
     }
 
-    public async Task<WalletEntity?> GetByUserIdAsync(UserId userId, CancellationToken ct = default)
+    public async Task<WalletEntity?> GetByUserIdAsync(UserId userId, string scopeId, CancellationToken ct = default)
     {
-        return await DbSet.FirstOrDefaultAsync(w => w.UserId == userId, ct);
+        return await DbSet.FirstOrDefaultAsync(w => w.UserId == userId && w.ScopeId == scopeId, ct);
     }
 
     /// <summary>
@@ -31,21 +31,22 @@ public class WalletRepository : BaseRepository<WalletEntity, WalletId>, IWalletR
     /// نیاز به قفل ردیفی بدبینانه (SELECT ... FOR UPDATE) است تا سهم‌بندی مانده هدیه و عادی روی مانده تازه و قطعی انجام گیرد.
     /// به دلیل عدم وجود متد معادل در EF Core LINQ برای FOR UPDATE، کوئری پارامتری محصور در Infrastructure پیاده‌سازی شده است.
     /// </summary>
-    public async Task<WalletEntity?> GetByUserIdForUpdateAsync(UserId userId, CancellationToken ct = default)
+    public async Task<WalletEntity?> GetByUserIdForUpdateAsync(UserId userId, string scopeId, CancellationToken ct = default)
     {
         if (Context.Database.IsNpgsql())
         {
             var rawGuid = userId.Value;
             return await DbSet
-                .FromSqlInterpolated($"SELECT * FROM \"Wallets\" WHERE \"UserId\" = {rawGuid} FOR UPDATE")
+                .FromSqlInterpolated(
+                    $"SELECT * FROM \"Wallets\" WHERE \"UserId\" = {rawGuid} AND \"ScopeId\" = {scopeId} FOR UPDATE")
                 .FirstOrDefaultAsync(ct);
         }
 
-        return await GetByUserIdAsync(userId, ct);
+        return await GetByUserIdAsync(userId, scopeId, ct);
     }
 
     public async Task<Dictionary<string, decimal>> GetBalancesByExternalUserIdsAsync(
-        IReadOnlyCollection<string> externalUserIds, CancellationToken ct = default)
+        IReadOnlyCollection<string> externalUserIds, string scopeId, CancellationToken ct = default)
     {
         if (externalUserIds.Count == 0)
         {
@@ -55,7 +56,7 @@ public class WalletRepository : BaseRepository<WalletEntity, WalletId>, IWalletR
         var balances = await (
             from user in Context.Set<User>()
             join wallet in DbSet on user.Id equals wallet.UserId
-            where externalUserIds.Contains(user.ExternalUserId)
+            where externalUserIds.Contains(user.ExternalUserId) && wallet.ScopeId == scopeId
             select new { user.ExternalUserId, Total = wallet.RegularBalance + wallet.GiftBalance })
             .AsNoTracking()
             .ToListAsync(ct);
@@ -64,7 +65,7 @@ public class WalletRepository : BaseRepository<WalletEntity, WalletId>, IWalletR
     }
 
     public async Task<(Dictionary<string, decimal> Balances, Dictionary<string, decimal> GiftBalances)> GetBalancesAndGiftBalancesByExternalUserIdsAsync(
-        IReadOnlyCollection<string> externalUserIds, CancellationToken ct = default)
+        IReadOnlyCollection<string> externalUserIds, string scopeId, CancellationToken ct = default)
     {
         if (externalUserIds.Count == 0)
         {
@@ -74,7 +75,7 @@ public class WalletRepository : BaseRepository<WalletEntity, WalletId>, IWalletR
         var results = await (
             from user in Context.Set<User>()
             join wallet in DbSet on user.Id equals wallet.UserId
-            where externalUserIds.Contains(user.ExternalUserId)
+            where externalUserIds.Contains(user.ExternalUserId) && wallet.ScopeId == scopeId
             select new { user.ExternalUserId, wallet.RegularBalance, wallet.GiftBalance })
             .AsNoTracking()
             .ToListAsync(ct);

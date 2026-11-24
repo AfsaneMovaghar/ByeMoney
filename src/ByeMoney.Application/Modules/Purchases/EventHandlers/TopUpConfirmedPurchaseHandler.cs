@@ -143,13 +143,13 @@ public class TopUpConfirmedPurchaseHandler : INotificationHandler<TopUpConfirmed
                 course.Source,
                 referenceRialPerNoorAtPurchaseTime: referenceRate);
 
-            var purchase = CoursePurchase.Create(notification.UserId, snapshot,
+            var purchase = CoursePurchase.Create(notification.UserId, snapshot, topUp.ScopeId,
                 purchaseId: TopUpPurchaseId.For(notification.TopUpRequestId, item.ExternalId));
             itemsToPurchase.Add((purchase, course, snapshot, priceInNoor));
         }
 
         var totalPriceInNoor = itemsToPurchase.Sum(x => x.PriceInNoor);
-        var provisioned = await _walletProvisioningService.GetOrCreateUserWalletAsync(notification.UserId, cancellationToken);
+        var provisioned = await _walletProvisioningService.GetOrCreateUserWalletAsync(notification.UserId, topUp.ScopeId, cancellationToken);
         if (provisioned.Wallet.TotalBalance < totalPriceInNoor)
         {
             _logger.LogWarning(
@@ -182,7 +182,7 @@ public class TopUpConfirmedPurchaseHandler : INotificationHandler<TopUpConfirmed
         Guid transactionId,
         CancellationToken cancellationToken)
     {
-        var systemAccount = await _walletProvisioningService.GetOrCreateSystemAccountAsync(cancellationToken);
+        var systemAccount = await _walletProvisioningService.GetOrCreateSystemAccountAsync(provisioned.Account.ScopeId, cancellationToken);
 
         foreach (var item in itemsToPurchase)
         {

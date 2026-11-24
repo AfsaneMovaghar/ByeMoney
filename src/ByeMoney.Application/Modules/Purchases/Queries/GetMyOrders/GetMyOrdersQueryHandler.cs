@@ -3,6 +3,7 @@ using ByeMoney.Application.Modules.Purchases.Orders.DTOs;
 using ByeMoney.Application.Modules.Purchases.Orders.Interfaces;
 using ByeMoney.Application.Common.Interfaces;
 using ByeMoney.Application.Resources;
+using ByeMoney.Domain.Modules.Wallet;
 using MediatR;
 using ByeMoney.Application.Modules.Purchases.Orders.Services;
 
@@ -16,7 +17,7 @@ public sealed class GetMyOrdersQueryHandler(IOrderReader reader, ICurrentUserSer
 
     public async Task<PurchasePage<OrderListItem>> Handle(GetMyOrdersQuery request, CancellationToken ct)
     {
-        var snapshot = await reader.ReadAsync(BuyerId, null, ct);
+        var snapshot = await reader.ReadAsync(BuyerId, null, FinancialScope.TarheElahi, ct);
         var page = OrderPaging.Page(OrderMapping.Build(snapshot), request.Filter);
         return new PurchasePage<OrderListItem>(page.Items.Select(row => row.Details.ToListItem()).ToArray(),
             page.Page, page.PageSize, page.TotalCount);

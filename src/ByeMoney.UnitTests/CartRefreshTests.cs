@@ -32,7 +32,7 @@ public sealed class CartRefreshTests
     }
     private Cart Ready()
     {
-        var cart = Cart.Create(Guid.NewGuid(), _buyer.Id.Value, "buyer", ["course"], null);
+        var cart = Cart.Create(Guid.NewGuid(), _buyer.Id.Value, "buyer", ["course"], null, FinancialScope.TarheElahi);
         cart.SetQuote([new("course", "دوره", 105, 0, 0, 105)]);
         _store.Setup(x => x.CreateAsync(It.IsAny<Cart>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(Result<Cart>.Success(cart));
@@ -84,7 +84,7 @@ public sealed class CartRefreshTests
     [Fact]
     public async Task CartResponseKeepsCoursePricesFixedAndDiscountsOnlyOnCart()
     {
-        var cart = Cart.Create(Guid.NewGuid(), _buyer.Id.Value, "buyer", ["a", "b"], "OFF");
+        var cart = Cart.Create(Guid.NewGuid(), _buyer.Id.Value, "buyer", ["a", "b"], "OFF", FinancialScope.TarheElahi);
         cart.SetQuote([new("a", "الف", 105, 5, 11, 89), new("b", "ب", 105, 0, 10, 95)]);
         _store.Setup(x => x.FindAsync(cart.Id, _buyer.Id.Value, It.IsAny<CancellationToken>())).ReturnsAsync(cart);
 
@@ -121,14 +121,14 @@ public sealed class CartRefreshTests
     [Fact]
     public async Task CartAwaitingTopUp_WithUnknownResultAndReviewCase_ExposesUnderReviewStatus()
     {
-        var topUp = TopUpRequest.CreateGateway(new UserId(_buyer.Id.Value), 105m, 137m);
+        var topUp = TopUpRequest.CreateGateway(new UserId(_buyer.Id.Value), 105m, 137m, FinancialScope.TarheElahi);
         topUp.RecordGatewayResult("evt-1", "SEP", GatewayResultKinds.Unknown, null, null, "-6", 14385m, 14385m, DateTime.UtcNow);
         topUp.OpenFinancialReview("case-cart-1", "VERIFY_UNKNOWN");
 
         var topUps = new Mock<ITopUpRequestRepository>();
         topUps.Setup(x => x.GetByIdAsync(topUp.Id, It.IsAny<CancellationToken>())).ReturnsAsync(topUp);
 
-        var cart = Cart.Create(Guid.NewGuid(), _buyer.Id.Value, "buyer", ["course"], null);
+        var cart = Cart.Create(Guid.NewGuid(), _buyer.Id.Value, "buyer", ["course"], null, FinancialScope.TarheElahi);
         cart.SetQuote([new("course", "دوره", 105, 0, 0, 105)]);
         cart.AwaitTopUp(topUp.Id.Value);
 
@@ -155,7 +155,7 @@ public sealed class CartRefreshTests
     [Fact]
     public async Task CartAwaitingTopUp_WhenTopUpIsUnresolved_TransitionsToFailedAndReopensCart()
     {
-        var topUp = TopUpRequest.CreateGateway(new UserId(_buyer.Id.Value), 105m, 137m);
+        var topUp = TopUpRequest.CreateGateway(new UserId(_buyer.Id.Value), 105m, 137m, FinancialScope.TarheElahi);
         topUp.OpenFinancialReview("case-1", FinancialReviewReasonCodes.NoCallback);
         topUp.ResolveManualReview("case-1", FinancialReviewOutcomeCodes.NoMatchingDeposit, null,
             new(Guid.NewGuid(), 1, new DateOnly(2026, 9, 30), false, null, null, null, null, null),
@@ -214,7 +214,7 @@ public sealed class CartRefreshTests
     [Fact]
     public async Task CartAwaitingTopUp_WhenTopUpIsManuallyRefunded_TransitionsToFailedAndReopensCart()
     {
-        var topUp = TopUpRequest.CreateGateway(new UserId(_buyer.Id.Value), 105m, 137m);
+        var topUp = TopUpRequest.CreateGateway(new UserId(_buyer.Id.Value), 105m, 137m, FinancialScope.TarheElahi);
         topUp.OpenFinancialReview("case-2", FinancialReviewReasonCodes.NoCallback);
         topUp.ResolveManualReview("case-2", FinancialReviewOutcomeCodes.ManualRefund, null,
             new(Guid.NewGuid(), 1, new DateOnly(2026, 9, 30), null, null, null, null, null, "refund-123"),
@@ -273,7 +273,7 @@ public sealed class CartRefreshTests
     [Fact]
     public async Task ProcessAsync_WhenTopUpIsExceptionalConfirmation_FailsCartAndDoesNotPurchase()
     {
-        var topUp = TopUpRequest.CreateGateway(new UserId(_buyer.Id.Value), 105m, 137m);
+        var topUp = TopUpRequest.CreateGateway(new UserId(_buyer.Id.Value), 105m, 137m, FinancialScope.TarheElahi);
         topUp.Reject("cancelled");
         topUp.RecordGatewayResult("evt-cart-exc", "SEP", GatewayResultKinds.Verified, "tx-cart-exc", "rrn-cart-exc", "0", 14385m, 14385m, DateTime.UtcNow);
         topUp.OpenFinancialReview("case-cart-exc", FinancialReviewReasonCodes.BankConflict);

@@ -19,16 +19,16 @@ public sealed class PhysicalProductCartFinancialTests
     public void MixedCartPaymentWithQuantityAndShipping_BalancesLedgerAndDebitsExactTotal()
     {
         var buyer = new UserId(Guid.NewGuid());
-        var userAccount = Account.CreateUserAccount(buyer);
-        var wallet = Wallet.Create(userAccount.Id, buyer);
+        var userAccount = Account.CreateUserAccount(buyer, FinancialScope.TarheElahi);
+        var wallet = Wallet.Create(userAccount.Id, buyer, FinancialScope.TarheElahi);
         wallet.ApplyCredit(1000m);
-        var systemAccount = Account.CreateSystemAccount();
+        var systemAccount = Account.CreateSystemAccount(FinancialScope.TarheElahi);
 
         var cartId = Guid.NewGuid();
         var cart = Cart.Create(cartId, buyer.Value, "buyer-ext-1", [
             new CartItemInput("course-1", ProductItemType.Course, 1),
             new CartItemInput("product-1", ProductItemType.Product, 2)
-        ], "DISCOUNT");
+        ], "DISCOUNT", FinancialScope.TarheElahi);
 
         // Course: unit 100, itemDiscount 10, couponDiscount 10 => paid 80
         // Product: unit 50, qty 2 => lineTotal 100, itemDiscount 20, couponDiscount 10 => paid 70
@@ -89,13 +89,13 @@ public sealed class PhysicalProductCartFinancialTests
     public void ProductParcelFactsAreFrozenOnCartAndPurchase()
     {
         var buyer = new UserId(Guid.NewGuid());
-        var userAccount = Account.CreateUserAccount(buyer);
-        var wallet = Wallet.Create(userAccount.Id, buyer);
+        var userAccount = Account.CreateUserAccount(buyer, FinancialScope.TarheElahi);
+        var wallet = Wallet.Create(userAccount.Id, buyer, FinancialScope.TarheElahi);
         wallet.ApplyCredit(100m);
-        var systemAccount = Account.CreateSystemAccount();
+        var systemAccount = Account.CreateSystemAccount(FinancialScope.TarheElahi);
         var cart = Cart.Create(Guid.NewGuid(), buyer.Value, "buyer-ext-parcel", [
             new CartItemInput("book", ProductItemType.Product, 2)
-        ], null);
+        ], null, FinancialScope.TarheElahi);
         var parcel = new ParcelFacts(750, 15, 10, 20, 60_000_000, true, 5);
         cart.SetQuote([
             new CartQuoteItem("book", "Book", 50m, 0m, 0m, 100m, ProductItemType.Product, null, 2, parcel)
@@ -114,14 +114,14 @@ public sealed class PhysicalProductCartFinancialTests
     public void FreeItemsWithPositiveShipping_IsNotFreeAndDebitsShippingAmount()
     {
         var buyer = new UserId(Guid.NewGuid());
-        var userAccount = Account.CreateUserAccount(buyer);
-        var wallet = Wallet.Create(userAccount.Id, buyer);
+        var userAccount = Account.CreateUserAccount(buyer, FinancialScope.TarheElahi);
+        var wallet = Wallet.Create(userAccount.Id, buyer, FinancialScope.TarheElahi);
         wallet.ApplyCredit(100m);
-        var systemAccount = Account.CreateSystemAccount();
+        var systemAccount = Account.CreateSystemAccount(FinancialScope.TarheElahi);
 
         var cart = Cart.Create(Guid.NewGuid(), buyer.Value, "buyer-ext-2", [
             new CartItemInput("product-gift", ProductItemType.Product, 1)
-        ], "100OFF");
+        ], "100OFF", FinancialScope.TarheElahi);
 
         // 100% discount on item, but shipping fee is 30
         cart.SetQuote([
@@ -147,13 +147,13 @@ public sealed class PhysicalProductCartFinancialTests
     public void ZeroTotalCartWithZeroShipping_HasNoLedgerOrDebit()
     {
         var buyer = new UserId(Guid.NewGuid());
-        var userAccount = Account.CreateUserAccount(buyer);
-        var wallet = Wallet.Create(userAccount.Id, buyer);
+        var userAccount = Account.CreateUserAccount(buyer, FinancialScope.TarheElahi);
+        var wallet = Wallet.Create(userAccount.Id, buyer, FinancialScope.TarheElahi);
         wallet.ApplyCredit(50m);
 
         var cart = Cart.Create(Guid.NewGuid(), buyer.Value, "buyer-ext-3", [
             new CartItemInput("product-free", ProductItemType.Product, 1)
-        ], null);
+        ], null, FinancialScope.TarheElahi);
 
         cart.SetQuote([
             new CartQuoteItem("product-free", "رایگان", 0m, 0m, 0m, 0m, ProductItemType.Product, null, 1)
@@ -172,15 +172,7 @@ public sealed class PhysicalProductCartFinancialTests
     [Fact]
     public void PhysicalProductPurchase_MarkFree_OnPaidProduct_ThrowsDomainException()
     {
-        var product = PhysicalProductPurchase.Create(
-            PhysicalProductPurchaseId.New(),
-            Guid.NewGuid(),
-            UserId.New(),
-            "prod-1",
-            "کتاب",
-            1,
-            100m,
-            100m);
+        var product = PhysicalProductPurchase.Create(PhysicalProductPurchaseId.New(), Guid.NewGuid(), UserId.New(), "prod-1", "کتاب", 1, 100m, 100m, FinancialScope.TarheElahi);
 
         var act = () => product.MarkFree(Guid.NewGuid());
 
@@ -190,15 +182,7 @@ public sealed class PhysicalProductCartFinancialTests
     [Fact]
     public void PhysicalProductPurchase_MarkFree_WithEmptyGuid_ThrowsDomainException()
     {
-        var product = PhysicalProductPurchase.Create(
-            PhysicalProductPurchaseId.New(),
-            Guid.NewGuid(),
-            UserId.New(),
-            "prod-free",
-            "هدیه",
-            1,
-            0m,
-            0m);
+        var product = PhysicalProductPurchase.Create(PhysicalProductPurchaseId.New(), Guid.NewGuid(), UserId.New(), "prod-free", "هدیه", 1, 0m, 0m, FinancialScope.TarheElahi);
 
         var act = () => product.MarkFree(Guid.Empty);
 
@@ -213,7 +197,7 @@ public sealed class PhysicalProductCartFinancialTests
 
         var cart = Cart.Create(cartId, buyer, "buyer-ext-4", [
             new CartItemInput("product-x", ProductItemType.Product, 2)
-        ], null);
+        ], null, FinancialScope.TarheElahi);
 
         // Matches with same quantity
         cart.Matches([new CartItemInput("product-x", ProductItemType.Product, 2)], null).Should().BeTrue();
@@ -240,7 +224,7 @@ public sealed class PhysicalProductCartFinancialTests
         var cart = Cart.Create(Guid.NewGuid(), Guid.NewGuid(), "buyer-1", [
             new CartItemInput("product-1", ProductItemType.Product, 1),
             new CartItemInput("product-2", ProductItemType.Product, 1)
-        ], null);
+        ], null, FinancialScope.TarheElahi);
 
         // Quote with duplicate items throws ArgumentException
         Action setDuplicateQuote = () => cart.SetQuote([
@@ -255,25 +239,9 @@ public sealed class PhysicalProductCartFinancialTests
     public void PhysicalProductPurchase_AllowsRepeatPurchaseBySameBuyer()
     {
         var buyer = new UserId(Guid.NewGuid());
-        var p1 = PhysicalProductPurchase.Create(
-            PhysicalProductPurchaseId.New(),
-            Guid.NewGuid(),
-            buyer,
-            "prod-repeat",
-            "کتاب تکراری",
-            1,
-            100m,
-            100m);
+        var p1 = PhysicalProductPurchase.Create(PhysicalProductPurchaseId.New(), Guid.NewGuid(), buyer, "prod-repeat", "کتاب تکراری", 1, 100m, 100m, FinancialScope.TarheElahi);
 
-        var p2 = PhysicalProductPurchase.Create(
-            PhysicalProductPurchaseId.New(),
-            Guid.NewGuid(),
-            buyer,
-            "prod-repeat",
-            "کتاب تکراری",
-            3,
-            100m,
-            300m);
+        var p2 = PhysicalProductPurchase.Create(PhysicalProductPurchaseId.New(), Guid.NewGuid(), buyer, "prod-repeat", "کتاب تکراری", 3, 100m, 300m, FinancialScope.TarheElahi);
 
         p1.BuyerId.Should().Be(buyer);
         p2.BuyerId.Should().Be(buyer);
@@ -285,14 +253,14 @@ public sealed class PhysicalProductCartFinancialTests
     public void AllocationsPlusShippingMismatchWithTotal_ThrowsAndPreventsDebit()
     {
         var buyer = new UserId(Guid.NewGuid());
-        var userAccount = Account.CreateUserAccount(buyer);
-        var wallet = Wallet.Create(userAccount.Id, buyer);
+        var userAccount = Account.CreateUserAccount(buyer, FinancialScope.TarheElahi);
+        var wallet = Wallet.Create(userAccount.Id, buyer, FinancialScope.TarheElahi);
         wallet.ApplyCredit(1000m);
-        var systemAccount = Account.CreateSystemAccount();
+        var systemAccount = Account.CreateSystemAccount(FinancialScope.TarheElahi);
 
         var cart = Cart.Create(Guid.NewGuid(), buyer.Value, "buyer-ext-err", [
             new CartItemInput("product-err", ProductItemType.Product, 1)
-        ], null);
+        ], null, FinancialScope.TarheElahi);
 
         // PriceInNoor arithmetic broken: LineTotal (100) - ItemDiscount(0) - CouponDiscount(0) != PriceInNoor(80)
         Action invalidPrice = () => cart.SetQuote([
@@ -309,7 +277,7 @@ public sealed class PhysicalProductCartFinancialTests
         var buyer = new UserId(Guid.NewGuid());
         var cart = Cart.Create(Guid.NewGuid(), buyer.Value, "buyer-ext-label", [
             new CartItemInput("product-label", ProductItemType.Product, 1)
-        ], null);
+        ], null, FinancialScope.TarheElahi);
 
         cart.SetQuote([
             new CartQuoteItem("product-label", "کتاب", 100m, 0m, 0m, 100m, ProductItemType.Product, null, 1)
@@ -325,7 +293,7 @@ public sealed class PhysicalProductCartFinancialTests
         var buyer = new UserId(Guid.NewGuid());
         var cart = Cart.Create(Guid.NewGuid(), buyer.Value, "buyer-ext-receipt", [
             new CartItemInput("product-book", ProductItemType.Product, 3)
-        ], "OFFER");
+        ], "OFFER", FinancialScope.TarheElahi);
 
         // 3 items * 50 = 150 base. Discounts: 30 item discount, 20 coupon discount => 100 paid
         cart.SetQuote([
@@ -333,15 +301,7 @@ public sealed class PhysicalProductCartFinancialTests
         ], shippingAmountInNoor: 15m, shippingRuleLabel: "ارسال ویژه");
 
         var physicalId = PhysicalProductPurchaseId.New();
-        var physical = PhysicalProductPurchase.Create(
-            physicalId,
-            cart.Id,
-            buyer,
-            "product-book",
-            "کتاب فیزیکی",
-            3,
-            50m,
-            100m);
+        var physical = PhysicalProductPurchase.Create(physicalId, cart.Id, buyer, "product-book", "کتاب فیزیکی", 3, 50m, 100m, FinancialScope.TarheElahi);
         physical.MarkDebited(cart.Id);
 
         var receiptData = new PurchaseReceiptData(null, cart, physical);

@@ -74,8 +74,8 @@ public sealed class GiftNoorFinancialPostgresTests : IAsyncLifetime
         await db.SaveChangesAsync();
 
         var provisioning = scope.ServiceProvider.GetRequiredService<IUserWalletProvisioningService>();
-        await provisioning.GetOrCreateUserWalletAsync(_buyer.Id, default);
-        await provisioning.GetOrCreateSystemAccountAsync(default);
+        await provisioning.GetOrCreateUserWalletAsync(_buyer.Id, FinancialScope.TarheElahi, default);
+        await provisioning.GetOrCreateSystemAccountAsync(FinancialScope.TarheElahi, default);
         await db.SaveChangesAsync();
 
         _pricing.Setup(x => x.TransitionAsync(It.IsAny<CartTransitionRequest>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
@@ -124,7 +124,7 @@ public sealed class GiftNoorFinancialPostgresTests : IAsyncLifetime
     {
         await SeedWalletAsync(regular: 0m, gift: 100m);
 
-        var cart = Cart.Create(Guid.NewGuid(), _buyer.Id.Value, _buyer.ExternalUserId, ["c-1"], null);
+        var cart = Cart.Create(Guid.NewGuid(), _buyer.Id.Value, _buyer.ExternalUserId, ["c-1"], null, FinancialScope.TarheElahi);
         cart.SetQuote([new("c-1", "دوره ۱", 60m, 0m, 0m, 60m)]);
         (await Store.CreateAsync(cart, default)).IsSuccess.Should().BeTrue();
 
@@ -149,7 +149,7 @@ public sealed class GiftNoorFinancialPostgresTests : IAsyncLifetime
     {
         await SeedWalletAsync(regular: 100m, gift: 40m);
 
-        var cart = Cart.Create(Guid.NewGuid(), _buyer.Id.Value, _buyer.ExternalUserId, ["c-1"], null);
+        var cart = Cart.Create(Guid.NewGuid(), _buyer.Id.Value, _buyer.ExternalUserId, ["c-1"], null, FinancialScope.TarheElahi);
         cart.SetQuote([new("c-1", "دوره ۱", 70m, 0m, 0m, 70m)]);
         (await Store.CreateAsync(cart, default)).IsSuccess.Should().BeTrue();
 
@@ -191,7 +191,7 @@ public sealed class GiftNoorFinancialPostgresTests : IAsyncLifetime
     {
         await SeedWalletAsync(regular: 50m, gift: 50m);
 
-        var cart = Cart.Create(Guid.NewGuid(), _buyer.Id.Value, _buyer.ExternalUserId, ["free-c"], null);
+        var cart = Cart.Create(Guid.NewGuid(), _buyer.Id.Value, _buyer.ExternalUserId, ["free-c"], null, FinancialScope.TarheElahi);
         cart.SetQuote([new("free-c", "دوره رایگان", 0m, 0m, 0m, 0m)]);
         (await Store.CreateAsync(cart, default)).IsSuccess.Should().BeTrue();
 
@@ -213,7 +213,7 @@ public sealed class GiftNoorFinancialPostgresTests : IAsyncLifetime
     {
         await SeedWalletAsync(regular: 50m, gift: 50m);
 
-        var cart = Cart.Create(Guid.NewGuid(), _buyer.Id.Value, _buyer.ExternalUserId, ["c-1"], null);
+        var cart = Cart.Create(Guid.NewGuid(), _buyer.Id.Value, _buyer.ExternalUserId, ["c-1"], null, FinancialScope.TarheElahi);
         cart.SetQuote([new("c-1", "دوره ۱", 40m, 0m, 0m, 40m)]);
         (await Store.CreateAsync(cart, default)).IsSuccess.Should().BeTrue();
 
@@ -235,7 +235,7 @@ public sealed class GiftNoorFinancialPostgresTests : IAsyncLifetime
     {
         await SeedWalletAsync(regular: 20m, gift: 30m); // موجودی کل ۵۰ نور
 
-        var cart = Cart.Create(Guid.NewGuid(), _buyer.Id.Value, _buyer.ExternalUserId, ["c-1"], null);
+        var cart = Cart.Create(Guid.NewGuid(), _buyer.Id.Value, _buyer.ExternalUserId, ["c-1"], null, FinancialScope.TarheElahi);
         cart.SetQuote([new("c-1", "دوره ۱", 120m, 0m, 0m, 120m)]); // ارزش سبد ۱۲۰ نور -> کسری باید ۷۰ نور باشد
         (await Store.CreateAsync(cart, default)).IsSuccess.Should().BeTrue();
 

@@ -88,9 +88,7 @@ public sealed class PhysicalDeliverySyncTests
     [Fact]
     public async Task RealBarcodePromotesPreparingParcelToShippedWithoutDeliveringIt()
     {
-        var purchase = PhysicalProductPurchase.Create(
-            PhysicalProductPurchaseId.New(), Guid.NewGuid(), new UserId(Guid.NewGuid()),
-            "product-1", "Book", 1, 50m, 50m);
+        var purchase = PhysicalProductPurchase.Create(PhysicalProductPurchaseId.New(), Guid.NewGuid(), new UserId(Guid.NewGuid()), "product-1", "Book", 1, 50m, 50m, FinancialScope.TarheElahi);
         purchase.RememberCarrierParcel(
             PhysicalProductPurchase.PostexProvider, "12345", purchase.RemainingQuantity);
         var alreadyShipped = CreateShipped(PhysicalProductPurchase.PostexProvider, "999");
@@ -116,9 +114,7 @@ public sealed class PhysicalDeliverySyncTests
     [Fact]
     public async Task MaskedBarcodeKeepsPreparingParcelWaiting()
     {
-        var purchase = PhysicalProductPurchase.Create(
-            PhysicalProductPurchaseId.New(), Guid.NewGuid(), new UserId(Guid.NewGuid()),
-            "product-1", "Book", 1, 50m, 50m);
+        var purchase = PhysicalProductPurchase.Create(PhysicalProductPurchaseId.New(), Guid.NewGuid(), new UserId(Guid.NewGuid()), "product-1", "Book", 1, 50m, 50m, FinancialScope.TarheElahi);
         purchase.RememberCarrierParcel(
             PhysicalProductPurchase.PostexProvider, "12345", purchase.RemainingQuantity);
         var store = new FakeStore { AwaitingTracking = [CandidateFor(purchase)] };
@@ -138,9 +134,7 @@ public sealed class PhysicalDeliverySyncTests
     {
         // مرسوله برای دو عدد ساخته شده ولی یک عدد پیش از رسیدن بارکد لغو شده است؛
         // ارتقای خودکار مرسولهٔ دوعددی را «ارسال‌شده» ثبت نمی‌کند.
-        var purchase = PhysicalProductPurchase.Create(
-            PhysicalProductPurchaseId.New(), Guid.NewGuid(), new UserId(Guid.NewGuid()),
-            "product-1", "Book", 2, 50m, 100m);
+        var purchase = PhysicalProductPurchase.Create(PhysicalProductPurchaseId.New(), Guid.NewGuid(), new UserId(Guid.NewGuid()), "product-1", "Book", 2, 50m, 100m, FinancialScope.TarheElahi);
         purchase.RecordPaymentShares(new PaymentShares(100m, 0m));
         purchase.RememberCarrierParcel(PhysicalProductPurchase.PostexProvider, "12345", 2);
         purchase.MarkCarrierPaymentPending(DateTime.UtcNow);
@@ -166,9 +160,7 @@ public sealed class PhysicalDeliverySyncTests
     public async Task ReturnedOutcomeForPreparingParcelDoesNotRecordCarrierReturn()
     {
         // لغو از سوی پشتیبانی واسط نباید روی قلم آماده‌سازی برگشتی ثبت کند؛ ارسال و برگشتی فقط برای Shipped است.
-        var purchase = PhysicalProductPurchase.Create(
-            PhysicalProductPurchaseId.New(), Guid.NewGuid(), new UserId(Guid.NewGuid()),
-            "product-1", "Book", 1, 50m, 50m);
+        var purchase = PhysicalProductPurchase.Create(PhysicalProductPurchaseId.New(), Guid.NewGuid(), new UserId(Guid.NewGuid()), "product-1", "Book", 1, 50m, 50m, FinancialScope.TarheElahi);
         purchase.RememberCarrierParcel(
             PhysicalProductPurchase.PostexProvider, "12345", purchase.RemainingQuantity);
         var waitingCandidate = CandidateFor(purchase);
@@ -334,9 +326,7 @@ public sealed class PhysicalDeliverySyncTests
     public async Task SyncRecordsAlertOnceOnShippedAndIgnoresPreparing()
     {
         var shipped = CreateShipped(PhysicalProductPurchase.PostexProvider, "12345");
-        var preparing = PhysicalProductPurchase.Create(
-            PhysicalProductPurchaseId.New(), Guid.NewGuid(), new UserId(Guid.NewGuid()),
-            "product-1", "Book", 1, 50m, 50m);
+        var preparing = PhysicalProductPurchase.Create(PhysicalProductPurchaseId.New(), Guid.NewGuid(), new UserId(Guid.NewGuid()), "product-1", "Book", 1, 50m, 50m, FinancialScope.TarheElahi);
         preparing.RememberCarrierParcel(PhysicalProductPurchase.PostexProvider, "88", 1);
 
         var store = new FakeStore(CandidateFor(shipped))
@@ -371,10 +361,8 @@ public sealed class PhysicalDeliverySyncTests
     {
         var cartId = Guid.NewGuid();
         var buyer = new UserId(Guid.NewGuid());
-        var first = PhysicalProductPurchase.Create(
-            PhysicalProductPurchaseId.New(), cartId, buyer, "gold", "شمش", 1, 50m, 50m);
-        var second = PhysicalProductPurchase.Create(
-            PhysicalProductPurchaseId.New(), cartId, buyer, "coin", "سکه", 1, 50m, 50m);
+        var first = PhysicalProductPurchase.Create(PhysicalProductPurchaseId.New(), cartId, buyer, "gold", "شمش", 1, 50m, 50m, FinancialScope.TarheElahi);
+        var second = PhysicalProductPurchase.Create(PhysicalProductPurchaseId.New(), cartId, buyer, "coin", "سکه", 1, 50m, 50m, FinancialScope.TarheElahi);
         first.MarkShipped("CODE-1", PhysicalProductPurchase.PostexProvider, "12345");
         second.MarkShipped("CODE-1", PhysicalProductPurchase.PostexProvider, "12345");
 
@@ -399,10 +387,8 @@ public sealed class PhysicalDeliverySyncTests
     {
         var cartId = Guid.NewGuid();
         var buyer = new UserId(Guid.NewGuid());
-        var first = PhysicalProductPurchase.Create(
-            PhysicalProductPurchaseId.New(), cartId, buyer, "gold", "شمش", 1, 50m, 50m);
-        var second = PhysicalProductPurchase.Create(
-            PhysicalProductPurchaseId.New(), cartId, buyer, "coin", "سکه", 1, 50m, 50m);
+        var first = PhysicalProductPurchase.Create(PhysicalProductPurchaseId.New(), cartId, buyer, "gold", "شمش", 1, 50m, 50m, FinancialScope.TarheElahi);
+        var second = PhysicalProductPurchase.Create(PhysicalProductPurchaseId.New(), cartId, buyer, "coin", "سکه", 1, 50m, 50m, FinancialScope.TarheElahi);
         first.RememberCarrierParcel(PhysicalProductPurchase.PostexProvider, "12345", 1);
         second.RememberCarrierParcel(PhysicalProductPurchase.PostexProvider, "12345", 1);
 
@@ -443,9 +429,7 @@ public sealed class PhysicalDeliverySyncTests
 
     private static PhysicalProductPurchase CreateShipped(string provider, string? reference)
     {
-        var purchase = PhysicalProductPurchase.Create(
-            PhysicalProductPurchaseId.New(), Guid.NewGuid(), new UserId(Guid.NewGuid()),
-            "product-1", "Book", 1, 50m, 50m);
+        var purchase = PhysicalProductPurchase.Create(PhysicalProductPurchaseId.New(), Guid.NewGuid(), new UserId(Guid.NewGuid()), "product-1", "Book", 1, 50m, 50m, FinancialScope.TarheElahi);
 
         purchase.MarkShipped("CODE-1", provider, reference);
         return purchase;

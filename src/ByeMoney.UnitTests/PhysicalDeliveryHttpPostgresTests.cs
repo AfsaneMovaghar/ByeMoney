@@ -345,9 +345,9 @@ public sealed class PhysicalDeliveryHttpPostgresTests : IAsyncLifetime
         await db.SaveChangesAsync();
 
         var provisioning = scope.ServiceProvider.GetRequiredService<IUserWalletProvisioningService>();
-        var wallet = await provisioning.GetOrCreateUserWalletAsync(buyer.Id);
+        var wallet = await provisioning.GetOrCreateUserWalletAsync(buyer.Id, FinancialScope.TarheElahi);
         wallet.Wallet.ApplyCredit(1000m);
-        await provisioning.GetOrCreateSystemAccountAsync();
+        await provisioning.GetOrCreateSystemAccountAsync(FinancialScope.TarheElahi);
         await db.SaveChangesAsync();
 
         var carts = scope.ServiceProvider.GetRequiredService<ICartStore>();
@@ -369,7 +369,7 @@ public sealed class PhysicalDeliveryHttpPostgresTests : IAsyncLifetime
     {
         var cart = Cart.Create(Guid.NewGuid(), buyer.Id.Value, buyer.ExternalUserId, [
             new CartItemInput(externalId, ProductItemType.Product, quantity)
-        ], null);
+        ], null, FinancialScope.TarheElahi);
         (await carts.CreateAsync(cart, default)).IsSuccess.Should().BeTrue();
         var quote = new CartQuoteItem(
             externalId, externalId, unitPrice, 0, 0, unitPrice * quantity, ProductItemType.Product, null, quantity);
@@ -595,27 +595,25 @@ public sealed class PhysicalDeliveryHttpPostgresTests : IAsyncLifetime
         var cart = Cart.Create(Guid.NewGuid(), buyer.Id.Value, buyer.ExternalUserId, [
             new CartItemInput("book", ProductItemType.Product, 2),
             new CartItemInput("pen", ProductItemType.Product, 1)
-        ], null);
+        ], null, FinancialScope.TarheElahi);
         cart.SetQuote([
             new CartQuoteItem("book", "Book", 50, 0, 0, 100, ProductItemType.Product, null, 2),
             new CartQuoteItem("pen", "Pen", 20, 0, 0, 20, ProductItemType.Product, null, 1)
         ], shippingAmountInNoor: 10, shippingAddress: Address);
         cart.MarkPaid();
-        var book = PhysicalProductPurchase.Create(
-            PhysicalProductPurchaseId.New(), cart.Id, buyer.Id, "book", "Book", 2, 50, 100);
+        var book = PhysicalProductPurchase.Create(PhysicalProductPurchaseId.New(), cart.Id, buyer.Id, "book", "Book", 2, 50, 100, FinancialScope.TarheElahi);
         book.MarkDebited(cart.Id);
-        var pen = PhysicalProductPurchase.Create(
-            PhysicalProductPurchaseId.New(), cart.Id, buyer.Id, "pen", "Pen", 1, 20, 20);
+        var pen = PhysicalProductPurchase.Create(PhysicalProductPurchaseId.New(), cart.Id, buyer.Id, "pen", "Pen", 1, 20, 20, FinancialScope.TarheElahi);
         pen.MarkDebited(cart.Id);
         var unpaid = Cart.Create(Guid.NewGuid(), buyer.Id.Value, buyer.ExternalUserId, [
             new CartItemInput("unpaid", ProductItemType.Product, 1)
-        ], null);
+        ], null, FinancialScope.TarheElahi);
         unpaid.SetQuote([
             new CartQuoteItem("unpaid", "Unpaid", 10, 0, 0, 10, ProductItemType.Product, null, 1)
         ], shippingAmountInNoor: 10, shippingAddress: Address with { });
 
-        var account = Account.CreateUserAccount(buyer.Id);
-        var wallet = Wallet.Create(account.Id, buyer.Id);
+        var account = Account.CreateUserAccount(buyer.Id, FinancialScope.TarheElahi);
+        var wallet = Wallet.Create(account.Id, buyer.Id, FinancialScope.TarheElahi);
         wallet.ApplyCredit(500m);
 
         await using var db = new ApplicationDbContext(_options);

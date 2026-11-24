@@ -14,14 +14,15 @@ public class AccountRepository : BaseRepository<AccountEntity, AccountId>, IAcco
     {
     }
 
-    public async Task<AccountEntity?> GetByUserIdAsync(UserId userId, CancellationToken ct = default)
+    public async Task<AccountEntity?> GetByUserIdAsync(UserId userId, string scopeId, CancellationToken ct = default)
     {
-        return await DbSet.FirstOrDefaultAsync(a => a.UserId.HasValue && a.UserId.Value.Equals(userId), ct);
+        return await DbSet.FirstOrDefaultAsync(
+            a => a.UserId.HasValue && a.UserId.Value.Equals(userId) && a.ScopeId == scopeId, ct);
     }
 
-    public async Task<AccountEntity?> GetSystemAccountAsync(CancellationToken ct = default)
+    public async Task<AccountEntity?> GetSystemAccountAsync(string scopeId, CancellationToken ct = default)
     {
-        return await DbSet.FirstOrDefaultAsync(a => a.Type == AccountType.System, ct);
+        return await DbSet.FirstOrDefaultAsync(a => a.Type == AccountType.System && a.ScopeId == scopeId, ct);
     }
 }
 

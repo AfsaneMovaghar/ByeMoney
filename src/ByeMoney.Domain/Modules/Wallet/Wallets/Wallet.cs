@@ -2,6 +2,7 @@ using ByeMoney.Domain.Common.Generic;
 using ByeMoney.Domain.Common.Exceptions;
 using ByeMoney.Domain.Modules.Identity.Users;
 using ByeMoney.Domain.Modules.Wallet.Accounts;
+using ByeMoney.Domain.Modules.Wallet;
 using ByeMoney.Domain.Modules.Wallet.Ledgers;
 using ByeMoney.Domain.Resources;
 
@@ -11,6 +12,7 @@ public class Wallet : BaseEntity<WalletId>
 {
     public AccountId AccountId { get; private set; }
     public UserId UserId { get; private set; }
+    public string ScopeId { get; private set; } = null!;
     internal decimal RegularBalance { get; private set; }
     public decimal GiftBalance { get; private set; }
     public DateTime LastUpdatedAtUtc { get; private set; }
@@ -20,13 +22,14 @@ public class Wallet : BaseEntity<WalletId>
 
     private Wallet() { }
 
-    public static Wallet Create(AccountId accountId, UserId userId)
+    public static Wallet Create(AccountId accountId, UserId userId, string scopeId)
     {
         return new Wallet
         {
             Id = WalletId.New(),
             AccountId = accountId,
             UserId = userId,
+            ScopeId = FinancialScope.Require(scopeId),
             RegularBalance = 0m,
             GiftBalance = 0m,
             LastUpdatedAtUtc = DateTime.UtcNow

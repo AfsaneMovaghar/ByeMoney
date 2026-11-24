@@ -41,7 +41,7 @@ public sealed class UserProvisioningServiceTests
         result.Created.Should().BeFalse();
         result.User.Should().BeSameAs(existingUser);
         tarhElahiClient.Verify(x => x.GetUserAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
-        welcomeGift.Verify(x => x.GrantWelcomeGiftIfEligibleAsync(It.IsAny<User>(), It.IsAny<CancellationToken>()), Times.Never);
+        welcomeGift.Verify(x => x.GrantWelcomeGiftIfEligibleAsync(It.IsAny<User>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
         unitOfWork.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
     }
 
@@ -64,7 +64,7 @@ public sealed class UserProvisioningServiceTests
             x => x.AddAsync(It.Is<User>(u => u.ExternalUserId == ExternalUserId), It.IsAny<CancellationToken>()),
             Times.Once);
         dependencies.WelcomeGift.Verify(
-            x => x.GrantWelcomeGiftIfEligibleAsync(It.Is<User>(u => u.ExternalUserId == ExternalUserId), It.IsAny<CancellationToken>()),
+            x => x.GrantWelcomeGiftIfEligibleAsync(It.Is<User>(u => u.ExternalUserId == ExternalUserId), It.IsAny<string>(), It.IsAny<CancellationToken>()),
             Times.Once);
         dependencies.UnitOfWork.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
@@ -87,7 +87,7 @@ public sealed class UserProvisioningServiceTests
         second.Created.Should().BeFalse();
         second.User.Id.Should().Be(first.User.Id);
         dependencies.WelcomeGift.Verify(
-            x => x.GrantWelcomeGiftIfEligibleAsync(It.IsAny<User>(), It.IsAny<CancellationToken>()),
+            x => x.GrantWelcomeGiftIfEligibleAsync(It.IsAny<User>(), It.IsAny<string>(), It.IsAny<CancellationToken>()),
             Times.Once);
         dependencies.UserRepository.Verify(
             x => x.AddAsync(It.IsAny<User>(), It.IsAny<CancellationToken>()),
@@ -117,7 +117,7 @@ public sealed class UserProvisioningServiceTests
             x => x.GetUserAsync(ExternalUserId, It.IsAny<CancellationToken>()),
             Times.Exactly(2));
         dependencies.WelcomeGift.Verify(
-            x => x.GrantWelcomeGiftIfEligibleAsync(It.IsAny<User>(), It.IsAny<CancellationToken>()),
+            x => x.GrantWelcomeGiftIfEligibleAsync(It.IsAny<User>(), It.IsAny<string>(), It.IsAny<CancellationToken>()),
             Times.Once);
         dependencies.UnitOfWork.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
@@ -145,7 +145,7 @@ public sealed class UserProvisioningServiceTests
             Times.Exactly(2));
         dependencies.UserRepository.Verify(x => x.AddAsync(It.IsAny<User>(), It.IsAny<CancellationToken>()), Times.Never);
         dependencies.WelcomeGift.Verify(
-            x => x.GrantWelcomeGiftIfEligibleAsync(It.IsAny<User>(), It.IsAny<CancellationToken>()),
+            x => x.GrantWelcomeGiftIfEligibleAsync(It.IsAny<User>(), It.IsAny<string>(), It.IsAny<CancellationToken>()),
             Times.Never);
         dependencies.UnitOfWork.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
     }
@@ -224,7 +224,7 @@ public sealed class UserProvisioningServiceTests
 
         var welcomeGift = new Mock<IWelcomeGiftService>();
         welcomeGift
-            .Setup(x => x.GrantWelcomeGiftIfEligibleAsync(It.IsAny<User>(), It.IsAny<CancellationToken>()))
+            .Setup(x => x.GrantWelcomeGiftIfEligibleAsync(It.IsAny<User>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
         return new TestDependencies(userRepository, unitOfWork, tarhElahiClient, welcomeGift, CreateUnconnectedContext());

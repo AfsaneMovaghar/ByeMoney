@@ -6,6 +6,7 @@ using ByeMoney.Application.Modules.Purchases.Orders.Services;
 using ByeMoney.Application.Resources;
 using ByeMoney.Domain.Common.Exceptions;
 using ByeMoney.Domain.Modules.Purchases;
+using ByeMoney.Domain.Modules.Wallet;
 using MediatR;
 
 namespace ByeMoney.Application.Modules.Purchases.Queries.GetAdminOrder;
@@ -18,7 +19,7 @@ public sealed class GetAdminOrderQueryHandler(IOrderReader reader, ICurrentUserS
         _ = currentUser.UserId
             ?? throw new UnauthorizedAccessException(ApplicationErrors.Wallet_UserNotAuthenticated);
 
-        var snapshot = await reader.ReadAsync(null, null, ct);
+        var snapshot = await reader.ReadAsync(null, null, FinancialScope.TarheElahi, ct);
         var row = OrderMapping.Build(snapshot, includeAdminResolutionDetails: true)
             .SingleOrDefault(item => item.Details.OrderId == request.OrderId)
             ?? throw new NotFoundException(OrderErrors.NotFound);

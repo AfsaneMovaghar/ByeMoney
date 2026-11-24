@@ -1,4 +1,5 @@
 using ByeMoney.Domain.Modules.Identity.Users;
+using ByeMoney.Domain.Modules.Wallet;
 using ByeMoney.Domain.Modules.Wallet.Accounts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
@@ -14,7 +15,10 @@ public class AccountConfiguration : IEntityTypeConfiguration<AccountEntity>
 
     public void Configure(EntityTypeBuilder<AccountEntity> builder)
     {
-        builder.ToTable("Accounts");
+        builder.ToTable("Accounts", table =>
+        {
+            table.HasCheckConstraint("CK_Accounts_ScopeId", FinancialScope.Check());
+        });
 
         builder.HasKey(a => a.Id);
 
@@ -38,8 +42,17 @@ public class AccountConfiguration : IEntityTypeConfiguration<AccountEntity>
             .HasMaxLength(20)
             .IsRequired();
 
-        builder.HasIndex(a => a.UserId)
-            .IsUnique();
+        builder.Property(a => a.ScopeId)
+            .HasMaxLength(FinancialScope.MaxLength)
+            .IsRequired();
+
+        builder.HasIndex(a => new { a.UserId, a.ScopeId })
+            .IsUnique()
+            .HasFilter("\"UserId\" IS NOT NULL");
+
+        builder.HasIndex(a => a.ScopeId)
+            .IsUnique()
+            .HasFilter("\"Type\" = 'System'");
 
         builder.HasIndex(a => a.Type);
 
@@ -48,6 +61,7 @@ public class AccountConfiguration : IEntityTypeConfiguration<AccountEntity>
             Id = AccountEntity.SystemAccountId,
             Type = AccountType.System,
             UserId = (UserId?)null,
+            ScopeId = FinancialScope.TarheElahi,
             Status = AccountStatus.Active,
             CreatedAtUtc = SystemAccountSeedCreatedAtUtc
         });

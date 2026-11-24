@@ -6,6 +6,7 @@ using ByeMoney.Application.Modules.TarhElahiIntegration.Interfaces;
 using ByeMoney.Application.Modules.Wallet.Interfaces;
 using ByeMoney.Application.Resources;
 using ByeMoney.Domain.Modules.Identity.Users;
+using ByeMoney.Domain.Modules.Wallet;
 using ByeMoney.Domain.Modules.Wallet.TopUps;
 using FluentValidation;
 
@@ -125,7 +126,7 @@ public class PurchaseCoursesCommandValidator : AbstractValidator<PurchaseCourses
                     return;
                 }
 
-                var provisioned = await walletProvisioningService.GetOrCreateUserWalletAsync(buyerUserId, ct);
+                var provisioned = await walletProvisioningService.GetOrCreateUserWalletAsync(buyerUserId, FinancialScope.TarheElahi, ct);
 
                 if (provisioned.Wallet.TotalBalance < totalPriceInNoor)
                 {

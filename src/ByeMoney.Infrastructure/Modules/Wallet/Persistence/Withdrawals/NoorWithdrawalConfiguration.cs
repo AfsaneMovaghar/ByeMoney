@@ -1,4 +1,5 @@
 using ByeMoney.Domain.Modules.Identity.Users;
+using ByeMoney.Domain.Modules.Wallet;
 using ByeMoney.Domain.Modules.Wallet.TopUps;
 using ByeMoney.Domain.Modules.Wallet.Withdrawals;
 using ByeMoney.Infrastructure.Persistence;
@@ -42,8 +43,10 @@ public class NoorWithdrawalConfiguration : IEntityTypeConfiguration<NoorWithdraw
                 "CK_NoorWithdrawals_ReversalEvidence",
                 "\"Status\" <> 'Reversed' OR (\"ReversalReason\" IS NOT NULL AND \"ReversalTransactionId\" IS NOT NULL " +
                 "AND \"ReversedByUserId\" IS NOT NULL AND \"ReversedAtUtc\" IS NOT NULL)");
+            table.HasCheckConstraint("CK_NoorWithdrawals_ScopeId", FinancialScope.Check());
         });
 
+        builder.Property(x => x.ScopeId).HasMaxLength(FinancialScope.MaxLength).IsRequired();
         builder.HasKey(x => x.Id);
         builder.Property(x => x.Id)
             .HasConversion(id => id.Value, value => new NoorWithdrawalId(value))

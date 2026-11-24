@@ -12,7 +12,7 @@ namespace ByeMoney.Infrastructure.Modules.Purchases.Persistence;
 public sealed class OrderReader(ApplicationDbContext db) : IOrderReader
 {
     public async Task<OrderSnapshot> ReadAsync(
-        Guid? buyerId, string? buyerExternalUserId, CancellationToken ct)
+        Guid? buyerId, string? buyerExternalUserId, string scopeId, CancellationToken ct)
     {
         // تصویر ثابت مانع مشاهدهٔ نیمهٔ قبل و بعد از commit هم‌زمان خرید می‌شود.
         await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.RepeatableRead, ct);
@@ -32,15 +32,16 @@ public sealed class OrderReader(ApplicationDbContext db) : IOrderReader
         var userIds = users.Select(user => user.Id);
         var cartOwners = buyers.Select(buyer => new UserId(buyer.Id)).ToArray();
         var carts = await db.Set<Cart>().AsNoTracking()
-            .Where(cart => cartOwners.Contains(cart.BuyerId)).AsSplitQuery().ToListAsync(ct);
+            .Where(cart => cartOwners.Contains(cart.BuyerId) && cart.ScopeId == scopeId).AsSplitQuery().ToListAsync(ct);
         var topUps = await db.Set<TopUpRequest>().AsNoTracking()
-            .Where(topUp => userIds.Contains(topUp.UserId)).ToListAsync(ct);
+            .Where(topUp => userIds.Contains(topUp.UserId) && topUp.ScopeId == scopeId).ToListAsync(ct);
         var purchases = await db.Set<CoursePurchase>().AsNoTracking()
-            .Where(purchase => userIds.Contains(purchase.BuyerId)).ToListAsync(ct);
+            .Where(purchase => userIds.Contains(purchase.BuyerId) && purchase.ScopeId == scopeId).ToListAsync(ct);
         var physicalPurchases = await db.Set<PhysicalProductPurchase>().AsNoTracking()
-            .Where(purchase => userIds.Contains(purchase.BuyerId)).ToListAsync(ct);
+            .Where(purchase => userIds.Contains(purchase.BuyerId) && purchase.ScopeId == scopeId).ToListAsync(ct);
         var physicalPurchaseIds = db.Set<PhysicalProductPurchase>()
-            .Where(purchase => userIds.Contains(purchase.BuyerId)).Select(purchase => purchase.Id);
+            .Where(purchase => userIds.Contains(purchase.BuyerId) && purchase.ScopeId == scopeId)
+            .Select(purchase => purchase.Id);
         var cancellations = await db.Set<PhysicalProductCancellation>().AsNoTracking()
             .Where(cancellation => physicalPurchaseIds.Contains(cancellation.PurchaseId)).ToListAsync(ct);
         await transaction.CommitAsync(ct);

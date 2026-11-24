@@ -34,7 +34,7 @@ public class TopUpReceiptControllerTests
     public async Task Get_ReturnsNotFound_WhenUserIsNotBeneficiaryAndNotAuthorizedAdmin()
     {
         var beneficiaryId = UserId.New();
-        var topUp = TopUpRequest.CreateAdminCardToCard(beneficiaryId, UserId.New(), 100_000m, 10_000m, "receipt.png", "key");
+        var topUp = TopUpRequest.CreateAdminCardToCard(beneficiaryId, UserId.New(), 100_000m, 10_000m, "receipt.png", "key", FinancialScope.TarheElahi);
         var topUps = new Mock<ITopUpRequestRepository>();
         topUps.Setup(x => x.GetByIdAsync(topUp.Id, It.IsAny<CancellationToken>())).ReturnsAsync(topUp);
 
@@ -56,7 +56,7 @@ public class TopUpReceiptControllerTests
     public async Task Get_ReturnsFile_WhenUserIsBeneficiary()
     {
         var beneficiaryId = UserId.New();
-        var topUp = TopUpRequest.CreateAdminCardToCard(beneficiaryId, UserId.New(), 100_000m, 10_000m, "receipt.png", "key");
+        var topUp = TopUpRequest.CreateAdminCardToCard(beneficiaryId, UserId.New(), 100_000m, 10_000m, "receipt.png", "key", FinancialScope.TarheElahi);
         var topUps = new Mock<ITopUpRequestRepository>();
         topUps.Setup(x => x.GetByIdAsync(topUp.Id, It.IsAny<CancellationToken>())).ReturnsAsync(topUp);
 

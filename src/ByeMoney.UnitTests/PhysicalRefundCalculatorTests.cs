@@ -48,8 +48,7 @@ public sealed class PhysicalRefundCalculatorTests
 
     private static PhysicalProductPurchase Purchase(int quantity, decimal paid, decimal gift)
     {
-        var purchase = PhysicalProductPurchase.Create(
-            PhysicalProductPurchaseId.New(), Guid.NewGuid(), UserId.New(), "book", "کتاب", quantity, paid, paid);
+        var purchase = PhysicalProductPurchase.Create(PhysicalProductPurchaseId.New(), Guid.NewGuid(), UserId.New(), "book", "کتاب", quantity, paid, paid, FinancialScope.TarheElahi);
         purchase.RecordPaymentShares(new PaymentShares(paid - gift, gift));
         return purchase;
     }

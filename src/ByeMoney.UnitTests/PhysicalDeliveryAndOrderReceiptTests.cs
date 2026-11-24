@@ -214,7 +214,7 @@ public sealed class PhysicalDeliveryAndOrderReceiptTests
         var buyer = new UserId(Guid.NewGuid());
         var cart = Cart.Create(Guid.NewGuid(), buyer.Value, "buyer-ext", [
             new CartItemInput("product-1", ProductItemType.Product, 2)
-        ], null);
+        ], null, FinancialScope.TarheElahi);
         var snapshot = new OrderSnapshot([cart], [], [], [], [], []);
 
         var item = OrderMapping.Build(snapshot).Single().Details.Items.Single();
@@ -341,7 +341,7 @@ public sealed class PhysicalDeliveryAndOrderReceiptTests
         var paid = PayMixedCart();
         var snapshot = new OrderSnapshot([paid.Cart], [], paid.Payment.Purchases, [], [], []);
         var reader = new Mock<IOrderReader>();
-        reader.Setup(item => item.ReadAsync(It.IsAny<Guid?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+        reader.Setup(item => item.ReadAsync(It.IsAny<Guid?>(), It.IsAny<string?>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(snapshot);
         var user = new Mock<ICurrentUserService>();
         user.SetupGet(item => item.UserId).Returns(paid.Cart.BuyerId.Value);
@@ -462,7 +462,7 @@ public sealed class PhysicalDeliveryAndOrderReceiptTests
             [new OrderBuyer(paid.Cart.BuyerId.Value, "buyer-ext", null)],
             paid.Payment.PhysicalPurchases, cancellations);
         var reader = new Mock<IOrderReader>();
-        reader.Setup(item => item.ReadAsync(null, null, It.IsAny<CancellationToken>())).ReturnsAsync(snapshot);
+        reader.Setup(item => item.ReadAsync(null, null, It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync(snapshot);
         var user = new Mock<ICurrentUserService>();
         user.SetupGet(item => item.UserId).Returns(Guid.NewGuid());
 
@@ -478,27 +478,25 @@ public sealed class PhysicalDeliveryAndOrderReceiptTests
         Guid.NewGuid(), paid.Payment.PhysicalPurchases.Single(), quantity, refund, shippingRefund,
         actor, paid.Cart.BuyerId, "reason");
 
-    private static PhysicalProductPurchase CreatePhysical(decimal paid) => PhysicalProductPurchase.Create(
-        PhysicalProductPurchaseId.New(), Guid.NewGuid(), new UserId(Guid.NewGuid()),
-        "product-1", "Book", 2, 50m, paid);
+    private static PhysicalProductPurchase CreatePhysical(decimal paid) => PhysicalProductPurchase.Create(PhysicalProductPurchaseId.New(), Guid.NewGuid(), new UserId(Guid.NewGuid()), "product-1", "Book", 2, 50m, paid, FinancialScope.TarheElahi);
 
     private static PaidMixedCart PayMixedCart()
     {
         var buyer = new UserId(Guid.NewGuid());
-        var account = Account.CreateUserAccount(buyer);
-        var wallet = Wallet.Create(account.Id, buyer);
+        var account = Account.CreateUserAccount(buyer, FinancialScope.TarheElahi);
+        var wallet = Wallet.Create(account.Id, buyer, FinancialScope.TarheElahi);
         wallet.ApplyCredit(1000m);
         var cart = Cart.Create(Guid.NewGuid(), buyer.Value, "buyer-ext", [
             new CartItemInput("course-1", ProductItemType.Course, 1),
             new CartItemInput("product-1", ProductItemType.Product, 2)
-        ], "DISCOUNT");
+        ], "DISCOUNT", FinancialScope.TarheElahi);
         cart.SetQuote([
             new CartQuoteItem("course-1", "Course", 100m, 10m, 10m, CourseAmount, ProductItemType.Course, null, 1),
             new CartQuoteItem("product-1", "Book", 50m, 20m, 10m, ProductAmount, ProductItemType.Product, null, 2)
         ], shippingAmountInNoor: Shipping);
 
         var payment = CartPayment.Apply(
-            cart, new ProvisionedUserWallet(account, wallet), Account.CreateSystemAccount());
+            cart, new ProvisionedUserWallet(account, wallet), Account.CreateSystemAccount(FinancialScope.TarheElahi));
         return new PaidMixedCart(cart, wallet, payment);
     }
 

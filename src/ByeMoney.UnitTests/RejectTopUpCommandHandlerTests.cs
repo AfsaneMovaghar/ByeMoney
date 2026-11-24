@@ -31,7 +31,7 @@ public class RejectTopUpCommandHandlerTests
     {
         // Arrange
         var userId = UserId.New();
-        var topUp = TopUpRequest.Create(userId, 100_000m, PaymentMethod.CardToCard);
+        var topUp = TopUpRequest.Create(userId, 100_000m, PaymentMethod.CardToCard, FinancialScope.TarheElahi);
         var command = new RejectTopUpCommand(topUp.Id.Value, "رسید بانکی نامعتبر");
 
         _topUpRepoMock
@@ -56,7 +56,7 @@ public class RejectTopUpCommandHandlerTests
     {
         // Arrange
         var userId = UserId.New();
-        var topUp = TopUpRequest.Create(userId, 50_000m, PaymentMethod.CardToCard);
+        var topUp = TopUpRequest.Create(userId, 50_000m, PaymentMethod.CardToCard, FinancialScope.TarheElahi);
         var command = new RejectTopUpCommand(topUp.Id.Value, "Payment not received");
 
         _topUpRepoMock
@@ -105,7 +105,7 @@ public class RejectTopUpCommandHandlerTests
     {
         // Arrange
         var userId = UserId.New();
-        var topUp = TopUpRequest.Create(userId, 100_000m, PaymentMethod.CardToCard);
+        var topUp = TopUpRequest.Create(userId, 100_000m, PaymentMethod.CardToCard, FinancialScope.TarheElahi);
         topUp.Confirm("bank_ref_123");
 
         var command = new RejectTopUpCommand(topUp.Id.Value, "Late rejection attempt");
@@ -128,7 +128,7 @@ public class RejectTopUpCommandHandlerTests
     {
         // Arrange
         var userId = UserId.New();
-        var topUp = TopUpRequest.Create(userId, 100_000m, PaymentMethod.CardToCard);
+        var topUp = TopUpRequest.Create(userId, 100_000m, PaymentMethod.CardToCard, FinancialScope.TarheElahi);
         topUp.Reject("First rejection");
 
         var command = new RejectTopUpCommand(topUp.Id.Value, "Second rejection attempt");

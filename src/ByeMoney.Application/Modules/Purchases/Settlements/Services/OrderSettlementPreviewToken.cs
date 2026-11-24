@@ -14,11 +14,11 @@ public static class OrderSettlementPreviewToken
 {
     public const int Length = 64;
 
-    public static string Compute(IReadOnlyList<SettlementOrderResponse> orders)
+    public static string Compute(string scopeId, IReadOnlyList<SettlementOrderResponse> orders)
     {
         var lines = orders.Select(order =>
             order.OrderId + "|" + Format(order.RegularNetAmountInNoor) + "|" + Format(order.GiftNetAmountInNoor));
-        var hash = SHA256.HashData(Encoding.UTF8.GetBytes(string.Join("\n", lines)));
+        var hash = SHA256.HashData(Encoding.UTF8.GetBytes(scopeId + "\n" + string.Join("\n", lines)));
 
         return Convert.ToHexStringLower(hash);
     }

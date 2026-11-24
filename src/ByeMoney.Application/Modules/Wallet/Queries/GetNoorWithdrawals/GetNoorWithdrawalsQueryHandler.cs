@@ -1,6 +1,7 @@
 using ByeMoney.Application.Modules.Wallet.Withdrawals.DTOs;
 using ByeMoney.Application.Modules.Wallet.Withdrawals.Interfaces;
 using ByeMoney.Application.Modules.Wallet.Withdrawals.Services;
+using ByeMoney.Domain.Modules.Wallet;
 using ByeMoney.Domain.Modules.Wallet.Withdrawals;
 using MediatR;
 
@@ -18,6 +19,6 @@ public sealed class GetNoorWithdrawalsQueryHandler(INoorWithdrawalStore store) :
             ? null
             : request.UserExternalId.Trim();
 
-        return store.ListAsync(status, userExternalId, request.Limit, ct);
+        return store.ListAsync(status, userExternalId, request.Limit, FinancialScope.TarheElahi, ct);
     }
 }

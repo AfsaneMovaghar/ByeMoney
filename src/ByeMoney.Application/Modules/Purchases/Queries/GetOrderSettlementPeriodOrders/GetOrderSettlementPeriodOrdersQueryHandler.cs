@@ -3,6 +3,7 @@ using ByeMoney.Application.Modules.Purchases.History.DTOs;
 using ByeMoney.Application.Modules.Purchases.Settlements.DTOs;
 using ByeMoney.Application.Modules.Purchases.Settlements.Interfaces;
 using ByeMoney.Application.Resources;
+using ByeMoney.Domain.Modules.Wallet;
 using ByeMoney.Domain.Common.Exceptions;
 using MediatR;
 
@@ -19,11 +20,11 @@ public sealed class GetOrderSettlementPeriodOrdersQueryHandler(
         _ = currentUser.UserId
             ?? throw new UnauthorizedAccessException(ApplicationErrors.Wallet_UserNotAuthenticated);
 
-        if (!await store.PeriodExistsAsync(request.PeriodId, ct))
+        if (!await store.PeriodExistsAsync(request.PeriodId, FinancialScope.TarheElahi, ct))
         {
             throw new NotFoundException(OrderSettlementErrors.PeriodNotFound);
         }
 
-        return await store.GetPeriodOrdersAsync(request.PeriodId, request.Page, request.PageSize, ct);
+        return await store.GetPeriodOrdersAsync(request.PeriodId, request.Page, request.PageSize, FinancialScope.TarheElahi, ct);
     }
 }

@@ -315,5 +315,7 @@ namespace ByeMoney.Domain.Resources {
         public static string GiftCampaign_AmountCannotBeNegative => ResourceManager.GetString("GiftCampaign_AmountCannotBeNegative", resourceCulture)!;
         public static string GiftCampaign_StartDateCannotBeAfterEndDate => ResourceManager.GetString("GiftCampaign_StartDateCannotBeAfterEndDate", resourceCulture)!;
         public static string Wallet_CreditAmountMustBePositive => ResourceManager.GetString("Wallet_CreditAmountMustBePositive", resourceCulture)!;
+        public static string FinancialScope_Invalid => ResourceManager.GetString("FinancialScope_Invalid", resourceCulture)!;
+        public static string Ledger_AccountsMustShareScope => ResourceManager.GetString("Ledger_AccountsMustShareScope", resourceCulture)!;
     }
 }

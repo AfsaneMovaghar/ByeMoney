@@ -83,20 +83,20 @@ public sealed class NoorWithdrawalStore(ApplicationDbContext db) : INoorWithdraw
             .AsNoTracking()
             .AnyAsync(x => x.ReceiptId == receiptId, ct);
 
-    public Task<string?> GetReceiptIdAsync(NoorWithdrawalId id, CancellationToken ct) =>
+    public Task<string?> GetReceiptIdAsync(NoorWithdrawalId id, string scopeId, CancellationToken ct) =>
         db.Set<NoorWithdrawal>()
             .AsNoTracking()
-            .Where(x => x.Id == id)
+            .Where(x => x.Id == id && x.ScopeId == scopeId)
             .Select(x => x.ReceiptId)
             .SingleOrDefaultAsync(ct);
 
     public void Add(NoorWithdrawal withdrawal) => db.Add(withdrawal);
 
-    public async Task<NoorWithdrawalResponse?> GetResponseAsync(NoorWithdrawalId id, CancellationToken ct)
+    public async Task<NoorWithdrawalResponse?> GetResponseAsync(NoorWithdrawalId id, string scopeId, CancellationToken ct)
     {
         var withdrawals = await db.Set<NoorWithdrawal>()
             .AsNoTracking()
-            .Where(x => x.Id == id)
+            .Where(x => x.Id == id && x.ScopeId == scopeId)
             .ToListAsync(ct);
 
         var responses = await ToResponsesAsync(withdrawals, ct);
@@ -104,7 +104,7 @@ public sealed class NoorWithdrawalStore(ApplicationDbContext db) : INoorWithdraw
     }
 
     public async Task<IReadOnlyList<RefundableTopUpResponse>> ListRefundableTopUpsAsync(
-        string userExternalId, int limit, CancellationToken ct)
+        string userExternalId, int limit, string scopeId, CancellationToken ct)
     {
         var userIds = db.Set<User>()
             .Where(u => u.ExternalUserId == userExternalId)
@@ -113,6 +113,7 @@ public sealed class NoorWithdrawalStore(ApplicationDbContext db) : INoorWithdraw
         var topUps = await db.Set<TopUpRequest>()
             .AsNoTracking()
             .Where(t => userIds.Contains(t.UserId) &&
+                t.ScopeId == scopeId &&
                 t.Status == TopUpStatus.Confirmed &&
                 t.AmountRial != null &&
                 t.RialPerNoorSnapshot != null)
@@ -124,6 +125,7 @@ public sealed class NoorWithdrawalStore(ApplicationDbContext db) : INoorWithdraw
         var refundedIds = await db.Set<NoorWithdrawal>()
             .AsNoTracking()
             .Where(w => userIds.Contains(w.UserId) &&
+                w.ScopeId == scopeId &&
                 w.RelatedTopUpId != null &&
                 w.Status != NoorWithdrawalStatus.Reversed)
             .Select(w => w.RelatedTopUpId!.Value)
@@ -142,9 +144,9 @@ public sealed class NoorWithdrawalStore(ApplicationDbContext db) : INoorWithdraw
     }
 
     public async Task<IReadOnlyList<NoorWithdrawalResponse>> ListAsync(
-        NoorWithdrawalStatus? status, string? userExternalId, int limit, CancellationToken ct)
+        NoorWithdrawalStatus? status, string? userExternalId, int limit, string scopeId, CancellationToken ct)
     {
-        var query = db.Set<NoorWithdrawal>().AsNoTracking();
+        var query = db.Set<NoorWithdrawal>().AsNoTracking().Where(x => x.ScopeId == scopeId);
 
         if (status.HasValue)
         {

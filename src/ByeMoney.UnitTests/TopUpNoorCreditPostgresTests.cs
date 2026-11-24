@@ -82,8 +82,8 @@ public sealed class TopUpNoorCreditPostgresTests : IAsyncLifetime
         await db.SaveChangesAsync();
 
         var provisioning = scope.ServiceProvider.GetRequiredService<IUserWalletProvisioningService>();
-        await provisioning.GetOrCreateUserWalletAsync(_customer.Id, default);
-        await provisioning.GetOrCreateSystemAccountAsync(default);
+        await provisioning.GetOrCreateUserWalletAsync(_customer.Id, FinancialScope.TarheElahi, default);
+        await provisioning.GetOrCreateSystemAccountAsync(FinancialScope.TarheElahi, default);
         await db.SaveChangesAsync();
     }
 
@@ -234,9 +234,7 @@ public sealed class TopUpNoorCreditPostgresTests : IAsyncLifetime
         using (var scope = _provider!.CreateScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            var topUp = TopUpRequest.Create(_customer.Id, 50m, PaymentMethod.Gateway,
-                pendingItems: [new(PendingItemType.Course, "course-exc-1", 50m)],
-                rialPerNoor: RialPerNoor);
+            var topUp = TopUpRequest.Create(_customer.Id, 50m, PaymentMethod.Gateway, FinancialScope.TarheElahi, pendingItems: [new(PendingItemType.Course, "course-exc-1", 50m)], rialPerNoor: RialPerNoor);
             db.Add(topUp);
             await db.SaveChangesAsync();
         }
@@ -440,7 +438,7 @@ public sealed class TopUpNoorCreditPostgresTests : IAsyncLifetime
     {
         using var scope = _provider!.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        var topUp = TopUpRequest.CreateGateway(_customer.Id, amountNoor, RialPerNoor);
+        var topUp = TopUpRequest.CreateGateway(_customer.Id, amountNoor, RialPerNoor, FinancialScope.TarheElahi);
         db.Add(topUp);
         await db.SaveChangesAsync();
         return topUp;
@@ -497,12 +495,7 @@ public sealed class TopUpNoorCreditPostgresTests : IAsyncLifetime
         using var scope = _provider!.CreateScope();
         var noorCredit = scope.ServiceProvider.GetRequiredService<INoorCreditService>();
 
-        var result = await noorCredit.CreditAsync(new NoorCreditRequest(
-            UserId: _customer.Id,
-            AmountNoor: amountNoor,
-            BalanceType: LedgerBalanceType.Gift,
-            ReferenceType: LedgerReferenceType.AdminGrant,
-            ReferenceId: batchReferenceId));
+        var result = await noorCredit.CreditAsync(new NoorCreditRequest(FinancialScope.TarheElahi, UserId: _customer.Id, AmountNoor: amountNoor, BalanceType: LedgerBalanceType.Gift, ReferenceType: LedgerReferenceType.AdminGrant, ReferenceId: batchReferenceId));
 
         await scope.ServiceProvider.GetRequiredService<IUnitOfWork>().SaveChangesAsync();
         return result;

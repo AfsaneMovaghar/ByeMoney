@@ -7,10 +7,10 @@ namespace ByeMoney.Infrastructure.Modules.Wallet.Persistence.Gifts;
 
 public class GiftCampaignSettingRepository(ApplicationDbContext dbContext) : IGiftCampaignSettingRepository
 {
-    public Task<GiftCampaignSetting?> GetByTypeAsync(GiftCampaignType type, CancellationToken ct = default)
+    public Task<GiftCampaignSetting?> GetByTypeAsync(GiftCampaignType type, string scopeId, CancellationToken ct = default)
     {
         return dbContext.GiftCampaignSettings
-            .FirstOrDefaultAsync(s => s.CampaignType == type, ct);
+            .FirstOrDefaultAsync(s => s.CampaignType == type && s.ScopeId == scopeId, ct);
     }
 
     public async Task AddAsync(GiftCampaignSetting setting, CancellationToken ct = default)

@@ -31,7 +31,7 @@ public class GetWalletBalanceQueryHandlerTests
         // Arrange
         var userId = UserId.New();
         var accountId = AccountId.New();
-        var wallet = WalletEntity.Create(accountId, userId);
+        var wallet = WalletEntity.Create(accountId, userId, FinancialScope.TarheElahi);
         wallet.ApplyCredit(2500m);
 
         _currentUserServiceMock
@@ -39,7 +39,7 @@ public class GetWalletBalanceQueryHandlerTests
             .Returns(userId.Value);
 
         _walletRepositoryMock
-            .Setup(r => r.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
+            .Setup(r => r.GetByUserIdAsync(userId, It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(wallet);
 
         var query = new GetWalletBalanceQuery();
@@ -64,7 +64,7 @@ public class GetWalletBalanceQueryHandlerTests
             .Returns(userId.Value);
 
         _walletRepositoryMock
-            .Setup(r => r.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
+            .Setup(r => r.GetByUserIdAsync(userId, It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((WalletEntity?)null);
 
         var query = new GetWalletBalanceQuery();

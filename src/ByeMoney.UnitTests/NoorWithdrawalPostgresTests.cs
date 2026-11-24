@@ -101,8 +101,8 @@ public sealed class NoorWithdrawalPostgresTests : IAsyncLifetime
         await db.SaveChangesAsync();
 
         var provisioning = scope.ServiceProvider.GetRequiredService<IUserWalletProvisioningService>();
-        await provisioning.GetOrCreateUserWalletAsync(_buyer.Id, default);
-        await provisioning.GetOrCreateSystemAccountAsync(default);
+        await provisioning.GetOrCreateUserWalletAsync(_buyer.Id, FinancialScope.TarheElahi, default);
+        await provisioning.GetOrCreateSystemAccountAsync(FinancialScope.TarheElahi, default);
         await db.SaveChangesAsync();
 
         await scope.ServiceProvider.GetRequiredService<ISystemSettingRepository>()
@@ -205,7 +205,7 @@ public sealed class NoorWithdrawalPostgresTests : IAsyncLifetime
     public async Task WithdrawalAndPurchaseOnLastRegularNoor_OnlyOneSucceeds()
     {
         await SeedWalletAsync(regular: 100m, gift: 0m);
-        var cart = Cart.Create(Guid.NewGuid(), _buyer.Id.Value, _buyer.ExternalUserId, ["c-1"], null);
+        var cart = Cart.Create(Guid.NewGuid(), _buyer.Id.Value, _buyer.ExternalUserId, ["c-1"], null, FinancialScope.TarheElahi);
         cart.SetQuote([new("c-1", "دوره ۱", 100m, 0m, 0m, 100m)]);
         using (var scope = _provider.CreateScope())
         {
@@ -450,7 +450,7 @@ public sealed class NoorWithdrawalPostgresTests : IAsyncLifetime
         };
 
     private Task<Result<NoorWithdrawalResponse>> CreateAsync(CreateNoorWithdrawalCommand request) =>
-        WithService(s => s.CreateAsync(_admin.Id.Value, request, default));
+        WithService(s => s.CreateAsync(_admin.Id.Value, request, FinancialScope.TarheElahi, default));
 
     private async Task<Result<NoorWithdrawalResponse>> WithService(
         Func<NoorWithdrawalService, Task<Result<NoorWithdrawalResponse>>> action)
@@ -506,7 +506,7 @@ public sealed class NoorWithdrawalPostgresTests : IAsyncLifetime
     {
         using var scope = _provider.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        var topUp = TopUpRequest.Create(userId, amountNoor, PaymentMethod.CardToCard, rialPerNoor: rialPerNoor);
+        var topUp = TopUpRequest.Create(userId, amountNoor, PaymentMethod.CardToCard, FinancialScope.TarheElahi, rialPerNoor: rialPerNoor);
         topUp.Confirm("ext-" + Guid.NewGuid().ToString("N")).IsSuccess.Should().BeTrue();
         db.Add(topUp);
         await db.SaveChangesAsync();
@@ -517,7 +517,7 @@ public sealed class NoorWithdrawalPostgresTests : IAsyncLifetime
     {
         using var scope = _provider.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        db.Add(TopUpRequest.Create(userId, amountNoor, PaymentMethod.CardToCard, rialPerNoor: TopUpRialPerNoor));
+        db.Add(TopUpRequest.Create(userId, amountNoor, PaymentMethod.CardToCard, FinancialScope.TarheElahi, rialPerNoor: TopUpRialPerNoor));
         await db.SaveChangesAsync();
     }
 

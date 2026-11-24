@@ -1,5 +1,6 @@
 ﻿using ByeMoney.Domain.Modules.Identity.Users;
 using ByeMoney.Domain.Modules.Purchases;
+using ByeMoney.Domain.Modules.Wallet;
 using ByeMoney.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
@@ -18,10 +19,13 @@ public class CoursePurchaseConfiguration : IEntityTypeConfiguration<CoursePurcha
             table.HasCheckConstraint(
                 "CK_CoursePurchases_PaymentShares",
                 "(\"RegularAmountInNoor\" IS NULL AND \"GiftAmountInNoor\" IS NULL) OR (\"RegularAmountInNoor\" >= 0 AND \"GiftAmountInNoor\" >= 0 AND \"RegularAmountInNoor\" + \"GiftAmountInNoor\" = \"PriceInNoorAtPurchaseTime\")");
+            table.HasCheckConstraint("CK_CoursePurchases_ScopeId", FinancialScope.Check());
+            table.HasCheckConstraint("CK_CoursePurchases_SellerId", FinancialScope.Check("SellerId"));
         });
 
         builder.HasKey(cp => cp.Id);
         builder.Property(cp => cp.CartId);
+        builder.Property(cp => cp.ScopeId).HasMaxLength(FinancialScope.MaxLength).IsRequired();
         builder.HasIndex(cp => cp.CartId);
 
         builder.Property(cp => cp.Id)
@@ -101,6 +105,11 @@ public class CoursePurchaseConfiguration : IEntityTypeConfiguration<CoursePurcha
             snapshotBuilder.Property(s => s.ProductSource)
                 .HasColumnName("ProductSource")
                 .HasMaxLength(50)
+                .IsRequired();
+
+            snapshotBuilder.Property(s => s.SellerId)
+                .HasColumnName("SellerId")
+                .HasMaxLength(FinancialScope.MaxLength)
                 .IsRequired();
 
             snapshotBuilder.Property(s => s.ExternalProductId)

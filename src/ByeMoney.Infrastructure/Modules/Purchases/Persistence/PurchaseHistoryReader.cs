@@ -10,22 +10,22 @@ namespace ByeMoney.Infrastructure.Modules.Purchases.Persistence;
 
 public sealed class PurchaseHistoryReader(ApplicationDbContext db) : IPurchaseHistoryReader
 {
-    private IQueryable<CoursePurchase> PaidPurchases => db.Set<CoursePurchase>().AsNoTracking()
-        .Where(purchase => purchase.Status == CoursePurchaseStatus.Debited ||
+    private IQueryable<CoursePurchase> PaidPurchases(string scopeId) => db.Set<CoursePurchase>().AsNoTracking()
+        .Where(purchase => purchase.ScopeId == scopeId && (purchase.Status == CoursePurchaseStatus.Debited ||
             purchase.Status == CoursePurchaseStatus.NotificationSent ||
-            purchase.Status == CoursePurchaseStatus.NotificationFailed);
+            purchase.Status == CoursePurchaseStatus.NotificationFailed));
 
-    private IQueryable<PhysicalProductPurchase> PaidPhysicalPurchases => db.Set<PhysicalProductPurchase>().AsNoTracking()
-        .Where(purchase => purchase.LedgerTransactionId != null);
+    private IQueryable<PhysicalProductPurchase> PaidPhysicalPurchases(string scopeId) => db.Set<PhysicalProductPurchase>().AsNoTracking()
+        .Where(purchase => purchase.ScopeId == scopeId && purchase.LedgerTransactionId != null);
 
     public async Task<PurchasePage<PurchaseReadRow>> ListAsync(
-        Guid? buyerId, PurchaseHistoryFilter filter, CancellationToken ct)
+        Guid? buyerId, PurchaseHistoryFilter filter, string scopeId, CancellationToken ct)
     {
-        var courseQuery = from purchase in PaidPurchases
+        var courseQuery = from purchase in PaidPurchases(scopeId)
                           join buyer in db.Set<User>().AsNoTracking() on purchase.BuyerId equals buyer.Id
                           select new { Purchase = purchase, Buyer = buyer };
 
-        var physicalQuery = from purchase in PaidPhysicalPurchases
+        var physicalQuery = from purchase in PaidPhysicalPurchases(scopeId)
                             join buyer in db.Set<User>().AsNoTracking() on purchase.BuyerId equals buyer.Id
                             select new { Purchase = purchase, Buyer = buyer };
 
@@ -128,20 +128,20 @@ public sealed class PurchaseHistoryReader(ApplicationDbContext db) : IPurchaseHi
         return new PurchasePage<PurchaseReadRow>(pagedItems, filter.Page, filter.PageSize, totalCount);
     }
 
-    public Task<PurchaseReceiptData?> GetReceiptAsync(Guid purchaseId, Guid buyerId, CancellationToken ct)
+    public Task<PurchaseReceiptData?> GetReceiptAsync(Guid purchaseId, Guid buyerId, string scopeId, CancellationToken ct)
     {
-        return ReadReceiptAsync(purchaseId, buyerId, ct);
+        return ReadReceiptAsync(purchaseId, buyerId, scopeId, ct);
     }
 
-    public Task<PurchaseReceiptData?> GetAdminReceiptAsync(Guid purchaseId, CancellationToken ct)
+    public Task<PurchaseReceiptData?> GetAdminReceiptAsync(Guid purchaseId, string scopeId, CancellationToken ct)
     {
-        return ReadReceiptAsync(purchaseId, null, ct);
+        return ReadReceiptAsync(purchaseId, null, scopeId, ct);
     }
 
-    private async Task<PurchaseReceiptData?> ReadReceiptAsync(Guid purchaseId, Guid? buyerId, CancellationToken ct)
+    private async Task<PurchaseReceiptData?> ReadReceiptAsync(Guid purchaseId, Guid? buyerId, string scopeId, CancellationToken ct)
     {
         var id = new CoursePurchaseId(purchaseId);
-        var query = PaidPurchases.Where(item => item.Id == id);
+        var query = PaidPurchases(scopeId).Where(item => item.Id == id);
         if (buyerId.HasValue)
         {
             var owner = new UserId(buyerId.Value);
@@ -153,13 +153,13 @@ public sealed class PurchaseHistoryReader(ApplicationDbContext db) : IPurchaseHi
         {
             var cart = purchase.CartId.HasValue
                 ? await db.Set<Cart>().AsNoTracking().SingleOrDefaultAsync(
-                    item => item.Id == purchase.CartId && item.BuyerId == purchase.BuyerId, ct)
+                    item => item.Id == purchase.CartId && item.BuyerId == purchase.BuyerId && item.ScopeId == scopeId, ct)
                 : null;
             return new PurchaseReceiptData(purchase, cart);
         }
 
         var physicalId = new PhysicalProductPurchaseId(purchaseId);
-        var physicalQuery = PaidPhysicalPurchases.Where(item => item.Id == physicalId);
+        var physicalQuery = PaidPhysicalPurchases(scopeId).Where(item => item.Id == physicalId);
         if (buyerId.HasValue)
         {
             var owner = new UserId(buyerId.Value);
@@ -170,7 +170,7 @@ public sealed class PurchaseHistoryReader(ApplicationDbContext db) : IPurchaseHi
         if (physical is not null)
         {
             var cart = await db.Set<Cart>().AsNoTracking().SingleOrDefaultAsync(
-                item => item.Id == physical.CartId && item.BuyerId == physical.BuyerId, ct);
+                item => item.Id == physical.CartId && item.BuyerId == physical.BuyerId && item.ScopeId == scopeId, ct);
             return new PurchaseReceiptData(null, cart, physical);
         }
 

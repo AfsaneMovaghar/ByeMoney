@@ -18,7 +18,7 @@ public class WalletTests
         var accountId = AccountId.New();
         var userId = UserId.New();
 
-        var wallet = WalletEntity.Create(accountId, userId);
+        var wallet = WalletEntity.Create(accountId, userId, FinancialScope.TarheElahi);
 
         wallet.Id.Value.Should().NotBeEmpty();
         wallet.AccountId.Should().Be(accountId);
@@ -32,7 +32,7 @@ public class WalletTests
     [Fact]
     public void Credit_ShouldIncreaseRegularBalance()
     {
-        var wallet = WalletEntity.Create(AccountId.New(), UserId.New());
+        var wallet = WalletEntity.Create(AccountId.New(), UserId.New(), FinancialScope.TarheElahi);
 
         var result = wallet.Credit(1500m, LedgerBalanceType.Regular);
 
@@ -45,7 +45,7 @@ public class WalletTests
     [Fact]
     public void Credit_ShouldIncreaseGiftBalance()
     {
-        var wallet = WalletEntity.Create(AccountId.New(), UserId.New());
+        var wallet = WalletEntity.Create(AccountId.New(), UserId.New(), FinancialScope.TarheElahi);
 
         var result = wallet.Credit(500m, LedgerBalanceType.Gift);
 
@@ -61,7 +61,7 @@ public class WalletTests
     [InlineData(-50)]
     public void Credit_ShouldThrowDomainException_WhenAmountIsZeroOrNegative(decimal invalidAmount)
     {
-        var wallet = WalletEntity.Create(AccountId.New(), UserId.New());
+        var wallet = WalletEntity.Create(AccountId.New(), UserId.New(), FinancialScope.TarheElahi);
 
         var act = () => wallet.Credit(invalidAmount, LedgerBalanceType.Regular);
 
@@ -72,7 +72,7 @@ public class WalletTests
     [Fact]
     public void Debit_Purchase_ShouldPrioritizeGiftBalanceFirst()
     {
-        var wallet = WalletEntity.Create(AccountId.New(), UserId.New());
+        var wallet = WalletEntity.Create(AccountId.New(), UserId.New(), FinancialScope.TarheElahi);
         wallet.Credit(100m, LedgerBalanceType.Gift);
         wallet.Credit(200m, LedgerBalanceType.Regular);
 
@@ -89,7 +89,7 @@ public class WalletTests
     [Fact]
     public void Debit_Purchase_ShouldDeductOnlyFromGift_WhenGiftIsSufficient()
     {
-        var wallet = WalletEntity.Create(AccountId.New(), UserId.New());
+        var wallet = WalletEntity.Create(AccountId.New(), UserId.New(), FinancialScope.TarheElahi);
         wallet.Credit(100m, LedgerBalanceType.Gift);
         wallet.Credit(50m, LedgerBalanceType.Regular);
 
@@ -105,7 +105,7 @@ public class WalletTests
     [Fact]
     public void Debit_WithdrawalOrTransfer_ShouldOnlyDeductFromRegularBalance_AndNeverTouchGift()
     {
-        var wallet = WalletEntity.Create(AccountId.New(), UserId.New());
+        var wallet = WalletEntity.Create(AccountId.New(), UserId.New(), FinancialScope.TarheElahi);
         wallet.Credit(500m, LedgerBalanceType.Gift);
         wallet.Credit(300m, LedgerBalanceType.Regular);
 
@@ -121,7 +121,7 @@ public class WalletTests
     [Fact]
     public void Debit_WithdrawalOrTransfer_ShouldThrow_WhenRegularBalanceInsufficient_EvenIfGiftAvailable()
     {
-        var wallet = WalletEntity.Create(AccountId.New(), UserId.New());
+        var wallet = WalletEntity.Create(AccountId.New(), UserId.New(), FinancialScope.TarheElahi);
         wallet.Credit(1000m, LedgerBalanceType.Gift);
         wallet.Credit(50m, LedgerBalanceType.Regular);
 
@@ -135,7 +135,7 @@ public class WalletTests
     [Fact]
     public void Debit_Purchase_ShouldThrow_WhenTotalBalanceInsufficient()
     {
-        var wallet = WalletEntity.Create(AccountId.New(), UserId.New());
+        var wallet = WalletEntity.Create(AccountId.New(), UserId.New(), FinancialScope.TarheElahi);
         wallet.Credit(100m, LedgerBalanceType.Gift);
         wallet.Credit(50m, LedgerBalanceType.Regular);
 

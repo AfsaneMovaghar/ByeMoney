@@ -12,7 +12,7 @@ public sealed class GetBatchWalletBalancesQueryTests
     {
         var wallets = new Mock<IWalletRepository>();
         wallets.Setup(x => x.GetBalancesAndGiftBalancesByExternalUserIdsAsync(
-                It.IsAny<IReadOnlyCollection<string>>(), It.IsAny<CancellationToken>()))
+                It.IsAny<IReadOnlyCollection<string>>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((
                 new Dictionary<string, decimal> { ["user-1"] = 150.25m, ["user-3"] = 500m },
                 new Dictionary<string, decimal> { ["user-1"] = 50m, ["user-3"] = 100m }));
@@ -37,6 +37,7 @@ public sealed class GetBatchWalletBalancesQueryTests
         });
         wallets.Verify(x => x.GetBalancesAndGiftBalancesByExternalUserIdsAsync(
             It.Is<IReadOnlyCollection<string>>(ids => ids.Count == 3),
+            It.IsAny<string>(),
             It.IsAny<CancellationToken>()), Times.Once);
     }
 

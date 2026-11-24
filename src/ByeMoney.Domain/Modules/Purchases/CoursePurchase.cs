@@ -1,6 +1,7 @@
 using ByeMoney.Domain.Common.Generic;
 using ByeMoney.Domain.Common.Exceptions;
 using ByeMoney.Domain.Modules.Identity.Users;
+using ByeMoney.Domain.Modules.Wallet;
 using ByeMoney.Domain.Resources;
 
 namespace ByeMoney.Domain.Modules.Purchases;
@@ -8,6 +9,7 @@ namespace ByeMoney.Domain.Modules.Purchases;
 public class CoursePurchase : BaseEntity<CoursePurchaseId>
 {
     public Guid? CartId { get; private set; }
+    public string ScopeId { get; private set; } = null!;
     public void AttachToCart(Guid cartId) => CartId = cartId;
     /// <summary>Internal ByeMoney UserId of the buyer. Gifting is out of scope (Buyer == Recipient).</summary>
     public UserId BuyerId { get; private set; }
@@ -45,13 +47,14 @@ public class CoursePurchase : BaseEntity<CoursePurchaseId>
 
     private CoursePurchase() { }
 
-    public static CoursePurchase Create(UserId buyerId, ProductSnapshot snapshot, bool isFree = false, string? freeReason = null, CoursePurchaseId? purchaseId = null)
+    public static CoursePurchase Create(UserId buyerId, ProductSnapshot snapshot, string scopeId, bool isFree = false, string? freeReason = null, CoursePurchaseId? purchaseId = null)
     {
         ArgumentNullException.ThrowIfNull(snapshot);
 
         return new CoursePurchase
         {
             Id = purchaseId ?? CoursePurchaseId.New(),
+            ScopeId = FinancialScope.Require(scopeId),
             BuyerId = buyerId,
             Status = CoursePurchaseStatus.Pending,
             Snapshot = snapshot,

@@ -25,13 +25,13 @@ public sealed class AdminGiftNoorTests
     private readonly Mock<IRepository<LedgerEntry, LedgerEntryId>> _ledgerRepo = new();
     private readonly Mock<IUnitOfWork> _unitOfWork = new();
 
-    private readonly Account _systemAccount = Account.CreateSystemAccount();
+    private readonly Account _systemAccount = Account.CreateSystemAccount(FinancialScope.TarheElahi);
     private readonly List<LedgerEntry> _recordedLedger = [];
     private GiftGrantBatch? _storedBatch;
 
     private AdminGrantGiftNoorCommandHandler CreateHandler()
     {
-        _provisioning.Setup(x => x.GetOrCreateSystemAccountAsync(It.IsAny<CancellationToken>()))
+        _provisioning.Setup(x => x.GetOrCreateSystemAccountAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(_systemAccount);
 
         _giftGrantRepo.Setup(x => x.GetByIdempotencyKeyAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
@@ -62,13 +62,13 @@ public sealed class AdminGiftNoorTests
         _userProvisioning.Setup(x => x.EnsureUserFromExternalAsync("usr-2", It.IsAny<CancellationToken>()))
             .ReturnsAsync(new UserProvisioningResult(user2, Created: false));
 
-        var wallet1 = Wallet.Create(Account.CreateUserAccount(user1.Id).Id, user1.Id);
-        var wallet2 = Wallet.Create(Account.CreateUserAccount(user2.Id).Id, user2.Id);
+        var wallet1 = Wallet.Create(Account.CreateUserAccount(user1.Id, FinancialScope.TarheElahi).Id, user1.Id, FinancialScope.TarheElahi);
+        var wallet2 = Wallet.Create(Account.CreateUserAccount(user2.Id, FinancialScope.TarheElahi).Id, user2.Id, FinancialScope.TarheElahi);
 
-        _provisioning.Setup(x => x.GetOrCreateUserWalletAsync(user1.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new ProvisionedUserWallet(Account.CreateUserAccount(user1.Id), wallet1));
-        _provisioning.Setup(x => x.GetOrCreateUserWalletAsync(user2.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new ProvisionedUserWallet(Account.CreateUserAccount(user2.Id), wallet2));
+        _provisioning.Setup(x => x.GetOrCreateUserWalletAsync(user1.Id, It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ProvisionedUserWallet(Account.CreateUserAccount(user1.Id, FinancialScope.TarheElahi), wallet1));
+        _provisioning.Setup(x => x.GetOrCreateUserWalletAsync(user2.Id, It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ProvisionedUserWallet(Account.CreateUserAccount(user2.Id, FinancialScope.TarheElahi), wallet2));
 
         var command = new AdminGrantGiftNoorCommand(["usr-1", "usr-2"], 250m, "هدیه مسابقه", "key-1", Guid.NewGuid());
 
@@ -104,9 +104,9 @@ public sealed class AdminGiftNoorTests
         _userProvisioning.Setup(x => x.EnsureUserFromExternalAsync("usr-1", It.IsAny<CancellationToken>()))
             .ReturnsAsync(new UserProvisioningResult(user, Created: false));
 
-        var wallet = Wallet.Create(Account.CreateUserAccount(user.Id).Id, user.Id);
-        _provisioning.Setup(x => x.GetOrCreateUserWalletAsync(user.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new ProvisionedUserWallet(Account.CreateUserAccount(user.Id), wallet));
+        var wallet = Wallet.Create(Account.CreateUserAccount(user.Id, FinancialScope.TarheElahi).Id, user.Id, FinancialScope.TarheElahi);
+        _provisioning.Setup(x => x.GetOrCreateUserWalletAsync(user.Id, It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ProvisionedUserWallet(Account.CreateUserAccount(user.Id, FinancialScope.TarheElahi), wallet));
 
         var command = new AdminGrantGiftNoorCommand(["usr-1"], 100m, "تکرار پاداش", "idemp-key-repeat", Guid.NewGuid());
 
@@ -132,9 +132,9 @@ public sealed class AdminGiftNoorTests
         _userProvisioning.Setup(x => x.EnsureUserFromExternalAsync("usr-1", It.IsAny<CancellationToken>()))
             .ReturnsAsync(new UserProvisioningResult(user, Created: false));
 
-        var wallet = Wallet.Create(Account.CreateUserAccount(user.Id).Id, user.Id);
-        _provisioning.Setup(x => x.GetOrCreateUserWalletAsync(user.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new ProvisionedUserWallet(Account.CreateUserAccount(user.Id), wallet));
+        var wallet = Wallet.Create(Account.CreateUserAccount(user.Id, FinancialScope.TarheElahi).Id, user.Id, FinancialScope.TarheElahi);
+        _provisioning.Setup(x => x.GetOrCreateUserWalletAsync(user.Id, It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ProvisionedUserWallet(Account.CreateUserAccount(user.Id, FinancialScope.TarheElahi), wallet));
 
         var command1 = new AdminGrantGiftNoorCommand(["usr-1"], 100m, "علت اول", "conflict-key", Guid.NewGuid());
         var command2 = new AdminGrantGiftNoorCommand(["usr-1"], 200m, "علت دوم متفاوت", "conflict-key", Guid.NewGuid());
@@ -160,9 +160,9 @@ public sealed class AdminGiftNoorTests
         _userProvisioning.Setup(x => x.EnsureUserFromExternalAsync("usr-blocked", It.IsAny<CancellationToken>()))
             .ReturnsAsync(new UserProvisioningResult(blockedUser, Created: false));
 
-        var activeWallet = Wallet.Create(Account.CreateUserAccount(activeUser.Id).Id, activeUser.Id);
-        _provisioning.Setup(x => x.GetOrCreateUserWalletAsync(activeUser.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new ProvisionedUserWallet(Account.CreateUserAccount(activeUser.Id), activeWallet));
+        var activeWallet = Wallet.Create(Account.CreateUserAccount(activeUser.Id, FinancialScope.TarheElahi).Id, activeUser.Id, FinancialScope.TarheElahi);
+        _provisioning.Setup(x => x.GetOrCreateUserWalletAsync(activeUser.Id, It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ProvisionedUserWallet(Account.CreateUserAccount(activeUser.Id, FinancialScope.TarheElahi), activeWallet));
 
         var command = new AdminGrantGiftNoorCommand(["usr-active", "usr-blocked"], 500m, "پاداش", "key-all-or-nothing", Guid.NewGuid());
 
@@ -186,9 +186,9 @@ public sealed class AdminGiftNoorTests
         _userProvisioning.Setup(x => x.EnsureUserFromExternalAsync("usr-missing-initially", It.IsAny<CancellationToken>()))
             .ReturnsAsync(new UserProvisioningResult(syncedUser, Created: true));
 
-        var wallet = Wallet.Create(Account.CreateUserAccount(syncedUser.Id).Id, syncedUser.Id);
-        _provisioning.Setup(x => x.GetOrCreateUserWalletAsync(syncedUser.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new ProvisionedUserWallet(Account.CreateUserAccount(syncedUser.Id), wallet));
+        var wallet = Wallet.Create(Account.CreateUserAccount(syncedUser.Id, FinancialScope.TarheElahi).Id, syncedUser.Id, FinancialScope.TarheElahi);
+        _provisioning.Setup(x => x.GetOrCreateUserWalletAsync(syncedUser.Id, It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ProvisionedUserWallet(Account.CreateUserAccount(syncedUser.Id, FinancialScope.TarheElahi), wallet));
 
         var command = new AdminGrantGiftNoorCommand(["usr-missing-initially"], 300m, "کاربر تازه سینک شده", "key-sync", Guid.NewGuid());
 
@@ -209,15 +209,15 @@ public sealed class AdminGiftNoorTests
         _userProvisioning.Setup(x => x.EnsureUserFromExternalAsync("usr-recon", It.IsAny<CancellationToken>()))
             .ReturnsAsync(new UserProvisioningResult(user, Created: false));
 
-        var userAccount = Account.CreateUserAccount(user.Id);
-        var wallet = Wallet.Create(userAccount.Id, user.Id);
+        var userAccount = Account.CreateUserAccount(user.Id, FinancialScope.TarheElahi);
+        var wallet = Wallet.Create(userAccount.Id, user.Id, FinancialScope.TarheElahi);
 
         // شبیه‌سازی شارژ عادی قبلی
         wallet.ApplyCredit(700m);
         _recordedLedger.Add(LedgerEntry.Create(userAccount.Id, 700m, Guid.NewGuid(), LedgerReferenceType.TopUp, balanceType: LedgerBalanceType.Regular));
         _recordedLedger.Add(LedgerEntry.Create(_systemAccount.Id, -700m, Guid.NewGuid(), LedgerReferenceType.TopUp, balanceType: LedgerBalanceType.Regular));
 
-        _provisioning.Setup(x => x.GetOrCreateUserWalletAsync(user.Id, It.IsAny<CancellationToken>()))
+        _provisioning.Setup(x => x.GetOrCreateUserWalletAsync(user.Id, It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ProvisionedUserWallet(userAccount, wallet));
 
         // اعطای نور هدیه
@@ -244,8 +244,8 @@ public sealed class AdminGiftNoorTests
     [Fact]
     public void CurrentFlows_CannotDebitGiftBalance_FailsWhenRegularIsZeroAndGiftIs100()
     {
-        var userAccount = Account.CreateUserAccount(UserId.New());
-        var wallet = Wallet.Create(userAccount.Id, UserId.New());
+        var userAccount = Account.CreateUserAccount(UserId.New(), FinancialScope.TarheElahi);
+        var wallet = Wallet.Create(userAccount.Id, UserId.New(), FinancialScope.TarheElahi);
 
         // مانده عادی صفر است و ۱۰۰ نور هدیه داده می‌شود
         wallet.ApplyGiftCredit(100m);

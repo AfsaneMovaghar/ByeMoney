@@ -16,11 +16,11 @@ namespace ByeMoney.Infrastructure.Modules.Wallet.Persistence.Ledger;
 public sealed class WalletTransactionReader(ApplicationDbContext db) : IWalletTransactionReader
 {
     public async Task<WalletTransactionPage<WalletTransactionRow>> ListAsync(
-        UserId userId, int page, int pageSize, CancellationToken ct)
+        UserId userId, string scopeId, int page, int pageSize, CancellationToken ct)
     {
         var wallet = await db.Set<WalletEntity>()
             .AsNoTracking()
-            .FirstOrDefaultAsync(w => w.UserId == userId, ct);
+            .FirstOrDefaultAsync(w => w.UserId == userId && w.ScopeId == scopeId, ct);
 
         if (wallet is null)
         {

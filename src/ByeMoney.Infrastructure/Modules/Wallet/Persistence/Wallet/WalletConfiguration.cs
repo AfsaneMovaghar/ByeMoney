@@ -1,4 +1,5 @@
 using ByeMoney.Domain.Modules.Identity.Users;
+using ByeMoney.Domain.Modules.Wallet;
 using ByeMoney.Domain.Modules.Wallet.Accounts;
 using ByeMoney.Domain.Modules.Wallet.Wallets;
 using Microsoft.EntityFrameworkCore;
@@ -21,6 +22,7 @@ public class WalletConfiguration : IEntityTypeConfiguration<WalletEntity>
             table.HasCheckConstraint(
                 "CK_Wallets_GiftBalance_NonNegative",
                 "\"GiftBalance\" >= 0");
+            table.HasCheckConstraint("CK_Wallets_ScopeId", FinancialScope.Check());
         });
 
         builder.HasKey(w => w.Id);
@@ -67,10 +69,14 @@ public class WalletConfiguration : IEntityTypeConfiguration<WalletEntity>
         builder.Property(w => w.LastUpdatedAtUtc)
             .IsRequired();
 
+        builder.Property(w => w.ScopeId)
+            .HasMaxLength(FinancialScope.MaxLength)
+            .IsRequired();
+
         builder.HasIndex(w => w.AccountId)
             .IsUnique();
 
-        builder.HasIndex(w => w.UserId)
+        builder.HasIndex(w => new { w.UserId, w.ScopeId })
             .IsUnique();
     }
 }

@@ -1,5 +1,6 @@
 using ByeMoney.Domain.Common.Generic;
 using ByeMoney.Domain.Modules.Identity.Users;
+using ByeMoney.Domain.Modules.Wallet;
 
 namespace ByeMoney.Domain.Modules.Wallet.Accounts;
 
@@ -9,28 +10,31 @@ public class Account : BaseEntity<AccountId>
 
     public AccountType Type { get; private set; }
     public UserId? UserId { get; private set; }
+    public string ScopeId { get; private set; } = null!;
     public AccountStatus Status { get; private set; }
 
     private Account() { }
 
-    public static Account CreateUserAccount(UserId userId)
+    public static Account CreateUserAccount(UserId userId, string scopeId)
     {
         return new Account
         {
             Id = AccountId.New(),
             Type = AccountType.User,
             UserId = userId,
+            ScopeId = FinancialScope.Require(scopeId),
             Status = AccountStatus.Active
         };
     }
 
-    public static Account CreateSystemAccount(AccountId? id = null)
+    public static Account CreateSystemAccount(string scopeId, AccountId? id = null)
     {
         return new Account
         {
             Id = id ?? SystemAccountId,
             Type = AccountType.System,
             UserId = null,
+            ScopeId = FinancialScope.Require(scopeId),
             Status = AccountStatus.Active
         };
     }

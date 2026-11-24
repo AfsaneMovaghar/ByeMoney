@@ -1,5 +1,6 @@
 using ByeMoney.Application.Modules.Purchases.History.DTOs;
 using ByeMoney.Application.Modules.Purchases.History.Interfaces;
+using ByeMoney.Domain.Modules.Wallet;
 using ByeMoney.Application.Modules.Purchases.History.Services;
 using ByeMoney.Application.Common.Interfaces;
 using ByeMoney.Application.Resources;
@@ -18,7 +19,7 @@ public sealed class GetAdminCoursePurchaseReceiptQueryHandler(
     public async Task<PurchaseReceipt> Handle(GetAdminCoursePurchaseReceiptQuery request, CancellationToken ct)
     {
         _ = BuyerId;
-        var data = await reader.GetAdminReceiptAsync(request.PurchaseId, ct)
+        var data = await reader.GetAdminReceiptAsync(request.PurchaseId, FinancialScope.TarheElahi, ct)
             ?? throw new NotFoundException(PurchaseHistoryErrors.NotFound);
         return PurchaseHistoryMapping.ToReceipt(data);
     }

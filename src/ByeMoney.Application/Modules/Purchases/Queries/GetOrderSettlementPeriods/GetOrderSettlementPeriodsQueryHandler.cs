@@ -3,6 +3,7 @@ using ByeMoney.Application.Modules.Purchases.History.DTOs;
 using ByeMoney.Application.Modules.Purchases.Settlements.DTOs;
 using ByeMoney.Application.Modules.Purchases.Settlements.Interfaces;
 using ByeMoney.Application.Resources;
+using ByeMoney.Domain.Modules.Wallet;
 using MediatR;
 
 namespace ByeMoney.Application.Modules.Purchases.Queries.GetOrderSettlementPeriods;
@@ -18,6 +19,6 @@ public sealed class GetOrderSettlementPeriodsQueryHandler(
         _ = currentUser.UserId
             ?? throw new UnauthorizedAccessException(ApplicationErrors.Wallet_UserNotAuthenticated);
 
-        return store.GetPeriodsAsync(request.Page, request.PageSize, ct);
+        return store.GetPeriodsAsync(request.Page, request.PageSize, FinancialScope.TarheElahi, ct);
     }
 }

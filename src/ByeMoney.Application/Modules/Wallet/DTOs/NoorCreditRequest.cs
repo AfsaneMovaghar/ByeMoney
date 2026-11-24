@@ -9,6 +9,7 @@ namespace ByeMoney.Application.Modules.Wallet.DTOs;
 /// <c>TransactionId</c> اختیاری است تا چند افزایش یک عملیات (مانند برگشت عادی و هدیهٔ یک لغو) زیر یک شناسهٔ تراکنش Ledger بمانند.
 /// </summary>
 public sealed record NoorCreditRequest(
+    string ScopeId,
     UserId UserId,
     decimal AmountNoor,
     LedgerBalanceType BalanceType,

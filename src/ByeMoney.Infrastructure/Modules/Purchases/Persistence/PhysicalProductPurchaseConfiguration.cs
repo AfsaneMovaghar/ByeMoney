@@ -1,5 +1,6 @@
 using ByeMoney.Domain.Modules.Identity.Users;
 using ByeMoney.Domain.Modules.Purchases;
+using ByeMoney.Domain.Modules.Wallet;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -41,6 +42,8 @@ public class PhysicalProductPurchaseConfiguration : IEntityTypeConfiguration<Phy
                 "\"CarrierAlertCode\" IS NULL OR \"CarrierAlertCode\" IN (11304, 11305)");
             table.HasCheckConstraint("CK_PhysicalProductPurchases_CarrierAlertResolution",
                 "\"CarrierAlertResolution\" IS NULL OR (\"CarrierAlertCode\" IS NOT NULL AND \"CarrierAlertResolution\" IN ('DeliveryConfirmed', 'ClosedWithoutSettlement'))");
+            table.HasCheckConstraint("CK_PhysicalProductPurchases_ScopeId", FinancialScope.Check());
+            table.HasCheckConstraint("CK_PhysicalProductPurchases_SellerId", FinancialScope.Check("SellerId"));
         });
 
         builder.HasKey(x => x.Id);
@@ -54,6 +57,8 @@ public class PhysicalProductPurchaseConfiguration : IEntityTypeConfiguration<Phy
             .IsRequired();
 
         builder.Property(x => x.CartId).IsRequired();
+        builder.Property(x => x.ScopeId).HasMaxLength(FinancialScope.MaxLength).IsRequired();
+        builder.Property(x => x.SellerId).HasMaxLength(FinancialScope.MaxLength).IsRequired();
 
         builder.HasOne<User>()
             .WithMany()

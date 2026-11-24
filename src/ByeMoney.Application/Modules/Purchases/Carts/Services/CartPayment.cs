@@ -1,7 +1,10 @@
 using ByeMoney.Application.Modules.Purchases.Carts.DTOs;
 using ByeMoney.Application.Modules.Wallet.DTOs;
+using ByeMoney.Domain.Common.Exceptions;
+using ByeMoney.Domain.Resources;
 using ByeMoney.Domain.Modules.Identity.Users;
 using ByeMoney.Domain.Modules.Purchases;
+using ByeMoney.Application.Modules.Wallet.Services;
 using ByeMoney.Domain.Modules.Wallet.Accounts;
 using ByeMoney.Domain.Modules.Wallet.Ledgers;
 using ByeMoney.Domain.Modules.Wallet.Wallets;
@@ -40,6 +43,12 @@ public static class CartPayment
         if (cart.Total > 0)
         {
             ArgumentNullException.ThrowIfNull(system);
+            LedgerScopeGuard.EnsureSameScope(wallet.Account, system, wallet.Wallet);
+            if (wallet.Account.ScopeId != cart.ScopeId)
+            {
+                throw new DomainException(DomainErrors.Ledger_AccountsMustShareScope);
+            }
+
             var debitResult = wallet.Wallet.Debit(cart.Total, WalletDebitPurpose.Purchase);
             giftShares = PaymentShareAllocator.SplitGift(debitResult.GiftDebited, partAmounts);
         }
@@ -82,6 +91,7 @@ public static class CartPayment
                     item.Quantity,
                     item.PriceInNoor,
                     amount,
+                    cart.ScopeId,
                     parcel);
 
                 if (amount == 0)
@@ -110,6 +120,7 @@ public static class CartPayment
                 var purchase = CoursePurchase.Create(
                     cart.BuyerId,
                     snapshot,
+                    cart.ScopeId,
                     amount == 0,
                     freeReason: amount == 0 ? cart.AdminFreeReason : null,
                     purchaseId: new CoursePurchaseId(purchaseIdGuid));

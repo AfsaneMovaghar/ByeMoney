@@ -42,7 +42,7 @@ public class TopUpConfirmedPurchaseHandlerTests
         _topUpRepoMock.Setup(r => r.GetByIdAsync(It.IsAny<TopUpRequestId>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((TopUpRequestId id, CancellationToken _) =>
             {
-                var topUp = TopUpRequest.CreateGateway(UserId.New(), 10m, 1000m);
+                var topUp = TopUpRequest.CreateGateway(UserId.New(), 10m, 1000m, FinancialScope.TarheElahi);
                 topUp.Confirm("ext-tx-mock");
                 return topUp;
             });
@@ -98,17 +98,17 @@ public class TopUpConfirmedPurchaseHandlerTests
             .Setup(r => r.ExistsByBuyerAndCourseAsync(userId, "course-abc-123", It.IsAny<CancellationToken>()))
             .ReturnsAsync(false);
 
-        var userAccount = Account.CreateUserAccount(userId);
-        var systemAccount = Account.CreateSystemAccount();
-        var wallet = WalletEntity.Create(userAccount.Id, userId);
+        var userAccount = Account.CreateUserAccount(userId, FinancialScope.TarheElahi);
+        var systemAccount = Account.CreateSystemAccount(FinancialScope.TarheElahi);
+        var wallet = WalletEntity.Create(userAccount.Id, userId, FinancialScope.TarheElahi);
         wallet.ApplyCredit(1500m);
 
         _walletProvisioningMock
-            .Setup(s => s.GetOrCreateUserWalletAsync(userId, It.IsAny<CancellationToken>()))
+            .Setup(s => s.GetOrCreateUserWalletAsync(userId, It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ProvisionedUserWallet(userAccount, wallet));
 
         _walletProvisioningMock
-            .Setup(s => s.GetOrCreateSystemAccountAsync(It.IsAny<CancellationToken>()))
+            .Setup(s => s.GetOrCreateSystemAccountAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(systemAccount);
 
         var savedLedgerEntries = new List<LedgerEntry>();
@@ -203,17 +203,17 @@ public class TopUpConfirmedPurchaseHandlerTests
 
         _coursePurchaseRepoMock.Setup(r => r.ExistsByBuyerAndCourseAsync(userId, It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync(false);
 
-        var userAccount = Account.CreateUserAccount(userId);
-        var systemAccount = Account.CreateSystemAccount();
-        var wallet = WalletEntity.Create(userAccount.Id, userId);
+        var userAccount = Account.CreateUserAccount(userId, FinancialScope.TarheElahi);
+        var systemAccount = Account.CreateSystemAccount(FinancialScope.TarheElahi);
+        var wallet = WalletEntity.Create(userAccount.Id, userId, FinancialScope.TarheElahi);
         wallet.ApplyCredit(5000m);
 
         _walletProvisioningMock
-            .Setup(s => s.GetOrCreateUserWalletAsync(userId, It.IsAny<CancellationToken>()))
+            .Setup(s => s.GetOrCreateUserWalletAsync(userId, It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ProvisionedUserWallet(userAccount, wallet));
 
         _walletProvisioningMock
-            .Setup(s => s.GetOrCreateSystemAccountAsync(It.IsAny<CancellationToken>()))
+            .Setup(s => s.GetOrCreateSystemAccountAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(systemAccount);
 
         var savedLedgerEntries = new List<LedgerEntry>();
@@ -394,12 +394,12 @@ public class TopUpConfirmedPurchaseHandlerTests
             .Setup(r => r.ExistsByBuyerAndCourseAsync(userId, "course-expensive", It.IsAny<CancellationToken>()))
             .ReturnsAsync(false);
 
-        var userAccount = Account.CreateUserAccount(userId);
-        var wallet = WalletEntity.Create(userAccount.Id, userId);
+        var userAccount = Account.CreateUserAccount(userId, FinancialScope.TarheElahi);
+        var wallet = WalletEntity.Create(userAccount.Id, userId, FinancialScope.TarheElahi);
         wallet.ApplyCredit(200m);
 
         _walletProvisioningMock
-            .Setup(s => s.GetOrCreateUserWalletAsync(userId, It.IsAny<CancellationToken>()))
+            .Setup(s => s.GetOrCreateUserWalletAsync(userId, It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ProvisionedUserWallet(userAccount, wallet));
 
         var notification = new TopUpConfirmed(
@@ -426,7 +426,7 @@ public class TopUpConfirmedPurchaseHandlerTests
     public async Task Handle_ShouldSkipAutoPurchase_WhenTopUpIsExceptionallyConfirmed()
     {
         var topUpRepoMock = new Mock<ITopUpRequestRepository>();
-        var topUp = TopUpRequest.CreateGateway(UserId.New(), 10m, 1000m);
+        var topUp = TopUpRequest.CreateGateway(UserId.New(), 10m, 1000m, FinancialScope.TarheElahi);
         topUp.Reject("cancelled");
         topUp.RecordGatewayResult("evt-exc", "SEP", GatewayResultKinds.Verified, "tx-exc", "rrn-exc", "0", 10000m, 10000m, DateTime.UtcNow);
         topUp.OpenFinancialReview("case-exc", FinancialReviewReasonCodes.BankConflict);

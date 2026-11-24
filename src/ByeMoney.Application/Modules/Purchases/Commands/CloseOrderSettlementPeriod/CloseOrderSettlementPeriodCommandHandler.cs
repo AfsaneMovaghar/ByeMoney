@@ -6,6 +6,7 @@ using ByeMoney.Application.Modules.Purchases.Settlements.Services;
 using ByeMoney.Application.Resources;
 using ByeMoney.Domain.Common.Generic;
 using ByeMoney.Domain.Modules.Identity.Users;
+using ByeMoney.Domain.Modules.Wallet;
 using ByeMoney.Domain.Modules.Purchases;
 using MediatR;
 
@@ -27,14 +28,14 @@ public sealed class CloseOrderSettlementPeriodCommandHandler(
         var adminId = currentUser.UserId
             ?? throw new UnauthorizedAccessException(ApplicationErrors.Wallet_UserNotAuthenticated);
 
-        var orders = await candidates.GetUnsettledAsync(ct);
+        var orders = await candidates.GetUnsettledAsync(FinancialScope.TarheElahi, ct);
         if (orders.Count == 0)
         {
             return Result<OrderSettlementPeriodResponse>.Conflict(
                 OrderSettlementErrors.Empty, OrderSettlementErrorCodes.Empty);
         }
 
-        if (OrderSettlementPreviewToken.Compute(orders) != request.PreviewToken)
+        if (OrderSettlementPreviewToken.Compute(FinancialScope.TarheElahi, orders) != request.PreviewToken)
         {
             return Result<OrderSettlementPeriodResponse>.Conflict(
                 OrderSettlementErrors.PreviewChanged, OrderSettlementErrorCodes.PreviewChanged);
@@ -48,7 +49,7 @@ public sealed class CloseOrderSettlementPeriodCommandHandler(
                 order.OrderCreatedAtUtc,
                 new PaymentShares(order.RegularNetAmountInNoor, order.GiftNetAmountInNoor)))
             .ToArray();
-        var period = OrderSettlementPeriod.Close(new UserId(adminId), request.Title, request.Note, items);
+        var period = OrderSettlementPeriod.Close(new UserId(adminId), request.Title, request.Note, items, FinancialScope.TarheElahi);
 
         if (!await store.TryAddAsync(period, ct))
         {
@@ -56,7 +57,7 @@ public sealed class CloseOrderSettlementPeriodCommandHandler(
                 OrderSettlementErrors.AlreadySettled, OrderSettlementErrorCodes.AlreadySettled);
         }
 
-        var response = await store.FindPeriodAsync(period.Id.Value, ct)
+        var response = await store.FindPeriodAsync(period.Id.Value, FinancialScope.TarheElahi, ct)
             ?? throw new InvalidOperationException("A committed settlement period must be readable.");
         return Result<OrderSettlementPeriodResponse>.Success(response);
     }

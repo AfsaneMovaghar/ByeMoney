@@ -1,5 +1,6 @@
 using ByeMoney.Domain.Modules.Identity.Users;
 using ByeMoney.Domain.Modules.Purchases;
+using ByeMoney.Domain.Modules.Wallet;
 using ByeMoney.Domain.Modules.Wallet.TopUps;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
@@ -15,6 +16,7 @@ public class TopUpRequestConfiguration : IEntityTypeConfiguration<TopUpRequest>
             table.HasCheckConstraint(
                 "CK_TopUpRequests_AmountNoor_Positive",
                 "\"AmountNoor\" > 0");
+            table.HasCheckConstraint("CK_TopUpRequests_ScopeId", FinancialScope.Check());
         });
 
         builder.HasKey(t => t.Id);
@@ -23,6 +25,10 @@ public class TopUpRequestConfiguration : IEntityTypeConfiguration<TopUpRequest>
             .HasConversion(
                 id => id.Value,
                 value => new TopUpRequestId(value));
+
+        builder.Property(t => t.ScopeId)
+            .HasMaxLength(FinancialScope.MaxLength)
+            .IsRequired();
 
         builder.Property(t => t.UserId)
             .HasConversion(

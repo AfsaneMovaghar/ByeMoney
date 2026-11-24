@@ -7,6 +7,7 @@ using ByeMoney.Application.Modules.Wallet.Interfaces;
 using ByeMoney.Application.Resources;
 using ByeMoney.Domain.Common.Exceptions;
 using ByeMoney.Domain.Modules.Identity.Users;
+using ByeMoney.Domain.Modules.Wallet;
 using ByeMoney.Domain.Modules.Wallet.TopUps;
 
 namespace ByeMoney.Application.Modules.Wallet.Services;
@@ -67,7 +68,7 @@ public sealed class AdminAssistedTopUpService(
         {
             ChargeType.AdminAssistedCardToCard => TopUpRequest.CreateAdminCardToCard(
                 beneficiaryId, new UserId(request.ActorUserId), request.AmountToman, rate,
-                request.ReceiptId, request.IdempotencyKey, request.ExternalTransactionId),
+                request.ReceiptId, request.IdempotencyKey, FinancialScope.TarheElahi, request.ExternalTransactionId),
             _ => throw new InvalidOperationException(ApplicationErrors.TopUpRequest_UnsupportedChargeType)
         };
 

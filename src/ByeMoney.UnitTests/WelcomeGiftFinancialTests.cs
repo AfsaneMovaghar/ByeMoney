@@ -135,8 +135,8 @@ public sealed class WelcomeGiftFinancialTests : IAsyncLifetime
         userRepoMock.Setup(x => x.GetByExternalUserIdAsync(externalUserId, It.IsAny<CancellationToken>()))
             .ReturnsAsync((User?)null);
 
-        var activeSetting = GiftCampaignSetting.Create(GiftCampaignType.Welcome, 50m, isEnabled: true);
-        giftSettingRepoMock.Setup(x => x.GetByTypeAsync(GiftCampaignType.Welcome, It.IsAny<CancellationToken>()))
+        var activeSetting = GiftCampaignSetting.Create(GiftCampaignType.Welcome, FinancialScope.TarheElahi, 50m, isEnabled: true);
+        giftSettingRepoMock.Setup(x => x.GetByTypeAsync(GiftCampaignType.Welcome, It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(activeSetting);
 
         GiftGrantBatch? capturedBatch = null;
@@ -213,8 +213,8 @@ public sealed class WelcomeGiftFinancialTests : IAsyncLifetime
         userRepoMock.Setup(x => x.GetByExternalUserIdAsync(externalUserId, It.IsAny<CancellationToken>()))
             .ReturnsAsync((User?)null);
 
-        var disabledSetting = GiftCampaignSetting.Create(GiftCampaignType.Welcome, 50m, isEnabled: false);
-        giftSettingRepoMock.Setup(x => x.GetByTypeAsync(GiftCampaignType.Welcome, It.IsAny<CancellationToken>()))
+        var disabledSetting = GiftCampaignSetting.Create(GiftCampaignType.Welcome, FinancialScope.TarheElahi, 50m, isEnabled: false);
+        giftSettingRepoMock.Setup(x => x.GetByTypeAsync(GiftCampaignType.Welcome, It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(disabledSetting);
 
         var welcomeGiftService = new WelcomeGiftService(
@@ -239,7 +239,7 @@ public sealed class WelcomeGiftFinancialTests : IAsyncLifetime
         result.Created.Should().BeTrue();
         result.User.ExternalUserId.Should().Be(externalUserId);
         userRepoMock.Verify(x => x.AddAsync(It.Is<User>(u => u.ExternalUserId == externalUserId), It.IsAny<CancellationToken>()), Times.Once);
-        provisioningMock.Verify(x => x.GetOrCreateUserWalletAsync(It.IsAny<UserId>(), It.IsAny<CancellationToken>()), Times.Once);
+        provisioningMock.Verify(x => x.GetOrCreateUserWalletAsync(It.IsAny<UserId>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Once);
         noorCreditMock.Verify(x => x.CreditAsync(It.IsAny<NoorCreditRequest>(), It.IsAny<CancellationToken>()), Times.Never);
         giftGrantRepoMock.Verify(x => x.AddBatchAsync(It.IsAny<GiftGrantBatch>(), It.IsAny<CancellationToken>()), Times.Never);
         unitOfWorkMock.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
@@ -274,14 +274,9 @@ public sealed class WelcomeGiftFinancialTests : IAsyncLifetime
             .ReturnsAsync((User?)null);
 
         // کمپین منقضی شده در گذشته
-        var expiredSetting = GiftCampaignSetting.Create(
-            GiftCampaignType.Welcome,
-            50m,
-            isEnabled: true,
-            startDateUtc: DateTime.UtcNow.AddMonths(-2),
-            endDateUtc: DateTime.UtcNow.AddMonths(-1));
+        var expiredSetting = GiftCampaignSetting.Create(GiftCampaignType.Welcome, FinancialScope.TarheElahi, 50m, isEnabled: true, startDateUtc: DateTime.UtcNow.AddMonths(-2), endDateUtc: DateTime.UtcNow.AddMonths(-1));
 
-        giftSettingRepoMock.Setup(x => x.GetByTypeAsync(GiftCampaignType.Welcome, It.IsAny<CancellationToken>()))
+        giftSettingRepoMock.Setup(x => x.GetByTypeAsync(GiftCampaignType.Welcome, It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(expiredSetting);
 
         var welcomeGiftService = new WelcomeGiftService(
@@ -306,7 +301,7 @@ public sealed class WelcomeGiftFinancialTests : IAsyncLifetime
         result.Created.Should().BeTrue();
         result.User.ExternalUserId.Should().Be(externalUserId);
         noorCreditMock.Verify(x => x.CreditAsync(It.IsAny<NoorCreditRequest>(), It.IsAny<CancellationToken>()), Times.Never);
-        provisioningMock.Verify(x => x.GetOrCreateUserWalletAsync(It.IsAny<UserId>(), It.IsAny<CancellationToken>()), Times.Once);
+        provisioningMock.Verify(x => x.GetOrCreateUserWalletAsync(It.IsAny<UserId>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Once);
         unitOfWorkMock.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 
@@ -371,7 +366,7 @@ public sealed class WelcomeGiftFinancialTests : IAsyncLifetime
 
         var user = createdUsers.First();
         var wallet = await verifyDb.Set<Wallet>().SingleAsync(w => w.UserId == user.Id);
-        wallet.GiftBalance.Should().Be(50m);
+        wallet.GiftBalance.Should().Be(50000m);
 
         var giftBatches = await verifyDb.Set<GiftGrantBatch>()
             .Include(b => b.Recipients)

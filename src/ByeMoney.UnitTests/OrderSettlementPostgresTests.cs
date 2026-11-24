@@ -210,8 +210,7 @@ public sealed class OrderSettlementPostgresTests : IAsyncLifetime
     }
 
     private static OrderSettlementPeriod Period(Guid adminId, string orderId) =>
-        OrderSettlementPeriod.Close(new UserId(adminId), null, null,
-            [OrderSettlementItem.Create(orderId, "Purchase", "buyer", DateTime.UtcNow, new PaymentShares(30m, 10m))]);
+        OrderSettlementPeriod.Close(new UserId(adminId), null, null, [OrderSettlementItem.Create(orderId, "Purchase", "buyer", DateTime.UtcNow, new PaymentShares(30m, 10m))], FinancialScope.TarheElahi);
 
     private ServiceProvider BuildProvider(InsertBarrier? barrier = null)
     {
@@ -272,7 +271,7 @@ public sealed class OrderSettlementPostgresTests : IAsyncLifetime
         var adminA = User.CreateInitial("settlement-admin-a-" + Guid.NewGuid().ToString("N"));
         var adminB = User.CreateInitial("settlement-admin-b-" + Guid.NewGuid().ToString("N"));
 
-        var course = CoursePurchase.Create(buyer.Id, ProductSnapshot.Create("settled-course", "Course", 40m));
+        var course = CoursePurchase.Create(buyer.Id, ProductSnapshot.Create("settled-course", "Course", 40m), FinancialScope.TarheElahi);
         course.MarkDebited(Guid.NewGuid());
         course.RecordPaymentShares(new PaymentShares(30m, 10m));
 
@@ -282,15 +281,15 @@ public sealed class OrderSettlementPostgresTests : IAsyncLifetime
         await db.SaveChangesAsync();
 
         var provisioning = scope.ServiceProvider.GetRequiredService<IUserWalletProvisioningService>();
-        var wallet = await provisioning.GetOrCreateUserWalletAsync(buyer.Id);
+        var wallet = await provisioning.GetOrCreateUserWalletAsync(buyer.Id, FinancialScope.TarheElahi);
         wallet.Wallet.ApplyCredit(1000m);
-        await provisioning.GetOrCreateSystemAccountAsync();
+        await provisioning.GetOrCreateSystemAccountAsync(FinancialScope.TarheElahi);
         await db.SaveChangesAsync();
 
         var carts = scope.ServiceProvider.GetRequiredService<ICartStore>();
         var cart = Cart.Create(Guid.NewGuid(), buyer.Id.Value, buyer.ExternalUserId, [
             new CartItemInput("book", ProductItemType.Product, 2)
-        ], null);
+        ], null, FinancialScope.TarheElahi);
         (await carts.CreateAsync(cart, default)).IsSuccess.Should().BeTrue();
         var quote = new CartQuoteItem("book", "Book", 50, 0, 0, 100, ProductItemType.Product, null, 2);
         await carts.SetQuoteAsync(cart.Id, buyer.Id.Value, [quote], 10m, null, null, cart.ReservationId, default);
@@ -344,8 +343,8 @@ public sealed class OrderSettlementPostgresTests : IAsyncLifetime
     private sealed class BarrierOrderSettlementStore(IOrderSettlementStore inner, InsertBarrier barrier) :
         IOrderSettlementStore
     {
-        public Task<IReadOnlySet<string>> GetSettledOrderIdsAsync(CancellationToken ct) =>
-            inner.GetSettledOrderIdsAsync(ct);
+        public Task<IReadOnlySet<string>> GetSettledOrderIdsAsync(string scopeId, CancellationToken ct) =>
+            inner.GetSettledOrderIdsAsync(scopeId, ct);
 
         public Task<IReadOnlyDictionary<Guid, PaymentShares>> GetShippingPaymentsAsync(
             IReadOnlyCollection<Guid> cartIds, CancellationToken ct) =>
@@ -357,18 +356,18 @@ public sealed class OrderSettlementPostgresTests : IAsyncLifetime
             return await inner.TryAddAsync(period, ct);
         }
 
-        public Task<OrderSettlementPeriodResponse?> FindPeriodAsync(Guid periodId, CancellationToken ct) =>
-            inner.FindPeriodAsync(periodId, ct);
+        public Task<OrderSettlementPeriodResponse?> FindPeriodAsync(Guid periodId, string scopeId, CancellationToken ct) =>
+            inner.FindPeriodAsync(periodId, scopeId, ct);
 
         public Task<PurchasePage<OrderSettlementPeriodResponse>> GetPeriodsAsync(
-            int page, int pageSize, CancellationToken ct) =>
-            inner.GetPeriodsAsync(page, pageSize, ct);
+            int page, int pageSize, string scopeId, CancellationToken ct) =>
+            inner.GetPeriodsAsync(page, pageSize, scopeId, ct);
 
-        public Task<bool> PeriodExistsAsync(Guid periodId, CancellationToken ct) =>
-            inner.PeriodExistsAsync(periodId, ct);
+        public Task<bool> PeriodExistsAsync(Guid periodId, string scopeId, CancellationToken ct) =>
+            inner.PeriodExistsAsync(periodId, scopeId, ct);
 
         public Task<PurchasePage<SettlementOrderResponse>> GetPeriodOrdersAsync(
-            Guid periodId, int page, int pageSize, CancellationToken ct) =>
-            inner.GetPeriodOrdersAsync(periodId, page, pageSize, ct);
+            Guid periodId, int page, int pageSize, string scopeId, CancellationToken ct) =>
+            inner.GetPeriodOrdersAsync(periodId, page, pageSize, scopeId, ct);
     }
 }

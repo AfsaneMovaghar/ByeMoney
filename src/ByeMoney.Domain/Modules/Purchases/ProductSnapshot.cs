@@ -1,4 +1,5 @@
 ﻿using ByeMoney.Domain.Common.Exceptions;
+using ByeMoney.Domain.Modules.Wallet;
 using ByeMoney.Domain.Resources;
 
 namespace ByeMoney.Domain.Modules.Purchases;
@@ -11,6 +12,9 @@ public class ProductSnapshot
 
     /// <summary>Origin catalog system identifier, e.g. "tarh_elahi".</summary>
     public string ProductSource { get; private set; } = null!;
+
+    /// <summary>شناسهٔ فروشندهٔ اقتصادی. در فاز اول همیشه طرح الهی است و حساب درآمد نیست.</summary>
+    public string SellerId { get; private set; } = null!;
 
     /// <summary>External product id, e.g. Strapi Course documentId.</summary>
     public string ExternalProductId { get; private set; } = null!;
@@ -64,6 +68,7 @@ public class ProductSnapshot
             ItemType = itemType,
             ExternalParentId = externalParentId,
             ProductSource = productSource,
+            SellerId = FinancialScope.TarheElahi,
             ExternalProductId = externalProductId.Trim(),
             ProductTitle = productTitle.Trim(),
             PriceInNoorAtPurchaseTime = priceNoor,

@@ -20,7 +20,7 @@ public sealed class WelcomeGiftServiceTests
     [Fact]
     public void GiftCampaignSetting_Create_ThrowsDomainException_WhenAmountIsNegative()
     {
-        var act = () => GiftCampaignSetting.Create(GiftCampaignType.Welcome, -10m, true);
+        var act = () => GiftCampaignSetting.Create(GiftCampaignType.Welcome, FinancialScope.TarheElahi, -10m, true);
 
         act.Should().Throw<DomainException>()
             .WithMessage(DomainErrors.GiftCampaign_AmountCannotBeNegative);
@@ -30,12 +30,7 @@ public sealed class WelcomeGiftServiceTests
     public void GiftCampaignSetting_Create_ThrowsDomainException_WhenStartDateIsAfterEndDate()
     {
         var now = DateTime.UtcNow;
-        var act = () => GiftCampaignSetting.Create(
-            GiftCampaignType.Welcome,
-            50m,
-            true,
-            startDateUtc: now.AddDays(2),
-            endDateUtc: now.AddDays(1));
+        var act = () => GiftCampaignSetting.Create(GiftCampaignType.Welcome, FinancialScope.TarheElahi, 50m, true, startDateUtc: now.AddDays(2), endDateUtc: now.AddDays(1));
 
         act.Should().Throw<DomainException>()
             .WithMessage(DomainErrors.GiftCampaign_StartDateCannotBeAfterEndDate);
@@ -45,14 +40,7 @@ public sealed class WelcomeGiftServiceTests
     public void GiftGrantBatch_Create_SetsCreatedAtUtc_WhenSpecified()
     {
         var customDate = new DateTime(2025, 1, 15, 10, 30, 0, DateTimeKind.Utc);
-        var batch = GiftGrantBatch.Create(
-            "key-1",
-            "hash-1",
-            GiftGrantSource.WelcomeBonus,
-            "Reason",
-            50m,
-            null,
-            createdAtUtc: customDate);
+        var batch = GiftGrantBatch.Create("key-1", "hash-1", GiftGrantSource.WelcomeBonus, FinancialScope.TarheElahi, "Reason", 50m, null, createdAtUtc: customDate);
 
         batch.CreatedAtUtc.Should().Be(customDate);
     }
@@ -64,11 +52,7 @@ public sealed class WelcomeGiftServiceTests
         var postingMock = new Mock<IWalletPostingService>();
         var service = new NoorCreditService(provisioningMock.Object, postingMock.Object);
 
-        var request = new NoorCreditRequest(
-            new UserId(Guid.NewGuid()),
-            AmountNoor: 0m,
-            BalanceType: LedgerBalanceType.Gift,
-            ReferenceType: LedgerReferenceType.WelcomeGift);
+        var request = new NoorCreditRequest(FinancialScope.TarheElahi, new UserId(Guid.NewGuid()), AmountNoor: 0m, BalanceType: LedgerBalanceType.Gift, ReferenceType: LedgerReferenceType.WelcomeGift);
 
         var act = async () => await service.CreditAsync(request);
 
@@ -83,24 +67,18 @@ public sealed class WelcomeGiftServiceTests
         var postingMock = new Mock<IWalletPostingService>();
 
         var userId = new UserId(Guid.NewGuid());
-        var wallet = Wallet.Create(Account.CreateUserAccount(userId).Id, userId);
-        var account = Account.CreateUserAccount(userId);
-        var sysAccount = Account.CreateSystemAccount();
+        var wallet = Wallet.Create(Account.CreateUserAccount(userId, FinancialScope.TarheElahi).Id, userId, FinancialScope.TarheElahi);
+        var account = Account.CreateUserAccount(userId, FinancialScope.TarheElahi);
+        var sysAccount = Account.CreateSystemAccount(FinancialScope.TarheElahi);
 
-        provisioningMock.Setup(p => p.GetOrCreateUserWalletAsync(userId, It.IsAny<CancellationToken>()))
+        provisioningMock.Setup(p => p.GetOrCreateUserWalletAsync(userId, It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ProvisionedUserWallet(account, wallet));
-        provisioningMock.Setup(p => p.GetOrCreateSystemAccountAsync(It.IsAny<CancellationToken>()))
+        provisioningMock.Setup(p => p.GetOrCreateSystemAccountAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(sysAccount);
 
         var service = new NoorCreditService(provisioningMock.Object, postingMock.Object);
 
-        var request = new NoorCreditRequest(
-            userId,
-            AmountNoor: 100m,
-            BalanceType: LedgerBalanceType.Gift,
-            ReferenceType: LedgerReferenceType.WelcomeGift,
-            ReferenceId: "batch-1",
-            Reason: "Test");
+        var request = new NoorCreditRequest(FinancialScope.TarheElahi, userId, AmountNoor: 100m, BalanceType: LedgerBalanceType.Gift, ReferenceType: LedgerReferenceType.WelcomeGift, ReferenceId: "batch-1", Reason: "Test");
 
         var result = await service.CreditAsync(request);
 
@@ -117,8 +95,8 @@ public sealed class WelcomeGiftServiceTests
         var noorCreditMock = new Mock<INoorCreditService>();
         var provisioningMock = new Mock<IUserWalletProvisioningService>();
 
-        var activeSetting = GiftCampaignSetting.Create(GiftCampaignType.Welcome, 50m, isEnabled: true);
-        giftSettingRepoMock.Setup(x => x.GetByTypeAsync(GiftCampaignType.Welcome, It.IsAny<CancellationToken>()))
+        var activeSetting = GiftCampaignSetting.Create(GiftCampaignType.Welcome, FinancialScope.TarheElahi, 50m, isEnabled: true);
+        giftSettingRepoMock.Setup(x => x.GetByTypeAsync(GiftCampaignType.Welcome, It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(activeSetting);
 
         GiftGrantBatch? capturedBatch = null;
@@ -136,7 +114,7 @@ public sealed class WelcomeGiftServiceTests
             noorCreditMock.Object,
             provisioningMock.Object);
 
-        await service.GrantWelcomeGiftIfEligibleAsync(user);
+        await service.GrantWelcomeGiftIfEligibleAsync(user, FinancialScope.TarheElahi);
 
         capturedBatch.Should().NotBeNull();
         capturedBatch!.Reason.Should().Be(ApplicationErrors.Gift_WelcomeBonusReason);

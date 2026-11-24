@@ -34,7 +34,7 @@ public class CoursePurchaseNotifierTests
     {
         var userId = UserId.New();
         var snapshot = ProductSnapshot.Create("course-1", "Title", 100m, ProductCatalogSources.TarhElahi);
-        var purchase = CoursePurchase.Create(userId, snapshot);
+        var purchase = CoursePurchase.Create(userId, snapshot, FinancialScope.TarheElahi);
         purchase.MarkDebited(Guid.NewGuid());
         var courseDto = new TarhElahiCourseDto
         {
@@ -59,7 +59,7 @@ public class CoursePurchaseNotifierTests
     {
         var userId = UserId.New();
         var snapshot = ProductSnapshot.Create("course-1", "Title", 100m, ProductCatalogSources.TarhElahi);
-        var purchase = CoursePurchase.Create(userId, snapshot);
+        var purchase = CoursePurchase.Create(userId, snapshot, FinancialScope.TarheElahi);
         purchase.MarkDebited(Guid.NewGuid());
         var courseDto = new TarhElahiCourseDto
         {
@@ -86,7 +86,7 @@ public class CoursePurchaseNotifierTests
     {
         var userId = UserId.New();
         var snapshot = ProductSnapshot.Create("course-1", "Title", 100m, ProductCatalogSources.TarhElahi);
-        var purchase = CoursePurchase.Create(userId, snapshot);
+        var purchase = CoursePurchase.Create(userId, snapshot, FinancialScope.TarheElahi);
         purchase.MarkDebited(Guid.NewGuid());
         var courseDto = new TarhElahiCourseDto
         {

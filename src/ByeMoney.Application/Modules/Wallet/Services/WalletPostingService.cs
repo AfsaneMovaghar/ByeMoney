@@ -25,6 +25,7 @@ public sealed class WalletPostingService(
     {
         ArgumentNullException.ThrowIfNull(userWallet);
         ArgumentNullException.ThrowIfNull(systemAccount);
+        LedgerScopeGuard.EnsureSameScope(userWallet.Account, systemAccount, userWallet.Wallet);
 
         var result = userWallet.Wallet.Debit(amount, purpose);
 
@@ -94,6 +95,7 @@ public sealed class WalletPostingService(
     {
         ArgumentNullException.ThrowIfNull(userWallet);
         ArgumentNullException.ThrowIfNull(systemAccount);
+        LedgerScopeGuard.EnsureSameScope(userWallet.Account, systemAccount, userWallet.Wallet);
 
         var result = userWallet.Wallet.Credit(amount, balanceType);
 

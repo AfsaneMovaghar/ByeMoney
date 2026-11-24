@@ -58,8 +58,8 @@ public sealed class CartPostgresTests : IAsyncLifetime
         await db.Database.MigrateAsync();
         db.Add(_buyer); await db.SaveChangesAsync();
         var provisioning = scope.ServiceProvider.GetRequiredService<IUserWalletProvisioningService>();
-        var wallet = await provisioning.GetOrCreateUserWalletAsync(_buyer.Id); wallet.Wallet.ApplyCredit(1000);
-        await provisioning.GetOrCreateSystemAccountAsync(); await db.SaveChangesAsync();
+        var wallet = await provisioning.GetOrCreateUserWalletAsync(_buyer.Id, FinancialScope.TarheElahi); wallet.Wallet.ApplyCredit(1000);
+        await provisioning.GetOrCreateSystemAccountAsync(FinancialScope.TarheElahi); await db.SaveChangesAsync();
         _pricing.Setup(x => x.TransitionAsync(It.IsAny<CartTransitionRequest>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(Result.Success());
     }
@@ -75,7 +75,7 @@ public sealed class CartPostgresTests : IAsyncLifetime
     }
     private async Task<Cart> Ready(string[]? ids = null, bool free = false)
     {
-        var cart = Cart.Create(Guid.NewGuid(), _buyer.Id.Value, _buyer.ExternalUserId, ids ?? ["a", "b"], "OFF");
+        var cart = Cart.Create(Guid.NewGuid(), _buyer.Id.Value, _buyer.ExternalUserId, ids ?? ["a", "b"], "OFF", FinancialScope.TarheElahi);
         (await Store.CreateAsync(cart, default)).IsSuccess.Should().BeTrue();
         return await Store.SetQuoteAsync(cart.Id, _buyer.Id.Value, cart.RequestedItemSignatures.Select((id, index) =>
             new CartQuoteItem(id, "دوره", 105, 0, free ? 105 : index == 0 ? 11 : 10, free ? 0 : index == 0 ? 94 : 95)).ToArray(), cart.ReservationId, default);
@@ -100,7 +100,7 @@ public sealed class CartPostgresTests : IAsyncLifetime
     public async Task ChapterPaymentPersistsIdentityAndDebitsQuotedAllocationOnce()
     {
         var chapterId = Guid.NewGuid().ToString();
-        var cart = Cart.Create(Guid.NewGuid(), _buyer.Id.Value, _buyer.ExternalUserId, [chapterId], null);
+        var cart = Cart.Create(Guid.NewGuid(), _buyer.Id.Value, _buyer.ExternalUserId, [chapterId], null, FinancialScope.TarheElahi);
         await Store.CreateAsync(cart, default);
         cart = await Store.SetQuoteAsync(cart.Id, _buyer.Id.Value,
             [new(chapterId, "فصل", 120, 0, 20, 100, ProductItemType.CourseChapter, "parent")],
@@ -125,12 +125,7 @@ public sealed class CartPostgresTests : IAsyncLifetime
     public async Task ParcelFactsArePersistedOnCartAndPhysicalPurchase()
     {
         const string productId = "book";
-        var cart = Cart.Create(
-            Guid.NewGuid(),
-            _buyer.Id.Value,
-            _buyer.ExternalUserId,
-            [new CartItemInput(productId, ProductItemType.Product, 2)],
-            null);
+        var cart = Cart.Create(Guid.NewGuid(), _buyer.Id.Value, _buyer.ExternalUserId, [new CartItemInput(productId, ProductItemType.Product, 2)], null, FinancialScope.TarheElahi);
         (await Store.CreateAsync(cart, default)).IsSuccess.Should().BeTrue();
         var parcel = new ParcelFacts(750, 15, 10, 20, 60_000_000, true, 5);
         cart = await Store.SetQuoteAsync(
@@ -156,7 +151,7 @@ public sealed class CartPostgresTests : IAsyncLifetime
         var chapterId = Guid.NewGuid().ToString();
         async Task<Cart> ChapterCart()
         {
-            var cart = Cart.Create(Guid.NewGuid(), _buyer.Id.Value, _buyer.ExternalUserId, [chapterId], null);
+            var cart = Cart.Create(Guid.NewGuid(), _buyer.Id.Value, _buyer.ExternalUserId, [chapterId], null, FinancialScope.TarheElahi);
             await Store.CreateAsync(cart, default);
             return await Store.SetQuoteAsync(cart.Id, _buyer.Id.Value,
                 [new(chapterId, "فصل", 100, 0, 0, 100, ProductItemType.CourseChapter, "parent")],
@@ -174,9 +169,8 @@ public sealed class CartPostgresTests : IAsyncLifetime
 
         using var scope = _provider.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        var duplicate = CoursePurchase.Create(_buyer.Id,
-            ProductSnapshot.Create(chapterId, "فصل", 100,
-                itemType: ProductItemType.CourseChapter, externalParentId: "parent"));
+        var duplicate = CoursePurchase.Create(_buyer.Id, ProductSnapshot.Create(chapterId, "فصل", 100,
+                itemType: ProductItemType.CourseChapter, externalParentId: "parent"), FinancialScope.TarheElahi);
         db.Add(duplicate);
         Func<Task> saveDuplicate = async () => await db.SaveChangesAsync();
         var failure = await saveDuplicate.Should().ThrowAsync<DbUpdateException>();
@@ -191,7 +185,7 @@ public sealed class CartPostgresTests : IAsyncLifetime
         (await Store.PayAsync(parent.Id, _buyer.Id.Value, parent.ReservationId, default)).IsSuccess.Should().BeTrue();
         var before = await Financials();
         var chapterId = Guid.NewGuid().ToString();
-        var chapter = Cart.Create(Guid.NewGuid(), _buyer.Id.Value, _buyer.ExternalUserId, [chapterId], null);
+        var chapter = Cart.Create(Guid.NewGuid(), _buyer.Id.Value, _buyer.ExternalUserId, [chapterId], null, FinancialScope.TarheElahi);
         await Store.CreateAsync(chapter, default);
         chapter = await Store.SetQuoteAsync(chapter.Id, _buyer.Id.Value,
             [new(chapterId, "فصل", 100, 0, 0, 100, ProductItemType.CourseChapter, "parent")],
@@ -337,7 +331,7 @@ public sealed class CartPostgresTests : IAsyncLifetime
     [CartPostgresFact]
     public async Task MigrationChainWithWipedCartsPreservesFinancialsAndMergedAllocation()
     {
-        var cart = Cart.Create(Guid.NewGuid(), _buyer.Id.Value, _buyer.ExternalUserId, ["a", "b"], "OFF");
+        var cart = Cart.Create(Guid.NewGuid(), _buyer.Id.Value, _buyer.ExternalUserId, ["a", "b"], "OFF", FinancialScope.TarheElahi);
         await Store.CreateAsync(cart, default);
         cart = await Store.SetQuoteAsync(cart.Id, _buyer.Id.Value,
             [new("a", "الف", 200, 10, 20, 170), new("b", "ب", 100, 100, 0, 0)], cart.ReservationId, default);
@@ -360,7 +354,7 @@ public sealed class CartPostgresTests : IAsyncLifetime
         await migrator.MigrateAsync();
         (await Financials()).Should().Be((1000m, 0, 0m, 0m));
 
-        var fresh = Cart.Create(Guid.NewGuid(), _buyer.Id.Value, _buyer.ExternalUserId, ["a", "b"], "OFF");
+        var fresh = Cart.Create(Guid.NewGuid(), _buyer.Id.Value, _buyer.ExternalUserId, ["a", "b"], "OFF", FinancialScope.TarheElahi);
         (await Store.CreateAsync(fresh, default)).IsSuccess.Should().BeTrue();
         fresh = await Store.SetQuoteAsync(fresh.Id, _buyer.Id.Value,
             [new("a", "الف", 200, 10, 20, 170), new("b", "ب", 100, 100, 0, 0)], fresh.ReservationId, default);
@@ -403,8 +397,7 @@ public sealed class CartPostgresTests : IAsyncLifetime
         var loaded = (await Store.FindAsync(cart.Id, _buyer.Id.Value, default))!;
         loaded.Items.Should().Equal(cart.Items);
         loaded.Items.Select(x => x.ExternalItemId).Should().Equal("A", "a", "z");
-        (await Store.CreateAsync(Cart.Create(cart.Id, _buyer.Id.Value, _buyer.ExternalUserId,
-            cart.RequestedItemSignatures, "OFF"), default)).Value.Items.Should().Equal(cart.Items);
+        (await Store.CreateAsync(Cart.Create(cart.Id, _buyer.Id.Value, _buyer.ExternalUserId, cart.RequestedItemSignatures, "OFF", FinancialScope.TarheElahi), default)).Value.Items.Should().Equal(cart.Items);
         await Store.FailAsync(cart.Id, _buyer.Id.Value, false, cart.ReservationId, default);
         (await Store.GetPendingAsync(default)).Single(x => x.Id == cart.Id).Items.Should().Equal(cart.Items);
         using var scope = _provider.CreateScope();
@@ -436,8 +429,7 @@ public sealed class CartPostgresTests : IAsyncLifetime
     {
         var first = new ShippingAddress("v1", "ProvinceA", "CityA", null, "StreetA 1", "RecipientA", "09120000001", "city-a");
         var second = new ShippingAddress("v2", "ProvinceB", "CityB", "1234567890", "StreetB 2", "RecipientB", "09120000002");
-        var cart = Cart.Create(Guid.NewGuid(), _buyer.Id.Value, _buyer.ExternalUserId,
-            [new CartItemInput("book", ProductItemType.Product, 1)], null);
+        var cart = Cart.Create(Guid.NewGuid(), _buyer.Id.Value, _buyer.ExternalUserId, [new CartItemInput("book", ProductItemType.Product, 1)], null, FinancialScope.TarheElahi);
         (await Store.CreateAsync(cart, default)).IsSuccess.Should().BeTrue();
         CartQuoteItem[] quote = [new("book", "Book", 50, 0, 0, 50, ProductItemType.Product, null, 1)];
 
@@ -457,7 +449,7 @@ public sealed class CartPostgresTests : IAsyncLifetime
     public async Task CourseOnlyQuoteStoresNoShippingAddress()
     {
         var address = new ShippingAddress("v1", "ProvinceA", "CityA", null, "StreetA 1", "RecipientA", "09120000001");
-        var cart = Cart.Create(Guid.NewGuid(), _buyer.Id.Value, _buyer.ExternalUserId, ["course"], null);
+        var cart = Cart.Create(Guid.NewGuid(), _buyer.Id.Value, _buyer.ExternalUserId, ["course"], null, FinancialScope.TarheElahi);
         (await Store.CreateAsync(cart, default)).IsSuccess.Should().BeTrue();
 
         await Store.SetQuoteAsync(cart.Id, _buyer.Id.Value, [new("course", "Course", 10, 0, 0, 10)], 0m, null, address,
@@ -564,7 +556,7 @@ public sealed class CartPostgresTests : IAsyncLifetime
     {
         var cart = await Ready();
         (await Store.FindAsync(cart.Id, Guid.NewGuid(), default)).Should().BeNull();
-        (await Store.CreateAsync(Cart.Create(cart.Id, Guid.NewGuid(), "other", ["a", "b"], "OFF"), default)).IsFailure.Should().BeTrue();
+        (await Store.CreateAsync(Cart.Create(cart.Id, Guid.NewGuid(), "other", ["a", "b"], "OFF", FinancialScope.TarheElahi), default)).IsFailure.Should().BeTrue();
     }
     [CartPostgresFact]
     public async Task StrapiOutageAfterDebitIsRecoveredWithoutSecondDebit()
@@ -1004,11 +996,11 @@ public sealed class CartPostgresTests : IAsyncLifetime
 
         // ۳. بررسی رفتار عینی دیتابیس در ثبت تکراری (Unique Violation 23505)
         var courseId = Guid.NewGuid().ToString("N");
-        var first = CoursePurchase.Create(_buyer.Id, ProductSnapshot.Create(courseId, "دوره آزمایشی", 100));
+        var first = CoursePurchase.Create(_buyer.Id, ProductSnapshot.Create(courseId, "دوره آزمایشی", 100), FinancialScope.TarheElahi);
         db.Add(first);
         await db.SaveChangesAsync();
 
-        var duplicate = CoursePurchase.Create(_buyer.Id, ProductSnapshot.Create(courseId, "دوره آزمایشی مجدد", 100));
+        var duplicate = CoursePurchase.Create(_buyer.Id, ProductSnapshot.Create(courseId, "دوره آزمایشی مجدد", 100), FinancialScope.TarheElahi);
         db.Add(duplicate);
         Func<Task> saveDuplicate = async () => await db.SaveChangesAsync();
         var ex = await saveDuplicate.Should().ThrowAsync<DbUpdateException>();

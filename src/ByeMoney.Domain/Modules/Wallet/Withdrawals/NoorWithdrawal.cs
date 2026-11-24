@@ -1,5 +1,6 @@
 using ByeMoney.Domain.Common.Generic;
 using ByeMoney.Domain.Modules.Identity.Users;
+using ByeMoney.Domain.Modules.Wallet;
 using ByeMoney.Domain.Modules.Wallet.TopUps;
 
 namespace ByeMoney.Domain.Modules.Wallet.Withdrawals;
@@ -21,6 +22,7 @@ public class NoorWithdrawal : BaseEntity<NoorWithdrawalId>
 
     public Guid OperationId { get; private set; }
     public UserId UserId { get; private set; }
+    public string ScopeId { get; private set; } = null!;
     public NoorWithdrawalKind Kind { get; private set; }
     public TopUpRequestId? RelatedTopUpId { get; private set; }
     public decimal AmountNoor { get; private set; }
@@ -63,7 +65,8 @@ public class NoorWithdrawal : BaseEntity<NoorWithdrawalId>
         string? beneficiaryIban,
         string description,
         UserId createdByUserId,
-        Guid ledgerTransactionId)
+        Guid ledgerTransactionId,
+        string scopeId)
     {
         if (operationId == Guid.Empty)
         {
@@ -90,6 +93,7 @@ public class NoorWithdrawal : BaseEntity<NoorWithdrawalId>
             Id = NoorWithdrawalId.New(),
             OperationId = operationId,
             UserId = userId,
+            ScopeId = FinancialScope.Require(scopeId),
             Kind = kind,
             RelatedTopUpId = relatedTopUpId,
             AmountNoor = amountNoor,

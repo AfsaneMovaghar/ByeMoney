@@ -6,7 +6,7 @@ namespace ByeMoney.Application.Modules.Purchases.Settlements.Interfaces;
 
 public interface IOrderSettlementStore
 {
-    Task<IReadOnlySet<string>> GetSettledOrderIdsAsync(CancellationToken ct);
+    Task<IReadOnlySet<string>> GetSettledOrderIdsAsync(string scopeId, CancellationToken ct);
 
     /// <summary>
     /// سهم عادی و هدیهٔ پرداخت هزینهٔ ارسال هر سبد. ارسال ستون سهم ندارد و از بدهی Ledger
@@ -21,12 +21,12 @@ public interface IOrderSettlementStore
     /// </summary>
     Task<bool> TryAddAsync(OrderSettlementPeriod period, CancellationToken ct);
 
-    Task<OrderSettlementPeriodResponse?> FindPeriodAsync(Guid periodId, CancellationToken ct);
+    Task<OrderSettlementPeriodResponse?> FindPeriodAsync(Guid periodId, string scopeId, CancellationToken ct);
 
-    Task<PurchasePage<OrderSettlementPeriodResponse>> GetPeriodsAsync(int page, int pageSize, CancellationToken ct);
+    Task<PurchasePage<OrderSettlementPeriodResponse>> GetPeriodsAsync(int page, int pageSize, string scopeId, CancellationToken ct);
 
-    Task<bool> PeriodExistsAsync(Guid periodId, CancellationToken ct);
+    Task<bool> PeriodExistsAsync(Guid periodId, string scopeId, CancellationToken ct);
 
     Task<PurchasePage<SettlementOrderResponse>> GetPeriodOrdersAsync(
-        Guid periodId, int page, int pageSize, CancellationToken ct);
+        Guid periodId, int page, int pageSize, string scopeId, CancellationToken ct);
 }

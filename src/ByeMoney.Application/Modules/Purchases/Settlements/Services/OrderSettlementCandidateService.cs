@@ -9,10 +9,10 @@ namespace ByeMoney.Application.Modules.Purchases.Settlements.Services;
 /// <summary>سفارش‌های قابل تسویه‌ای که هنوز در هیچ دوره‌ای ثبت نشده‌اند، به ترتیب زمان ساخت سفارش.</summary>
 public sealed class OrderSettlementCandidateService(IOrderReader reader, IOrderSettlementStore store)
 {
-    public async Task<IReadOnlyList<SettlementOrderResponse>> GetUnsettledAsync(CancellationToken ct)
+    public async Task<IReadOnlyList<SettlementOrderResponse>> GetUnsettledAsync(string scopeId, CancellationToken ct)
     {
-        var snapshot = await reader.ReadAsync(null, null, ct);
-        var settledOrderIds = await store.GetSettledOrderIdsAsync(ct);
+        var snapshot = await reader.ReadAsync(null, null, scopeId, ct);
+        var settledOrderIds = await store.GetSettledOrderIdsAsync(scopeId, ct);
         var settleable = OrderMapping.Build(snapshot)
             .Where(row => !settledOrderIds.Contains(row.Details.OrderId))
             .Where(row => OrderSettlementRule.IsSettleable(row.Details))

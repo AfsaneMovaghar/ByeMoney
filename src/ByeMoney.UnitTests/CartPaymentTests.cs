@@ -20,10 +20,10 @@ public sealed class CartPaymentTests
     public async Task ChapterQuoteFromStrapiPreservesFinancialAndDeliveryIdentity()
     {
         var buyer = UserId.New();
-        var account = Account.CreateUserAccount(buyer);
-        var wallet = Wallet.Create(account.Id, buyer);
+        var account = Account.CreateUserAccount(buyer, FinancialScope.TarheElahi);
+        var wallet = Wallet.Create(account.Id, buyer, FinancialScope.TarheElahi);
         wallet.ApplyCredit(1000);
-        var cart = Cart.Create(Guid.NewGuid(), buyer.Value, "buyer", ["chapter-uuid"], null);
+        var cart = Cart.Create(Guid.NewGuid(), buyer.Value, "buyer", ["chapter-uuid"], null, FinancialScope.TarheElahi);
         var json = $$"""
             {"cartId":"{{cart.Id}}","buyerExternalUserId":"buyer","couponCode":null,
              "items":[{"externalCourseId":"chapter-uuid","type":"course_chapter",
@@ -36,7 +36,7 @@ public sealed class CartPaymentTests
         quote.IsSuccess.Should().BeTrue();
         cart.SetQuote(quote.Value.Items);
 
-        var payment = CartPayment.Apply(cart, new ProvisionedUserWallet(account, wallet), Account.CreateSystemAccount());
+        var payment = CartPayment.Apply(cart, new ProvisionedUserWallet(account, wallet), Account.CreateSystemAccount(FinancialScope.TarheElahi));
 
         wallet.WithdrawableBalance.Should().Be(900);
         payment.LedgerEntries.Sum(entry => entry.Amount).Should().Be(0);
@@ -74,10 +74,10 @@ public sealed class CartPaymentTests
         decimal secondCoupon)
     {
         var buyer = new UserId(Guid.NewGuid());
-        var account = Account.CreateUserAccount(buyer);
-        var wallet = Wallet.Create(account.Id, buyer);
+        var account = Account.CreateUserAccount(buyer, FinancialScope.TarheElahi);
+        var wallet = Wallet.Create(account.Id, buyer, FinancialScope.TarheElahi);
         wallet.ApplyCredit(1000);
-        var cart = Cart.Create(Guid.NewGuid(), buyer.Value, "buyer", ["a", "b"], "OFF");
+        var cart = Cart.Create(Guid.NewGuid(), buyer.Value, "buyer", ["a", "b"], "OFF", FinancialScope.TarheElahi);
         var firstPayment = 105 - firstDiscount - firstCoupon;
         var secondPayment = 105 - secondDiscount - secondCoupon;
         cart.SetQuote([
@@ -86,7 +86,7 @@ public sealed class CartPaymentTests
         ]);
 
         var payment = CartPayment.Apply(cart, new ProvisionedUserWallet(account, wallet),
-            cart.Total > 0 ? Account.CreateSystemAccount() : null, referenceRate: 137m);
+            cart.Total > 0 ? Account.CreateSystemAccount(FinancialScope.TarheElahi) : null, referenceRate: 137m);
 
         cart.Items.Select(x => x.PriceInNoor).Should().Equal(105m, 105m);
         payment.Purchases.Select(x => x.Snapshot.PriceInNoorAtPurchaseTime)
@@ -98,7 +98,7 @@ public sealed class CartPaymentTests
         payment.LedgerEntries.Should().NotContain(x => x.Amount == 0);
         cart.Status.Should().Be(CartStatus.Paid);
 
-        Action replay = () => CartPayment.Apply(cart, new ProvisionedUserWallet(account, wallet), Account.CreateSystemAccount());
+        Action replay = () => CartPayment.Apply(cart, new ProvisionedUserWallet(account, wallet), Account.CreateSystemAccount(FinancialScope.TarheElahi));
         replay.Should().Throw<InvalidOperationException>();
         wallet.WithdrawableBalance.Should().Be(1000 - firstPayment - secondPayment);
     }
@@ -108,10 +108,10 @@ public sealed class CartPaymentTests
     {
         // Arrange
         var buyer = new UserId(Guid.NewGuid());
-        var account = Account.CreateUserAccount(buyer);
-        var wallet = Wallet.Create(account.Id, buyer);
+        var account = Account.CreateUserAccount(buyer, FinancialScope.TarheElahi);
+        var wallet = Wallet.Create(account.Id, buyer, FinancialScope.TarheElahi);
         wallet.ApplyCredit(500m);
-        var cart = Cart.Create(Guid.NewGuid(), buyer.Value, "buyer-free", ["course-free-1", "course-free-2"], "100OFF");
+        var cart = Cart.Create(Guid.NewGuid(), buyer.Value, "buyer-free", ["course-free-1", "course-free-2"], "100OFF", FinancialScope.TarheElahi);
 
         cart.SetQuote([
             new("course-free-1", "دوره اول", 200m, 0m, 200m, 0m),

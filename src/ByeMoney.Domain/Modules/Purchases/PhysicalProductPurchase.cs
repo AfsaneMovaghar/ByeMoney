@@ -1,6 +1,7 @@
 using ByeMoney.Domain.Common.Generic;
 using ByeMoney.Domain.Common.Exceptions;
 using ByeMoney.Domain.Modules.Identity.Users;
+using ByeMoney.Domain.Modules.Wallet;
 using ByeMoney.Domain.Resources;
 
 namespace ByeMoney.Domain.Modules.Purchases;
@@ -8,6 +9,8 @@ namespace ByeMoney.Domain.Modules.Purchases;
 public class PhysicalProductPurchase : BaseEntity<PhysicalProductPurchaseId>
 {
     public Guid CartId { get; private set; }
+    public string ScopeId { get; private set; } = null!;
+    public string SellerId { get; private set; } = null!;
     public UserId BuyerId { get; private set; }
     public string ExternalProductId { get; private set; } = null!;
     public string ProductTitle { get; private set; } = null!;
@@ -161,6 +164,7 @@ public class PhysicalProductPurchase : BaseEntity<PhysicalProductPurchaseId>
         int quantity,
         decimal unitPriceInNoor,
         decimal paidAmountInNoor,
+        string scopeId,
         ParcelFacts? parcel = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(externalProductId);
@@ -186,6 +190,8 @@ public class PhysicalProductPurchase : BaseEntity<PhysicalProductPurchaseId>
         {
             Id = id,
             CartId = cartId,
+            ScopeId = FinancialScope.Require(scopeId),
+            SellerId = FinancialScope.TarheElahi,
             BuyerId = buyerId,
             ExternalProductId = externalProductId.Trim(),
             ProductTitle = productTitle.Trim(),

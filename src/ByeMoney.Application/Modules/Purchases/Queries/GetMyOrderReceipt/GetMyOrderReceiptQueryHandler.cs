@@ -3,6 +3,7 @@ using ByeMoney.Application.Modules.Purchases.Orders.DTOs;
 using ByeMoney.Application.Modules.Purchases.Orders.Interfaces;
 using ByeMoney.Application.Modules.Purchases.Orders.Services;
 using ByeMoney.Application.Resources;
+using ByeMoney.Domain.Modules.Wallet;
 using ByeMoney.Domain.Common.Exceptions;
 using MediatR;
 
@@ -16,7 +17,7 @@ public sealed class GetMyOrderReceiptQueryHandler(IOrderReader reader, ICurrentU
 
     public async Task<OrderReceipt> Handle(GetMyOrderReceiptQuery request, CancellationToken ct)
     {
-        var snapshot = await reader.ReadAsync(BuyerId, null, ct);
+        var snapshot = await reader.ReadAsync(BuyerId, null, FinancialScope.TarheElahi, ct);
         var order = OrderMapping.Build(snapshot)
             .SingleOrDefault(row => row.Details.OrderId == request.OrderId)?.Details;
 

@@ -108,10 +108,10 @@ public sealed class PhysicalCancellationPostgresTests : IAsyncLifetime
         await db.SaveChangesAsync();
 
         var provisioning = scope.ServiceProvider.GetRequiredService<IUserWalletProvisioningService>();
-        var wallet = await provisioning.GetOrCreateUserWalletAsync(_buyer.Id);
+        var wallet = await provisioning.GetOrCreateUserWalletAsync(_buyer.Id, FinancialScope.TarheElahi);
         wallet.Wallet.ApplyCredit(1000m);
         wallet.Wallet.ApplyGiftCredit(40m);
-        await provisioning.GetOrCreateSystemAccountAsync();
+        await provisioning.GetOrCreateSystemAccountAsync(FinancialScope.TarheElahi);
         await db.SaveChangesAsync();
 
         _pricing
@@ -745,6 +745,48 @@ public sealed class PhysicalCancellationPostgresTests : IAsyncLifetime
         await command.ExecuteNonQueryAsync();
     }
 
+    [CartPostgresFact]
+    public async Task Refund_ReturnsToTheWalletOfThePurchaseScope_AndLeavesOtherScopeWalletUntouched()
+    {
+        // همان خریدار در scope دوم هم کیف دارد؛ لغو خرید طرح الهی فقط به کیف همان scope برمی‌گردد.
+        await SeedOtherScopeWalletAsync(500m);
+        var cart = await PaidCartAsync([new Line("book", "کتاب فیزیکی", 40m, 20m, 3)], shipping: 30m, coupon: null);
+        (await PurchaseAsync(cart.Id, "book")).ScopeId.Should().Be(FinancialScope.TarheElahi);
+
+        var result = await SendAsync(_buyer.Id.Value, new CancelMyPhysicalOrderCommand(cart.Id, Guid.NewGuid(), Reason));
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Outcome.Should().Be(nameof(PhysicalCancellationOutcome.Refunded));
+        (await ScopeBalanceAsync(FinancialScope.TarheElahi)).Should().Be((1000m, 40m));
+        (await ScopeBalanceAsync(FinancialScope.BuyMoney)).Should().Be((500m, 0m));
+
+        var otherAccount = (await ScopeWalletAsync(FinancialScope.BuyMoney)).AccountId;
+        var ledger = await LedgerAsync();
+        ledger.Should().NotContain(x => x.AccountId == otherAccount);
+    }
+
+    private async Task SeedOtherScopeWalletAsync(decimal amount)
+    {
+        using var scope = _provider.CreateScope();
+        var provisioning = scope.ServiceProvider.GetRequiredService<IUserWalletProvisioningService>();
+        var other = await provisioning.GetOrCreateUserWalletAsync(_buyer.Id, FinancialScope.BuyMoney);
+        other.Wallet.ApplyCredit(amount);
+        await scope.ServiceProvider.GetRequiredService<ApplicationDbContext>().SaveChangesAsync();
+    }
+
+    private async Task<(decimal Regular, decimal Gift)> ScopeBalanceAsync(string scopeId)
+    {
+        var wallet = await ScopeWalletAsync(scopeId);
+        return (wallet.WithdrawableBalance, wallet.GiftBalance);
+    }
+
+    private async Task<Wallet> ScopeWalletAsync(string scopeId)
+    {
+        using var scope = _provider.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        return await db.Set<Wallet>().AsNoTracking().SingleAsync(x => x.UserId == _buyer.Id && x.ScopeId == scopeId);
+    }
+
     private async Task<PhysicalDeliveryStatusResponse> SendDeliveryStatusAsync(Guid purchaseId, string status)
     {
         using var scope = _provider.CreateScope();
@@ -822,8 +864,7 @@ public sealed class PhysicalCancellationPostgresTests : IAsyncLifetime
 
     private async Task<Cart> ReadyCartAsync(Line[] lines, decimal shipping, string? coupon)
     {
-        var cart = Cart.Create(Guid.NewGuid(), _buyer.Id.Value, _buyer.ExternalUserId,
-            lines.Select(x => new CartItemInput(x.Id, ProductItemType.Product, x.Quantity)).ToArray(), coupon);
+        var cart = Cart.Create(Guid.NewGuid(), _buyer.Id.Value, _buyer.ExternalUserId, lines.Select(x => new CartItemInput(x.Id, ProductItemType.Product, x.Quantity)).ToArray(), coupon, FinancialScope.TarheElahi);
         (await Store.CreateAsync(cart, default)).IsSuccess.Should().BeTrue();
 
         var quote = lines

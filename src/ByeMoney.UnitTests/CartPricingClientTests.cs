@@ -185,7 +185,7 @@ public sealed class CartPricingClientTests
     [Fact]
     public void DomainAcceptsGenericParentButRejectsSelfParent()
     {
-        var cart = Cart.Create(Guid.NewGuid(), Guid.NewGuid(), "buyer", [new CartItemInput("x", ProductItemType.Product)], null);
+        var cart = Cart.Create(Guid.NewGuid(), Guid.NewGuid(), "buyer", [new CartItemInput("x", ProductItemType.Product)], null, FinancialScope.TarheElahi);
         var selfParent = new CartQuoteItem("x", "کالا", 10, 0, 0, 10, ProductItemType.Product, "x");
 
         var act = () => cart.SetQuote([selfParent]);

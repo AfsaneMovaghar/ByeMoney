@@ -164,4 +164,6 @@
   <data name="GiftCampaign_AmountCannotBeNegative" xml:space="preserve"><value>مبلغ هدیه نمی‌تواند منفی باشد.</value></data>
   <data name="GiftCampaign_StartDateCannotBeAfterEndDate" xml:space="preserve"><value>تاریخ شروع هدیه نمی‌تواند بعد از تاریخ پایان باشد.</value></data>
   <data name="Wallet_CreditAmountMustBePositive" xml:space="preserve"><value>مبلغ افزایش موجودی باید بزرگتر از صفر باشد.</value></data>
+  <data name="FinancialScope_Invalid" xml:space="preserve"><value>محدودهٔ مالی نامعتبر است.</value></data>
+  <data name="Ledger_AccountsMustShareScope" xml:space="preserve"><value>دو طرف ثبت دفتر کل باید در یک محدودهٔ مالی باشند.</value></data>
 </root>

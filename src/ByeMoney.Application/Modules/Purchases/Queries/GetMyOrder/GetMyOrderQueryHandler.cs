@@ -5,6 +5,7 @@ using ByeMoney.Application.Common.Interfaces;
 using ByeMoney.Application.Resources;
 using ByeMoney.Domain.Common.Exceptions;
 using ByeMoney.Domain.Modules.Purchases;
+using ByeMoney.Domain.Modules.Wallet;
 using MediatR;
 
 namespace ByeMoney.Application.Modules.Purchases.Queries.GetMyOrder;
@@ -17,7 +18,7 @@ public sealed class GetMyOrderQueryHandler(IOrderReader reader, ICurrentUserServ
 
     public async Task<MyOrderDetails> Handle(GetMyOrderQuery request, CancellationToken ct)
     {
-        var snapshot = await reader.ReadAsync(BuyerId, null, ct);
+        var snapshot = await reader.ReadAsync(BuyerId, null, FinancialScope.TarheElahi, ct);
         var details = OrderMapping.Build(snapshot).SingleOrDefault(row => row.Details.OrderId == request.OrderId)?.Details
             ?? throw new NotFoundException(OrderErrors.NotFound);
         details = OrderMapping.WithoutCarrierAdminFields(details);

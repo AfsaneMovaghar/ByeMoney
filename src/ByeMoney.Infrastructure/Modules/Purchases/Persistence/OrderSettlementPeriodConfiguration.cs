@@ -1,5 +1,6 @@
 using ByeMoney.Domain.Modules.Identity.Users;
 using ByeMoney.Domain.Modules.Purchases;
+using ByeMoney.Domain.Modules.Wallet;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -16,8 +17,10 @@ public class OrderSettlementPeriodConfiguration : IEntityTypeConfiguration<Order
             table.HasCheckConstraint("CK_OrderSettlementPeriods_NetShares",
                 "\"TotalRegularNetAmountInNoor\" >= 0 AND \"TotalGiftNetAmountInNoor\" >= 0 AND " +
                 "\"TotalNetAmountInNoor\" = \"TotalRegularNetAmountInNoor\" + \"TotalGiftNetAmountInNoor\"");
+            table.HasCheckConstraint("CK_OrderSettlementPeriods_ScopeId", FinancialScope.Check());
         });
 
+        builder.Property(x => x.ScopeId).HasMaxLength(FinancialScope.MaxLength).IsRequired();
         builder.HasKey(x => x.Id);
         builder.Property(x => x.Id)
             .HasConversion(id => id.Value, value => new OrderSettlementPeriodId(value))

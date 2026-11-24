@@ -9,5 +9,5 @@ public interface IWalletTransactionReader
     /// گردش حساب کیف پول همان کاربر، جدیدترین اول. کاربر بدون کیف پول صفحهٔ خالی می‌گیرد.
     /// </summary>
     Task<WalletTransactionPage<WalletTransactionRow>> ListAsync(
-        UserId userId, int page, int pageSize, CancellationToken ct);
+        UserId userId, string scopeId, int page, int pageSize, CancellationToken ct);
 }

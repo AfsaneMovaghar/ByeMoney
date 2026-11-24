@@ -12,10 +12,14 @@ namespace ByeMoney.Infrastructure.Modules.Purchases.Persistence;
 
 public sealed class OrderSettlementStore(ApplicationDbContext db) : IOrderSettlementStore
 {
-    public async Task<IReadOnlySet<string>> GetSettledOrderIdsAsync(CancellationToken ct)
+    public async Task<IReadOnlySet<string>> GetSettledOrderIdsAsync(string scopeId, CancellationToken ct)
     {
+        var periodIds = db.Set<OrderSettlementPeriod>().AsNoTracking()
+            .Where(period => period.ScopeId == scopeId)
+            .Select(period => period.Id);
         var orderIds = await db.Set<OrderSettlementItem>()
             .AsNoTracking()
+            .Where(item => periodIds.Contains(item.PeriodId))
             .Select(x => x.OrderId)
             .ToListAsync(ct);
 
@@ -70,22 +74,23 @@ public sealed class OrderSettlementStore(ApplicationDbContext db) : IOrderSettle
         }
     }
 
-    public Task<OrderSettlementPeriodResponse?> FindPeriodAsync(Guid periodId, CancellationToken ct)
+    public Task<OrderSettlementPeriodResponse?> FindPeriodAsync(Guid periodId, string scopeId, CancellationToken ct)
     {
         var id = new OrderSettlementPeriodId(periodId);
         var periods = db.Set<OrderSettlementPeriod>()
             .AsNoTracking()
-            .Where(x => x.Id == id);
+            .Where(x => x.Id == id && x.ScopeId == scopeId);
 
         return Project(periods).SingleOrDefaultAsync(ct);
     }
 
     public async Task<PurchasePage<OrderSettlementPeriodResponse>> GetPeriodsAsync(
-        int page, int pageSize, CancellationToken ct)
+        int page, int pageSize, string scopeId, CancellationToken ct)
     {
-        var totalCount = await db.Set<OrderSettlementPeriod>().CountAsync(ct);
+        var periods = db.Set<OrderSettlementPeriod>().AsNoTracking().Where(period => period.ScopeId == scopeId);
+        var totalCount = await periods.CountAsync(ct);
         var items = await (
-                from period in db.Set<OrderSettlementPeriod>().AsNoTracking()
+                from period in periods
                 join user in db.Set<User>().AsNoTracking() on period.ClosedByUserId equals user.Id
                 orderby period.CreatedAtUtc descending, period.Id descending
                 select new OrderSettlementPeriodResponse(
@@ -97,7 +102,8 @@ public sealed class OrderSettlementStore(ApplicationDbContext db) : IOrderSettle
                     period.TotalGiftNetAmountInNoor,
                     period.TotalNetAmountInNoor,
                     user.ExternalUserId,
-                    period.CreatedAtUtc))
+                    period.CreatedAtUtc,
+                    period.ScopeId))
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync(ct);
@@ -105,16 +111,21 @@ public sealed class OrderSettlementStore(ApplicationDbContext db) : IOrderSettle
         return new PurchasePage<OrderSettlementPeriodResponse>(items, page, pageSize, totalCount);
     }
 
-    public Task<bool> PeriodExistsAsync(Guid periodId, CancellationToken ct)
+    public Task<bool> PeriodExistsAsync(Guid periodId, string scopeId, CancellationToken ct)
     {
         var id = new OrderSettlementPeriodId(periodId);
-        return db.Set<OrderSettlementPeriod>().AnyAsync(x => x.Id == id, ct);
+        return db.Set<OrderSettlementPeriod>().AnyAsync(x => x.Id == id && x.ScopeId == scopeId, ct);
     }
 
     public async Task<PurchasePage<SettlementOrderResponse>> GetPeriodOrdersAsync(
-        Guid periodId, int page, int pageSize, CancellationToken ct)
+        Guid periodId, int page, int pageSize, string scopeId, CancellationToken ct)
     {
         var id = new OrderSettlementPeriodId(periodId);
+        if (!await PeriodExistsAsync(periodId, scopeId, ct))
+        {
+            return new PurchasePage<SettlementOrderResponse>([], page, pageSize, 0);
+        }
+
         var orders = db.Set<OrderSettlementItem>()
             .AsNoTracking()
             .Where(x => x.PeriodId == id);
@@ -150,5 +161,6 @@ public sealed class OrderSettlementStore(ApplicationDbContext db) : IOrderSettle
             period.TotalGiftNetAmountInNoor,
             period.TotalNetAmountInNoor,
             user.ExternalUserId,
-            period.CreatedAtUtc);
+            period.CreatedAtUtc,
+            period.ScopeId);
 }

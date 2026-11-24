@@ -8,6 +8,7 @@ using ByeMoney.Application.Modules.Wallet.Interfaces;
 using ByeMoney.Application.Resources;
 using ByeMoney.Domain.Common.Exceptions;
 using ByeMoney.Domain.Modules.Identity.Users;
+using ByeMoney.Domain.Modules.Wallet;
 using ByeMoney.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -58,7 +59,7 @@ public sealed class UserProvisioningService(
             blocked: strapiUser.Blocked);
 
         await userRepository.AddAsync(newUser, ct);
-        await welcomeGiftService.GrantWelcomeGiftIfEligibleAsync(newUser, ct);
+        await welcomeGiftService.GrantWelcomeGiftIfEligibleAsync(newUser, FinancialScope.TarheElahi, ct);
 
         try
         {

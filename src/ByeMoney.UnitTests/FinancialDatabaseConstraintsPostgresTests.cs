@@ -75,8 +75,8 @@ public sealed class FinancialDatabaseConstraintsPostgresTests : IAsyncLifetime
             var gift = column == "GiftBalance" ? value : "0";
 
             await AssertCheckViolationAsync(
-                "INSERT INTO \"Wallets\" (\"Id\", \"AccountId\", \"UserId\", \"Balance\", \"GiftBalance\", \"LastUpdatedAtUtc\", \"CreatedAtUtc\") " +
-                $"VALUES (gen_random_uuid(), gen_random_uuid(), gen_random_uuid(), {regular}, {gift}, now(), now())");
+                "INSERT INTO \"Wallets\" (\"Id\", \"AccountId\", \"UserId\", \"ScopeId\", \"Balance\", \"GiftBalance\", \"LastUpdatedAtUtc\", \"CreatedAtUtc\") " +
+                $"VALUES (gen_random_uuid(), gen_random_uuid(), gen_random_uuid(), 'TARHE_ELAHI', {regular}, {gift}, now(), now())");
         }
     }
 
@@ -115,8 +115,8 @@ public sealed class FinancialDatabaseConstraintsPostgresTests : IAsyncLifetime
         await using var connection = new NpgsqlConnection(_schemaConnection);
         await connection.OpenAsync();
         await using var command = new NpgsqlCommand(
-            "INSERT INTO \"Wallets\" (\"Id\", \"AccountId\", \"UserId\", \"Balance\", \"GiftBalance\", \"LastUpdatedAtUtc\", \"CreatedAtUtc\") " +
-            "VALUES (gen_random_uuid(), gen_random_uuid(), gen_random_uuid(), 0, 0, now(), now())",
+            "INSERT INTO \"Wallets\" (\"Id\", \"AccountId\", \"UserId\", \"ScopeId\", \"Balance\", \"GiftBalance\", \"LastUpdatedAtUtc\", \"CreatedAtUtc\") " +
+            "VALUES (gen_random_uuid(), gen_random_uuid(), gen_random_uuid(), 'TARHE_ELAHI', 0, 0, now(), now())",
             connection);
 
         var act = async () => await command.ExecuteNonQueryAsync();
@@ -138,6 +138,32 @@ public sealed class FinancialDatabaseConstraintsPostgresTests : IAsyncLifetime
             .Should().Be(2);
     }
 
+    [PostgresFact]
+    public async Task ScopeColumns_RejectUnknownScope()
+    {
+        await AssertCheckViolationAsync("UPDATE \"Accounts\" SET \"ScopeId\" = 'UNKNOWN_SITE' WHERE \"Type\" = 'System'");
+        await AssertCheckViolationAsync("UPDATE \"GiftCampaignSettings\" SET \"ScopeId\" = 'UNKNOWN_SITE'");
+    }
+
+    [PostgresFact]
+    public async Task SystemAccount_IsUniqueInsideItsScope_NotAcrossScopes()
+    {
+        const string insert =
+            "INSERT INTO \"Accounts\" (\"Id\", \"Type\", \"UserId\", \"ScopeId\", \"Status\", \"CreatedAtUtc\") " +
+            "VALUES (gen_random_uuid(), 'System', NULL, '{0}', 'Active', now())";
+
+        await ExecuteAsync(_schemaConnection, string.Format(insert, FinancialScope.BuyMoney));
+
+        await using var connection = new NpgsqlConnection(_schemaConnection);
+        await connection.OpenAsync();
+        await using var command = new NpgsqlCommand(string.Format(insert, FinancialScope.TarheElahi), connection);
+
+        var act = async () => await command.ExecuteNonQueryAsync();
+
+        var exception = await act.Should().ThrowAsync<PostgresException>();
+        exception.Which.SqlState.Should().Be(PostgresErrorCodes.UniqueViolation);
+    }
+
     private async Task<long> ScalarAsync(string sql)
     {
         await using var connection = new NpgsqlConnection(_schemaConnection);
@@ -157,8 +183,8 @@ public sealed class FinancialDatabaseConstraintsPostgresTests : IAsyncLifetime
     {
         await AssertCheckViolationAsync(
             "INSERT INTO \"GiftGrantBatches\" (\"Id\", \"IdempotencyKey\", \"RequestPayloadHash\", \"Source\", \"Reason\", " +
-            "\"AmountNoorPerUser\", \"TotalRecipients\", \"TotalAmountNoor\", \"CreatedAtUtc\") " +
-            $"VALUES (gen_random_uuid(), 'k', 'h', 'AdminBatch', 'r', {value}, 1, 10, now())");
+            "\"AmountNoorPerUser\", \"TotalRecipients\", \"TotalAmountNoor\", \"ScopeId\", \"CreatedAtUtc\") " +
+            $"VALUES (gen_random_uuid(), 'k', 'h', 'AdminBatch', 'r', {value}, 1, 10, 'TARHE_ELAHI', now())");
     }
 
     private async Task AssertCheckViolationAsync(string sql)

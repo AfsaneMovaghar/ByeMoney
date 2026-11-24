@@ -96,19 +96,7 @@ public class NoorWithdrawalTests
     [Fact]
     public void Entity_AllowsOnlyOneTerminalTransition()
     {
-        var withdrawal = NoorWithdrawal.Create(
-            Guid.NewGuid(),
-            new UserId(Guid.NewGuid()),
-            NoorWithdrawalKind.AdminDiscretionary,
-            null,
-            10m,
-            100_000m,
-            "علی",
-            "6037991234567890",
-            null,
-            "توضیح",
-            new UserId(Guid.NewGuid()),
-            Guid.NewGuid());
+        var withdrawal = NoorWithdrawal.Create(Guid.NewGuid(), new UserId(Guid.NewGuid()), NoorWithdrawalKind.AdminDiscretionary, null, 10m, 100_000m, "علی", "6037991234567890", null, "توضیح", new UserId(Guid.NewGuid()), Guid.NewGuid(), FinancialScope.TarheElahi);
 
         withdrawal.MarkReversed("برگشت", Guid.NewGuid(), new UserId(Guid.NewGuid()));
 

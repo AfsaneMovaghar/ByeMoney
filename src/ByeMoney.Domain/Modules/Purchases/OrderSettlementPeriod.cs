@@ -1,5 +1,6 @@
 using ByeMoney.Domain.Common.Generic;
 using ByeMoney.Domain.Modules.Identity.Users;
+using ByeMoney.Domain.Modules.Wallet;
 
 namespace ByeMoney.Domain.Modules.Purchases;
 
@@ -14,6 +15,7 @@ public class OrderSettlementPeriod : BaseEntity<OrderSettlementPeriodId>
 
     private readonly List<OrderSettlementItem> _items = [];
 
+    public string ScopeId { get; private set; } = null!;
     public string? Title { get; private set; }
     public string? Note { get; private set; }
     public int OrderCount { get; private set; }
@@ -32,7 +34,8 @@ public class OrderSettlementPeriod : BaseEntity<OrderSettlementPeriodId>
         UserId closedByUserId,
         string? title,
         string? note,
-        IReadOnlyList<OrderSettlementItem> items)
+        IReadOnlyList<OrderSettlementItem> items,
+        string scopeId)
     {
         ArgumentNullException.ThrowIfNull(items);
 
@@ -50,6 +53,7 @@ public class OrderSettlementPeriod : BaseEntity<OrderSettlementPeriodId>
         var period = new OrderSettlementPeriod
         {
             Id = OrderSettlementPeriodId.New(),
+            ScopeId = FinancialScope.Require(scopeId),
             // دقت timestamp در PostgreSQL میکروثانیه است؛ پاسخ بستن با مقدار ذخیره‌شده یکی بماند.
             CreatedAtUtc = now.AddTicks(-(now.Ticks % TimeSpan.TicksPerMicrosecond)),
             Title = Normalize(title),

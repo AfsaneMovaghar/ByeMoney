@@ -48,7 +48,7 @@ public sealed class AdminCartOrderTests
     public void FreeAdminCart_KeepsQuotedPriceForDisplayOnly_AndZeroesEveryCartShare()
     {
         var buyer = UserId.New();
-        var cart = Cart.CreateAdminOrder(Guid.NewGuid(), buyer.Value, "buyer", CourseAndChapter, AdminUserId, FreeReason);
+        var cart = Cart.CreateAdminOrder(Guid.NewGuid(), buyer.Value, "buyer", CourseAndChapter, AdminUserId, FreeReason, FinancialScope.TarheElahi);
 
         cart.SetQuote(CourseAndChapterQuote, shippingAmountInNoor: 40);
 
@@ -63,11 +63,11 @@ public sealed class AdminCartOrderTests
     public void FreeAdminCartPayment_MarksEveryItemFree_WithoutLedgerOrWalletEffect()
     {
         var buyer = UserId.New();
-        var account = Account.CreateUserAccount(buyer);
-        var wallet = Wallet.Create(account.Id, buyer);
+        var account = Account.CreateUserAccount(buyer, FinancialScope.TarheElahi);
+        var wallet = Wallet.Create(account.Id, buyer, FinancialScope.TarheElahi);
         wallet.Credit(70, LedgerBalanceType.Regular);
         wallet.Credit(30, LedgerBalanceType.Gift);
-        var cart = Cart.CreateAdminOrder(Guid.NewGuid(), buyer.Value, "buyer", CourseAndChapter, AdminUserId, FreeReason);
+        var cart = Cart.CreateAdminOrder(Guid.NewGuid(), buyer.Value, "buyer", CourseAndChapter, AdminUserId, FreeReason, FinancialScope.TarheElahi);
         cart.SetQuote(CourseAndChapterQuote);
 
         var payment = CartPayment.Apply(cart, new ProvisionedUserWallet(account, wallet), system: null);
@@ -89,13 +89,13 @@ public sealed class AdminCartOrderTests
     public void PaidAdminCartPayment_DebitsTotalOnce_BalancesLedger_AndKeepsChapterParent()
     {
         var buyer = UserId.New();
-        var account = Account.CreateUserAccount(buyer);
-        var wallet = Wallet.Create(account.Id, buyer);
+        var account = Account.CreateUserAccount(buyer, FinancialScope.TarheElahi);
+        var wallet = Wallet.Create(account.Id, buyer, FinancialScope.TarheElahi);
         wallet.Credit(1000, LedgerBalanceType.Regular);
-        var cart = Cart.CreateAdminOrder(Guid.NewGuid(), buyer.Value, "buyer", CourseAndChapter, AdminUserId, null);
+        var cart = Cart.CreateAdminOrder(Guid.NewGuid(), buyer.Value, "buyer", CourseAndChapter, AdminUserId, null, FinancialScope.TarheElahi);
         cart.SetQuote(CourseAndChapterQuote);
 
-        var payment = CartPayment.Apply(cart, new ProvisionedUserWallet(account, wallet), Account.CreateSystemAccount());
+        var payment = CartPayment.Apply(cart, new ProvisionedUserWallet(account, wallet), Account.CreateSystemAccount(FinancialScope.TarheElahi));
 
         cart.Total.Should().Be(370);
         wallet.TotalBalance.Should().Be(630);
@@ -112,13 +112,13 @@ public sealed class AdminCartOrderTests
     {
         var id = Guid.NewGuid();
         var buyer = Guid.NewGuid();
-        var free = Cart.CreateAdminOrder(id, buyer, "buyer", CourseAndChapter, AdminUserId, FreeReason);
+        var free = Cart.CreateAdminOrder(id, buyer, "buyer", CourseAndChapter, AdminUserId, FreeReason, FinancialScope.TarheElahi);
 
-        free.HasSameAdminOrder(Cart.CreateAdminOrder(id, buyer, "buyer", CourseAndChapter, AdminUserId, FreeReason))
+        free.HasSameAdminOrder(Cart.CreateAdminOrder(id, buyer, "buyer", CourseAndChapter, AdminUserId, FreeReason, FinancialScope.TarheElahi))
             .Should().BeTrue();
-        free.HasSameAdminOrder(Cart.CreateAdminOrder(id, buyer, "buyer", CourseAndChapter, AdminUserId, null))
+        free.HasSameAdminOrder(Cart.CreateAdminOrder(id, buyer, "buyer", CourseAndChapter, AdminUserId, null, FinancialScope.TarheElahi))
             .Should().BeFalse();
-        free.HasSameAdminOrder(Cart.Create(id, buyer, "buyer", CourseAndChapter, null))
+        free.HasSameAdminOrder(Cart.Create(id, buyer, "buyer", CourseAndChapter, null, FinancialScope.TarheElahi))
             .Should().BeFalse();
         free.CouponCode.Should().BeNull();
     }
@@ -153,7 +153,7 @@ public sealed class AdminCartOrderTests
     public async Task Shortfall_Returns409WithStructuredCode_AndReleasesReservationWithoutPayment()
     {
         var buyer = User.CreateInitial("beneficiary");
-        var cart = Cart.CreateAdminOrder(Guid.NewGuid(), buyer.Id.Value, buyer.ExternalUserId, CourseAndChapter, AdminUserId, null);
+        var cart = Cart.CreateAdminOrder(Guid.NewGuid(), buyer.Id.Value, buyer.ExternalUserId, CourseAndChapter, AdminUserId, null, FinancialScope.TarheElahi);
         cart.SetQuote(CourseAndChapterQuote);
         var store = new Mock<ICartStore>();
         var pricing = new Mock<ICartPricingClient>();

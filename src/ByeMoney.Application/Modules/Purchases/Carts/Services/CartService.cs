@@ -12,6 +12,7 @@ using ByeMoney.Application.Modules.Wallet.Commands.CreateTopUpRequest;
 using ByeMoney.Application.Modules.Wallet.Interfaces;
 using ByeMoney.Domain.Common;
 using ByeMoney.Domain.Modules.Identity.Users;
+using ByeMoney.Domain.Modules.Wallet;
 using ByeMoney.Domain.Modules.Purchases;
 using ByeMoney.Domain.Modules.Wallet.TopUps;
 
@@ -45,7 +46,7 @@ public sealed class CartService(
             buyerId,
             id,
             items,
-            user => Cart.Create(id, buyerId, user.ExternalUserId, items, code),
+            user => Cart.Create(id, buyerId, user.ExternalUserId, items, code, FinancialScope.TarheElahi),
             ct);
 
     /// <summary>
@@ -71,7 +72,7 @@ public sealed class CartService(
             buyerId,
             id,
             items,
-            user => Cart.CreateAdminOrder(id, buyerId, user.ExternalUserId, items, adminUserId, freeReason),
+            user => Cart.CreateAdminOrder(id, buyerId, user.ExternalUserId, items, adminUserId, freeReason, FinancialScope.TarheElahi),
             ct);
 
         // درخواست هم‌زمان یکسان ممکن است میان دو چک همین سبد را پرداخت کرده باشد؛ آن را تکرار موفق بدان.
@@ -91,13 +92,13 @@ public sealed class CartService(
         string? freeReason,
         CancellationToken ct)
     {
-        var existing = await store.FindAsync(id, buyerId, ct);
+        var existing = await FindVisibleAsync(id, buyerId, ct);
         if (existing is not { Status: CartStatus.Paid })
         {
             return null;
         }
 
-        var requested = Cart.CreateAdminOrder(id, buyerId, existing.BuyerExternalUserId, items, adminUserId, freeReason);
+        var requested = Cart.CreateAdminOrder(id, buyerId, existing.BuyerExternalUserId, items, adminUserId, freeReason, FinancialScope.TarheElahi);
         if (!existing.Matches(requested.RequestedItemSignatures, requested.CouponCode) ||
             !existing.HasSameAdminOrder(requested))
         {
@@ -144,20 +145,20 @@ public sealed class CartService(
             if (previousTopUp?.Status is TopUpStatus.Pending or TopUpStatus.UnderReview or TopUpStatus.Rejected or TopUpStatus.Unresolved or TopUpStatus.ManuallyRefunded)
             {
                 await store.FailAsync(id, buyerId, false, cart.ReservationId, ct);
-                cart = (await store.FindAsync(id, buyerId, ct))!;
+                cart = (await FindVisibleAsync(id, buyerId, ct))!;
             }
         }
 
         if (cart.Status is CartStatus.Preparing or CartStatus.Ready && cart.ExpiresAtUtc <= DateTime.UtcNow)
         {
             await store.FailAsync(id, buyerId, true, cart.ReservationId, ct);
-            cart = (await store.FindAsync(id, buyerId, ct))!;
+            cart = (await FindVisibleAsync(id, buyerId, ct))!;
         }
 
         if (cart.Status is CartStatus.Failed or CartStatus.Expired)
         {
             await SynchronizeAsync(id, buyerId, ct);
-            var synchronized = await store.FindAsync(id, buyerId, ct);
+            var synchronized = await FindVisibleAsync(id, buyerId, ct);
             if (synchronized?.ReservationId == cart.ReservationId && !synchronized.Synchronized)
             {
                 return Result<CartResponse>.Failure(CartErrors.Unavailable, CartErrorCodes.Unavailable);
@@ -268,7 +269,7 @@ public sealed class CartService(
         await SynchronizeAsync(id, buyerId, ct);
 
         // پیش از آماده‌سازی سبد جایگزین، آزادشدن رزرو کوپن باید تأیید شده باشد.
-        var cart = await store.FindAsync(id, buyerId, ct);
+        var cart = await FindVisibleAsync(id, buyerId, ct);
         if (cart is { Status: CartStatus.Failed or CartStatus.Expired, Synchronized: false })
         {
             return Result<CartResponse>.Failure(CartErrors.Unavailable, CartErrorCodes.Unavailable);
@@ -279,7 +280,7 @@ public sealed class CartService(
 
     public async Task<Result<CartResponse>> GetAsync(Guid buyerId, Guid id, CancellationToken ct)
     {
-        var cart = await store.FindAsync(id, buyerId, ct);
+        var cart = await FindVisibleAsync(id, buyerId, ct);
         if (cart is null)
         {
             return Result<CartResponse>.NotFound(CartErrors.NotFound, CartErrorCodes.NotFound);
@@ -290,7 +291,7 @@ public sealed class CartService(
 
     public async Task<Result<CartResponse>> PurchaseAsync(Guid buyerId, Guid id, CancellationToken ct, Guid? reservationId = null)
     {
-        var cart = await store.FindAsync(id, buyerId, ct);
+        var cart = await FindVisibleAsync(id, buyerId, ct);
         if (cart is null)
         {
             return Result<CartResponse>.NotFound(CartErrors.NotFound, CartErrorCodes.NotFound);
@@ -331,7 +332,7 @@ public sealed class CartService(
         var check = await pricing.TransitionAsync(new(cart.ReservationId, cart.BuyerExternalUserId), "check", ct);
         if (check.IsFailure)
         {
-            var latest = await store.FindAsync(id, buyerId, ct);
+            var latest = await FindVisibleAsync(id, buyerId, ct);
             if (latest?.Status == CartStatus.Paid)
             {
                 return await GetAsync(buyerId, id, ct);
@@ -365,7 +366,7 @@ public sealed class CartService(
 
     public async Task<Result<CreateTopUpRequestResponse>> TopUpAsync(Guid buyerId, Guid id, CancellationToken ct)
     {
-        var cart = await store.FindAsync(id, buyerId, ct);
+        var cart = await FindVisibleAsync(id, buyerId, ct);
         if (cart is null)
         {
             return Result<CreateTopUpRequestResponse>.NotFound(CartErrors.NotFound, CartErrorCodes.NotFound);
@@ -376,7 +377,7 @@ public sealed class CartService(
 
     public async Task SynchronizeAsync(Guid id, Guid buyerId, CancellationToken ct)
     {
-        var cart = await store.FindAsync(id, buyerId, ct);
+        var cart = await FindVisibleAsync(id, buyerId, ct);
         if (cart is null || cart.Synchronized || cart.Status is not (CartStatus.Paid or CartStatus.Failed or CartStatus.Expired))
         {
             return;
@@ -420,7 +421,7 @@ public sealed class CartService(
 
     private async Task<CartResponse> ResponseAsync(Cart cart, CancellationToken ct)
     {
-        var wallet = await wallets.GetByUserIdAsync(cart.BuyerId, ct);
+        var wallet = await wallets.GetByUserIdAsync(cart.BuyerId, cart.ScopeId, ct);
         var balance = wallet?.TotalBalance ?? 0m;
         var shortfall = cart.Status == CartStatus.Ready ? decimal.Ceiling(Math.Max(0, cart.Total - balance)) : 0m;
         var rate = shortfall > 0 ? await settings.GetRialToNoorConversionRateAsync(ct) : 0m;
@@ -504,6 +505,12 @@ public sealed class CartService(
                 address.City,
                 address.FullAddress,
                 address.PostalCode);
+    }
+
+    private async Task<Cart?> FindVisibleAsync(Guid id, Guid buyerId, CancellationToken ct)
+    {
+        var cart = await store.FindAsync(id, buyerId, ct);
+        return cart?.ScopeId == FinancialScope.TarheElahi ? cart : null;
     }
 
     private static Result<T> Copy<T, U>(Result<U> result) => Copy<T>((Result)result);

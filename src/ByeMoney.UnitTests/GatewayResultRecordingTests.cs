@@ -19,7 +19,7 @@ public sealed class GatewayResultRecordingTests
     private static (GatewayTopUpService Service, TopUpRequest TopUp,
         Mock<ITopUpSettlementService> Settlement, Mock<IUnitOfWork> UnitOfWork) Create()
     {
-        var topUp = TopUpRequest.CreateGateway(UserId.New(), 10m, 1000m);
+        var topUp = TopUpRequest.CreateGateway(UserId.New(), 10m, 1000m, FinancialScope.TarheElahi);
         var repo = new Mock<ITopUpRequestRepository>();
         repo.Setup(x => x.GetByClientReferenceCodeAsync(topUp.ClientReferenceCode, It.IsAny<CancellationToken>()))
             .ReturnsAsync(topUp);

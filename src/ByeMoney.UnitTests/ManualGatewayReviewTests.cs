@@ -23,7 +23,7 @@ public class ManualGatewayReviewTests
 {
     private static TopUpRequest TopUp()
     {
-        var topUp = TopUpRequest.CreateGateway(UserId.New(), 10m, 1000m);
+        var topUp = TopUpRequest.CreateGateway(UserId.New(), 10m, 1000m, FinancialScope.TarheElahi);
         topUp.OpenFinancialReview("case-1", FinancialReviewReasonCodes.NoCallback);
         return topUp;
     }
@@ -207,7 +207,7 @@ public class ManualGatewayReviewTests
     [Fact]
     public async Task ConfirmedExceptional_Succeeds_AndCreditsViaNoorCreditService()
     {
-        var topUp = TopUpRequest.CreateGateway(UserId.New(), 10m, 1000m);
+        var topUp = TopUpRequest.CreateGateway(UserId.New(), 10m, 1000m, FinancialScope.TarheElahi);
         topUp.Reject("User cancelled");
         topUp.RecordGatewayResult("evt-v", "SEP", GatewayResultKinds.Verified, "ext-tx-1", "bank-ref-1", "0", 10000m, 10000m, DateTime.UtcNow);
 
@@ -247,7 +247,7 @@ public class ManualGatewayReviewTests
     [Fact]
     public async Task ConfirmedExceptional_Fails_WhenManualRefundRecorded()
     {
-        var topUp = TopUpRequest.CreateGateway(UserId.New(), 10m, 1000m);
+        var topUp = TopUpRequest.CreateGateway(UserId.New(), 10m, 1000m, FinancialScope.TarheElahi);
         topUp.Reject("User cancelled");
         topUp.RecordGatewayResult("evt-v", "SEP", GatewayResultKinds.Verified, "ext-tx-2", "bank-ref-2", "0", 10000m, 10000m, DateTime.UtcNow);
 
@@ -275,7 +275,7 @@ public class ManualGatewayReviewTests
     [Fact]
     public async Task ConfirmedExceptional_Fails_WhenReverseSucceededRecorded()
     {
-        var topUp = TopUpRequest.CreateGateway(UserId.New(), 10m, 1000m);
+        var topUp = TopUpRequest.CreateGateway(UserId.New(), 10m, 1000m, FinancialScope.TarheElahi);
         topUp.Reject("Gateway reversed");
         topUp.RecordGatewayResult("evt-rev", "SEP", GatewayResultKinds.ReverseSucceeded, "ext-tx-3", "bank-ref-3", "0", 10000m, 10000m, DateTime.UtcNow);
         topUp.RecordGatewayResult("evt-ver", "SEP", GatewayResultKinds.Verified, "ext-tx-3", "bank-ref-3", "0", 10000m, 10000m, DateTime.UtcNow);
@@ -300,7 +300,7 @@ public class ManualGatewayReviewTests
     [Fact]
     public async Task ConfirmedExceptional_Fails_WhenAmountMismatches()
     {
-        var topUp = TopUpRequest.CreateGateway(UserId.New(), 10m, 1000m);
+        var topUp = TopUpRequest.CreateGateway(UserId.New(), 10m, 1000m, FinancialScope.TarheElahi);
         topUp.Reject("User cancelled");
         topUp.RecordGatewayResult("evt-v", "SEP", GatewayResultKinds.Verified, "ext-tx-4", "bank-ref-4", "0", 10000m, 10000m, DateTime.UtcNow);
 
@@ -325,7 +325,7 @@ public class ManualGatewayReviewTests
     [Fact]
     public void SimpleAdminConfirm_StillRejects_RejectedTopUp()
     {
-        var topUp = TopUpRequest.CreateGateway(UserId.New(), 10m, 1000m);
+        var topUp = TopUpRequest.CreateGateway(UserId.New(), 10m, 1000m, FinancialScope.TarheElahi);
         topUp.Reject("Cancelled");
 
         var result = topUp.ConfirmGateway("ext-tx-5", "bank-ref-5", "SEP");

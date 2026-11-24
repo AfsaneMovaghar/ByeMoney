@@ -16,8 +16,7 @@ namespace ByeMoney.UnitTests;
 
 public sealed class GatewayFinancialReviewTests
 {
-    private static TopUpRequest NewTopUp(string? reference = null) => TopUpRequest.Create(
-        UserId.New(), 10m, PaymentMethod.Gateway, clientReferenceCode: reference, rialPerNoor: 1000m);
+    private static TopUpRequest NewTopUp(string? reference = null) => TopUpRequest.Create(UserId.New(), 10m, PaymentMethod.Gateway, FinancialScope.TarheElahi, clientReferenceCode: reference, rialPerNoor: 1000m);
 
     [Fact]
     public void DuplicateOpenIsIdempotent()

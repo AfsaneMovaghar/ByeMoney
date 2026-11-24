@@ -5,6 +5,7 @@ using ByeMoney.Application.Modules.Wallet.Transactions.DTOs;
 using ByeMoney.Application.Modules.Wallet.Transactions.Interfaces;
 using ByeMoney.Application.Resources;
 using ByeMoney.Domain.Modules.Identity.Users;
+using ByeMoney.Domain.Modules.Wallet;
 using ByeMoney.Domain.Modules.Wallet.Ledgers;
 using MediatR;
 
@@ -23,7 +24,7 @@ public sealed class GetWalletTransactionsQueryHandler(
             ?? throw new UnauthorizedAccessException(ApplicationErrors.Wallet_UserNotAuthenticated);
 
         var page = await reader.ListAsync(
-            new UserId(userId), request.Page, request.PageSize, cancellationToken);
+            new UserId(userId), FinancialScope.TarheElahi, request.Page, request.PageSize, cancellationToken);
 
         var items = page.Items.Select(ToItem).ToArray();
         return new WalletTransactionPage<WalletTransactionItem>(items, page.Page, page.PageSize, page.TotalCount);

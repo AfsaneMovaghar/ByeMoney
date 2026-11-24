@@ -1,5 +1,6 @@
 using ByeMoney.Domain.Common.Generic;
 using ByeMoney.Domain.Modules.Identity.Users;
+using ByeMoney.Domain.Modules.Wallet;
 
 namespace ByeMoney.Domain.Modules.Wallet.Gifts;
 
@@ -10,6 +11,7 @@ public class GiftGrantBatch : BaseEntity<Guid>
     public string IdempotencyKey { get; private set; } = string.Empty;
     public string RequestPayloadHash { get; private set; } = string.Empty;
     public GiftGrantSource Source { get; private set; }
+    public string ScopeId { get; private set; } = null!;
     public string Reason { get; private set; } = string.Empty;
     public decimal AmountNoorPerUser { get; private set; }
     public int TotalRecipients { get; private set; }
@@ -24,6 +26,7 @@ public class GiftGrantBatch : BaseEntity<Guid>
         string idempotencyKey,
         string requestPayloadHash,
         GiftGrantSource source,
+        string scopeId,
         string reason,
         decimal amountNoorPerUser,
         UserId? adminUserId,
@@ -35,6 +38,7 @@ public class GiftGrantBatch : BaseEntity<Guid>
             IdempotencyKey = idempotencyKey,
             RequestPayloadHash = requestPayloadHash,
             Source = source,
+            ScopeId = FinancialScope.Require(scopeId),
             Reason = reason,
             AmountNoorPerUser = amountNoorPerUser,
             AdminUserId = adminUserId

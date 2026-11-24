@@ -33,12 +33,12 @@ public class GatewayTopUpConcurrencyTests
     [Fact]
     public async Task ConcurrentMatchingConfirmationIsIdempotent()
     {
-        var topUp = TopUpRequest.CreateGateway(UserId.New(), 10m, 10_000m);
+        var topUp = TopUpRequest.CreateGateway(UserId.New(), 10m, 10_000m, FinancialScope.TarheElahi);
         topUp.ConfirmGateway("tx-1", "rrn-1", "SEP");
 
         var repository = new Mock<ITopUpRequestRepository>();
         repository.Setup(x => x.GetByClientReferenceCodeAsync(topUp.ClientReferenceCode, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(TopUpRequest.CreateGateway(UserId.New(), 10m, 10_000m));
+            .ReturnsAsync(TopUpRequest.CreateGateway(UserId.New(), 10m, 10_000m, FinancialScope.TarheElahi));
         var settlement = new Mock<ITopUpSettlementService>();
         settlement.Setup(x => x.SettleAsync(It.IsAny<TopUpRequest>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new DbUpdateConcurrencyException());
@@ -57,12 +57,12 @@ public class GatewayTopUpConcurrencyTests
     [Fact]
     public async Task ConcurrentConfirmationAfterCancellationRequiresReview()
     {
-        var topUp = TopUpRequest.CreateGateway(UserId.New(), 10m, 10_000m);
+        var topUp = TopUpRequest.CreateGateway(UserId.New(), 10m, 10_000m, FinancialScope.TarheElahi);
         topUp.CancelGateway("SEP", "لغو پرداخت");
 
         var repository = new Mock<ITopUpRequestRepository>();
         repository.Setup(x => x.GetByClientReferenceCodeAsync(topUp.ClientReferenceCode, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(TopUpRequest.CreateGateway(UserId.New(), 10m, 10_000m));
+            .ReturnsAsync(TopUpRequest.CreateGateway(UserId.New(), 10m, 10_000m, FinancialScope.TarheElahi));
         var settlement = new Mock<ITopUpSettlementService>();
         settlement.Setup(x => x.SettleAsync(It.IsAny<TopUpRequest>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new DbUpdateConcurrencyException());

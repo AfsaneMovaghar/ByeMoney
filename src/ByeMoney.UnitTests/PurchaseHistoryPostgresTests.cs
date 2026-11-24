@@ -73,7 +73,7 @@ public sealed class PurchaseHistoryPostgresTests : IAsyncLifetime
         var buyer = User.CreateInitial("history-buyer");
         var otherBuyer = User.CreateInitial("history-other");
         var time = new DateTime(2026, 10, 19, 10, 0, 0, DateTimeKind.Utc);
-        var cart = Cart.Create(Guid.NewGuid(), buyer.Id.Value, buyer.ExternalUserId, ["free"], "FREE");
+        var cart = Cart.Create(Guid.NewGuid(), buyer.Id.Value, buyer.ExternalUserId, ["free"], "FREE", FinancialScope.TarheElahi);
         cart.SetQuote([new CartQuoteItem("free", "دوره رایگان", 100, 0, 100, 0)]);
         cart.MarkPaid();
         var free = CreatePurchase(buyer, "free", 0, time, null);
@@ -83,7 +83,7 @@ public sealed class PurchaseHistoryPostgresTests : IAsyncLifetime
         var retry = CreatePurchase(buyer, "retry", 20, time.AddMinutes(2), 15000);
         retry.RecordNotificationFailure("تحویل ناموفق است.");
         var foreign = CreatePurchase(otherBuyer, "other", 70, time.AddMinutes(3), 13000);
-        var pending = CoursePurchase.Create(buyer.Id, ProductSnapshot.Create("pending", "در انتظار پرداخت", 10));
+        var pending = CoursePurchase.Create(buyer.Id, ProductSnapshot.Create("pending", "در انتظار پرداخت", 10), FinancialScope.TarheElahi);
 
         await using (var seed = new ApplicationDbContext(_options))
         {
@@ -96,22 +96,22 @@ public sealed class PurchaseHistoryPostgresTests : IAsyncLifetime
         var ledgerBefore = await db.Set<LedgerEntry>().CountAsync();
         var walletsBefore = await db.Set<Wallet>().CountAsync();
 
-        var first = await reader.ListAsync(buyer.Id.Value, new PurchaseHistoryFilter(PageSize: 2), default);
+        var first = await reader.ListAsync(buyer.Id.Value, new PurchaseHistoryFilter(PageSize: 2), FinancialScope.TarheElahi, default);
         first.TotalCount.Should().Be(3);
         first.Items.Select(x => x.PurchaseId).Should().Equal(retry.Id.Value, paid.Id.Value);
-        var second = await reader.ListAsync(buyer.Id.Value, new PurchaseHistoryFilter(2, 2), default);
+        var second = await reader.ListAsync(buyer.Id.Value, new PurchaseHistoryFilter(2, 2), FinancialScope.TarheElahi, default);
         second.Items.Single().PurchaseId.Should().Be(free.Id.Value);
-        (await reader.ListAsync(buyer.Id.Value, new PurchaseHistoryFilter(9, 2), default)).Items.Should().BeEmpty();
+        (await reader.ListAsync(buyer.Id.Value, new PurchaseHistoryFilter(9, 2), FinancialScope.TarheElahi, default)).Items.Should().BeEmpty();
 
-        (await reader.GetReceiptAsync(foreign.Id.Value, buyer.Id.Value, default)).Should().BeNull();
-        (await reader.GetReceiptAsync(Guid.NewGuid(), buyer.Id.Value, default)).Should().BeNull();
-        (await reader.GetReceiptAsync(pending.Id.Value, buyer.Id.Value, default)).Should().BeNull();
-        var adminReceipt = await reader.GetAdminReceiptAsync(foreign.Id.Value, default);
+        (await reader.GetReceiptAsync(foreign.Id.Value, buyer.Id.Value, FinancialScope.TarheElahi, default)).Should().BeNull();
+        (await reader.GetReceiptAsync(Guid.NewGuid(), buyer.Id.Value, FinancialScope.TarheElahi, default)).Should().BeNull();
+        (await reader.GetReceiptAsync(pending.Id.Value, buyer.Id.Value, FinancialScope.TarheElahi, default)).Should().BeNull();
+        var adminReceipt = await reader.GetAdminReceiptAsync(foreign.Id.Value, FinancialScope.TarheElahi, default);
         adminReceipt!.Purchase!.Id.Should().Be(foreign.Id);
-        (await reader.GetAdminReceiptAsync(Guid.NewGuid(), default)).Should().BeNull();
-        (await reader.GetAdminReceiptAsync(pending.Id.Value, default)).Should().BeNull();
-        var freeData = await reader.GetReceiptAsync(free.Id.Value, buyer.Id.Value, default);
-        var adminFreeData = await reader.GetAdminReceiptAsync(free.Id.Value, default);
+        (await reader.GetAdminReceiptAsync(Guid.NewGuid(), FinancialScope.TarheElahi, default)).Should().BeNull();
+        (await reader.GetAdminReceiptAsync(pending.Id.Value, FinancialScope.TarheElahi, default)).Should().BeNull();
+        var freeData = await reader.GetReceiptAsync(free.Id.Value, buyer.Id.Value, FinancialScope.TarheElahi, default);
+        var adminFreeData = await reader.GetAdminReceiptAsync(free.Id.Value, FinancialScope.TarheElahi, default);
         adminFreeData!.Cart!.Id.Should().Be(cart.Id);
         var receipt = PurchaseHistoryMapping.ToReceipt(freeData!);
         receipt.FinancialStatus.Should().Be("Paid");
@@ -120,19 +120,18 @@ public sealed class PurchaseHistoryPostgresTests : IAsyncLifetime
         receipt.DiscountAmountInNoor.Should().Be(100);
         receipt.ReferenceRialPerNoorAtPurchaseTime.Should().BeNull();
         var paidReceipt = PurchaseHistoryMapping.ToReceipt(
-            (await reader.GetReceiptAsync(paid.Id.Value, buyer.Id.Value, default))!);
+            (await reader.GetReceiptAsync(paid.Id.Value, buyer.Id.Value, FinancialScope.TarheElahi, default))!);
         paidReceipt.ReferenceRialPerNoorAtPurchaseTime.Should().Be(12000);
         paidReceipt.FinalAmountInNoor.Should().Be(51.125m);
 
         var filter = new PurchaseHistoryFilter(BuyerExternalUserId: buyer.ExternalUserId,
             FromUtc: time.AddMinutes(1), ToUtc: time.AddMinutes(2),
             FinancialStatus: "Paid", DeliveryStatus: "Delivered");
-        var admin = await reader.ListAsync(null, filter, default);
+        var admin = await reader.ListAsync(null, filter, FinancialScope.TarheElahi, default);
         admin.Items.Single().PurchaseId.Should().Be(paid.Id.Value);
-        var waiting = await reader.ListAsync(null,
-            new PurchaseHistoryFilter(BuyerExternalUserId: buyer.ExternalUserId, DeliveryStatus: "Pending"), default);
+        var waiting = await reader.ListAsync(null, new PurchaseHistoryFilter(BuyerExternalUserId: buyer.ExternalUserId, DeliveryStatus: "Pending"), FinancialScope.TarheElahi, default);
         waiting.TotalCount.Should().Be(2);
-        var all = await reader.ListAsync(null, new PurchaseHistoryFilter(), default);
+        var all = await reader.ListAsync(null, new PurchaseHistoryFilter(), FinancialScope.TarheElahi, default);
         all.TotalCount.Should().Be(4);
 
         await PurchaseHistoryHttpChecks.VerifyAsync(_options, buyer.Id.Value, free.Id.Value, foreign.Id.Value);
@@ -155,19 +154,17 @@ public sealed class PurchaseHistoryPostgresTests : IAsyncLifetime
         var cart = Cart.Create(Guid.NewGuid(), buyer.Id.Value, buyer.ExternalUserId, [
             new CartItemInput("book", ProductItemType.Product, 2),
             new CartItemInput("pen", ProductItemType.Product, 1)
-        ], null);
+        ], null, FinancialScope.TarheElahi);
         cart.SetQuote([
             new CartQuoteItem("book", "Book", 50, 0, 0, 100, ProductItemType.Product, null, 2),
             new CartQuoteItem("pen", "Pen", 20, 0, 0, 20, ProductItemType.Product, null, 1)
         ], shippingAmountInNoor: 10);
         cart.MarkPaid();
-        var book = PhysicalProductPurchase.Create(
-            PhysicalProductPurchaseId.New(), cart.Id, buyer.Id, "book", "Book", 2, 50, 100);
+        var book = PhysicalProductPurchase.Create(PhysicalProductPurchaseId.New(), cart.Id, buyer.Id, "book", "Book", 2, 50, 100, FinancialScope.TarheElahi);
         book.MarkDebited(cart.Id);
         book.MarkShipped("TRACK-1");
         book.MarkDelivered();
-        var pen = PhysicalProductPurchase.Create(
-            PhysicalProductPurchaseId.New(), cart.Id, buyer.Id, "pen", "Pen", 1, 20, 20);
+        var pen = PhysicalProductPurchase.Create(PhysicalProductPurchaseId.New(), cart.Id, buyer.Id, "pen", "Pen", 1, 20, 20, FinancialScope.TarheElahi);
         pen.MarkDebited(cart.Id);
 
         await using (var seed = new ApplicationDbContext(_options))
@@ -184,15 +181,15 @@ public sealed class PurchaseHistoryPostgresTests : IAsyncLifetime
 
         var reader = new PurchaseHistoryReader(db);
         var delivered = await reader.ListAsync(null, new PurchaseHistoryFilter(
-            BuyerExternalUserId: buyer.ExternalUserId, DeliveryStatus: "Delivered"), default);
+            BuyerExternalUserId: buyer.ExternalUserId, DeliveryStatus: "Delivered"), FinancialScope.TarheElahi, default);
         delivered.Items.Single().PurchaseId.Should().Be(book.Id.Value);
         PurchaseHistoryMapping.ToListItem(delivered.Items.Single()).DeliveryStatus.Should().Be("Delivered");
         var waiting = await reader.ListAsync(null, new PurchaseHistoryFilter(
-            BuyerExternalUserId: buyer.ExternalUserId, DeliveryStatus: "Pending"), default);
+            BuyerExternalUserId: buyer.ExternalUserId, DeliveryStatus: "Pending"), FinancialScope.TarheElahi, default);
         waiting.Items.Single().PurchaseId.Should().Be(pen.Id.Value);
         PurchaseHistoryMapping.ToListItem(waiting.Items.Single()).DeliveryStatus.Should().Be("Pending");
 
-        var snapshot = await new OrderReader(db).ReadAsync(buyer.Id.Value, null, default);
+        var snapshot = await new OrderReader(db).ReadAsync(buyer.Id.Value, null, FinancialScope.TarheElahi, default);
         var order = OrderMapping.Build(snapshot).Single().Details;
         order.FinancialStatus.Should().Be("Paid");
         order.DeliveryStatus.Should().Be("PartiallyDelivered");
@@ -214,7 +211,7 @@ public sealed class PurchaseHistoryPostgresTests : IAsyncLifetime
         var snapshot = ProductSnapshot.Create(courseId, "عنوان تاریخی دوره", amount,
             isFree: amount == 0, referenceRialPerNoorAtPurchaseTime: rate);
         typeof(ProductSnapshot).GetProperty(nameof(ProductSnapshot.PurchasedAt))!.SetValue(snapshot, time);
-        var purchase = CoursePurchase.Create(buyer.Id, snapshot, isFree: amount == 0);
+        var purchase = CoursePurchase.Create(buyer.Id, snapshot, FinancialScope.TarheElahi, isFree: amount == 0);
         purchase.MarkDebited(Guid.NewGuid());
         return purchase;
     }
@@ -223,7 +220,7 @@ public sealed class PurchaseHistoryPostgresTests : IAsyncLifetime
     public async Task OrderReaderKeepsConsistentSnapshotAcrossConcurrentCommit()
     {
         var buyer = User.CreateInitial("tracking-concurrent");
-        var cart = Cart.Create(Guid.NewGuid(), buyer.Id.Value, buyer.ExternalUserId, ["concurrent"], null);
+        var cart = Cart.Create(Guid.NewGuid(), buyer.Id.Value, buyer.ExternalUserId, ["concurrent"], null, FinancialScope.TarheElahi);
         cart.SetQuote([new CartQuoteItem("concurrent", "دوره آزمون", 20, 0, 0, 20)]);
         await using (var seed = new ApplicationDbContext(_options))
         {
@@ -244,11 +241,11 @@ public sealed class PurchaseHistoryPostgresTests : IAsyncLifetime
         var options = new DbContextOptionsBuilder<ApplicationDbContext>(_options).AddInterceptors(interceptor).Options;
         await using var db = new ApplicationDbContext(options);
         var reader = new OrderReader(db);
-        var before = OrderMapping.Build(await reader.ReadAsync(buyer.Id.Value, null, default)).Single().Details;
+        var before = OrderMapping.Build(await reader.ReadAsync(buyer.Id.Value, null, FinancialScope.TarheElahi, default)).Single().Details;
         interceptor.Committed.Should().BeTrue();
         before.FinancialStatus.Should().Be("AwaitingPayment");
         before.Items.Single().PurchaseId.Should().BeNull();
-        var after = OrderMapping.Build(await reader.ReadAsync(buyer.Id.Value, null, default)).Single().Details;
+        var after = OrderMapping.Build(await reader.ReadAsync(buyer.Id.Value, null, FinancialScope.TarheElahi, default)).Single().Details;
         after.FinancialStatus.Should().Be("Paid");
         after.Items.Single().PurchaseId.Should().NotBeNull();
         before.OrderId.Should().Be(after.OrderId);
@@ -261,10 +258,10 @@ public sealed class PurchaseHistoryPostgresTests : IAsyncLifetime
     public async Task OrderReaderPreservesHistoricalTopUpsAndLegacyLinkWithoutDuplicatesOrWrites()
     {
         var buyer = User.CreateInitial("tracking-history");
-        var cart = Cart.Create(Guid.NewGuid(), buyer.Id.Value, buyer.ExternalUserId, ["cart-course"], null);
+        var cart = Cart.Create(Guid.NewGuid(), buyer.Id.Value, buyer.ExternalUserId, ["cart-course"], null, FinancialScope.TarheElahi);
         cart.SetQuote([new CartQuoteItem("cart-course", "دوره سبد", 40, 0, 0, 40)]);
-        var first = TopUpRequest.CreateGateway(buyer.Id, 40, 1000);
-        var second = TopUpRequest.CreateGateway(buyer.Id, 40, 1000);
+        var first = TopUpRequest.CreateGateway(buyer.Id, 40, 1000, FinancialScope.TarheElahi);
+        var second = TopUpRequest.CreateGateway(buyer.Id, 40, 1000, FinancialScope.TarheElahi);
         cart.AwaitTopUp(first.Id.Value);
         first.AttachToCart(cart.Id);
         first.Reject("رد آزمون");
@@ -276,8 +273,7 @@ public sealed class PurchaseHistoryPostgresTests : IAsyncLifetime
         second.AttachToCart(cart.Id);
         second.Confirm("confirmed-cart");
         cart.Fail();
-        var legacy = TopUpRequest.CreateGateway(buyer.Id, 20, 1000,
-            [new PendingItemSnapshot(PendingItemType.Course, "legacy-course", 20)]);
+        var legacy = TopUpRequest.CreateGateway(buyer.Id, 20, 1000, FinancialScope.TarheElahi, [new PendingItemSnapshot(PendingItemType.Course, "legacy-course", 20)]);
         legacy.Confirm("confirmed-legacy");
         var purchase = CreatePurchase(buyer, "legacy-course", 20, DateTime.UtcNow, null);
         var hash = System.Security.Cryptography.SHA256.HashData(
@@ -292,7 +288,7 @@ public sealed class PurchaseHistoryPostgresTests : IAsyncLifetime
 
         await using var db = new ApplicationDbContext(_options);
         var reader = new OrderReader(db);
-        var rows = OrderMapping.Build(await reader.ReadAsync(null, buyer.ExternalUserId, default));
+        var rows = OrderMapping.Build(await reader.ReadAsync(null, buyer.ExternalUserId, FinancialScope.TarheElahi, default));
         rows.Should().HaveCount(2);
         var cartOrder = rows.Single(row => row.Details.SourceType == "Cart").Details;
         cartOrder.FinancialStatus.Should().Be("Failed");
@@ -301,7 +297,7 @@ public sealed class PurchaseHistoryPostgresTests : IAsyncLifetime
         var legacyOrder = rows.Single(row => row.Details.SourceType == "TopUpCheckout").Details;
         legacyOrder.FinancialStatus.Should().Be("Paid");
         legacyOrder.Items.Single().PurchaseId.Should().Be(purchase.Id.Value);
-        (await reader.ReadAsync(Guid.NewGuid(), null, default)).Carts.Should().BeEmpty();
+        (await reader.ReadAsync(Guid.NewGuid(), null, FinancialScope.TarheElahi, default)).Carts.Should().BeEmpty();
         db.ChangeTracker.Entries().Should().BeEmpty();
         (await db.Set<CoursePurchase>().CountAsync()).Should().Be(1);
         (await db.Set<TopUpRequest>().CountAsync()).Should().Be(3);

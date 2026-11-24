@@ -1,6 +1,7 @@
 using ByeMoney.Domain.Common.Exceptions;
 using ByeMoney.Domain.Common.Generic;
 using ByeMoney.Domain.Modules.Identity.Users;
+using ByeMoney.Domain.Modules.Wallet;
 using ByeMoney.Domain.Resources;
 
 namespace ByeMoney.Domain.Modules.Wallet.Gifts;
@@ -8,6 +9,7 @@ namespace ByeMoney.Domain.Modules.Wallet.Gifts;
 public class GiftCampaignSetting : BaseEntity<Guid>
 {
     public GiftCampaignType CampaignType { get; private set; }
+    public string ScopeId { get; private set; } = null!;
     public decimal AmountNoor { get; private set; }
     public bool IsEnabled { get; private set; }
     public DateTime? StartDateUtc { get; private set; }
@@ -19,6 +21,7 @@ public class GiftCampaignSetting : BaseEntity<Guid>
 
     public static GiftCampaignSetting Create(
         GiftCampaignType campaignType,
+        string scopeId,
         decimal amountNoor,
         bool isEnabled,
         DateTime? startDateUtc = null,
@@ -42,6 +45,7 @@ public class GiftCampaignSetting : BaseEntity<Guid>
         {
             Id = Guid.NewGuid(),
             CampaignType = campaignType,
+            ScopeId = FinancialScope.Require(scopeId),
             AmountNoor = amountNoor,
             IsEnabled = isEnabled,
             StartDateUtc = startDateUtc,

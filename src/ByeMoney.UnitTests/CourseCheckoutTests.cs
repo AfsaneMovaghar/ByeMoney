@@ -39,9 +39,9 @@ public class CourseCheckoutTests
 
     private void SetBalance(decimal amount)
     {
-        var wallet = Wallet.Create(Account.CreateUserAccount(_userId).Id, _userId);
+        var wallet = Wallet.Create(Account.CreateUserAccount(_userId, FinancialScope.TarheElahi).Id, _userId, FinancialScope.TarheElahi);
         if (amount > 0) wallet.ApplyCredit(amount);
-        _wallets.Setup(x => x.GetByUserIdAsync(_userId, It.IsAny<CancellationToken>())).ReturnsAsync(wallet);
+        _wallets.Setup(x => x.GetByUserIdAsync(_userId, It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync(wallet);
     }
 
     [Theory]
@@ -76,7 +76,7 @@ public class CourseCheckoutTests
     [Fact]
     public async Task TopUpStatus_HidesAnotherUsersRequest()
     {
-        var topUp = TopUpRequest.CreateGateway(UserId.New(), 50m, 137m);
+        var topUp = TopUpRequest.CreateGateway(UserId.New(), 50m, 137m, FinancialScope.TarheElahi);
         _topUps.Setup(x => x.GetByIdAsync(topUp.Id, It.IsAny<CancellationToken>())).ReturnsAsync(topUp);
         var handler = new GetTopUpCheckoutQueryHandler(_current.Object, _topUps.Object, _purchases.Object);
         await FluentActions.Awaiting(() => handler.Handle(new(topUp.Id.Value), CancellationToken.None))
@@ -91,12 +91,12 @@ public class CourseCheckoutTests
     [InlineData(CoursePurchaseStatus.NotificationSent, CheckoutStates.Completed)]
     public async Task ConfirmedTopUp_DoesNotImplyDeliveredCourse(CoursePurchaseStatus? status, string expected)
     {
-        var topUp = TopUpRequest.CreateGateway(_userId, 50m, 137m, [new(PendingItemType.Course, "course-1", 50m)]);
+        var topUp = TopUpRequest.CreateGateway(_userId, 50m, 137m, FinancialScope.TarheElahi, [new(PendingItemType.Course, "course-1", 50m)]);
         topUp.ConfirmGateway("bank-1", "rrn-1", "SEP");
         _topUps.Setup(x => x.GetByIdAsync(topUp.Id, It.IsAny<CancellationToken>())).ReturnsAsync(topUp);
         if (status.HasValue)
         {
-            var purchase = CoursePurchase.Create(_userId, ProductSnapshot.Create("course-1", "دوره", 50m, ProductCatalogSources.TarhElahi));
+            var purchase = CoursePurchase.Create(_userId, ProductSnapshot.Create("course-1", "دوره", 50m, ProductCatalogSources.TarhElahi), FinancialScope.TarheElahi);
             purchase.MarkDebited(Guid.NewGuid());
             if (status == CoursePurchaseStatus.NotificationSent) purchase.MarkNotificationSent();
             if (status == CoursePurchaseStatus.NotificationFailed) purchase.RecordNotificationFailure("خطای تحویل");
@@ -111,7 +111,7 @@ public class CourseCheckoutTests
     [Fact]
     public async Task DeliveredCourseStatus_RemainsReadableWhenCatalogIsUnavailable()
     {
-        var purchase = CoursePurchase.Create(_userId, ProductSnapshot.Create("course-1", "دوره", 50m, ProductCatalogSources.TarhElahi));
+        var purchase = CoursePurchase.Create(_userId, ProductSnapshot.Create("course-1", "دوره", 50m, ProductCatalogSources.TarhElahi), FinancialScope.TarheElahi);
         purchase.MarkDebited(Guid.NewGuid());
         purchase.MarkNotificationSent();
         _purchases.Setup(x => x.GetByBuyerAndCourseAsync(_userId, "course-1", It.IsAny<CancellationToken>())).ReturnsAsync(purchase);
@@ -123,7 +123,7 @@ public class CourseCheckoutTests
     [Fact]
     public async Task TopUpCheckout_WithUnknownGatewayAndReviewCase_ExposesUnderReviewInfo()
     {
-        var topUp = TopUpRequest.CreateGateway(_userId, 50m, 137m, [new(PendingItemType.Course, "course-1", 50m)]);
+        var topUp = TopUpRequest.CreateGateway(_userId, 50m, 137m, FinancialScope.TarheElahi, [new(PendingItemType.Course, "course-1", 50m)]);
         topUp.RecordGatewayResult("evt-1", "SEP", GatewayResultKinds.Unknown, null, null, "-6", 6850m, 6850m, DateTime.UtcNow);
         topUp.OpenFinancialReview("case-999", "VERIFY_UNKNOWN");
         _topUps.Setup(x => x.GetByIdAsync(topUp.Id, It.IsAny<CancellationToken>())).ReturnsAsync(topUp);

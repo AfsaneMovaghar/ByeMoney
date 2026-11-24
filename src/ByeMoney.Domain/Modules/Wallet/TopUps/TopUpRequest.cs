@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using ByeMoney.Domain.Common;
 using ByeMoney.Domain.Common.Exceptions;
 using ByeMoney.Domain.Modules.Identity.Users;
+using ByeMoney.Domain.Modules.Wallet;
 using ByeMoney.Domain.Resources;
 
 namespace ByeMoney.Domain.Modules.Wallet.TopUps;
@@ -13,6 +14,7 @@ public class TopUpRequest : BaseEntity<TopUpRequestId>
 
     /// <summary>شناسه کاربری که شارژ به کیف پول او تعلق دارد؛ برای مالکیت درخواست و جست‌وجوی شارژهای کاربر ذخیره می‌شود.</summary>
     public UserId UserId { get; private set; }
+    public string ScopeId { get; private set; } = null!;
     /// <summary>شناسه ادمینی که شارژ کارت‌به‌کارت را به‌جای کاربر ثبت کرده است؛ برای انتساب عملیات مدیریتی نگه‌داری می‌شود.</summary>
     public UserId? CreatedByUserId { get; private set; }
     /// <summary>نوع سناریوی شارژ، مانند شارژ ثبت‌شده توسط ادمین؛ برای تشخیص مسیر ایجاد درخواست ذخیره می‌شود.</summary>
@@ -257,6 +259,7 @@ public class TopUpRequest : BaseEntity<TopUpRequestId>
         UserId userId,
         decimal amountNoor,
         PaymentMethod paymentMethod,
+        string scopeId,
         string? externalTransactionId = null,
         string? clientReferenceCode = null,
         IReadOnlyList<PendingItemSnapshot>? pendingItems = null,
@@ -291,6 +294,7 @@ public class TopUpRequest : BaseEntity<TopUpRequestId>
         {
             Id = TopUpRequestId.New(),
             UserId = userId,
+            ScopeId = FinancialScope.Require(scopeId),
             AmountNoor = amountNoor,
             AmountRial = rialPerNoor is null ? null : checked(amountNoor * rialPerNoor.Value),
             RialPerNoorSnapshot = rialPerNoor,
@@ -308,13 +312,14 @@ public class TopUpRequest : BaseEntity<TopUpRequestId>
         UserId userId,
         decimal amountNoor,
         decimal rialPerNoor,
+        string scopeId,
         IReadOnlyList<PendingItemSnapshot>? pendingItems = null)
     {
         if (amountNoor <= 0 || decimal.Truncate(amountNoor) != amountNoor ||
             rialPerNoor <= 0 || decimal.Truncate(rialPerNoor) != rialPerNoor)
             throw new DomainException(DomainErrors.TopUpRequest_InvalidRate);
 
-        return Create(userId, amountNoor, PaymentMethod.Gateway,
+        return Create(userId, amountNoor, PaymentMethod.Gateway, scopeId,
             pendingItems: pendingItems, rialPerNoor: rialPerNoor);
     }
 
@@ -498,6 +503,7 @@ public class TopUpRequest : BaseEntity<TopUpRequestId>
         decimal rialPerNoor,
         string? receiptId,
         string idempotencyKey,
+        string scopeId,
         string? externalTransactionId = null)
     {
         if (amountToman <= 0)
@@ -527,6 +533,7 @@ public class TopUpRequest : BaseEntity<TopUpRequestId>
         {
             Id = TopUpRequestId.New(),
             UserId = beneficiaryUserId,
+            ScopeId = FinancialScope.Require(scopeId),
             CreatedByUserId = createdByUserId,
             ChargeType = global::ByeMoney.Domain.Modules.Wallet.TopUps.ChargeType.AdminAssistedCardToCard,
             AmountNoor = noorAmount,

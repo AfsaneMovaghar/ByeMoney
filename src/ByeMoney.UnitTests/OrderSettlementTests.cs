@@ -122,8 +122,7 @@ public sealed class OrderSettlementTests
     public void BuyerConfirmationDoesNotClearCarrierAlert()
     {
         var buyer = new UserId(Guid.NewGuid());
-        var purchase = PhysicalProductPurchase.Create(
-            PhysicalProductPurchaseId.New(), Guid.NewGuid(), buyer, "book", "Book", 1, 10m, 10m);
+        var purchase = PhysicalProductPurchase.Create(PhysicalProductPurchaseId.New(), Guid.NewGuid(), buyer, "book", "Book", 1, 10m, 10m, FinancialScope.TarheElahi);
         purchase.MarkShipped("TRACK-1");
         purchase.MarkCarrierAlert(11304, DateTime.UtcNow);
 
@@ -348,8 +347,8 @@ public sealed class OrderSettlementTests
         var item = OrderSettlementItem.Create("purchase:" + Guid.NewGuid(), "Purchase", "buyer", DateTime.UtcNow, shares);
         var duplicate = OrderSettlementItem.Create(item.OrderId, "Purchase", "buyer", DateTime.UtcNow, shares);
 
-        var empty = () => OrderSettlementPeriod.Close(admin, null, null, []);
-        var repeated = () => OrderSettlementPeriod.Close(admin, null, null, [item, duplicate]);
+        var empty = () => OrderSettlementPeriod.Close(admin, null, null, [], FinancialScope.TarheElahi);
+        var repeated = () => OrderSettlementPeriod.Close(admin, null, null, [item, duplicate], FinancialScope.TarheElahi);
 
         empty.Should().Throw<ArgumentException>();
         repeated.Should().Throw<ArgumentException>();
@@ -376,10 +375,10 @@ public sealed class OrderSettlementTests
         var y = x with { OrderId = "purchase:y" };
         var resplit = x with { RegularNetAmountInNoor = 35m, GiftNetAmountInNoor = 5m };
 
-        OrderSettlementPreviewToken.Compute([x]).Should().HaveLength(OrderSettlementPreviewToken.Length);
-        OrderSettlementPreviewToken.Compute([x]).Should().Be(OrderSettlementPreviewToken.Compute([x with { }]));
-        OrderSettlementPreviewToken.Compute([x]).Should().NotBe(OrderSettlementPreviewToken.Compute([y]));
-        OrderSettlementPreviewToken.Compute([x]).Should().NotBe(OrderSettlementPreviewToken.Compute([resplit]));
+        OrderSettlementPreviewToken.Compute(FinancialScope.TarheElahi, [x]).Should().HaveLength(OrderSettlementPreviewToken.Length);
+        OrderSettlementPreviewToken.Compute(FinancialScope.TarheElahi, [x]).Should().Be(OrderSettlementPreviewToken.Compute(FinancialScope.TarheElahi, [x with { }]));
+        OrderSettlementPreviewToken.Compute(FinancialScope.TarheElahi, [x]).Should().NotBe(OrderSettlementPreviewToken.Compute(FinancialScope.TarheElahi, [y]));
+        OrderSettlementPreviewToken.Compute(FinancialScope.TarheElahi, [x]).Should().NotBe(OrderSettlementPreviewToken.Compute(FinancialScope.TarheElahi, [resplit]));
     }
 
     private static OrderDetails Order(string financialStatus, decimal? finalAmount, params OrderItem[] items) =>
@@ -418,12 +417,12 @@ public sealed class OrderSettlementTests
         {
             var reader = new Mock<IOrderReader>();
             reader
-                .Setup(x => x.ReadAsync(null, null, It.IsAny<CancellationToken>()))
+                .Setup(x => x.ReadAsync(null, null, It.IsAny<string>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(() => new OrderSnapshot(
                     _carts, [], _purchases, [_buyer], _physicalPurchases, _cancellations));
 
             Store
-                .Setup(x => x.GetSettledOrderIdsAsync(It.IsAny<CancellationToken>()))
+                .Setup(x => x.GetSettledOrderIdsAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(() => SettledOrderIds);
             Store
                 .Setup(x => x.GetShippingPaymentsAsync(It.IsAny<IReadOnlyCollection<Guid>>(), It.IsAny<CancellationToken>()))
@@ -433,11 +432,8 @@ public sealed class OrderSettlementTests
                 .Callback<OrderSettlementPeriod, CancellationToken>((period, _) => SavedPeriod = period)
                 .ReturnsAsync(() => AcceptSave);
             Store
-                .Setup(x => x.FindPeriodAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync((Guid id, CancellationToken _) => new OrderSettlementPeriodResponse(
-                    id, SavedPeriod!.Title, SavedPeriod.Note, SavedPeriod.OrderCount,
-                    SavedPeriod.TotalRegularNetAmountInNoor, SavedPeriod.TotalGiftNetAmountInNoor,
-                    SavedPeriod.TotalNetAmountInNoor, "admin-document", SavedPeriod.CreatedAtUtc));
+                .Setup(x => x.FindPeriodAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync((Guid id, string _, CancellationToken __) => new OrderSettlementPeriodResponse(id, SavedPeriod!.Title, SavedPeriod.Note, SavedPeriod.OrderCount, SavedPeriod.TotalRegularNetAmountInNoor, SavedPeriod.TotalGiftNetAmountInNoor, SavedPeriod.TotalNetAmountInNoor, "admin-document", SavedPeriod.CreatedAtUtc, FinancialScope.TarheElahi));
 
             var currentUser = new Mock<ICurrentUserService>();
             currentUser.SetupGet(x => x.UserId).Returns(AdminId);
@@ -457,7 +453,7 @@ public sealed class OrderSettlementTests
         public string AddPaidCoursePurchase(
             string externalId, decimal price, decimal giftShare = 0m, bool recordShares = true)
         {
-            var purchase = CoursePurchase.Create(new UserId(_buyer.Id), ProductSnapshot.Create(externalId, externalId, price));
+            var purchase = CoursePurchase.Create(new UserId(_buyer.Id), ProductSnapshot.Create(externalId, externalId, price), FinancialScope.TarheElahi);
             purchase.MarkDebited(Guid.NewGuid());
             if (recordShares)
             {
@@ -474,21 +470,19 @@ public sealed class OrderSettlementTests
             var cart = Cart.Create(Guid.NewGuid(), _buyer.Id, _buyer.ExternalUserId, [
                 new CartItemInput("book", ProductItemType.Product, 2),
                 new CartItemInput("pen", ProductItemType.Product, 1)
-            ], null);
+            ], null, FinancialScope.TarheElahi);
             cart.SetQuote([
                 new CartQuoteItem("book", "Book", 50, 0, 0, 100, ProductItemType.Product, null, 2),
                 new CartQuoteItem("pen", "Pen", 20, 0, 0, 20, ProductItemType.Product, null, 1)
             ], shippingAmountInNoor: 10);
             cart.MarkPaid();
 
-            var book = PhysicalProductPurchase.Create(
-                PhysicalProductPurchaseId.New(), cart.Id, buyerId, "book", "Book", 2, 50, 100);
+            var book = PhysicalProductPurchase.Create(PhysicalProductPurchaseId.New(), cart.Id, buyerId, "book", "Book", 2, 50, 100, FinancialScope.TarheElahi);
             book.MarkDebited(cart.Id);
             book.RecordPaymentShares(new PaymentShares(80m, 20m));
             book.MarkShipped("TRACK-1");
 
-            var pen = PhysicalProductPurchase.Create(
-                PhysicalProductPurchaseId.New(), cart.Id, buyerId, "pen", "Pen", 1, 20, 20);
+            var pen = PhysicalProductPurchase.Create(PhysicalProductPurchaseId.New(), cart.Id, buyerId, "pen", "Pen", 1, 20, 20, FinancialScope.TarheElahi);
             pen.MarkDebited(cart.Id);
             pen.RecordPaymentShares(new PaymentShares(15m, 5m));
             var refund = new PaymentShares(15m, 5m);
@@ -509,14 +503,13 @@ public sealed class OrderSettlementTests
             var buyerId = new UserId(_buyer.Id);
             var cart = Cart.Create(Guid.NewGuid(), _buyer.Id, _buyer.ExternalUserId, [
                 new CartItemInput("book", ProductItemType.Product, 1)
-            ], null);
+            ], null, FinancialScope.TarheElahi);
             cart.SetQuote([
                 new CartQuoteItem("book", "Book", 50, 0, 0, 50, ProductItemType.Product, null, 1)
             ], shippingAmountInNoor: 10);
             cart.MarkPaid();
 
-            var book = PhysicalProductPurchase.Create(
-                PhysicalProductPurchaseId.New(), cart.Id, buyerId, "book", "Book", 1, 50, 50);
+            var book = PhysicalProductPurchase.Create(PhysicalProductPurchaseId.New(), cart.Id, buyerId, "book", "Book", 1, 50, 50, FinancialScope.TarheElahi);
             book.MarkDebited(cart.Id);
             book.RecordPaymentShares(new PaymentShares(50m, 0m));
             book.MarkShipped("TRACK-1");
@@ -536,10 +529,10 @@ public sealed class OrderSettlementTests
         }
 
         public Task<IReadOnlyList<SettlementOrderResponse>> CandidatesAsync() =>
-            _candidates.GetUnsettledAsync(default);
+            _candidates.GetUnsettledAsync(FinancialScope.TarheElahi, default);
 
         public async Task<string> PreviewTokenAsync() =>
-            OrderSettlementPreviewToken.Compute(await CandidatesAsync());
+            OrderSettlementPreviewToken.Compute(FinancialScope.TarheElahi, await CandidatesAsync());
 
         public Task<ByeMoney.Domain.Common.Generic.Result<OrderSettlementPeriodResponse>> CloseAsync(string previewToken) =>
             Handler.Handle(new CloseOrderSettlementPeriodCommand("دوره", null, previewToken), default);

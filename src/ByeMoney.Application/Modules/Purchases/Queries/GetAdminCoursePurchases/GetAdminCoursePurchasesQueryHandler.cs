@@ -1,4 +1,5 @@
 using ByeMoney.Application.Modules.Purchases.History.DTOs;
+using ByeMoney.Domain.Modules.Wallet;
 using ByeMoney.Application.Modules.Purchases.History.Interfaces;
 using ByeMoney.Application.Modules.Purchases.History.Services;
 using ByeMoney.Application.Common.Interfaces;
@@ -17,7 +18,7 @@ public sealed class GetAdminCoursePurchasesQueryHandler(
     public async Task<PurchasePage<AdminPurchaseListItem>> Handle(GetAdminCoursePurchasesQuery request, CancellationToken ct)
     {
         _ = BuyerId;
-        var page = await reader.ListAsync(null, request.Filter, ct);
+        var page = await reader.ListAsync(null, request.Filter, FinancialScope.TarheElahi, ct);
         return new PurchasePage<AdminPurchaseListItem>(
             page.Items.Select(PurchaseHistoryMapping.ToAdminListItem).ToArray(), page.Page, page.PageSize, page.TotalCount);
     }

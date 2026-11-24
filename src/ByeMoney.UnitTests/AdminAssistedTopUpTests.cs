@@ -66,7 +66,7 @@ public class AdminAssistedTopUpTests
     {
         var beneficiary = User.CreateFromStrapi("external-user", confirmed: true);
         var actorId = UserId.New();
-        var existing = TopUpRequest.CreateAdminCardToCard(beneficiary.Id, actorId, 10_000m, 10_000m, receiptId, "idem-1");
+        var existing = TopUpRequest.CreateAdminCardToCard(beneficiary.Id, actorId, 10_000m, 10_000m, receiptId, "idem-1", FinancialScope.TarheElahi);
         var users = new Mock<IUserRepository>();
         users.Setup(x => x.GetByExternalUserIdAsync("external-user", It.IsAny<CancellationToken>())).ReturnsAsync(beneficiary);
         var topUps = new Mock<ITopUpRequestRepository>();
@@ -91,7 +91,7 @@ public class AdminAssistedTopUpTests
     {
         var beneficiary = User.CreateFromStrapi("external-user", confirmed: true);
         var actorId = UserId.New();
-        var existing = TopUpRequest.CreateAdminCardToCard(beneficiary.Id, actorId, 10_000m, 10_000m, originalReceiptId, "idem-1");
+        var existing = TopUpRequest.CreateAdminCardToCard(beneficiary.Id, actorId, 10_000m, 10_000m, originalReceiptId, "idem-1", FinancialScope.TarheElahi);
         var users = new Mock<IUserRepository>();
         users.Setup(x => x.GetByExternalUserIdAsync("external-user", It.IsAny<CancellationToken>())).ReturnsAsync(beneficiary);
         var topUps = new Mock<ITopUpRequestRepository>();
@@ -172,7 +172,7 @@ public class AdminAssistedTopUpTests
     public async Task DeleteUnreferencedReceipt_RetainsReceiptWhenAlreadyReferenced()
     {
         var topUps = new Mock<ITopUpRequestRepository>();
-        var existing = TopUpRequest.CreateAdminCardToCard(UserId.New(), UserId.New(), 100_000m, 10_000m, "receipt-id", "same-key");
+        var existing = TopUpRequest.CreateAdminCardToCard(UserId.New(), UserId.New(), 100_000m, 10_000m, "receipt-id", "same-key", FinancialScope.TarheElahi);
         topUps.Setup(x => x.GetByIdempotencyKeyAsync("same-key", It.IsAny<CancellationToken>())).ReturnsAsync(existing);
         var receipts = new Mock<IReceiptStorage>();
         var service = new AdminAssistedTopUpService(
@@ -216,8 +216,7 @@ public class AdminAssistedTopUpTests
     [Fact]
     public void Create_WithoutReceiptStillRequiresIdempotencyKey()
     {
-        var create = () => TopUpRequest.CreateAdminCardToCard(
-            UserId.New(), UserId.New(), 10_000m, 10_000m, null, " ");
+        var create = () => TopUpRequest.CreateAdminCardToCard(UserId.New(), UserId.New(), 10_000m, 10_000m, null, " ", FinancialScope.TarheElahi);
 
         create.Should().Throw<DomainException>();
     }

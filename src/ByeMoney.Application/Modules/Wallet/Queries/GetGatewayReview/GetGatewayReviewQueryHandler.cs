@@ -1,6 +1,7 @@
 using ByeMoney.Application.Modules.Wallet.DTOs;
 using ByeMoney.Application.Modules.Identity.Users.Interfaces;
 using ByeMoney.Application.Modules.Wallet.Interfaces;
+using ByeMoney.Domain.Modules.Wallet;
 using ByeMoney.Domain.Modules.Wallet.TopUps;
 using MediatR;
 
@@ -12,7 +13,7 @@ public sealed class GetGatewayReviewQueryHandler(ITopUpRequestRepository topUps,
     public async Task<GatewayReviewDetails?> Handle(GetGatewayReviewQuery request, CancellationToken ct)
     {
         var topUp = await topUps.GetByClientReferenceCodeAsync(request.ClientReferenceCode, ct);
-        if (topUp is null || topUp.PaymentMethod != PaymentMethod.Gateway) return null;
+        if (topUp is null || topUp.ScopeId != FinancialScope.TarheElahi || topUp.PaymentMethod != PaymentMethod.Gateway) return null;
         var user = await users.GetByIdAsync(topUp.UserId, ct);
         var review = topUp.ReviewCaseId is null ? null : new GatewayReviewState(topUp.ClientReferenceCode,
             topUp.ReviewCaseId, topUp.Status.ToString(), topUp.ReviewReasonCode!, topUp.ReviewOpenedAtUtc!.Value,

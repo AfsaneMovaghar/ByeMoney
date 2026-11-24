@@ -218,14 +218,14 @@ public sealed class CartStore(IServiceScopeFactory scopes) : ICartStore
                 }
 
                 var provisioning = sp.GetRequiredService<IUserWalletProvisioningService>();
-                var provisioned = await provisioning.GetOrCreateUserWalletAsync(buyer, ct);
+                var provisioned = await provisioning.GetOrCreateUserWalletAsync(buyer, cart.ScopeId, ct);
 
                 if (provisioned.Wallet.TotalBalance < cart.Total)
                 {
                     return Result<Cart>.Failure(CartErrors.InsufficientBalance, CartErrorCodes.InsufficientBalance);
                 }
 
-                var system = cart.Total > 0 ? await provisioning.GetOrCreateSystemAccountAsync(ct) : null;
+                var system = cart.Total > 0 ? await provisioning.GetOrCreateSystemAccountAsync(cart.ScopeId, ct) : null;
                 var payment = CartPayment.Apply(cart, provisioned, system, referenceRate);
                 db.AddRange(payment.Purchases);
                 db.AddRange(payment.PhysicalPurchases);
@@ -272,7 +272,7 @@ public sealed class CartStore(IServiceScopeFactory scopes) : ICartStore
                     return Result<CreateTopUpRequestResponse>.Conflict(CartErrors.Conflict, CartErrorCodes.Conflict);
                 }
 
-                var wallet = await sp.GetRequiredService<IWalletRepository>().GetByUserIdAsync(new UserId(buyerId), ct);
+                var wallet = await sp.GetRequiredService<IWalletRepository>().GetByUserIdAsync(new UserId(buyerId), cart.ScopeId, ct);
                 var amount = decimal.Ceiling(cart.Total - (wallet?.TotalBalance ?? 0m));
                 if (amount <= 0)
                 {
@@ -285,7 +285,7 @@ public sealed class CartStore(IServiceScopeFactory scopes) : ICartStore
                     return Result<CreateTopUpRequestResponse>.Failure(CartErrors.Invalid, CartErrorCodes.Invalid);
                 }
 
-                topUp = TopUpRequest.CreateGateway(new UserId(buyerId), amount, rate);
+                topUp = TopUpRequest.CreateGateway(new UserId(buyerId), amount, rate, cart.ScopeId);
                 topUp.AttachToCart(cart.Id);
                 db.Add(topUp);
                 cart.AwaitTopUp(topUp.Id.Value);
@@ -301,7 +301,7 @@ public sealed class CartStore(IServiceScopeFactory scopes) : ICartStore
                 return Result<CreateTopUpRequestResponse>.Conflict(CartErrors.Conflict, CartErrorCodes.Conflict);
             }
 
-            var wallet = await sp.GetRequiredService<IWalletRepository>().GetByUserIdAsync(new UserId(buyerId), ct);
+            var wallet = await sp.GetRequiredService<IWalletRepository>().GetByUserIdAsync(new UserId(buyerId), cart.ScopeId, ct);
             var amount = decimal.Ceiling(cart.Total - (wallet?.TotalBalance ?? 0m));
             if (amount <= 0)
             {
@@ -314,7 +314,7 @@ public sealed class CartStore(IServiceScopeFactory scopes) : ICartStore
                 return Result<CreateTopUpRequestResponse>.Failure(CartErrors.Invalid, CartErrorCodes.Invalid);
             }
 
-            topUp = TopUpRequest.CreateGateway(new UserId(buyerId), amount, rate);
+            topUp = TopUpRequest.CreateGateway(new UserId(buyerId), amount, rate, cart.ScopeId);
             topUp.AttachToCart(cart.Id);
             db.Add(topUp);
             cart.AwaitTopUp(topUp.Id.Value);

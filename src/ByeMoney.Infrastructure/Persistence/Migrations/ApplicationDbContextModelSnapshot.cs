@@ -336,6 +336,11 @@ namespace ByeMoney.Infrastructure.Migrations
                     b.Property<Guid>("ReservationId")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("ScopeId")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
                     b.Property<decimal>("ShippingAmountInNoor")
                         .ValueGeneratedOnAdd()
                         .HasPrecision(18, 4)
@@ -386,6 +391,8 @@ namespace ByeMoney.Infrastructure.Migrations
                     b.ToTable("Carts", null, t =>
                         {
                             t.HasCheckConstraint("CK_Carts_Discounts", "\"ItemDiscountInNoor\" >= 0 AND \"CouponDiscountInNoor\" >= 0 AND \"ShippingAmountInNoor\" >= 0 AND trunc(\"ItemDiscountInNoor\") = \"ItemDiscountInNoor\" AND trunc(\"CouponDiscountInNoor\") = \"CouponDiscountInNoor\" AND trunc(\"ShippingAmountInNoor\") = \"ShippingAmountInNoor\"");
+
+                            t.HasCheckConstraint("CK_Carts_ScopeId", "\"ScopeId\" IN ('TARHE_ELAHI', 'BUYMONEY')");
                         });
                 });
 
@@ -440,6 +447,11 @@ namespace ByeMoney.Infrastructure.Migrations
                         .HasPrecision(18, 4)
                         .HasColumnType("numeric(18,4)");
 
+                    b.Property<string>("ScopeId")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(30)
@@ -459,6 +471,10 @@ namespace ByeMoney.Infrastructure.Migrations
                     b.ToTable("CoursePurchases", null, t =>
                         {
                             t.HasCheckConstraint("CK_CoursePurchases_PaymentShares", "(\"RegularAmountInNoor\" IS NULL AND \"GiftAmountInNoor\" IS NULL) OR (\"RegularAmountInNoor\" >= 0 AND \"GiftAmountInNoor\" >= 0 AND \"RegularAmountInNoor\" + \"GiftAmountInNoor\" = \"PriceInNoorAtPurchaseTime\")");
+
+                            t.HasCheckConstraint("CK_CoursePurchases_ScopeId", "\"ScopeId\" IN ('TARHE_ELAHI', 'BUYMONEY')");
+
+                            t.HasCheckConstraint("CK_CoursePurchases_SellerId", "\"SellerId\" IN ('TARHE_ELAHI', 'BUYMONEY')");
 
                             t.HasCheckConstraint("CK_CoursePurchases_Status", "\"Status\" IN ('Pending', 'Debited', 'NotificationSent', 'NotificationFailed')");
                         });
@@ -527,6 +543,11 @@ namespace ByeMoney.Infrastructure.Migrations
                     b.Property<int>("OrderCount")
                         .HasColumnType("integer");
 
+                    b.Property<string>("ScopeId")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
                     b.Property<string>("Title")
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
@@ -557,6 +578,8 @@ namespace ByeMoney.Infrastructure.Migrations
                             t.HasCheckConstraint("CK_OrderSettlementPeriods_NetShares", "\"TotalRegularNetAmountInNoor\" >= 0 AND \"TotalGiftNetAmountInNoor\" >= 0 AND \"TotalNetAmountInNoor\" = \"TotalRegularNetAmountInNoor\" + \"TotalGiftNetAmountInNoor\"");
 
                             t.HasCheckConstraint("CK_OrderSettlementPeriods_OrderCount", "\"OrderCount\" >= 1");
+
+                            t.HasCheckConstraint("CK_OrderSettlementPeriods_ScopeId", "\"ScopeId\" IN ('TARHE_ELAHI', 'BUYMONEY')");
                         });
                 });
 
@@ -769,6 +792,16 @@ namespace ByeMoney.Infrastructure.Migrations
                         .HasPrecision(18, 4)
                         .HasColumnType("numeric(18,4)");
 
+                    b.Property<string>("ScopeId")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("SellerId")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
                     b.Property<DateTime?>("ShipmentRequestStartedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
@@ -830,6 +863,10 @@ namespace ByeMoney.Infrastructure.Migrations
 
                             t.HasCheckConstraint("CK_PhysicalProductPurchases_RefundCap", "\"RefundedRegularInNoor\" >= 0 AND \"RefundedGiftInNoor\" >= 0 AND \"RefundedRegularInNoor\" <= COALESCE(\"RegularAmountInNoor\", 0) AND \"RefundedGiftInNoor\" <= COALESCE(\"GiftAmountInNoor\", 0)");
 
+                            t.HasCheckConstraint("CK_PhysicalProductPurchases_ScopeId", "\"ScopeId\" IN ('TARHE_ELAHI', 'BUYMONEY')");
+
+                            t.HasCheckConstraint("CK_PhysicalProductPurchases_SellerId", "\"SellerId\" IN ('TARHE_ELAHI', 'BUYMONEY')");
+
                             t.HasCheckConstraint("CK_PhysicalProductPurchases_TrackingProvider", "\"TrackingProvider\" IS NULL OR \"TrackingProvider\" IN ('PostEx', 'Manual')");
                         });
                 });
@@ -874,6 +911,11 @@ namespace ByeMoney.Infrastructure.Migrations
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("ScopeId")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(20)
@@ -892,18 +934,27 @@ namespace ByeMoney.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("ScopeId")
+                        .IsUnique()
+                        .HasFilter("\"Type\" = 'System'");
+
                     b.HasIndex("Type");
 
-                    b.HasIndex("UserId")
-                        .IsUnique();
+                    b.HasIndex("UserId", "ScopeId")
+                        .IsUnique()
+                        .HasFilter("\"UserId\" IS NOT NULL");
 
-                    b.ToTable("Accounts", (string)null);
+                    b.ToTable("Accounts", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_Accounts_ScopeId", "\"ScopeId\" IN ('TARHE_ELAHI', 'BUYMONEY')");
+                        });
 
                     b.HasData(
                         new
                         {
                             Id = new Guid("00000000-0000-0000-0000-000000000001"),
                             CreatedAtUtc = new DateTime(2026, 11, 2, 0, 0, 0, 0, DateTimeKind.Utc),
+                            ScopeId = "TARHE_ELAHI",
                             Status = "Active",
                             Type = "System"
                         });
@@ -933,6 +984,11 @@ namespace ByeMoney.Infrastructure.Migrations
                     b.Property<bool>("IsEnabled")
                         .HasColumnType("boolean");
 
+                    b.Property<string>("ScopeId")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
                     b.Property<DateTime?>("StartDateUtc")
                         .HasColumnType("timestamp with time zone");
 
@@ -947,12 +1003,14 @@ namespace ByeMoney.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("CampaignType")
+                    b.HasIndex("CampaignType", "ScopeId")
                         .IsUnique();
 
                     b.ToTable("GiftCampaignSettings", null, t =>
                         {
                             t.HasCheckConstraint("CK_GiftCampaignSettings_CampaignType", "\"CampaignType\" IN ('Welcome')");
+
+                            t.HasCheckConstraint("CK_GiftCampaignSettings_ScopeId", "\"ScopeId\" IN ('TARHE_ELAHI', 'BUYMONEY')");
                         });
 
                     b.HasData(
@@ -963,6 +1021,7 @@ namespace ByeMoney.Infrastructure.Migrations
                             CampaignType = "Welcome",
                             CreatedAtUtc = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             IsEnabled = true,
+                            ScopeId = "TARHE_ELAHI",
                             UpdatedAtUtc = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
                         });
                 });
@@ -998,6 +1057,11 @@ namespace ByeMoney.Infrastructure.Migrations
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
 
+                    b.Property<string>("ScopeId")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
                     b.Property<string>("Source")
                         .IsRequired()
                         .HasMaxLength(30)
@@ -1021,6 +1085,8 @@ namespace ByeMoney.Infrastructure.Migrations
                     b.ToTable("GiftGrantBatches", null, t =>
                         {
                             t.HasCheckConstraint("CK_GiftGrantBatches_AmountNoorPerUser_Positive", "\"AmountNoorPerUser\" > 0");
+
+                            t.HasCheckConstraint("CK_GiftGrantBatches_ScopeId", "\"ScopeId\" IN ('TARHE_ELAHI', 'BUYMONEY')");
 
                             t.HasCheckConstraint("CK_GiftGrantBatches_Source", "\"Source\" IN ('AdminBatch', 'WelcomeBonus')");
 
@@ -1284,6 +1350,11 @@ namespace ByeMoney.Infrastructure.Migrations
                         .HasPrecision(18, 8)
                         .HasColumnType("numeric(18,8)");
 
+                    b.Property<string>("ScopeId")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
                     b.Property<string>("Status")
                         .IsConcurrencyToken()
                         .IsRequired()
@@ -1320,6 +1391,8 @@ namespace ByeMoney.Infrastructure.Migrations
                     b.ToTable("TopUpRequests", null, t =>
                         {
                             t.HasCheckConstraint("CK_TopUpRequests_AmountNoor_Positive", "\"AmountNoor\" > 0");
+
+                            t.HasCheckConstraint("CK_TopUpRequests_ScopeId", "\"ScopeId\" IN ('TARHE_ELAHI', 'BUYMONEY')");
                         });
                 });
 
@@ -1350,6 +1423,11 @@ namespace ByeMoney.Infrastructure.Migrations
                         .HasColumnType("numeric(18,4)")
                         .HasColumnName("Balance");
 
+                    b.Property<string>("ScopeId")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -1361,7 +1439,7 @@ namespace ByeMoney.Infrastructure.Migrations
                     b.HasIndex("AccountId")
                         .IsUnique();
 
-                    b.HasIndex("UserId")
+                    b.HasIndex("UserId", "ScopeId")
                         .IsUnique();
 
                     b.ToTable("Wallets", null, t =>
@@ -1369,6 +1447,8 @@ namespace ByeMoney.Infrastructure.Migrations
                             t.HasCheckConstraint("CK_Wallets_Balance_NonNegative", "\"Balance\" >= 0");
 
                             t.HasCheckConstraint("CK_Wallets_GiftBalance_NonNegative", "\"GiftBalance\" >= 0");
+
+                            t.HasCheckConstraint("CK_Wallets_ScopeId", "\"ScopeId\" IN ('TARHE_ELAHI', 'BUYMONEY')");
                         });
                 });
 
@@ -1450,6 +1530,11 @@ namespace ByeMoney.Infrastructure.Migrations
                     b.Property<Guid?>("ReversedByUserId")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("ScopeId")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
                     b.Property<string>("Status")
                         .IsConcurrencyToken()
                         .IsRequired()
@@ -1496,6 +1581,8 @@ namespace ByeMoney.Infrastructure.Migrations
                             t.HasCheckConstraint("CK_NoorWithdrawals_RelatedTopUp", "(\"Kind\" = 'DuplicatePaymentRefund') = (\"RelatedTopUpId\" IS NOT NULL)");
 
                             t.HasCheckConstraint("CK_NoorWithdrawals_ReversalEvidence", "\"Status\" <> 'Reversed' OR (\"ReversalReason\" IS NOT NULL AND \"ReversalTransactionId\" IS NOT NULL AND \"ReversedByUserId\" IS NOT NULL AND \"ReversedAtUtc\" IS NOT NULL)");
+
+                            t.HasCheckConstraint("CK_NoorWithdrawals_ScopeId", "\"ScopeId\" IN ('TARHE_ELAHI', 'BUYMONEY')");
 
                             t.HasCheckConstraint("CK_NoorWithdrawals_Status", "\"Status\" IN ('PendingPayment', 'Paid', 'Reversed')");
                         });
@@ -1786,6 +1873,12 @@ namespace ByeMoney.Infrastructure.Migrations
                                 .HasPrecision(18)
                                 .HasColumnType("numeric(18,0)")
                                 .HasColumnName("ReferenceRialPerNoorAtPurchaseTime");
+
+                            b1.Property<string>("SellerId")
+                                .IsRequired()
+                                .HasMaxLength(20)
+                                .HasColumnType("character varying(20)")
+                                .HasColumnName("SellerId");
 
                             b1.HasKey("CoursePurchaseId");
 

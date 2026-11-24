@@ -2,6 +2,7 @@ using ByeMoney.Application.Common.Interfaces;
 using ByeMoney.Application.Modules.Wallet.Interfaces;
 using ByeMoney.Application.Resources;
 using ByeMoney.Domain.Modules.Identity.Users;
+using ByeMoney.Domain.Modules.Wallet;
 using MediatR;
 
 namespace ByeMoney.Application.Modules.Wallet.Queries.GetWalletBalance;
@@ -27,7 +28,7 @@ public class GetWalletBalanceQueryHandler : IRequestHandler<GetWalletBalanceQuer
             throw new UnauthorizedAccessException(ApplicationErrors.Wallet_UserNotAuthenticated);
         }
 
-        var wallet = await _walletRepository.GetByUserIdAsync(new UserId(currentUserId.Value), cancellationToken);
+        var wallet = await _walletRepository.GetByUserIdAsync(new UserId(currentUserId.Value), FinancialScope.TarheElahi, cancellationToken);
         if (wallet is null)
         {
             return new WalletBalanceResponse(0m);

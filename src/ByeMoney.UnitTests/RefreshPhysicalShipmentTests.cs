@@ -127,9 +127,7 @@ public sealed class RefreshPhysicalShipmentTests
     [Fact]
     public async Task RejectsWhenPurchaseHasNoCarrierParcel()
     {
-        var purchase = PhysicalProductPurchase.Create(
-            PhysicalProductPurchaseId.New(), Guid.NewGuid(), new UserId(Guid.NewGuid()),
-            "product-1", "Book", 1, 50m, 50m);
+        var purchase = PhysicalProductPurchase.Create(PhysicalProductPurchaseId.New(), Guid.NewGuid(), new UserId(Guid.NewGuid()), "product-1", "Book", 1, 50m, 50m, FinancialScope.TarheElahi);
         var client = new FakeShipmentClient();
 
         var act = () => CreateHandler(purchase, client)
@@ -151,9 +149,7 @@ public sealed class RefreshPhysicalShipmentTests
     /// <summary>قلم «در انتظار پرداخت» با سهم پرداخت واقعی، آمادهٔ بررسی وضعیت.</summary>
     private static PhysicalProductPurchase CreatePendingPayment(int quantity, int parcelQuantity)
     {
-        var purchase = PhysicalProductPurchase.Create(
-            PhysicalProductPurchaseId.New(), Guid.NewGuid(), new UserId(Guid.NewGuid()),
-            "product-1", "Book", quantity, 50m, 50m * quantity);
+        var purchase = PhysicalProductPurchase.Create(PhysicalProductPurchaseId.New(), Guid.NewGuid(), new UserId(Guid.NewGuid()), "product-1", "Book", quantity, 50m, 50m * quantity, FinancialScope.TarheElahi);
         purchase.RecordPaymentShares(new PaymentShares(50m * quantity, 0m));
         purchase.RememberCarrierParcel(PhysicalProductPurchase.PostexProvider, "99", parcelQuantity);
         purchase.MarkCarrierPaymentPending(DateTime.UtcNow);

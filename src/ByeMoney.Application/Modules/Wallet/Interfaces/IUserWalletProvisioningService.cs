@@ -9,10 +9,10 @@ public interface IUserWalletProvisioningService
     /// <summary>
     /// Gets or lazily creates both UserAccount and Wallet in a consistent, atomic manner.
     /// </summary>
-    Task<ProvisionedUserWallet> GetOrCreateUserWalletAsync(UserId userId, CancellationToken ct = default);
+    Task<ProvisionedUserWallet> GetOrCreateUserWalletAsync(UserId userId, string scopeId, CancellationToken ct = default);
 
     /// <summary>
-    /// Gets or lazily creates the singleton System Account.
+    /// حساب سیستم از پیش ساخته را برای همین محدوده برمی‌گرداند و هرگز حساب تازه نمی‌سازد.
     /// </summary>
-    Task<Account> GetOrCreateSystemAccountAsync(CancellationToken ct = default);
+    Task<Account> GetOrCreateSystemAccountAsync(string scopeId, CancellationToken ct = default);
 }

@@ -19,7 +19,7 @@ public class CoursePurchaseTests
     public void Create_ShouldInitializeInPendingState_WithZeroAttemptsAndCorrectSnapshot()
     {
         // Act
-        var purchase = CoursePurchase.Create(_buyerId, _validSnapshot);
+        var purchase = CoursePurchase.Create(_buyerId, _validSnapshot, FinancialScope.TarheElahi);
 
         // Assert
         purchase.Id.Value.Should().NotBeEmpty();
@@ -43,7 +43,7 @@ public class CoursePurchaseTests
     public void MarkDebited_ShouldTransitionToDebited_AndSetLedgerTransactionId_WhenPending()
     {
         // Arrange
-        var purchase = CoursePurchase.Create(_buyerId, _validSnapshot);
+        var purchase = CoursePurchase.Create(_buyerId, _validSnapshot, FinancialScope.TarheElahi);
         var transactionId = Guid.NewGuid();
 
         // Act
@@ -59,7 +59,7 @@ public class CoursePurchaseTests
     public void MarkDebited_ShouldThrowDomainException_WhenNotPending()
     {
         // Arrange
-        var purchase = CoursePurchase.Create(_buyerId, _validSnapshot);
+        var purchase = CoursePurchase.Create(_buyerId, _validSnapshot, FinancialScope.TarheElahi);
         purchase.MarkDebited(Guid.NewGuid());
 
         // Act
@@ -73,7 +73,7 @@ public class CoursePurchaseTests
     public void MarkDebited_ShouldThrowDomainException_WhenTransactionIdIsEmpty()
     {
         // Arrange
-        var purchase = CoursePurchase.Create(_buyerId, _validSnapshot);
+        var purchase = CoursePurchase.Create(_buyerId, _validSnapshot, FinancialScope.TarheElahi);
 
         // Act
         var act = () => purchase.MarkDebited(Guid.Empty);
@@ -86,7 +86,7 @@ public class CoursePurchaseTests
     public void MarkNotificationSent_ShouldTransitionToNotificationSent_AndSetCompletedAtUtc_WhenDebited()
     {
         // Arrange
-        var purchase = CoursePurchase.Create(_buyerId, _validSnapshot);
+        var purchase = CoursePurchase.Create(_buyerId, _validSnapshot, FinancialScope.TarheElahi);
         purchase.MarkDebited(Guid.NewGuid());
 
         // Act
@@ -104,7 +104,7 @@ public class CoursePurchaseTests
     public void MarkNotificationSent_ShouldThrowDomainException_WhenPending()
     {
         // Arrange
-        var purchase = CoursePurchase.Create(_buyerId, _validSnapshot);
+        var purchase = CoursePurchase.Create(_buyerId, _validSnapshot, FinancialScope.TarheElahi);
 
         // Act
         var act = () => purchase.MarkNotificationSent();
@@ -117,7 +117,7 @@ public class CoursePurchaseTests
     public void RecordNotificationFailure_ShouldTransitionToNotificationFailed_AndIncrementAttempts()
     {
         // Arrange
-        var purchase = CoursePurchase.Create(_buyerId, _validSnapshot);
+        var purchase = CoursePurchase.Create(_buyerId, _validSnapshot, FinancialScope.TarheElahi);
         purchase.MarkDebited(Guid.NewGuid());
 
         // Act
@@ -140,7 +140,7 @@ public class CoursePurchaseTests
     public void RecordNotificationFailure_ShouldThrowDomainException_WhenPending()
     {
         // Arrange
-        var purchase = CoursePurchase.Create(_buyerId, _validSnapshot);
+        var purchase = CoursePurchase.Create(_buyerId, _validSnapshot, FinancialScope.TarheElahi);
 
         // Act
         var act = () => purchase.RecordNotificationFailure("Timeout");
@@ -158,7 +158,7 @@ public class CoursePurchaseTests
             productTitle: "دوره رایگان",
             priceNoor: 0m,
             isFree: true);
-        var purchase = CoursePurchase.Create(_buyerId, freeSnapshot, isFree: true, freeReason: "هدیه");
+        var purchase = CoursePurchase.Create(_buyerId, freeSnapshot, FinancialScope.TarheElahi, isFree: true, freeReason: "هدیه");
         var referenceId = Guid.NewGuid();
 
         // Act
@@ -174,7 +174,7 @@ public class CoursePurchaseTests
     public void MarkFree_ShouldThrowDomainException_WhenNotFree()
     {
         // Arrange
-        var purchase = CoursePurchase.Create(_buyerId, _validSnapshot, isFree: false);
+        var purchase = CoursePurchase.Create(_buyerId, _validSnapshot, FinancialScope.TarheElahi, isFree: false);
 
         // Act
         var act = () => purchase.MarkFree(Guid.NewGuid());
@@ -188,7 +188,7 @@ public class CoursePurchaseTests
     {
         // Arrange
         var freeSnapshot = ProductSnapshot.Create("free-1", "رایگان", 0m, isFree: true);
-        var purchase = CoursePurchase.Create(_buyerId, freeSnapshot, isFree: true);
+        var purchase = CoursePurchase.Create(_buyerId, freeSnapshot, FinancialScope.TarheElahi, isFree: true);
         purchase.MarkFree(Guid.NewGuid());
 
         // Act
@@ -203,7 +203,7 @@ public class CoursePurchaseTests
     {
         // Arrange
         var freeSnapshot = ProductSnapshot.Create("free-1", "رایگان", 0m, isFree: true);
-        var purchase = CoursePurchase.Create(_buyerId, freeSnapshot, isFree: true);
+        var purchase = CoursePurchase.Create(_buyerId, freeSnapshot, FinancialScope.TarheElahi, isFree: true);
 
         // Act
         var act = () => purchase.MarkFree(Guid.Empty);
@@ -217,7 +217,7 @@ public class CoursePurchaseTests
     {
         // Arrange
         var freeSnapshot = ProductSnapshot.Create("free-1", "رایگان", 0m, isFree: true);
-        var purchase = CoursePurchase.Create(_buyerId, freeSnapshot, isFree: true);
+        var purchase = CoursePurchase.Create(_buyerId, freeSnapshot, FinancialScope.TarheElahi, isFree: true);
 
         // Act
         var act = () => purchase.MarkNotificationSent();
@@ -231,7 +231,7 @@ public class CoursePurchaseTests
     {
         // Arrange
         var freeSnapshot = ProductSnapshot.Create("free-1", "رایگان", 0m, isFree: true);
-        var purchase = CoursePurchase.Create(_buyerId, freeSnapshot, isFree: true);
+        var purchase = CoursePurchase.Create(_buyerId, freeSnapshot, FinancialScope.TarheElahi, isFree: true);
         purchase.MarkFree(Guid.NewGuid());
 
         // Act

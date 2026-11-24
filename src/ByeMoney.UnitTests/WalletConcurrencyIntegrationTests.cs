@@ -41,9 +41,9 @@ public class WalletConcurrencyIntegrationTests
         await using var database = await TestDatabase.CreateAsync();
         var beneficiary = User.CreateFromStrapi("assisted-beneficiary", confirmed: true);
         var actor = User.CreateFromStrapi("assisted-actor", confirmed: true);
-        var account = Account.CreateUserAccount(beneficiary.Id);
-        var system = Account.CreateSystemAccount();
-        var wallet = Wallet.Create(account.Id, beneficiary.Id);
+        var account = Account.CreateUserAccount(beneficiary.Id, FinancialScope.TarheElahi);
+        var system = Account.CreateSystemAccount(FinancialScope.TarheElahi);
+        var wallet = Wallet.Create(account.Id, beneficiary.Id, FinancialScope.TarheElahi);
         await using (var seed = database.Context())
         {
             seed.AddRange(beneficiary, actor, account, wallet);
@@ -118,9 +118,9 @@ public class WalletConcurrencyIntegrationTests
             settings.Setup(x => x.GetRialToNoorConversionRateAsync(It.IsAny<CancellationToken>()))
                 .ReturnsAsync(10_000m);
             var provisioning = new Mock<IUserWalletProvisioningService>();
-            provisioning.Setup(x => x.GetOrCreateUserWalletAsync(beneficiary.Id, It.IsAny<CancellationToken>()))
+            provisioning.Setup(x => x.GetOrCreateUserWalletAsync(beneficiary.Id, It.IsAny<string>(), It.IsAny<CancellationToken>()))
                 .Returns(async () => new ProvisionedUserWallet(account, await context.Set<Wallet>().SingleAsync()));
-            provisioning.Setup(x => x.GetOrCreateSystemAccountAsync(It.IsAny<CancellationToken>()))
+            provisioning.Setup(x => x.GetOrCreateSystemAccountAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(system);
             var settlement = new TopUpSettlementService(new NoorCreditService(provisioning.Object, new WalletPostingService(new BaseRepository<LedgerEntry, LedgerEntryId>(context), new WalletRepository(context))), context);
 
@@ -185,13 +185,13 @@ public class WalletConcurrencyIntegrationTests
         await using var database = await TestDatabase.CreateAsync();
         var user = User.CreateInitial("wallet-test-" + Guid.NewGuid().ToString("N"));
         var userId = user.Id;
-        var userAccount = Account.CreateUserAccount(userId);
+        var userAccount = Account.CreateUserAccount(userId, FinancialScope.TarheElahi);
         var accountId = userAccount.Id;
-        var systemAccount = Account.CreateSystemAccount();
+        var systemAccount = Account.CreateSystemAccount(FinancialScope.TarheElahi);
 
         await using (var seed = database.Context())
         {
-            var seedWallet = Wallet.Create(accountId, userId);
+            var seedWallet = Wallet.Create(accountId, userId, FinancialScope.TarheElahi);
             seedWallet.Credit(100m, LedgerBalanceType.Gift);
             seedWallet.Credit(100m, LedgerBalanceType.Regular);
             seed.AddRange(user, userAccount, seedWallet);
@@ -203,7 +203,7 @@ public class WalletConcurrencyIntegrationTests
             await using var context = database.Context();
             await using var tx = await context.Database.BeginTransactionAsync();
             var repo = new WalletRepository(context);
-            var wallet = await repo.GetByUserIdForUpdateAsync(userId);
+            var wallet = await repo.GetByUserIdForUpdateAsync(userId, FinancialScope.TarheElahi);
             wallet.Should().NotBeNull();
 
             var debitResult = wallet!.Debit(amount, WalletDebitPurpose.Purchase);
@@ -299,8 +299,8 @@ public class WalletConcurrencyIntegrationTests
             await using var context = Context();
             var user = User.CreateInitial("wallet-test-" + Guid.NewGuid().ToString("N"));
             var userId = user.Id;
-            var account = Account.CreateUserAccount(userId);
-            var wallet = Wallet.Create(account.Id, userId);
+            var account = Account.CreateUserAccount(userId, FinancialScope.TarheElahi);
+            var wallet = Wallet.Create(account.Id, userId, FinancialScope.TarheElahi);
             context.Add(user);
             context.Add(account);
             context.Add(wallet);

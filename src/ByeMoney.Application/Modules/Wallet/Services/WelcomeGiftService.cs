@@ -4,6 +4,7 @@ using ByeMoney.Application.Modules.Wallet.DTOs;
 using ByeMoney.Application.Modules.Wallet.Interfaces;
 using ByeMoney.Application.Resources;
 using ByeMoney.Domain.Modules.Identity.Users;
+using ByeMoney.Domain.Modules.Wallet;
 using ByeMoney.Domain.Modules.Wallet.Gifts;
 using ByeMoney.Domain.Modules.Wallet.Ledgers;
 
@@ -15,12 +16,13 @@ public sealed class WelcomeGiftService(
     INoorCreditService noorCreditService,
     IUserWalletProvisioningService provisioningService) : IWelcomeGiftService
 {
-    public async Task GrantWelcomeGiftIfEligibleAsync(User user, CancellationToken ct = default)
+    public async Task GrantWelcomeGiftIfEligibleAsync(User user, string scopeId, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(user);
+        scopeId = FinancialScope.Require(scopeId);
 
         var nowUtc = DateTime.UtcNow;
-        var welcomeSetting = await giftSettingRepository.GetByTypeAsync(GiftCampaignType.Welcome, ct);
+        var welcomeSetting = await giftSettingRepository.GetByTypeAsync(GiftCampaignType.Welcome, scopeId, ct);
 
         if (welcomeSetting is not null && welcomeSetting.IsActiveAt(nowUtc))
         {
@@ -33,12 +35,14 @@ public sealed class WelcomeGiftService(
                 idempotencyKey,
                 requestPayloadHash: payloadHash,
                 GiftGrantSource.WelcomeBonus,
+                scopeId,
                 reason: reason,
                 amountNoorPerUser: amount,
                 adminUserId: null,
                 createdAtUtc: nowUtc);
 
             var creditResult = await noorCreditService.CreditAsync(new NoorCreditRequest(
+                ScopeId: scopeId,
                 UserId: user.Id,
                 AmountNoor: amount,
                 BalanceType: LedgerBalanceType.Gift,
@@ -62,7 +66,7 @@ public sealed class WelcomeGiftService(
         }
         else
         {
-            await provisioningService.GetOrCreateUserWalletAsync(user.Id, ct);
+            await provisioningService.GetOrCreateUserWalletAsync(user.Id, scopeId, ct);
         }
     }
 

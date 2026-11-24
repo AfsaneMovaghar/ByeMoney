@@ -7,7 +7,7 @@ namespace ByeMoney.UnitTests;
 
 public sealed class CartTests
 {
-    private static Cart CreateCart() => Cart.Create(Guid.NewGuid(), Guid.NewGuid(), "user", ["a", "b"], "off");
+    private static Cart CreateCart() => Cart.Create(Guid.NewGuid(), Guid.NewGuid(), "user", ["a", "b"], "off", FinancialScope.TarheElahi);
     private static CartQuoteItem[] Items() => [new("a", "الف", 105, 0, 11, 94), new("b", "ب", 105, 0, 10, 95)];
     [Fact]
     public void FrozenCart_PreservesAggregateCouponAndCanonicalIdentity()
@@ -38,7 +38,7 @@ public sealed class CartTests
     private static readonly ShippingAddress Address = new("v1", "P", "C", null, "Street 1", "R", "09120000000");
 
     private static Cart CreateProductCart() =>
-        Cart.Create(Guid.NewGuid(), Guid.NewGuid(), "user", [new CartItemInput("book", ProductItemType.Product, 1)], null);
+        Cart.Create(Guid.NewGuid(), Guid.NewGuid(), "user", [new CartItemInput("book", ProductItemType.Product, 1)], null, FinancialScope.TarheElahi);
 
     private static CartQuoteItem[] BookQuote() =>
         [new("book", "Book", 50, 0, 0, 50, ProductItemType.Product, null, 1)];

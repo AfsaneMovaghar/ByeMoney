@@ -16,7 +16,7 @@ namespace ByeMoney.UnitTests;
 
 public class GatewayTopUpConfirmationTests
 {
-    private static TopUpRequest CreateTopUp() => TopUpRequest.CreateGateway(UserId.New(), 10m, 10_000m);
+    private static TopUpRequest CreateTopUp() => TopUpRequest.CreateGateway(UserId.New(), 10m, 10_000m, FinancialScope.TarheElahi);
 
     private static ConfirmTopUpCommand Command(TopUpRequest topUp, decimal original = 100_000m,
         decimal affective = 100_000m, string refNum = "bank-ref")

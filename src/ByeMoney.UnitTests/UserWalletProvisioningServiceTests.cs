@@ -30,11 +30,11 @@ public class UserWalletProvisioningServiceTests
     {
         // Arrange
         var userId = UserId.New();
-        var existingAccount = Account.CreateUserAccount(userId);
-        var existingWallet = WalletEntity.Create(existingAccount.Id, userId);
+        var existingAccount = Account.CreateUserAccount(userId, FinancialScope.TarheElahi);
+        var existingWallet = WalletEntity.Create(existingAccount.Id, userId, FinancialScope.TarheElahi);
 
         _accountRepositoryMock
-            .Setup(r => r.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
+            .Setup(r => r.GetByUserIdAsync(userId, It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(existingAccount);
 
         _walletRepositoryMock
@@ -42,7 +42,7 @@ public class UserWalletProvisioningServiceTests
             .ReturnsAsync(existingWallet);
 
         // Act
-        var result = await _service.GetOrCreateUserWalletAsync(userId, CancellationToken.None);
+        var result = await _service.GetOrCreateUserWalletAsync(userId, FinancialScope.TarheElahi, CancellationToken.None);
 
         // Assert
         result.Should().NotBeNull();
@@ -65,7 +65,7 @@ public class UserWalletProvisioningServiceTests
         var userId = UserId.New();
 
         _accountRepositoryMock
-            .Setup(r => r.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
+            .Setup(r => r.GetByUserIdAsync(userId, It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((Account?)null);
 
         _walletRepositoryMock
@@ -85,7 +85,7 @@ public class UserWalletProvisioningServiceTests
             .Returns(Task.CompletedTask);
 
         // Act
-        var result = await _service.GetOrCreateUserWalletAsync(userId, CancellationToken.None);
+        var result = await _service.GetOrCreateUserWalletAsync(userId, FinancialScope.TarheElahi, CancellationToken.None);
 
         // Assert
         result.Should().NotBeNull();
@@ -114,10 +114,10 @@ public class UserWalletProvisioningServiceTests
     {
         // Arrange
         var userId = UserId.New();
-        var existingAccount = Account.CreateUserAccount(userId);
+        var existingAccount = Account.CreateUserAccount(userId, FinancialScope.TarheElahi);
 
         _accountRepositoryMock
-            .Setup(r => r.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
+            .Setup(r => r.GetByUserIdAsync(userId, It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(existingAccount);
 
         _walletRepositoryMock
@@ -131,7 +131,7 @@ public class UserWalletProvisioningServiceTests
             .Returns(Task.CompletedTask);
 
         // Act
-        var result = await _service.GetOrCreateUserWalletAsync(userId, CancellationToken.None);
+        var result = await _service.GetOrCreateUserWalletAsync(userId, FinancialScope.TarheElahi, CancellationToken.None);
 
         // Assert
         result.Should().NotBeNull();
@@ -153,14 +153,14 @@ public class UserWalletProvisioningServiceTests
     public async Task GetOrCreateSystemAccountAsync_ShouldReturnExistingSystemAccount_WhenAlreadyExists()
     {
         // Arrange
-        var existingSystemAccount = Account.CreateSystemAccount();
+        var existingSystemAccount = Account.CreateSystemAccount(FinancialScope.TarheElahi);
 
         _accountRepositoryMock
-            .Setup(r => r.GetSystemAccountAsync(It.IsAny<CancellationToken>()))
+            .Setup(r => r.GetSystemAccountAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(existingSystemAccount);
 
         // Act
-        var result = await _service.GetOrCreateSystemAccountAsync(CancellationToken.None);
+        var result = await _service.GetOrCreateSystemAccountAsync(FinancialScope.TarheElahi, CancellationToken.None);
 
         // Assert
         result.Should().BeSameAs(existingSystemAccount);
@@ -175,11 +175,11 @@ public class UserWalletProvisioningServiceTests
     {
         // Arrange
         _accountRepositoryMock
-            .Setup(r => r.GetSystemAccountAsync(It.IsAny<CancellationToken>()))
+            .Setup(r => r.GetSystemAccountAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((Account?)null);
 
         // Act
-        var act = () => _service.GetOrCreateSystemAccountAsync(CancellationToken.None);
+        var act = () => _service.GetOrCreateSystemAccountAsync(FinancialScope.TarheElahi, CancellationToken.None);
 
         // Assert
         await act.Should().ThrowAsync<InvalidOperationException>()

@@ -1,10 +1,12 @@
 using ByeMoney.Domain.Modules.Identity.Users;
+using ByeMoney.Domain.Modules.Wallet;
 
 namespace ByeMoney.Domain.Modules.Purchases;
 
 public sealed class Cart
 {
     public Guid Id { get; private set; }
+    public string ScopeId { get; private set; } = null!;
     public UserId BuyerId { get; private set; }
     public string BuyerExternalUserId { get; private set; } = null!;
 
@@ -92,9 +94,10 @@ public sealed class Cart
     {
     }
 
-    public static Cart Create(Guid id, Guid buyerId, string externalUserId, CartItemInput[] items, string? couponCode) => new()
+    public static Cart Create(Guid id, Guid buyerId, string externalUserId, CartItemInput[] items, string? couponCode, string scopeId) => new()
     {
         Id = id,
+        ScopeId = FinancialScope.Require(scopeId),
         ReservationId = id,
         BuyerId = new UserId(buyerId),
         BuyerExternalUserId = externalUserId,
@@ -119,7 +122,8 @@ public sealed class Cart
         string externalUserId,
         CartItemInput[] items,
         Guid adminUserId,
-        string? freeReason)
+        string? freeReason,
+        string scopeId)
     {
         if (adminUserId == Guid.Empty)
         {
@@ -132,7 +136,7 @@ public sealed class Cart
             throw new ArgumentException("Free reason must be non-blank and within the allowed length.", nameof(freeReason));
         }
 
-        var cart = Create(id, buyerId, externalUserId, items, couponCode: null);
+        var cart = Create(id, buyerId, externalUserId, items, couponCode: null, scopeId);
         cart.CreatedByAdminUserId = adminUserId;
         cart.AdminFreeReason = freeReason?.Trim();
         return cart;
@@ -142,8 +146,8 @@ public sealed class Cart
         CreatedByAdminUserId == other.CreatedByAdminUserId &&
         AdminFreeReason == other.AdminFreeReason;
 
-    public static Cart Create(Guid id, Guid buyerId, string externalUserId, string[] ids, string? couponCode) =>
-        Create(id, buyerId, externalUserId, ids.Select(x => new CartItemInput(x, ProductItemType.Course, 1)).ToArray(), couponCode);
+    public static Cart Create(Guid id, Guid buyerId, string externalUserId, string[] ids, string? couponCode, string scopeId) =>
+        Create(id, buyerId, externalUserId, ids.Select(x => new CartItemInput(x, ProductItemType.Course, 1)).ToArray(), couponCode, scopeId);
 
     public bool Matches(CartItemInput[] items, string? couponCode) =>
         RequestedItemSignatures.SequenceEqual(items

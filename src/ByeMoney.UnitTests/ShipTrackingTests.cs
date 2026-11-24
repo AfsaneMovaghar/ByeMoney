@@ -297,9 +297,7 @@ public sealed class ShipTrackingTests
         page.Items.Single().Details.Items.Single().PhysicalDeliveryStatus.Should().Be("Preparing");
     }
 
-    private static PhysicalProductPurchase CreatePhysical() => PhysicalProductPurchase.Create(
-        PhysicalProductPurchaseId.New(), Guid.NewGuid(), new UserId(Guid.NewGuid()),
-        "product-1", "Book", 2, 50m, 100m);
+    private static PhysicalProductPurchase CreatePhysical() => PhysicalProductPurchase.Create(PhysicalProductPurchaseId.New(), Guid.NewGuid(), new UserId(Guid.NewGuid()), "product-1", "Book", 2, 50m, 100m, FinancialScope.TarheElahi);
 
     private static OrderReadRow Row(
         Guid buyerId, bool paid, int quantity, int cancelled, string delivery) =>

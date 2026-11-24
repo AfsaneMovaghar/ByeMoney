@@ -425,17 +425,11 @@ public sealed class CreatePhysicalShipmentTests
     {
         var cartId = Guid.NewGuid();
         var buyer = new UserId(Guid.NewGuid());
-        var gold = PhysicalProductPurchase.Create(
-            PhysicalProductPurchaseId.New(), cartId, buyer, "gold", "شمش", 2, 100m, 200m,
-            new ParcelFacts(1000, 99, 99, 99, 80_000_000, true, 4));
+        var gold = PhysicalProductPurchase.Create(PhysicalProductPurchaseId.New(), cartId, buyer, "gold", "شمش", 2, 100m, 200m, FinancialScope.TarheElahi, new ParcelFacts(1000, 99, 99, 99, 80_000_000, true, 4));
         gold.RecordPaymentShares(new PaymentShares(200m, 0m));
         gold.RecordCancellation(1, new PaymentShares(100m, 0m));
-        var coin = PhysicalProductPurchase.Create(
-            PhysicalProductPurchaseId.New(), cartId, buyer, "coin", "سکه", 1, 50m, 50m,
-            new ParcelFacts(250, 15, 10, 20, 10_000_000, false, 6));
-        var cancelled = PhysicalProductPurchase.Create(
-            PhysicalProductPurchaseId.New(), cartId, buyer, "old", "لغوشده", 1, 10m, 10m,
-            new ParcelFacts(100, 10, 10, 15, 1_000_000, false, 4));
+        var coin = PhysicalProductPurchase.Create(PhysicalProductPurchaseId.New(), cartId, buyer, "coin", "سکه", 1, 50m, 50m, FinancialScope.TarheElahi, new ParcelFacts(250, 15, 10, 20, 10_000_000, false, 6));
+        var cancelled = PhysicalProductPurchase.Create(PhysicalProductPurchaseId.New(), cartId, buyer, "old", "لغوشده", 1, 10m, 10m, FinancialScope.TarheElahi, new ParcelFacts(100, 10, 10, 15, 1_000_000, false, 4));
         cancelled.RecordPaymentShares(new PaymentShares(10m, 0m));
         cancelled.RecordCancellation(1, new PaymentShares(10m, 0m));
 
@@ -483,12 +477,8 @@ public sealed class CreatePhysicalShipmentTests
     {
         var cartId = Guid.NewGuid();
         var buyer = new UserId(Guid.NewGuid());
-        var first = PhysicalProductPurchase.Create(
-            PhysicalProductPurchaseId.New(), cartId, buyer, "a", "الف", 1, 10m, 10m,
-            new ParcelFacts(100, 10, 10, 15, 1_000_000, false, 4));
-        var second = PhysicalProductPurchase.Create(
-            PhysicalProductPurchaseId.New(), cartId, buyer, "b", "ب", 1, 10m, 10m,
-            new ParcelFacts(100, 15, 10, 20, 1_000_000, false, 6));
+        var first = PhysicalProductPurchase.Create(PhysicalProductPurchaseId.New(), cartId, buyer, "a", "الف", 1, 10m, 10m, FinancialScope.TarheElahi, new ParcelFacts(100, 10, 10, 15, 1_000_000, false, 4));
+        var second = PhysicalProductPurchase.Create(PhysicalProductPurchaseId.New(), cartId, buyer, "b", "ب", 1, 10m, 10m, FinancialScope.TarheElahi, new ParcelFacts(100, 15, 10, 20, 1_000_000, false, 6));
         var store = new FakeDeliveryStore([first, second], SampleAddress());
         var client = new FakeShipmentClient(PhysicalProductPurchase.PostexProvider)
         {
@@ -510,12 +500,8 @@ public sealed class CreatePhysicalShipmentTests
     {
         var cartId = Guid.NewGuid();
         var buyer = new UserId(Guid.NewGuid());
-        var first = PhysicalProductPurchase.Create(
-            PhysicalProductPurchaseId.New(), cartId, buyer, "a", "الف", 1, 10m, 10m,
-            new ParcelFacts(100, 20, 20, 30, 1_000_000, false, 7));
-        var second = PhysicalProductPurchase.Create(
-            PhysicalProductPurchaseId.New(), cartId, buyer, "b", "ب", 1, 10m, 10m,
-            new ParcelFacts(100, 20, 20, 30, 1_000_000, false, 7));
+        var first = PhysicalProductPurchase.Create(PhysicalProductPurchaseId.New(), cartId, buyer, "a", "الف", 1, 10m, 10m, FinancialScope.TarheElahi, new ParcelFacts(100, 20, 20, 30, 1_000_000, false, 7));
+        var second = PhysicalProductPurchase.Create(PhysicalProductPurchaseId.New(), cartId, buyer, "b", "ب", 1, 10m, 10m, FinancialScope.TarheElahi, new ParcelFacts(100, 20, 20, 30, 1_000_000, false, 7));
         var store = new FakeDeliveryStore([first, second], SampleAddress());
         var client = new FakeShipmentClient(PhysicalProductPurchase.PostexProvider)
         {
@@ -553,10 +539,8 @@ public sealed class CreatePhysicalShipmentTests
     {
         var cartId = Guid.NewGuid();
         var buyer = new UserId(Guid.NewGuid());
-        var ready = PhysicalProductPurchase.Create(
-            PhysicalProductPurchaseId.New(), cartId, buyer, "a", "الف", 1, 10m, 10m, SampleParcel());
-        var missing = PhysicalProductPurchase.Create(
-            PhysicalProductPurchaseId.New(), cartId, buyer, "b", "ب", 1, 10m, 10m);
+        var ready = PhysicalProductPurchase.Create(PhysicalProductPurchaseId.New(), cartId, buyer, "a", "الف", 1, 10m, 10m, FinancialScope.TarheElahi, SampleParcel());
+        var missing = PhysicalProductPurchase.Create(PhysicalProductPurchaseId.New(), cartId, buyer, "b", "ب", 1, 10m, 10m, FinancialScope.TarheElahi);
         var client = new FakeShipmentClient(PhysicalProductPurchase.PostexProvider);
 
         var missingFacts = () => new CreatePhysicalShipmentCommandHandler(
@@ -567,8 +551,7 @@ public sealed class CreatePhysicalShipmentTests
         (await missingFacts.Should().ThrowAsync<DomainException>())
             .Which.Message.Should().Be(OrderErrors.ShipmentParcelRequired);
 
-        var delivered = PhysicalProductPurchase.Create(
-            PhysicalProductPurchaseId.New(), cartId, buyer, "c", "ج", 1, 10m, 10m, SampleParcel());
+        var delivered = PhysicalProductPurchase.Create(PhysicalProductPurchaseId.New(), cartId, buyer, "c", "ج", 1, 10m, 10m, FinancialScope.TarheElahi, SampleParcel());
         delivered.MarkShipped("CODE", PhysicalProductPurchase.PostexProvider, "9");
         delivered.MarkDelivered();
         var deliveredAct = () => new CreatePhysicalShipmentCommandHandler(
@@ -620,9 +603,7 @@ public sealed class CreatePhysicalShipmentTests
         CreatePreparing(null);
 
     private static PhysicalProductPurchase CreatePreparing(ParcelFacts? parcel) =>
-        PhysicalProductPurchase.Create(
-            PhysicalProductPurchaseId.New(), Guid.NewGuid(), new UserId(Guid.NewGuid()),
-            "product-1", "شمش", 1, 100m, 100m, parcel);
+        PhysicalProductPurchase.Create(PhysicalProductPurchaseId.New(), Guid.NewGuid(), new UserId(Guid.NewGuid()), "product-1", "شمش", 1, 100m, 100m, FinancialScope.TarheElahi, parcel);
 
     private static ParcelFacts SampleParcel() =>
         new(

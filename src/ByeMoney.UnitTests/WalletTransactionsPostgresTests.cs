@@ -189,7 +189,7 @@ public sealed class WalletTransactionsPostgresTests : IAsyncLifetime
     {
         using var scope = _provider.CreateScope();
         var credit = scope.ServiceProvider.GetRequiredService<INoorCreditService>();
-        await credit.CreditAsync(new NoorCreditRequest(userId, amount, balanceType, referenceType, referenceId));
+        await credit.CreditAsync(new NoorCreditRequest(FinancialScope.TarheElahi, userId, amount, balanceType, referenceType, referenceId));
         await scope.ServiceProvider.GetRequiredService<ApplicationDbContext>().SaveChangesAsync();
     }
 
@@ -198,8 +198,8 @@ public sealed class WalletTransactionsPostgresTests : IAsyncLifetime
         using var scope = _provider.CreateScope();
         var provisioning = scope.ServiceProvider.GetRequiredService<IUserWalletProvisioningService>();
         var posting = scope.ServiceProvider.GetRequiredService<IWalletPostingService>();
-        var wallet = await provisioning.GetOrCreateUserWalletAsync(userId);
-        var system = await provisioning.GetOrCreateSystemAccountAsync();
+        var wallet = await provisioning.GetOrCreateUserWalletAsync(userId, FinancialScope.TarheElahi);
+        var system = await provisioning.GetOrCreateSystemAccountAsync(FinancialScope.TarheElahi);
         var transactionId = Guid.NewGuid();
 
         await posting.PostDebitAsync(

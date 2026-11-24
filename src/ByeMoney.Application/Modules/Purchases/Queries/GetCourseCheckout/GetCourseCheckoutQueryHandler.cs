@@ -7,6 +7,7 @@ using ByeMoney.Application.Modules.Wallet.Interfaces;
 using ByeMoney.Application.Resources;
 using ByeMoney.Domain.Common.Exceptions;
 using ByeMoney.Domain.Modules.Identity.Users;
+using ByeMoney.Domain.Modules.Wallet;
 using ByeMoney.Domain.Modules.Purchases;
 using MediatR;
 
@@ -22,7 +23,7 @@ public sealed class GetCourseCheckoutQueryHandler(
         var userId = new UserId(currentUser.UserId
             ?? throw new UnauthorizedAccessException(ApplicationErrors.Wallet_UserNotAuthenticated));
         var purchase = await purchases.GetByBuyerAndCourseAsync(userId, request.ExternalCourseId, ct);
-        var wallet = await wallets.GetByUserIdAsync(userId, ct);
+        var wallet = await wallets.GetByUserIdAsync(userId, FinancialScope.TarheElahi, ct);
         var balance = wallet?.TotalBalance ?? 0m;
         if (purchase is not null)
             return new(request.ExternalCourseId, purchase.Snapshot.PriceInNoorAtPurchaseTime, balance, 0m, 0m, PurchaseStatus(purchase));

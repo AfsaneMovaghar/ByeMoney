@@ -11,6 +11,7 @@ using ByeMoney.Domain.Common;
 using ByeMoney.Domain.Common.Generic;
 using ByeMoney.Domain.Modules.Identity.Users;
 using ByeMoney.Domain.Modules.Purchases;
+using ByeMoney.Domain.Modules.Wallet;
 using ByeMoney.Domain.Modules.Wallet.Ledgers;
 
 namespace ByeMoney.Application.Modules.Purchases.PhysicalCancellations.Services;
@@ -29,7 +30,7 @@ public sealed class PhysicalCancellationService(
     public async Task<Result<PhysicalCancellationPreviewResponse>> PreviewForBuyerAsync(
         Guid buyerId, Guid cartId, CancellationToken ct)
     {
-        var cart = await carts.FindAsync(cartId, buyerId, ct);
+        var cart = VisibleCart(await carts.FindAsync(cartId, buyerId, ct));
         var unpaid = CheckBuyerCart(cart);
         if (unpaid is not null)
         {
@@ -58,6 +59,8 @@ public sealed class PhysicalCancellationService(
 
         var cart = await store.FindCartAsync(owner.CartId, ct);
         var purchases = await store.GetPurchasesAsync(owner.CartId, ct);
+        if (!IsVisiblePurchase(purchases, purchaseId))
+            return NotFound<PhysicalCancellationPreviewResponse>();
         var plan = await PlanAsync(cart!, purchases, AdminTargets(purchases, purchaseId, quantity), ct);
         return Preview(owner.CartId, plan, includeCarrierWarnings: true);
     }
@@ -65,7 +68,7 @@ public sealed class PhysicalCancellationService(
     public async Task<Result<PhysicalCancellationResponse>> CancelForBuyerAsync(
         Guid buyerId, Guid cartId, Guid operationId, string reason, CancellationToken ct)
     {
-        var cart = await carts.FindAsync(cartId, buyerId, ct);
+        var cart = VisibleCart(await carts.FindAsync(cartId, buyerId, ct));
         var invalid = CheckBuyerCart(cart);
         if (invalid is not null)
         {
@@ -138,7 +141,9 @@ public sealed class PhysicalCancellationService(
 
             var cart = await store.FindCartAsync(owner.CartId, ct);
             var purchases = await store.GetPurchasesAsync(owner.CartId, ct);
-            var plan = await PlanAsync(cart!, purchases, AdminTargets(purchases, purchaseId, quantity), ct);
+            if (cart?.ScopeId != FinancialScope.TarheElahi || !IsVisiblePurchase(purchases, purchaseId))
+                return NotFound<PhysicalCancellationResponse>();
+            var plan = await PlanAsync(cart, purchases, AdminTargets(purchases, purchaseId, quantity), ct);
             return await ApplyAsync(
                 plan, owner.BuyerId, operationId, PhysicalCancellationActor.Admin, new UserId(adminId), reason, ct);
         }, ct);
@@ -160,6 +165,12 @@ public sealed class PhysicalCancellationService(
 
         return result;
     }
+
+    private static Cart? VisibleCart(Cart? cart) =>
+        cart?.ScopeId == FinancialScope.TarheElahi ? cart : null;
+
+    private static bool IsVisiblePurchase(IReadOnlyList<PhysicalProductPurchase> purchases, Guid purchaseId) =>
+        purchases.Any(x => x.Id.Value == purchaseId && x.ScopeId == FinancialScope.TarheElahi);
 
     private static Result? CheckBuyerCart(Cart? cart)
     {
@@ -239,11 +250,11 @@ public sealed class PhysicalCancellationService(
             store.Add(row);
             rows.Add(row);
 
-            await CreditAsync(buyer, line.Refund, operationId, line.Purchase.Id.ToString(), performedBy, reason, ct);
+            await CreditAsync(buyer, line.Purchase.ScopeId, line.Refund, operationId, line.Purchase.Id.ToString(), performedBy, reason, ct);
         }
 
         await CreditAsync(
-            buyer, plan.ShippingRefund, operationId, plan.Lines[0].Purchase.CartId.ToString(), performedBy, reason, ct);
+            buyer, plan.Lines[0].Purchase.ScopeId, plan.ShippingRefund, operationId, plan.Lines[0].Purchase.CartId.ToString(), performedBy, reason, ct);
 
         return Result<PhysicalCancellationResponse>.Success(
             Response(rows, plan.Lines.Select(x => x.Purchase).ToArray()));
@@ -251,6 +262,7 @@ public sealed class PhysicalCancellationService(
 
     private async Task CreditAsync(
         UserId buyer,
+        string scopeId,
         PaymentShares refund,
         Guid operationId,
         string referenceId,
@@ -262,14 +274,14 @@ public sealed class PhysicalCancellationService(
         if (refund.RegularInNoor > 0)
         {
             await noorCredit.CreditAsync(new NoorCreditRequest(
-                buyer, refund.RegularInNoor, LedgerBalanceType.Regular, LedgerReferenceType.Refund,
+                scopeId, buyer, refund.RegularInNoor, LedgerBalanceType.Regular, LedgerReferenceType.Refund,
                 referenceId, performedBy, reason, operationId), ct);
         }
 
         if (refund.GiftInNoor > 0)
         {
             await noorCredit.CreditAsync(new NoorCreditRequest(
-                buyer, refund.GiftInNoor, LedgerBalanceType.Gift, LedgerReferenceType.Refund,
+                scopeId, buyer, refund.GiftInNoor, LedgerBalanceType.Gift, LedgerReferenceType.Refund,
                 referenceId, performedBy, reason, operationId), ct);
         }
     }

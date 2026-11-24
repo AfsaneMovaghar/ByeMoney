@@ -18,13 +18,13 @@ public class TopUpSettlementServiceTests
     private static (TopUpSettlementService Service, Mock<IUnitOfWork> UnitOfWork,
         List<LedgerEntry> Entries, WalletEntity Wallet) CreateService(TopUpRequest topUp)
     {
-        var userAccount = Account.CreateUserAccount(topUp.UserId);
-        var systemAccount = Account.CreateSystemAccount();
-        var wallet = WalletEntity.Create(userAccount.Id, topUp.UserId);
+        var userAccount = Account.CreateUserAccount(topUp.UserId, FinancialScope.TarheElahi);
+        var systemAccount = Account.CreateSystemAccount(FinancialScope.TarheElahi);
+        var wallet = WalletEntity.Create(userAccount.Id, topUp.UserId, FinancialScope.TarheElahi);
         var provisioning = new Mock<IUserWalletProvisioningService>();
-        provisioning.Setup(x => x.GetOrCreateUserWalletAsync(topUp.UserId, It.IsAny<CancellationToken>()))
+        provisioning.Setup(x => x.GetOrCreateUserWalletAsync(topUp.UserId, It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ProvisionedUserWallet(userAccount, wallet));
-        provisioning.Setup(x => x.GetOrCreateSystemAccountAsync(It.IsAny<CancellationToken>()))
+        provisioning.Setup(x => x.GetOrCreateSystemAccountAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(systemAccount);
 
         var entries = new List<LedgerEntry>();
@@ -48,7 +48,7 @@ public class TopUpSettlementServiceTests
     {
         var beneficiaryId = UserId.New();
         var actorId = UserId.New();
-        var topUp = TopUpRequest.CreateAdminCardToCard(beneficiaryId, actorId, 10_000m, 10_000m, receiptId, "key");
+        var topUp = TopUpRequest.CreateAdminCardToCard(beneficiaryId, actorId, 10_000m, 10_000m, receiptId, "key", FinancialScope.TarheElahi);
         var (service, unitOfWork, entries, wallet) = CreateService(topUp);
 
         await service.SettleAsync(topUp);
@@ -64,7 +64,7 @@ public class TopUpSettlementServiceTests
     [Fact]
     public async Task SettleAsync_UsesTopUpClassificationAndKeepsGiftBalanceUntouched()
     {
-        var topUp = TopUpRequest.CreateAdminCardToCard(UserId.New(), UserId.New(), 10_000m, 10_000m, null, "key");
+        var topUp = TopUpRequest.CreateAdminCardToCard(UserId.New(), UserId.New(), 10_000m, 10_000m, null, "key", FinancialScope.TarheElahi);
         var (service, _, entries, wallet) = CreateService(topUp);
 
         await service.SettleAsync(topUp);
@@ -79,7 +79,7 @@ public class TopUpSettlementServiceTests
     [Fact]
     public async Task SettleAsync_WhenUnifiedCreditFails_DoesNotSave()
     {
-        var topUp = TopUpRequest.CreateAdminCardToCard(UserId.New(), UserId.New(), 10_000m, 10_000m, null, "key");
+        var topUp = TopUpRequest.CreateAdminCardToCard(UserId.New(), UserId.New(), 10_000m, 10_000m, null, "key", FinancialScope.TarheElahi);
         var unitOfWork = new Mock<IUnitOfWork>();
         var noorCredit = new Mock<INoorCreditService>();
         noorCredit.Setup(x => x.CreditAsync(It.IsAny<NoorCreditRequest>(), It.IsAny<CancellationToken>()))

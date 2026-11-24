@@ -48,10 +48,10 @@ public class PurchaseCoursesCommandValidatorTests
 
         _coursePurchaseRepoMock.Setup(r => r.ExistsByBuyerAndCourseAsync(userId, It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync(false);
 
-        var userAccount = Account.CreateUserAccount(userId);
-        var wallet = WalletEntity.Create(userAccount.Id, userId);
+        var userAccount = Account.CreateUserAccount(userId, FinancialScope.TarheElahi);
+        var wallet = WalletEntity.Create(userAccount.Id, userId, FinancialScope.TarheElahi);
         wallet.ApplyCredit(5000m); // Needs 3,000 Noor
-        _walletProvisioningMock.Setup(s => s.GetOrCreateUserWalletAsync(userId, It.IsAny<CancellationToken>()))
+        _walletProvisioningMock.Setup(s => s.GetOrCreateUserWalletAsync(userId, It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ProvisionedUserWallet(userAccount, wallet));
 
         var command = new PurchaseCoursesCommand(userId.Value, new[] { "c1", "c2" });
@@ -192,7 +192,7 @@ public class PurchaseCoursesCommandValidatorTests
         var result = await _validator.ValidateAsync(new PurchaseCoursesCommand(userId.Value, ["c1"], true, "Gift"));
 
         result.IsValid.Should().BeTrue();
-        _walletProvisioningMock.Verify(x => x.GetOrCreateUserWalletAsync(It.IsAny<UserId>(), It.IsAny<CancellationToken>()), Times.Never);
+        _walletProvisioningMock.Verify(x => x.GetOrCreateUserWalletAsync(It.IsAny<UserId>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
@@ -210,10 +210,10 @@ public class PurchaseCoursesCommandValidatorTests
         _tarhElahiClientMock.Setup(c => c.GetCourseAsync("c2", It.IsAny<CancellationToken>())).ReturnsAsync(c2);
 
         // Total price = 5,000 Noor; a fractional wallet balance leaves a fractional shortfall.
-        var userAccount = Account.CreateUserAccount(userId);
-        var wallet = WalletEntity.Create(userAccount.Id, userId);
+        var userAccount = Account.CreateUserAccount(userId, FinancialScope.TarheElahi);
+        var wallet = WalletEntity.Create(userAccount.Id, userId, FinancialScope.TarheElahi);
         wallet.ApplyCredit(1_000.5m);
-        _walletProvisioningMock.Setup(s => s.GetOrCreateUserWalletAsync(userId, It.IsAny<CancellationToken>()))
+        _walletProvisioningMock.Setup(s => s.GetOrCreateUserWalletAsync(userId, It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ProvisionedUserWallet(userAccount, wallet));
 
         var command = new PurchaseCoursesCommand(userId.Value, new[] { "c1", "c2" });
@@ -272,7 +272,7 @@ public class PurchaseCoursesCommandValidatorTests
         result.Errors.Should().Contain(e => e.PropertyName == "ExternalCourseIds[c1]" && e.ErrorMessage == ApplicationErrors.CoursePurchase_AlreadyPurchased);
         result.Errors.Should().Contain(e => e.PropertyName == "ExternalCourseIds[c2]" && e.ErrorMessage == ApplicationErrors.CoursePurchase_AlreadyPurchased);
         // Balance check must NOT be invoked
-        _walletProvisioningMock.Verify(s => s.GetOrCreateUserWalletAsync(It.IsAny<UserId>(), It.IsAny<CancellationToken>()), Times.Never);
+        _walletProvisioningMock.Verify(s => s.GetOrCreateUserWalletAsync(It.IsAny<UserId>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]

@@ -4,6 +4,6 @@ namespace ByeMoney.Application.Modules.Wallet.Interfaces;
 
 public interface IWelcomeGiftService
 {
-    Task GrantWelcomeGiftIfEligibleAsync(User user, CancellationToken ct = default);
+    Task GrantWelcomeGiftIfEligibleAsync(User user, string scopeId, CancellationToken ct = default);
 }
 

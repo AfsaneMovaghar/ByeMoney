@@ -13,6 +13,7 @@ using ByeMoney.Application.Resources;
 using ByeMoney.Domain.Common.Generic;
 using ByeMoney.Domain.Modules.Identity.Users;
 using ByeMoney.Domain.Modules.Purchases;
+using ByeMoney.Domain.Modules.Wallet;
 using ByeMoney.Domain.Modules.Wallet.Ledgers;
 using ByeMoney.Domain.Modules.Wallet.Wallets;
 using MediatR;
@@ -94,7 +95,7 @@ public class PurchaseCoursesCommandHandler : IRequestHandler<PurchaseCoursesComm
                 request.IsFree,
                 referenceRialPerNoorAtPurchaseTime: referenceRate);
 
-            var purchase = CoursePurchase.Create(buyerUserId, snapshot, request.IsFree, request.FreeReason);
+            var purchase = CoursePurchase.Create(buyerUserId, snapshot, FinancialScope.TarheElahi, request.IsFree, request.FreeReason);
             purchaseList.Add((purchase, course, snapshot, priceInNoor));
         }
 
@@ -122,7 +123,7 @@ public class PurchaseCoursesCommandHandler : IRequestHandler<PurchaseCoursesComm
                 }
                 else
                 {
-                    var provisioned = await _walletProvisioningService.GetOrCreateUserWalletAsync(buyerUserId, cancellationToken);
+                    var provisioned = await _walletProvisioningService.GetOrCreateUserWalletAsync(buyerUserId, FinancialScope.TarheElahi, cancellationToken);
                     await ExecuteFinancialTransactionAsync(provisioned, purchaseList, transactionId, cancellationToken);
                 }
             },
@@ -162,7 +163,7 @@ public class PurchaseCoursesCommandHandler : IRequestHandler<PurchaseCoursesComm
         Guid transactionId,
         CancellationToken cancellationToken)
     {
-        var systemAccount = await _walletProvisioningService.GetOrCreateSystemAccountAsync(cancellationToken);
+        var systemAccount = await _walletProvisioningService.GetOrCreateSystemAccountAsync(FinancialScope.TarheElahi, cancellationToken);
 
         foreach (var item in purchaseList)
         {

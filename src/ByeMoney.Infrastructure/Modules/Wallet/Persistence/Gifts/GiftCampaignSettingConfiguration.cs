@@ -1,4 +1,5 @@
 using ByeMoney.Domain.Modules.Identity.Users;
+using ByeMoney.Domain.Modules.Wallet;
 using ByeMoney.Domain.Modules.Wallet.Gifts;
 using ByeMoney.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -15,6 +16,7 @@ public class GiftCampaignSettingConfiguration : IEntityTypeConfiguration<GiftCam
             table.AddEnumCheckConstraint<GiftCampaignSetting, GiftCampaignType>(
                 "CK_GiftCampaignSettings_CampaignType",
                 nameof(GiftCampaignSetting.CampaignType));
+            table.HasCheckConstraint("CK_GiftCampaignSettings_ScopeId", FinancialScope.Check());
         });
 
         builder.HasKey(s => s.Id);
@@ -24,7 +26,11 @@ public class GiftCampaignSettingConfiguration : IEntityTypeConfiguration<GiftCam
             .HasMaxLength(30)
             .IsRequired();
 
-        builder.HasIndex(s => s.CampaignType)
+        builder.Property(s => s.ScopeId)
+            .HasMaxLength(FinancialScope.MaxLength)
+            .IsRequired();
+
+        builder.HasIndex(s => new { s.CampaignType, s.ScopeId })
             .IsUnique();
 
         builder.Property(s => s.AmountNoor)
@@ -49,6 +55,7 @@ public class GiftCampaignSettingConfiguration : IEntityTypeConfiguration<GiftCam
         {
             Id = new Guid("88888888-8888-8888-8888-888888888888"),
             CampaignType = GiftCampaignType.Welcome,
+            ScopeId = FinancialScope.TarheElahi,
             AmountNoor = 50000m,
             IsEnabled = true,
             StartDateUtc = (DateTime?)null,

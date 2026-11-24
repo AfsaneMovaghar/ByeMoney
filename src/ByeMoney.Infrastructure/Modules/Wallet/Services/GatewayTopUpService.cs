@@ -61,6 +61,7 @@ public sealed class GatewayTopUpService(
         {
             await noorCreditService.CreditAsync(
                 new NoorCreditRequest(
+                    ScopeId: topUp.ScopeId,
                     UserId: topUp.UserId,
                     AmountNoor: topUp.AmountNoor,
                     BalanceType: LedgerBalanceType.Regular,

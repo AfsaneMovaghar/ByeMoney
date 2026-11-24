@@ -1,5 +1,6 @@
 using ByeMoney.Domain.Modules.Identity.Users;
 using ByeMoney.Domain.Modules.Purchases;
+using ByeMoney.Domain.Modules.Wallet;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -13,8 +14,10 @@ public sealed class CartConfiguration : IEntityTypeConfiguration<Cart>
         {
             table.HasCheckConstraint("CK_Carts_Discounts",
                 "\"ItemDiscountInNoor\" >= 0 AND \"CouponDiscountInNoor\" >= 0 AND \"ShippingAmountInNoor\" >= 0 AND trunc(\"ItemDiscountInNoor\") = \"ItemDiscountInNoor\" AND trunc(\"CouponDiscountInNoor\") = \"CouponDiscountInNoor\" AND trunc(\"ShippingAmountInNoor\") = \"ShippingAmountInNoor\"");
+            table.HasCheckConstraint("CK_Carts_ScopeId", FinancialScope.Check());
         });
         b.HasKey(x => x.Id);
+        b.Property(x => x.ScopeId).HasMaxLength(FinancialScope.MaxLength).IsRequired();
         b.Property(x => x.BuyerExternalUserId).HasMaxLength(100);
         b.Property(x => x.CouponCode).HasMaxLength(100);
         b.Property(x => x.LastSyncErrorCode).HasMaxLength(100);

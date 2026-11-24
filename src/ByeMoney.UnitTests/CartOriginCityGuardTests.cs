@@ -74,12 +74,7 @@ public sealed class CartOriginCityGuardTests
         public Harness(int? quotedCityId, int? configuredCityId)
         {
             Buyer = User.CreateInitial("buyer");
-            Cart = Cart.Create(
-                Guid.NewGuid(),
-                Buyer.Id.Value,
-                Buyer.ExternalUserId,
-                [new CartItemInput("prod-1", ProductItemType.Product, 1)],
-                null);
+            Cart = Cart.Create(Guid.NewGuid(), Buyer.Id.Value, Buyer.ExternalUserId, [new CartItemInput("prod-1", ProductItemType.Product, 1)], null, FinancialScope.TarheElahi);
             Store = new Mock<ICartStore>();
             var pricing = new Mock<ICartPricingClient>();
             var users = new Mock<IUserRepository>();

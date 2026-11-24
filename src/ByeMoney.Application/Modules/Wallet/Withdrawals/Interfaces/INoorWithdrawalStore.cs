@@ -29,16 +29,16 @@ public interface INoorWithdrawalStore
 
     Task<bool> IsReceiptReferencedAsync(string receiptId, CancellationToken ct);
 
-    Task<string?> GetReceiptIdAsync(NoorWithdrawalId id, CancellationToken ct);
+    Task<string?> GetReceiptIdAsync(NoorWithdrawalId id, string scopeId, CancellationToken ct);
 
     void Add(NoorWithdrawal withdrawal);
 
-    Task<NoorWithdrawalResponse?> GetResponseAsync(NoorWithdrawalId id, CancellationToken ct);
+    Task<NoorWithdrawalResponse?> GetResponseAsync(NoorWithdrawalId id, string scopeId, CancellationToken ct);
 
     /// <summary>شارژهای تأییدشدهٔ دارای نرخ ثبت‌شدهٔ یک کاربر، جدیدترین اول؛ مبنای انتخاب در استرداد.</summary>
     Task<IReadOnlyList<RefundableTopUpResponse>> ListRefundableTopUpsAsync(
-        string userExternalId, int limit, CancellationToken ct);
+        string userExternalId, int limit, string scopeId, CancellationToken ct);
 
     Task<IReadOnlyList<NoorWithdrawalResponse>> ListAsync(
-        NoorWithdrawalStatus? status, string? userExternalId, int limit, CancellationToken ct);
+        NoorWithdrawalStatus? status, string? userExternalId, int limit, string scopeId, CancellationToken ct);
 }

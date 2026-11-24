@@ -103,7 +103,7 @@ public class DuplicatePurchasePreventionTests
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(false);
 
-        var cart = Cart.Create(cartId, buyerId, user.ExternalUserId, new[] { "legacy-course" }, null);
+        var cart = Cart.Create(cartId, buyerId, user.ExternalUserId, new[] { "legacy-course" }, null, FinancialScope.TarheElahi);
         storeMock.Setup(s => s.CreateAsync(It.IsAny<Cart>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(Result<Cart>.Success(cart));
 
@@ -146,7 +146,7 @@ public class DuplicatePurchasePreventionTests
         var purchasesMock = new Mock<ICoursePurchaseRepository>();
         var topUpsMock = new Mock<ITopUpRequestRepository>();
 
-        var cart = Cart.Create(cartId, buyerId, user.ExternalUserId, new[] { "c1" }, null);
+        var cart = Cart.Create(cartId, buyerId, user.ExternalUserId, new[] { "c1" }, null, FinancialScope.TarheElahi);
         cart.SetQuote(new[] { new CartQuoteItem("c1", "Title", 100m, 0m, 0m, 100m) }, 0m, null);
 
         storeMock.Setup(s => s.FindAsync(cartId, buyerId, It.IsAny<CancellationToken>()))
@@ -222,7 +222,7 @@ public class DuplicatePurchasePreventionTests
         result.IsSuccess.Should().BeFalse();
         result.ErrorCode.Should().Be(PurchaseErrorCodes.AlreadyPurchased);
         // Wallet should NOT be debited
-        walletProvisioningMock.Verify(w => w.GetOrCreateUserWalletAsync(It.IsAny<UserId>(), It.IsAny<CancellationToken>()), Times.Never);
+        walletProvisioningMock.Verify(w => w.GetOrCreateUserWalletAsync(It.IsAny<UserId>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
         // SaveChangesAsync should NOT be called
         unitOfWorkMock.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
         // Notifier should NOT be called
@@ -246,9 +246,9 @@ public class DuplicatePurchasePreventionTests
             Source = ProductCatalogSources.TarhElahi
         };
 
-        var userAccount = Account.CreateUserAccount(userId);
-        var systemAccount = Account.CreateSystemAccount();
-        var wallet = Wallet.Create(userAccount.Id, userId);
+        var userAccount = Account.CreateUserAccount(userId, FinancialScope.TarheElahi);
+        var systemAccount = Account.CreateSystemAccount(FinancialScope.TarheElahi);
+        var wallet = Wallet.Create(userAccount.Id, userId, FinancialScope.TarheElahi);
         wallet.ApplyCredit(1_000m);
 
         var userRepoMock = new Mock<IUserRepository>();
@@ -264,9 +264,9 @@ public class DuplicatePurchasePreventionTests
         userRepoMock.Setup(r => r.GetByIdAsync(userId, It.IsAny<CancellationToken>())).ReturnsAsync(user);
         tarhElahiClientMock.Setup(c => c.GetCourseAsync("concurrent-course", It.IsAny<CancellationToken>())).ReturnsAsync(course);
 
-        walletProvisioningMock.Setup(w => w.GetOrCreateUserWalletAsync(userId, It.IsAny<CancellationToken>()))
+        walletProvisioningMock.Setup(w => w.GetOrCreateUserWalletAsync(userId, It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ProvisionedUserWallet(userAccount, wallet));
-        walletProvisioningMock.Setup(w => w.GetOrCreateSystemAccountAsync(It.IsAny<CancellationToken>()))
+        walletProvisioningMock.Setup(w => w.GetOrCreateSystemAccountAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(systemAccount);
 
         // Pre-check passes

@@ -11,6 +11,7 @@ using ByeMoney.Application.Resources;
 using ByeMoney.Domain.Common;
 using ByeMoney.Domain.Common.Generic;
 using ByeMoney.Domain.Modules.Identity.Users;
+using ByeMoney.Domain.Modules.Wallet;
 using ByeMoney.Domain.Modules.Wallet.Ledgers;
 using ByeMoney.Domain.Modules.Wallet.TopUps;
 using ByeMoney.Domain.Modules.Wallet.Wallets;
@@ -39,7 +40,7 @@ public sealed class NoorWithdrawalService(
     private const int NoorDecimals = 4;
 
     public async Task<Result<NoorWithdrawalResponse>> CreateAsync(
-        Guid adminId, CreateNoorWithdrawalCommand request, CancellationToken ct)
+        Guid adminId, CreateNoorWithdrawalCommand request, string scopeId, CancellationToken ct)
     {
         NoorWithdrawalRules.TryParseKind(request.Kind, out var kind);
 
@@ -80,7 +81,7 @@ public sealed class NoorWithdrawalService(
                     NoorWithdrawalErrors.TopUpAlreadyRefunded, NoorWithdrawalErrorCodes.TopUpAlreadyRefunded);
             }
 
-            return await DebitAsync(request, amountNoor.Value, user.Id, kind, topUpId, adminUserId, ct);
+            return await DebitAsync(request, amountNoor.Value, user.Id, kind, topUpId, adminUserId, scopeId, ct);
         }, ct);
 
         return await ToResponseAsync(result, ct);
@@ -100,7 +101,9 @@ public sealed class NoorWithdrawalService(
         var result = await store.ExecuteAsync(owner.Value, async () =>
         {
             var withdrawal = await store.FindAsync(id, ct);
-            if (withdrawal!.Status == NoorWithdrawalStatus.Paid)
+            if (withdrawal is null || withdrawal.ScopeId != FinancialScope.TarheElahi)
+                return Result<NoorWithdrawalId>.NotFound(NoorWithdrawalErrors.NotFound, NoorWithdrawalErrorCodes.NotFound);
+            if (withdrawal.Status == NoorWithdrawalStatus.Paid)
             {
                 // تکرار همان ثبت واریز (مثلاً پس از قطع شبکه) همان نتیجه را برمی‌گرداند.
                 var sameRequest = withdrawal.PaymentReference == reference && withdrawal.ReceiptId == receiptId;
@@ -132,7 +135,9 @@ public sealed class NoorWithdrawalService(
         var result = await store.ExecuteAsync(owner.Value, async () =>
         {
             var withdrawal = await store.FindAsync(id, ct);
-            if (withdrawal!.Status == NoorWithdrawalStatus.Reversed)
+            if (withdrawal is null || withdrawal.ScopeId != FinancialScope.TarheElahi)
+                return Result<NoorWithdrawalId>.NotFound(NoorWithdrawalErrors.NotFound, NoorWithdrawalErrorCodes.NotFound);
+            if (withdrawal.Status == NoorWithdrawalStatus.Reversed)
             {
                 // جبران قبلاً انجام شده است؛ تکرار، برگشت دوم نمی‌سازد (T25).
                 return Result<NoorWithdrawalId>.Success(id);
@@ -145,6 +150,7 @@ public sealed class NoorWithdrawalService(
 
             var adminUserId = new UserId(adminId);
             var credit = await noorCredit.CreditAsync(new NoorCreditRequest(
+                ScopeId: withdrawal.ScopeId,
                 UserId: withdrawal.UserId,
                 AmountNoor: withdrawal.AmountNoor,
                 BalanceType: LedgerBalanceType.Regular,
@@ -160,9 +166,9 @@ public sealed class NoorWithdrawalService(
         return await ToResponseAsync(result, ct);
     }
 
-    public async Task<NoorWithdrawalReceiptFile?> OpenReceiptAsync(Guid withdrawalId, CancellationToken ct)
+    public async Task<NoorWithdrawalReceiptFile?> OpenReceiptAsync(Guid withdrawalId, string scopeId, CancellationToken ct)
     {
-        var receiptId = await store.GetReceiptIdAsync(new NoorWithdrawalId(withdrawalId), ct);
+        var receiptId = await store.GetReceiptIdAsync(new NoorWithdrawalId(withdrawalId), scopeId, ct);
         if (receiptId is null)
         {
             return null;
@@ -244,17 +250,27 @@ public sealed class NoorWithdrawalService(
         NoorWithdrawalKind kind,
         TopUpRequestId? topUpId,
         UserId adminUserId,
+        string requestedScopeId,
         CancellationToken ct)
     {
-        var wallet = await wallets.GetByUserIdForUpdateAsync(userId, ct);
+        var scopeId = topUpId.HasValue
+            ? (await topUps.GetByIdAsync(topUpId.Value, ct))?.ScopeId
+            : requestedScopeId;
+        if (string.IsNullOrEmpty(scopeId))
+        {
+            return Result<NoorWithdrawalId>.Failure(
+                NoorWithdrawalErrors.TopUpInvalid, NoorWithdrawalErrorCodes.TopUpInvalid);
+        }
+
+        var wallet = await wallets.GetByUserIdForUpdateAsync(userId, scopeId, ct);
         if (wallet is null || wallet.WithdrawableBalance < amountNoor)
         {
             return Result<NoorWithdrawalId>.Failure(
                 NoorWithdrawalErrors.InsufficientBalance, NoorWithdrawalErrorCodes.InsufficientBalance);
         }
 
-        var account = await accounts.GetByUserIdAsync(userId, ct);
-        var systemAccount = await walletProvisioning.GetOrCreateSystemAccountAsync(ct);
+        var account = await accounts.GetByUserIdAsync(userId, scopeId, ct);
+        var systemAccount = await walletProvisioning.GetOrCreateSystemAccountAsync(scopeId, ct);
         var transactionId = Guid.NewGuid();
 
         var withdrawal = NoorWithdrawal.Create(
@@ -269,7 +285,8 @@ public sealed class NoorWithdrawalService(
             request.BeneficiaryIban,
             request.Description,
             adminUserId,
-            transactionId);
+            transactionId,
+            scopeId);
 
         // فقط نور عادی کم می‌شود؛ نور هدیه هرگز قابل خروج نیست (E3).
         await posting.PostDebitAsync(
@@ -333,7 +350,10 @@ public sealed class NoorWithdrawalService(
             };
         }
 
-        var response = await store.GetResponseAsync(result.Value, ct);
+        var withdrawal = await store.FindAsync(result.Value, ct);
+        var response = withdrawal is null
+            ? null
+            : await store.GetResponseAsync(result.Value, withdrawal.ScopeId, ct);
         return Result<NoorWithdrawalResponse>.Success(response!);
     }
 

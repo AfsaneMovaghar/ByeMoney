@@ -393,8 +393,8 @@ public sealed class AdminCartOrderHttpPostgresTests : IAsyncLifetime
         var manageAdmin = User.CreateInitial("admin-order-manage-admin");
         var viewRole = Role.Create("PurchasesViewOnly");
         var manageRole = Role.Create("CoursesManageOnly");
-        var account = Account.CreateUserAccount(beneficiary.Id);
-        var wallet = Wallet.Create(account.Id, beneficiary.Id);
+        var account = Account.CreateUserAccount(beneficiary.Id, FinancialScope.TarheElahi);
+        var wallet = Wallet.Create(account.Id, beneficiary.Id, FinancialScope.TarheElahi);
         wallet.Credit(StartingBalance, LedgerBalanceType.Regular);
 
         await using var db = new ApplicationDbContext(_options);

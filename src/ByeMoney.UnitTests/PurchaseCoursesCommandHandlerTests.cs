@@ -77,8 +77,8 @@ public class PurchaseCoursesCommandHandlerTests
             Available = true,
             Source = ProductCatalogSources.TarhElahi
         };
-        var account = Account.CreateUserAccount(userId);
-        var wallet = WalletEntity.Create(account.Id, userId);
+        var account = Account.CreateUserAccount(userId, FinancialScope.TarheElahi);
+        var wallet = WalletEntity.Create(account.Id, userId, FinancialScope.TarheElahi);
         CoursePurchase? savedPurchase = null;
 
         _userRepoMock.Setup(r => r.GetByIdAsync(userId, It.IsAny<CancellationToken>())).ReturnsAsync(user);
@@ -103,7 +103,7 @@ public class PurchaseCoursesCommandHandlerTests
         savedPurchase.Snapshot.ReferenceRialPerNoorAtPurchaseTime.Should().Be(expectedRate);
         savedPurchase.Snapshot.PriceInRialAtPurchaseTime.Should().BeNull();
         savedPurchase.Snapshot.PriceInNoorAtPurchaseTime.Should().Be(0m);
-        _walletProvisioningMock.Verify(x => x.GetOrCreateUserWalletAsync(It.IsAny<UserId>(), It.IsAny<CancellationToken>()), Times.Never);
+        _walletProvisioningMock.Verify(x => x.GetOrCreateUserWalletAsync(It.IsAny<UserId>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
         _walletRepoMock.Verify(x => x.Update(It.IsAny<WalletEntity>()), Times.Never);
         _ledgerRepoMock.Verify(x => x.AddAsync(It.IsAny<LedgerEntry>(), It.IsAny<CancellationToken>()), Times.Never);
         _unitOfWorkMock.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
@@ -148,9 +148,9 @@ public class PurchaseCoursesCommandHandlerTests
             Source = ProductCatalogSources.TarhElahi
         };
 
-        var userAccount = Account.CreateUserAccount(userId);
-        var systemAccount = Account.CreateSystemAccount();
-        var wallet = WalletEntity.Create(userAccount.Id, userId);
+        var userAccount = Account.CreateUserAccount(userId, FinancialScope.TarheElahi);
+        var systemAccount = Account.CreateSystemAccount(FinancialScope.TarheElahi);
+        var wallet = WalletEntity.Create(userAccount.Id, userId, FinancialScope.TarheElahi);
         wallet.ApplyCredit(10_000m);
 
         _userRepoMock.Setup(r => r.GetByIdAsync(userId, It.IsAny<CancellationToken>())).ReturnsAsync(user);
@@ -158,11 +158,11 @@ public class PurchaseCoursesCommandHandlerTests
         _tarhElahiClientMock.Setup(c => c.GetCourseAsync("course-2", It.IsAny<CancellationToken>())).ReturnsAsync(course2);
 
         _walletProvisioningMock
-            .Setup(s => s.GetOrCreateUserWalletAsync(userId, It.IsAny<CancellationToken>()))
+            .Setup(s => s.GetOrCreateUserWalletAsync(userId, It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ProvisionedUserWallet(userAccount, wallet));
 
         _walletProvisioningMock
-            .Setup(s => s.GetOrCreateSystemAccountAsync(It.IsAny<CancellationToken>()))
+            .Setup(s => s.GetOrCreateSystemAccountAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(systemAccount);
 
         var savedLedgerEntries = new List<LedgerEntry>();
@@ -243,20 +243,20 @@ public class PurchaseCoursesCommandHandlerTests
             Source = ProductCatalogSources.TarhElahi
         };
 
-        var userAccount = Account.CreateUserAccount(userId);
-        var systemAccount = Account.CreateSystemAccount();
-        var wallet = WalletEntity.Create(userAccount.Id, userId);
+        var userAccount = Account.CreateUserAccount(userId, FinancialScope.TarheElahi);
+        var systemAccount = Account.CreateSystemAccount(FinancialScope.TarheElahi);
+        var wallet = WalletEntity.Create(userAccount.Id, userId, FinancialScope.TarheElahi);
         wallet.ApplyCredit(2_000m);
 
         _userRepoMock.Setup(r => r.GetByIdAsync(userId, It.IsAny<CancellationToken>())).ReturnsAsync(user);
         _tarhElahiClientMock.Setup(c => c.GetCourseAsync("single-course", It.IsAny<CancellationToken>())).ReturnsAsync(course);
 
         _walletProvisioningMock
-            .Setup(s => s.GetOrCreateUserWalletAsync(userId, It.IsAny<CancellationToken>()))
+            .Setup(s => s.GetOrCreateUserWalletAsync(userId, It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ProvisionedUserWallet(userAccount, wallet));
 
         _walletProvisioningMock
-            .Setup(s => s.GetOrCreateSystemAccountAsync(It.IsAny<CancellationToken>()))
+            .Setup(s => s.GetOrCreateSystemAccountAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(systemAccount);
 
         var savedLedgerEntries = new List<LedgerEntry>();
@@ -308,20 +308,20 @@ public class PurchaseCoursesCommandHandlerTests
             Source = ProductCatalogSources.TarhElahi
         };
 
-        var userAccount = Account.CreateUserAccount(userId);
-        var systemAccount = Account.CreateSystemAccount();
-        var wallet = WalletEntity.Create(userAccount.Id, userId);
+        var userAccount = Account.CreateUserAccount(userId, FinancialScope.TarheElahi);
+        var systemAccount = Account.CreateSystemAccount(FinancialScope.TarheElahi);
+        var wallet = WalletEntity.Create(userAccount.Id, userId, FinancialScope.TarheElahi);
         wallet.ApplyCredit(2_000m);
 
         _userRepoMock.Setup(r => r.GetByIdAsync(userId, It.IsAny<CancellationToken>())).ReturnsAsync(user);
         _tarhElahiClientMock.Setup(c => c.GetCourseAsync("duplicate-course", It.IsAny<CancellationToken>())).ReturnsAsync(course);
 
         _walletProvisioningMock
-            .Setup(s => s.GetOrCreateUserWalletAsync(userId, It.IsAny<CancellationToken>()))
+            .Setup(s => s.GetOrCreateUserWalletAsync(userId, It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ProvisionedUserWallet(userAccount, wallet));
 
         _walletProvisioningMock
-            .Setup(s => s.GetOrCreateSystemAccountAsync(It.IsAny<CancellationToken>()))
+            .Setup(s => s.GetOrCreateSystemAccountAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(systemAccount);
 
         // Simulate database unique constraint violation on SaveChangesAsync

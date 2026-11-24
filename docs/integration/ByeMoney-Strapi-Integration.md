@@ -191,7 +191,7 @@ source/type قرارداد فعلی‌اند؛ slug برای مسیر نمایش
   `{"transactionId":"guid","type":"Purchase","amountNoor":-50,"giftAmountNoor":-30,"createdAtUtc":"…","orderId":"cart:guid"|null,"topUpId":"guid"|null}`.
   `type` یکی از `TopUp|Purchase|Refund|AdminGrant|WelcomeGift|Withdrawal|WithdrawalReversal` است. `amountNoor` با علامت (مثبت واریز، منفی برداشت) و `giftAmountNoor` سهم هدیه از همان مبلغ است. `orderId` با قالب I11-T فقط برای خرید سبد و برگشت لغو فیزیکی پر می‌شود و `topUpId` فقط برای شارژ. جمع `amountNoor` همهٔ صفحات برابر `balance` و جمع `giftAmountNoor` برابر `giftBalance` است.
 
-**الزام پیش از دیپلوی (D05، ۲۰۲۶-۱۱-۲۳):** موجودی و گردش به ازای scope سایت خوانده می‌شوند. فاز اول فقط `TARHE_ELAHI` است و شکل فعلی همین دو مسیر برای همان scope معتبر می‌ماند؛ موجودی scope دوم داخل همین پاسخ قاطی نمی‌شود. خواندن دسته‌ای ادمین (I04-B) همین قاعده را دارد. شکل درخواست برای scope دوم در فاز فروشگاه تعیین می‌شود و اینجا فیلد تازه تعریف نمی‌شود.
+**پیاده‌سازی (۲۰۲۶-۱۱-۲۴):** موجودی، گردش و خواندن دسته‌ای ادمین (I04-B) فقط scope طرح الهی (`TARHE_ELAHI`) را می‌بینند. رکورد scope دیگر در خواندن تکی پیدا نمی‌شود و در فهرست نمی‌آید. شکل درخواست و پاسخ عوض نشده و فیلد تازه‌ای برای scope دوم تعریف نشده است.
 
 ## I05 — قیمت، نرخ، تخفیف و ارسال
 
@@ -364,7 +364,7 @@ Pending → Confirmed یا Rejected در مدل پایه موجود است. اس
 
 در فلو دوره، قبل از پرداخت یک normal pending order در Strapi ایجاد نشود. این منع مربوط به سفارش فروش نهایی است؛ TopUp و پیش‌فاکتور/رزرو کنترل‌شده کالا مفاهیم جدا هستند. رزرو فیزیکی در I10 تعریف شود تا lifecycle قدیمی پیش از موعد موجودی را کم نکند.
 
-Snapshot هدف: ProductSource، ExternalItemId، ExternalParentId، ItemType، Title، sellerId، Quantity، قیمت پایه/نهایی نور، تخفیف/کوپن، ارسال، PriceNoor و PurchasedAt. کد فعلی فقط `ProductSource` را دارد (مقدار `tarh_elahi`). `sellerId` متنی با مقدار فاز اول `TARHE_ELAHI` الزام پیش از دیپلوی است (D08) و حساب درآمد نیست. `scope_id` هم طبق D05 پیش از دیپلوی روی سبد و خرید می‌آید و در DTO فعلی نیست. قیمت ریالی و نرخ تبدیل محاسباتی در خریدهای جدید ثبت نمی‌شوند؛ ستون‌های تاریخی برای خریدهای قدیمی باقی می‌مانند. طبق مصوبهٔ ۲۰۲۶-۱۰-۱۹، `ReferenceRialPerNoorAtPurchaseTime` مستقل و nullable در Snapshot خرید بای‌مانی ثبت می‌شود؛ منبع آن تنظیم `ConversionRate:RialToNoor` بای‌مانی و واحد آن ریال به‌ازای نور است. این مقدار صرفاً اطلاعاتی است و از Strapi یا درخواست کاربر دریافت نمی‌شود؛ در مبلغ نوری، Wallet، Ledger یا نرخ Snapshot شارژ اثر ندارد. نبود نرخ معتبر و سوابق پیش از migration مقدار null دارند. خواندن این نرخ در رسید I11-P موجود است؛ payload تحویل آن را مصرف نمی‌کند. مدل و قرارداد سبد دوره در I09-C مشخص‌اند؛ تعمیم به فصل/کالا هنوز قرارداد کامل خرید نیست.
+Snapshot هدف: ProductSource، ExternalItemId، ExternalParentId، ItemType، Title، sellerId، Quantity، قیمت پایه/نهایی نور، تخفیف/کوپن، ارسال، PriceNoor و PurchasedAt. `ProductSource` همان منبع کاتالوگ است (مقدار `tarh_elahi`). `sellerId` متنی روی Snapshot هر دو خرید ذخیره می‌شود و مقدارش همیشه `TARHE_ELAHI` است؛ حساب درآمد نیست و در DTO عمومی (رسید و پاسخ کیف) نیست. `scope_id` روی سبد و خرید ذخیره می‌شود و در همان DTOها نیست. قیمت ریالی و نرخ تبدیل محاسباتی در خریدهای جدید ثبت نمی‌شوند؛ ستون‌های تاریخی برای خریدهای قدیمی باقی می‌مانند. طبق مصوبهٔ ۲۰۲۶-۱۰-۱۹، `ReferenceRialPerNoorAtPurchaseTime` مستقل و nullable در Snapshot خرید بای‌مانی ثبت می‌شود؛ منبع آن تنظیم `ConversionRate:RialToNoor` بای‌مانی و واحد آن ریال به‌ازای نور است. این مقدار صرفاً اطلاعاتی است و از Strapi یا درخواست کاربر دریافت نمی‌شود؛ در مبلغ نوری، Wallet، Ledger یا نرخ Snapshot شارژ اثر ندارد. نبود نرخ معتبر و سوابق پیش از migration مقدار null دارند. خواندن این نرخ در رسید I11-P موجود است؛ payload تحویل آن را مصرف نمی‌کند. مدل و قرارداد سبد دوره در I09-C مشخص‌اند؛ تعمیم به فصل/کالا هنوز قرارداد کامل خرید نیست.
 
 ### تحویل موجود تک‌دوره
 
@@ -734,16 +734,16 @@ Legacy فقط گزارش: `GET /api/integrations/byemoney/v1/legacy-sales` در 
 
 | مسیر | مجوز | ورودی | پاسخ |
 |---|---|---|---|
-| `GET /api/admin/order-settlements/preview` | `Purchases.View` | `page` (پیش‌فرض ۱)، `pageSize` (۱ تا ۱۰۰، پیش‌فرض ۲۰) | `{orderCount,totalRegularNetAmountInNoor,totalGiftNetAmountInNoor,totalNetAmountInNoor,previewToken,orders:{items[],page,pageSize,totalCount}}`. سفارش‌های قابل تسویهٔ تسویه‌نشده، قدیمی‌ترین اول. تعداد، سه جمع و `previewToken` روی کل فهرست‌اند، نه فقط همین صفحه. `previewToken` رشتهٔ ۶۴ نویسه‌ای hex و اثر انگشت شناسه و مبلغ خالص همهٔ سفارش‌هاست؛ فرانت آن را تفسیر نمی‌کند |
+| `GET /api/admin/order-settlements/preview` | `Purchases.View` | `page` (پیش‌فرض ۱)، `pageSize` (۱ تا ۱۰۰، پیش‌فرض ۲۰) | `{orderCount,totalRegularNetAmountInNoor,totalGiftNetAmountInNoor,totalNetAmountInNoor,previewToken,orders:{items[],page,pageSize,totalCount}}`. سفارش‌های قابل تسویهٔ تسویه‌نشده، قدیمی‌ترین اول. تعداد، سه جمع و `previewToken` روی کل فهرست‌اند، نه فقط همین صفحه. `previewToken` رشتهٔ ۶۴ نویسه‌ای hex و اثر انگشت scope به‌علاوهٔ شناسه و مبلغ خالص همهٔ سفارش‌هاست؛ فرانت آن را تفسیر نمی‌کند |
 | `POST /api/admin/order-settlements` | `Purchases.Settle` | `{title?,note?,previewToken}`. عنوان حداکثر ۲۰۰ و یادداشت حداکثر ۱۰۰۰ نویسه است؛ `previewToken` همان مقدار پیش‌نمایشی است که ادمین تأیید کرده | `201` با DTO دوره. خطاهای `409` به شکل `{code,error}`: `SETTLEMENT_EMPTY` (سفارش قابل تسویه‌ای نیست)، `SETTLEMENT_PREVIEW_CHANGED` (فهرست لحظهٔ بستن با پیش‌نمایش یکی نیست، حتی اگر تعداد و جمع یکی باشد)، `SETTLEMENT_ALREADY_SETTLED` (بستن هم‌زمان ادمین دیگر). در هر سه حالت فرانت باید پیش‌نمایش را دوباره بگیرد. ورودی نامعتبر `400` است |
 | `GET /api/admin/order-settlements` | `Purchases.View` | `page`، `pageSize` | `{items[],page,pageSize,totalCount}` با جدیدترین دوره اول |
 | `GET /api/admin/order-settlements/{periodId}/orders` | `Purchases.View` | `page`، `pageSize` | `{items[],page,pageSize,totalCount}` با Snapshot لحظهٔ بستن. دورهٔ ناموجود `404` است |
 
-- **DTO دوره:** `periodId,title,note,orderCount,totalRegularNetAmountInNoor,totalGiftNetAmountInNoor,totalNetAmountInNoor,closedByExternalUserId,closedAtUtc`. `closedByExternalUserId` همان `documentId` ادمین بستن‌کننده (I02) است.
+- **DTO دوره:** `periodId,title,note,orderCount,totalRegularNetAmountInNoor,totalGiftNetAmountInNoor,totalNetAmountInNoor,closedByExternalUserId,closedAtUtc,scopeId`. `closedByExternalUserId` همان `documentId` ادمین بستن‌کننده (I02) است. `scopeId` در فاز اول `TARHE_ELAHI` است.
 - **DTO سفارش (پیش‌نمایش و دوره):** `orderId,sourceType,buyerExternalUserId,orderCreatedAtUtc,regularNetAmountInNoor,giftNetAmountInNoor,netAmountInNoor`. جزئیات زندهٔ سفارش از `GET /api/admin/orders/{orderId}` خوانده می‌شود.
 - **مبلغ خالص:** `netAmountInNoor` (جمع کل) برابر `finalAmountInNoor` منهای `refundedAmountInNoor` (همان تعریف I11-T) و همیشه برابر `regularNetAmountInNoor + giftNetAmountInNoor` است. نور هدیه پشتوانهٔ ریالی ندارد؛ کدام عدد مبنای انتقال دستی باشد با ادمین است (D10).
 - **یکتایی:** هر `orderId` کلید اصلی جدول سفارش‌های تسویه‌شده است. بستن هم‌زمان دو ادمین فقط یک دوره می‌سازد و درخواست دوم بدون ثبت هیچ ردیفی `409` می‌گیرد. دورهٔ بسته‌شده ویرایش یا حذف نمی‌شود.
-- **scope پیش از دیپلوی (D10، ۲۰۲۶-۱۱-۲۳):** دوره به یک scope تعلق دارد و مدل سه‌عددی بالا عوض نمی‌شود. فاز اول فقط `TARHE_ELAHI` است. DTO پیاده‌شدهٔ همین بخش هنوز فیلد scope ندارد؛ پیش از دیپلوی به قرارداد هدف اضافه می‌شود و اینجا فیلد درخواست تعریف نمی‌شود.
+- **scope (۲۰۲۶-۱۱-۲۴):** دوره به یک scope تعلق دارد و مدل سه‌عددی بالا عوض نمی‌شود. فاز اول فقط `TARHE_ELAHI` است. `scopeId` فیلد آخر DTO دوره است و اثر انگشت پیش‌نمایش هم scope را شامل می‌شود. فیلد درخواست اضافه نشده است.
 
 ### I11-W — خروج نور توسط ادمین — پیاده‌سازی ۲۰۲۶-۱۱-۰۸
 

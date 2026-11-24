@@ -3,6 +3,7 @@ using ByeMoney.Application.Modules.Purchases.History.DTOs;
 using ByeMoney.Application.Modules.Purchases.Settlements.DTOs;
 using ByeMoney.Application.Modules.Purchases.Settlements.Services;
 using ByeMoney.Application.Resources;
+using ByeMoney.Domain.Modules.Wallet;
 using MediatR;
 
 namespace ByeMoney.Application.Modules.Purchases.Queries.GetOrderSettlementPreview;
@@ -17,7 +18,7 @@ public sealed class GetOrderSettlementPreviewQueryHandler(
         _ = currentUser.UserId
             ?? throw new UnauthorizedAccessException(ApplicationErrors.Wallet_UserNotAuthenticated);
 
-        var orders = await candidates.GetUnsettledAsync(ct);
+        var orders = await candidates.GetUnsettledAsync(FinancialScope.TarheElahi, ct);
         var pageItems = orders
             .Skip((request.Page - 1) * request.PageSize)
             .Take(request.PageSize)
@@ -28,7 +29,7 @@ public sealed class GetOrderSettlementPreviewQueryHandler(
             orders.Sum(order => order.RegularNetAmountInNoor),
             orders.Sum(order => order.GiftNetAmountInNoor),
             orders.Sum(order => order.NetAmountInNoor),
-            OrderSettlementPreviewToken.Compute(orders),
+            OrderSettlementPreviewToken.Compute(FinancialScope.TarheElahi, orders),
             new PurchasePage<SettlementOrderResponse>(pageItems, request.Page, request.PageSize, orders.Count));
     }
 }

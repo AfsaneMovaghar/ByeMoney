@@ -48,10 +48,9 @@ public sealed class PurchaseHistoryTests
     public void FreePurchaseHasPaidReceiptWithoutLedgerDebit()
     {
         var buyer = UserId.New();
-        var cart = Cart.Create(Guid.NewGuid(), buyer.Value, "buyer", ["course"], "FREE");
+        var cart = Cart.Create(Guid.NewGuid(), buyer.Value, "buyer", ["course"], "FREE", FinancialScope.TarheElahi);
         cart.SetQuote([new CartQuoteItem("course", "دوره رایگان", 100, 0, 100, 0)]);
-        var purchase = CoursePurchase.Create(buyer,
-            ProductSnapshot.Create("course", "دوره رایگان", 0, isFree: true), isFree: true);
+        var purchase = CoursePurchase.Create(buyer, ProductSnapshot.Create("course", "دوره رایگان", 0, isFree: true), FinancialScope.TarheElahi, isFree: true);
         purchase.AttachToCart(cart.Id);
         purchase.MarkDebited(cart.Id);
         cart.MarkPaid();
@@ -122,7 +121,7 @@ public sealed class PurchaseHistoryTests
         var current = new Mock<ICurrentUserService>();
         current.SetupGet(x => x.UserId).Returns(owner);
         var reader = new Mock<IPurchaseHistoryReader>(MockBehavior.Strict);
-        reader.Setup(x => x.GetReceiptAsync(purchaseId, owner, It.IsAny<CancellationToken>()))
+        reader.Setup(x => x.GetReceiptAsync(purchaseId, owner, It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((PurchaseReceiptData?)null);
         var handler = new GetMyCoursePurchaseReceiptQueryHandler(reader.Object, current.Object);
 
@@ -140,7 +139,7 @@ public sealed class PurchaseHistoryTests
         var current = new Mock<ICurrentUserService>();
         current.SetupGet(x => x.UserId).Returns(adminId);
         var reader = new Mock<IPurchaseHistoryReader>(MockBehavior.Strict);
-        reader.Setup(x => x.GetAdminReceiptAsync(purchase.Id.Value, It.IsAny<CancellationToken>()))
+        reader.Setup(x => x.GetAdminReceiptAsync(purchase.Id.Value, It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new PurchaseReceiptData(purchase, null));
         var handler = new GetAdminCoursePurchaseReceiptQueryHandler(reader.Object, current.Object);
 
@@ -159,7 +158,7 @@ public sealed class PurchaseHistoryTests
         var current = new Mock<ICurrentUserService>();
         current.SetupGet(x => x.UserId).Returns(Guid.NewGuid());
         var reader = new Mock<IPurchaseHistoryReader>(MockBehavior.Strict);
-        reader.Setup(x => x.GetAdminReceiptAsync(purchaseId, It.IsAny<CancellationToken>()))
+        reader.Setup(x => x.GetAdminReceiptAsync(purchaseId, It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((PurchaseReceiptData?)null);
         var handler = new GetAdminCoursePurchaseReceiptQueryHandler(reader.Object, current.Object);
 
@@ -212,9 +211,8 @@ public sealed class PurchaseHistoryTests
 
     private static CoursePurchase PaidPurchase(decimal amount, decimal? rate)
     {
-        var purchase = CoursePurchase.Create(UserId.New(),
-            ProductSnapshot.Create("course", "عنوان تاریخی دوره", amount,
-                referenceRialPerNoorAtPurchaseTime: rate));
+        var purchase = CoursePurchase.Create(UserId.New(), ProductSnapshot.Create("course", "عنوان تاریخی دوره", amount,
+                referenceRialPerNoorAtPurchaseTime: rate), FinancialScope.TarheElahi);
         purchase.MarkDebited(Guid.NewGuid());
         return purchase;
     }
