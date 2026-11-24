@@ -22,7 +22,10 @@ public sealed class ShippingCollectionClient(HttpClient http) : IShippingCollect
 
             var payload = await response.Content.ReadFromJsonAsync<CollectionBody>(ct);
             return ShippingCollectionTypes.IsAllowed(payload?.CollectionType, out var normalized)
-                ? ShippingCollectionRead.Found(normalized)
+                ? ShippingCollectionRead.Found(
+                    normalized,
+                    ShippingDispatchCodes.NormalizeCourier(payload?.CourierCode),
+                    ShippingDispatchCodes.NormalizeService(payload?.ServiceType))
                 : ShippingCollectionRead.Unavailable();
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
@@ -35,5 +38,5 @@ public sealed class ShippingCollectionClient(HttpClient http) : IShippingCollect
         }
     }
 
-    private sealed record CollectionBody(string? CollectionType);
+    private sealed record CollectionBody(string? CollectionType, string? CourierCode, string? ServiceType);
 }

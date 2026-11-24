@@ -45,7 +45,9 @@ public sealed record ShipmentCreateRequest(
     ShipmentParcelDetails Parcel,
     string? Remark = null,
     string? OriginId = null,
-    string? CollectionType = null);
+    string? CollectionType = null,
+    string? CourierCode = null,
+    string? ServiceType = null);
 
 public enum ShipmentCreateOutcome
 {

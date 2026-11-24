@@ -21,8 +21,35 @@ public sealed class ShippingCollectionClientTests
 
         result.Status.Should().Be(ShippingCollectionStatus.Found);
         result.CollectionType.Should().Be(collectionType);
+        result.CourierCode.Should().Be(ShippingDispatchCodes.DefaultCourier);
+        result.ServiceType.Should().Be(ShippingDispatchCodes.DefaultServiceType);
         handler.Path.Should().Be("/api/integrations/byemoney/v1/shipping/collection-type");
         handler.Method.Should().Be(HttpMethod.Get);
+    }
+
+    [Fact]
+    public async Task BlankCourierAndServiceFallBackWithoutFailingTheRead()
+    {
+        var client = Client(new RecordingHandler(
+            """{"collectionType":"pick_up","courierCode":" ","serviceType":"bad service"}"""));
+
+        var result = await client.ReadAsync(CancellationToken.None);
+
+        result.Status.Should().Be(ShippingCollectionStatus.Found);
+        result.CourierCode.Should().Be("IR_POST");
+        result.ServiceType.Should().Be("EXPRESS");
+    }
+
+    [Fact]
+    public async Task ReadsCourierAndServiceFromTheSameResponse()
+    {
+        var client = Client(new RecordingHandler(
+            """{"collectionType":"courier_drop_off","courierCode":"chapar","serviceType":"PRIORITY"}"""));
+
+        var result = await client.ReadAsync(CancellationToken.None);
+
+        result.CourierCode.Should().Be("CHAPAR");
+        result.ServiceType.Should().Be("PRIORITY");
     }
 
     [Fact]

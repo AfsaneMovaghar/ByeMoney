@@ -31,7 +31,7 @@ public static class CartHttpResults
         var body = new CartErrorResponse(
             result.ErrorCode ?? CartErrorCodes.Invalid,
             result.ErrorMessage!,
-            (result as ICartStockFailure)?.LineError);
+            (result as ICartStockFailure)?.LineError ?? (result as ICartConflictLineFailure)?.LineError);
 
         return new ObjectResult(body) { StatusCode = statusCode };
     }

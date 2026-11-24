@@ -218,32 +218,41 @@ public sealed class CartPricingClient(HttpClient http) : ICartPricingClient
     {
         if (response.StatusCode == HttpStatusCode.Conflict)
         {
-            var lineError = await ReadStockLineErrorAsync(response, ct);
-            if (lineError is not null)
+            var body = await ReadErrorBodyAsync(response, ct);
+            var stock = StockLine(body?.LineError);
+            if (stock is not null)
             {
-                return CartStockFailure<T>.Create(lineError);
+                return CartStockFailure<T>.Create(stock);
+            }
+
+            var parcel = ParcelGapLine(body?.LineError);
+            if (parcel is not null && !string.IsNullOrWhiteSpace(body?.Error))
+            {
+                return CartConflictLineFailure<T>.Create(body!.Error!, parcel);
             }
         }
 
         return Failure<T>(response.StatusCode);
     }
 
-    /// <summary>
-    /// فقط کمبود موجودی قلم به خطای اختصاصی نگاشت می‌شود؛ بدنهٔ ناقص یا دلیل دیگر همان تعارض عمومی می‌ماند.
-    /// </summary>
-    private static async Task<CartLineError?> ReadStockLineErrorAsync(HttpResponseMessage response, CancellationToken ct)
+    private static async Task<TarhElahiCartErrorResponse?> ReadErrorBodyAsync(
+        HttpResponseMessage response, CancellationToken ct)
     {
-        TarhElahiCartErrorResponse? body;
         try
         {
-            body = await response.Content.ReadFromJsonAsync<TarhElahiCartErrorResponse>(ct);
+            return await response.Content.ReadFromJsonAsync<TarhElahiCartErrorResponse>(ct);
         }
         catch (JsonException)
         {
             return null;
         }
+    }
 
-        var line = body?.LineError;
+    /// <summary>
+    /// فقط کمبود موجودی قلم به خطای اختصاصی نگاشت می‌شود؛ بدنهٔ ناقص یا دلیل دیگر همان تعارض عمومی می‌ماند.
+    /// </summary>
+    private static CartLineError? StockLine(TarhElahiCartLineError? line)
+    {
         if (line is null || string.IsNullOrWhiteSpace(line.ExternalId) || line.AvailableQuantity < 0)
         {
             return null;
@@ -254,6 +263,24 @@ public sealed class CartPricingClient(HttpClient http) : ICartPricingClient
         return isStockReason
             ? new CartLineError(line.ExternalId, line.Reason!, line.AvailableQuantity)
             : null;
+    }
+
+    /// <summary>
+    /// نبود جعبه یا وزن همان تعارض سبد می‌ماند و به خطای موجودی تبدیل نمی‌شود.
+    /// </summary>
+    private static CartLineError? ParcelGapLine(TarhElahiCartLineError? line)
+    {
+        if (line is null ||
+            string.IsNullOrWhiteSpace(line.ExternalId) ||
+            string.IsNullOrWhiteSpace(line.Type) ||
+            line.Quantity is not int quantity ||
+            quantity < 1 ||
+            !CartParcelReasons.IsParcelGap(line.Reason))
+        {
+            return null;
+        }
+
+        return new CartLineError(line.ExternalId, line.Reason!, Type: line.Type, Quantity: quantity);
     }
 
     private static Result<T> Failure<T>(HttpStatusCode status) => status switch

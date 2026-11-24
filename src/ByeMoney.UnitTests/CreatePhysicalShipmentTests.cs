@@ -99,6 +99,28 @@ public sealed class CreatePhysicalShipmentTests
             .Handle(new CreatePhysicalShipmentCommand(purchase.CartId), CancellationToken.None);
 
         client.LastRequest!.CollectionType.Should().Be("postex_drop_off");
+        client.LastRequest.CourierCode.Should().Be("IR_POST");
+        client.LastRequest.ServiceType.Should().Be("EXPRESS");
+    }
+
+    [Fact]
+    public async Task UsesCourierAndServiceFromStrapiAndFallsBackWhenTheyAreBlank()
+    {
+        var purchase = CreatePreparing();
+        var store = new FakeDeliveryStore(purchase, SampleAddress());
+        var repository = new FakeRepository(purchase);
+        var client = new FakeShipmentClient(PhysicalProductPurchase.PostexProvider)
+        {
+            Result = new ShipmentCreateResult(ShipmentCreateOutcome.Created, "1", "IR-1")
+        };
+
+        await new CreatePhysicalShipmentCommandHandler(
+            repository, store, [client], repository,
+            collectionTypes: new FixedCollection("pick_up", "chapar", " "))
+            .Handle(new CreatePhysicalShipmentCommand(purchase.CartId), CancellationToken.None);
+
+        client.LastRequest!.CourierCode.Should().Be("CHAPAR");
+        client.LastRequest.ServiceType.Should().Be("EXPRESS");
     }
 
     [Fact]
@@ -655,12 +677,13 @@ public sealed class CreatePhysicalShipmentTests
             Task.FromResult(ReadResult);
     }
 
-    private sealed class FixedCollection(string? collectionType) : IShippingCollectionReader
+    private sealed class FixedCollection(string? collectionType, string? courier = null, string? service = null)
+        : IShippingCollectionReader
     {
         public Task<ShippingCollectionRead> ReadAsync(CancellationToken ct) =>
             Task.FromResult(collectionType is null
                 ? ShippingCollectionRead.Unavailable()
-                : ShippingCollectionRead.Found(collectionType));
+                : ShippingCollectionRead.Found(collectionType, courier, service));
     }
 
     private sealed class FixedOriginCity(int? cityId) : IShippingOriginCityReader

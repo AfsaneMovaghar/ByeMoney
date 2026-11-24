@@ -167,12 +167,38 @@ public sealed class PostexShipmentCityCodeTests
         parcel.GetProperty("courier").GetProperty("name").GetString().Should().Be("IR_POST");
         parcel.GetProperty("courier").GetProperty("service_type").GetString().Should().Be("EXPRESS");
         parcel.GetProperty("courier").GetProperty("payment_type").GetString().Should().Be("SENDER");
-        parcel.TryGetProperty("added_service", out _).Should().BeFalse();
+        var added = parcel.GetProperty("added_service");
+        added.GetProperty("request_label").GetBoolean().Should().BeFalse();
+        added.GetProperty("request_packaging").GetBoolean().Should().BeFalse();
+        added.GetProperty("request_sms_notification").GetBoolean().Should().BeFalse();
         parcel.GetProperty("from").GetProperty("location").GetProperty("lat").GetDouble().Should().Be(36.92);
         parcel.GetProperty("from").GetProperty("location").GetProperty("lon").GetDouble().Should().Be(50.65);
         body.RootElement.GetProperty("collection_type").GetString().Should().Be("pick_up");
         parcel.GetProperty("ready_to_accept").GetBoolean().Should().BeTrue();
         parcel.GetProperty("custom_order_no").GetString().Should().Be("BM-1");
+    }
+
+    [Theory]
+    [InlineData(null, null, "IR_POST", "EXPRESS")]
+    [InlineData(" ", "bad service", "IR_POST", "EXPRESS")]
+    [InlineData("chapar", "priority", "CHAPAR", "PRIORITY")]
+    public async Task BulkBodyUsesRequestCourierAndExplicitAddedService(
+        string? courier, string? service, string expectedCourier, string expectedService)
+    {
+        var http = new RecordingHandler();
+        var client = Client(http, new FakeCityCodeReader { Result = DeliveryCityCodeRead.Found(301) });
+
+        await client.CreateOrGetParcelAsync(
+            Request("city-mashhad") with { CourierCode = courier, ServiceType = service },
+            CancellationToken.None);
+
+        using var body = JsonDocument.Parse(http.LastPostBody!);
+        var parcel = body.RootElement.GetProperty("parcels").EnumerateArray().Single();
+        parcel.GetProperty("courier").GetProperty("name").GetString().Should().Be(expectedCourier);
+        parcel.GetProperty("courier").GetProperty("service_type").GetString().Should().Be(expectedService);
+        parcel.GetProperty("added_service").GetProperty("request_label").GetBoolean().Should().BeFalse();
+        parcel.GetProperty("added_service").GetProperty("request_packaging").GetBoolean().Should().BeFalse();
+        parcel.GetProperty("added_service").GetProperty("request_sms_notification").GetBoolean().Should().BeFalse();
     }
 
     [Fact]

@@ -2,6 +2,12 @@
 
 بازبینی و فشرده‌سازی: ۲۰۲۶-۱۱-۰۷. این گزارش فقط نتیجه و محدودیت پذیرش را نگه می‌دارد. شمارش آزمون‌های اجراهای مختلف با هم جمع نمی‌شود. آزمون محلی، ادغام و انتشار سه شاهد مستقل‌اند. کار باقی‌مانده فقط در [TASKS](../../TASKS.md) و [HOTFIXES](../../HOTFIXES.md) است. نام آزمون‌ها، SHA و شرح اجرا در Git است. ثبت تازه فقط تاریخ، نسخه، محیط، دامنه، نتیجه و محدودیت داشته باشد.
 
+## SHIP-FIX-4 — S1-08 و S1-05 — ۲۴ نوامبر ۲۰۲۶
+
+- دامنه: استرپی و بای‌مانی. فرانت، دفترکل، کیف پول و مهاجرت بای‌مانی عوض نشدند. دو فیلد `courierCode` و `serviceType` به تنظیم ارسال استرپی اضافه شد؛ استعلام و پاسخ `collection-type` از همان تنظیم می‌خوانند. ساخت مرسوله کوریر و سرویس را فقط از همین پاسخ می‌گیرد و `added_service` را با سه پرچم `false` می‌فرستد. نبود جعبه یا وزن همان ۴۰۹ و `CART_CONFLICT` است و `lineError` قلم را دارد. `ALREADY_OWNED` و `SALE_STOPPED` همچنان `CART_CONFLICT` کلی می‌مانند. پستکس زنده صدا زده نشد.
+- نتیجه: Jest در `backend/` برای `shippingCollection`، `shippingCollectionType`، `byeMoneySettingsService`، `cartShipping`، `postexShippingQuote`، `physicalCartQuote`، `physicalCartPrepare` و `shippingCmLabels` — ۸ مجموعه، ۷۹ موفق از ۷۹. `dotnet test` فیلتر `ShippingCollectionClientTests` و `PostexShipmentCityCodeTests` و `CreatePhysicalShipmentTests` و `CartPricingClientTests` — ۹۵ موفق از ۹۵. محیط ویندوز.
+- محدودیت: ستون‌های تازهٔ استرپی تا بالا آمدن بعدی Strapi روی پایگاه اعمال نشده‌اند. فرم Content-Manager و مرورگر باز نشد. S3-02 با کلید واقعی مانده است. فرانت `lineError` را فقط برای `CART_STOCK_UNAVAILABLE` می‌خواند؛ برای این ۴۰۹ متن `error` را نشان می‌دهد.
+
 ## SCOPE-01 — محدودهٔ مالی طرح الهی — ۲۴ نوامبر ۲۰۲۶
 
 - دامنه: فقط بای‌مانی، روی شاخهٔ جاری. فرانت و استرپی عوض نشدند. مهاجرت `20261124101851_AddFinancialScope`. ستون‌های scope و فروشنده الزامی‌اند؛ مقدار موقت `TARHE_ELAHI` فقط ردیف‌های موجود را پر کرد و بعد پیش‌فرض برداشته شد. ایندکس یکتای خرید تکراری دست نخورد.

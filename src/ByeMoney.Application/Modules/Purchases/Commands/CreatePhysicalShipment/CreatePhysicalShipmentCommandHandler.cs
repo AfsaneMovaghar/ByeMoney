@@ -65,11 +65,11 @@ public sealed class CreatePhysicalShipmentCommandHandler(
             throw new DomainException(OrderErrors.ShipmentOriginCityMismatch);
         }
 
-        var collectionType = await ResolveCollectionTypeAsync(ct);
+        var dispatch = await ResolveDispatchAsync(ct);
         var claimed = await ClaimAsync(request.CartId, request.BoxTypeId, owner, ct);
 
         var createResult = await client.CreateOrGetParcelAsync(
-            BuildRequest(request.CartId, claimed.Parcel, address, originId, collectionType), ct);
+            BuildRequest(request.CartId, claimed.Parcel, address, originId, dispatch), ct);
 
         if (createResult.Outcome == ShipmentCreateOutcome.Uncertain)
         {
@@ -92,14 +92,15 @@ public sealed class CreatePhysicalShipmentCommandHandler(
     }
 
     /// <summary>
-    /// روش جمع‌آوری را پیش از رزرو می‌خواند. نبود خواننده فقط در آزمون است و پیش‌فرض مصوب را می‌دهد.
-    /// قطع استرپی مرسوله نمی‌سازد.
+    /// روش جمع‌آوری، کوریر و سرویس را پیش از رزرو از استرپی می‌خواند.
+    /// نبود خواننده فقط در آزمون است و پیش‌فرض مصوب را می‌دهد.
+    /// قطع استرپی مرسوله نمی‌سازد. کوریر یا سرویس تهی روی پاسخ موفق به پیش‌فرض برمی‌گردد.
     /// </summary>
-    private async Task<string> ResolveCollectionTypeAsync(CancellationToken ct)
+    private async Task<ShipmentDispatch> ResolveDispatchAsync(CancellationToken ct)
     {
         if (collectionTypes is null)
         {
-            return ShippingCollectionTypes.Default;
+            return ShipmentDispatch.Defaults;
         }
 
         var read = await collectionTypes.ReadAsync(ct);
@@ -109,7 +110,10 @@ public sealed class CreatePhysicalShipmentCommandHandler(
             throw new DomainException(OrderErrors.ShipmentCollectionTypeUnavailable);
         }
 
-        return normalized;
+        return new ShipmentDispatch(
+            normalized,
+            ShippingDispatchCodes.NormalizeCourier(read.CourierCode),
+            ShippingDispatchCodes.NormalizeService(read.ServiceType));
     }
 
     /// <summary>اعتبارسنجی دوباره، ساخت بدنهٔ مرسوله و رزرو همهٔ اقلام فعال؛ هیچ فراخوانی واسط اینجا نیست.</summary>
@@ -322,7 +326,7 @@ public sealed class CreatePhysicalShipmentCommandHandler(
         ShipmentParcelDetails parcel,
         ShippingAddress address,
         string originId,
-        string? collectionType) =>
+        ShipmentDispatch dispatch) =>
         new(
             new ShipmentParty(
                 address.RecipientName,
@@ -338,7 +342,17 @@ public sealed class CreatePhysicalShipmentCommandHandler(
             parcel,
             Remark: $"ByeMoney cart {cartId:N}",
             OriginId: originId.Trim(),
-            CollectionType: collectionType);
+            CollectionType: dispatch.CollectionType,
+            CourierCode: dispatch.CourierCode,
+            ServiceType: dispatch.ServiceType);
+
+    private sealed record ShipmentDispatch(string CollectionType, string CourierCode, string ServiceType)
+    {
+        public static ShipmentDispatch Defaults { get; } = new(
+            ShippingCollectionTypes.Default,
+            ShippingDispatchCodes.DefaultCourier,
+            ShippingDispatchCodes.DefaultServiceType);
+    }
 
     private sealed record ClaimedLine(Guid PurchaseId, int Quantity);
 

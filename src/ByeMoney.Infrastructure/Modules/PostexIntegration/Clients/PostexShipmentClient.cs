@@ -386,11 +386,15 @@ public sealed class PostexShipmentClient(
                     },
                     courier = new
                     {
-                        name = string.IsNullOrWhiteSpace(options.DefaultCourier) ? "IR_POST" : options.DefaultCourier,
-                        service_type = string.IsNullOrWhiteSpace(options.DefaultServiceType)
-                            ? "EXPRESS"
-                            : options.DefaultServiceType,
+                        name = ShippingDispatchCodes.NormalizeCourier(request.CourierCode),
+                        service_type = ShippingDispatchCodes.NormalizeService(request.ServiceType),
                         payment_type = "SENDER"
+                    },
+                    added_service = new
+                    {
+                        request_label = false,
+                        request_packaging = false,
+                        request_sms_notification = false
                     }
                 }
             }

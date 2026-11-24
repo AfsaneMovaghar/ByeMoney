@@ -513,21 +513,8 @@ public sealed class CartService(
         return cart?.ScopeId == FinancialScope.TarheElahi ? cart : null;
     }
 
-    private static Result<T> Copy<T, U>(Result<U> result) => Copy<T>((Result)result);
+    private static Result<T> Copy<T, U>(Result<U> result) => CartFailureCopy.Copy<T>(result);
 
-    private static Result<T> Copy<T>(Result result)
-    {
-        if (result is ICartStockFailure stockFailure)
-        {
-            return CartStockFailure<T>.Create(stockFailure.LineError);
-        }
-
-        return result.Status switch
-        {
-            ResultStatus.NotFound => Result<T>.NotFound(result.ErrorMessage, result.ErrorCode),
-            ResultStatus.Conflict => Result<T>.Conflict(result.ErrorMessage!, result.ErrorCode),
-            _ => Result<T>.Failure(result.ErrorMessage!, result.ErrorCode)
-        };
-    }
+    private static Result<T> Copy<T>(Result result) => CartFailureCopy.Copy<T>(result);
 }
 

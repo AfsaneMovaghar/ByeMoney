@@ -19,10 +19,6 @@ public sealed class PostexOptions
 
     public int TimeoutSeconds { get; set; } = 20;
 
-    public string DefaultCourier { get; set; } = "IR_POST";
-
-    public string DefaultServiceType { get; set; } = "EXPRESS";
-
     /// <summary>دیگر در ساخت مرسوله خوانده نمی‌شود؛ فقط <c>pick_up</c> همان درخواست <c>ready_to_accept</c> می‌فرستد.</summary>
     public bool ReadyToAccept { get; set; }
 

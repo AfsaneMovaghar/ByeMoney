@@ -9,4 +9,8 @@ public sealed record CartLineError(
     string ExternalId,
     string Reason,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    int? AvailableQuantity);
+    int? AvailableQuantity = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    string? Type = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    int? Quantity = null);

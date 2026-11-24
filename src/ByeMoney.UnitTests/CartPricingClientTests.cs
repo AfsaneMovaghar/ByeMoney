@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text;
 using System.Text.Json;
+using ByeMoney.API.Contracts.Carts;
 using ByeMoney.Application.Modules.Purchases.Carts.Constants;
 using ByeMoney.Application.Modules.Purchases.Carts.DTOs;
 using ByeMoney.Application.Modules.Purchases.Carts.Services;
@@ -8,6 +9,8 @@ using ByeMoney.Domain.Common;
 using ByeMoney.Domain.Modules.Purchases;
 using ByeMoney.Infrastructure.Modules.TarhElahiIntegration.Clients;
 using FluentAssertions;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 
 namespace ByeMoney.UnitTests;
 
@@ -224,6 +227,45 @@ public sealed class CartPricingClientTests
         result.ErrorCode.Should().Be(CartErrorCodes.StockUnavailable);
         result.ErrorMessage.Should().Be(CartErrors.OutOfStock);
         ((ICartStockFailure)result).LineError.Should().Be(new CartLineError("p", CartStockReasons.OutOfStock, 0));
+    }
+
+    [Theory]
+    [InlineData("prepare", "MISSING_BOX", "جعبهٔ «شمش» برای ارسال تعیین نشده است.")]
+    [InlineData("check", "MISSING_WEIGHT", "وزن «سکه» برای ارسال ثبت نشده است.")]
+    public async Task ParcelGapStaysConflictAndKeepsTheItemMessage(string action, string reason, string message)
+    {
+        var body = "{\"code\":\"CART_CONFLICT\",\"error\":\"" + message
+            + "\",\"lineError\":{\"externalId\":\"p\",\"type\":\"product\",\"quantity\":2,\"reason\":\""
+            + reason + "\"}}";
+        var client = Client(new CapturingHandler(body, HttpStatusCode.Conflict));
+
+        var result = action == "prepare"
+            ? await client.PrepareAsync(new CartQuoteRequest(CartId, "buyer", null, [new CartItemInput("p", ProductItemType.Product, 2)]), default)
+            : await client.TransitionAsync(new CartTransitionRequest(CartId, "buyer"), "check", default);
+
+        result.Status.Should().Be(ResultStatus.Conflict);
+        result.ErrorCode.Should().Be(CartErrorCodes.Conflict);
+        result.ErrorMessage.Should().Be(message);
+        result.Should().NotBeAssignableTo<ICartStockFailure>();
+        var line = ((ICartConflictLineFailure)result).LineError;
+        line.ExternalId.Should().Be("p");
+        line.Type.Should().Be("product");
+        line.Quantity.Should().Be(2);
+        line.Reason.Should().Be(reason);
+        line.AvailableQuantity.Should().BeNull();
+
+        var copied = CartFailureCopy.Copy<CartResponse>(result);
+        copied.ErrorCode.Should().Be(CartErrorCodes.Conflict);
+        copied.ErrorMessage.Should().Be(message);
+        ((ICartConflictLineFailure)copied).LineError.Should().Be(line);
+
+        var http = CartHttpResults.From(copied);
+        var objectResult = http.Should().BeOfType<ObjectResult>().Subject;
+        objectResult.StatusCode.Should().Be(StatusCodes.Status409Conflict);
+        var response = objectResult.Value.Should().BeOfType<CartErrorResponse>().Subject;
+        response.Code.Should().Be(CartErrorCodes.Conflict);
+        response.Error.Should().Be(message);
+        response.LineError.Should().Be(line);
     }
 
     [Theory]
