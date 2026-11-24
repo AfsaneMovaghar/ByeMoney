@@ -22,19 +22,11 @@ public sealed class CreatePhysicalShipmentCommandValidator : AbstractValidator<C
         RuleFor(command => command.Provider)
             .Must(IsAllowedProvider)
             .WithMessage(OrderErrors.InvalidTrackingProvider);
-
-        RuleFor(command => command.CollectionType)
-            .Must(IsAllowedCollectionType)
-            .WithMessage(OrderErrors.ShipmentCollectionTypeRequired);
     }
 
     private static bool IsAllowedBoxType(int? boxTypeId) =>
         boxTypeId is null ||
         (boxTypeId.Value >= ParcelFacts.MinBoxTypeId && boxTypeId.Value <= ParcelFacts.MaxBoxTypeId);
-
-    private static bool IsAllowedCollectionType(string? collectionType) =>
-        string.Equals(collectionType?.Trim(), "pick_up", StringComparison.OrdinalIgnoreCase) ||
-        string.Equals(collectionType?.Trim(), "courier_drop_off", StringComparison.OrdinalIgnoreCase);
 
     private static bool IsAllowedProvider(string? provider) =>
         string.IsNullOrWhiteSpace(provider) ||

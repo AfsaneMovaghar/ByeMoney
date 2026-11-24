@@ -256,28 +256,19 @@ public sealed class PostexShipmentClient(
 
     private static bool TryResolveCollection(string? collectionType, out string normalized, out bool courierPickup)
     {
-        if (string.Equals(collectionType?.Trim(), "pick_up", StringComparison.OrdinalIgnoreCase))
+        if (!ShippingCollectionTypes.IsAllowed(collectionType, out normalized))
         {
-            normalized = "pick_up";
-            courierPickup = true;
-            return true;
-        }
-
-        if (string.Equals(collectionType?.Trim(), "courier_drop_off", StringComparison.OrdinalIgnoreCase))
-        {
-            normalized = "courier_drop_off";
             courierPickup = false;
-            return true;
+            return false;
         }
 
-        normalized = string.Empty;
-        courierPickup = false;
-        return false;
+        courierPickup = normalized == ShippingCollectionTypes.PickUp;
+        return true;
     }
 
     private static string? PresentError(string collectionType, string? message, string? rawBody)
     {
-        if (string.Equals(collectionType, "courier_drop_off", StringComparison.OrdinalIgnoreCase))
+        if (collectionType is ShippingCollectionTypes.CourierDropOff or ShippingCollectionTypes.PostexDropOff)
         {
             var haystack = (message ?? string.Empty) + "\n" + (rawBody ?? string.Empty);
             if (haystack.Contains("drop_off_location", StringComparison.OrdinalIgnoreCase) ||
@@ -293,6 +284,26 @@ public sealed class PostexShipmentClient(
     private static bool HasCoordinates(PostexSenderOptions sender) =>
         sender.Lat is >= -90 and <= 90 &&
         sender.Lon is >= -180 and <= 180;
+
+    /// <summary>عرض و طول فقط برای پیک فرستاده می‌شوند.</summary>
+    private static Dictionary<string, object?> SenderLocation(PostexSenderOptions sender, bool courierPickup)
+    {
+        var location = new Dictionary<string, object?>
+        {
+            ["address"] = sender.Address.Trim(),
+            ["city_id"] = sender.CityId,
+            ["city_name"] = sender.CityName,
+            ["country"] = "IR",
+            ["post_code"] = sender.PostCode,
+        };
+        if (courierPickup)
+        {
+            location["lat"] = sender.Lat;
+            location["lon"] = sender.Lon;
+        }
+
+        return location;
+    }
 
     private object BuildBulkBody(
         ShipmentCreateRequest request,
@@ -330,16 +341,7 @@ public sealed class PostexShipmentClient(
                             company_name = sender.CompanyName,
                             national_code = sender.NationalCode
                         },
-                        location = new
-                        {
-                            address = sender.Address.Trim(),
-                            city_id = sender.CityId,
-                            city_name = sender.CityName,
-                            country = "IR",
-                            post_code = sender.PostCode,
-                            lat = sender.Lat,
-                            lon = sender.Lon
-                        }
+                        location = SenderLocation(sender, courierPickup)
                     },
                     to = new
                     {

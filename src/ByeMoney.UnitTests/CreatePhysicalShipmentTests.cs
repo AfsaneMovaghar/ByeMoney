@@ -27,8 +27,8 @@ public sealed class CreatePhysicalShipmentTests
         };
 
         var response = await new CreatePhysicalShipmentCommandHandler(
-            repository, store, [client], repository)
-            .Handle(new CreatePhysicalShipmentCommand(purchase.CartId, "pick_up"), CancellationToken.None);
+            repository, store, [client], repository, collectionTypes: new FixedCollection("pick_up"))
+            .Handle(new CreatePhysicalShipmentCommand(purchase.CartId), CancellationToken.None);
 
         response.DeliveryStatus.Should().Be(nameof(PhysicalDeliveryStatus.Shipped));
         response.ProviderParcelId.Should().Be("1319906676294");
@@ -70,7 +70,7 @@ public sealed class CreatePhysicalShipmentTests
 
         var response = await new CreatePhysicalShipmentCommandHandler(
             repository, store, [client], repository)
-            .Handle(new CreatePhysicalShipmentCommand(purchase.CartId, "courier_drop_off"), CancellationToken.None);
+            .Handle(new CreatePhysicalShipmentCommand(purchase.CartId), CancellationToken.None);
 
         response.DeliveryStatus.Should().Be(nameof(PhysicalDeliveryStatus.Preparing));
         response.Warning.Should().Be(OrderErrors.ShipmentTrackingCodePending);
@@ -81,6 +81,40 @@ public sealed class CreatePhysicalShipmentTests
         purchase.TrackingCode.Should().BeNull();
         purchase.ShippedAtUtc.Should().BeNull();
         client.LastRequest!.CollectionType.Should().Be("courier_drop_off");
+    }
+
+    [Fact]
+    public async Task UsesTheStrapiCollectionTypeAndIgnoresAnyRequestOverride()
+    {
+        var purchase = CreatePreparing();
+        var store = new FakeDeliveryStore(purchase, SampleAddress());
+        var repository = new FakeRepository(purchase);
+        var client = new FakeShipmentClient(PhysicalProductPurchase.PostexProvider)
+        {
+            Result = new ShipmentCreateResult(ShipmentCreateOutcome.Created, "1", "IR-1")
+        };
+
+        await new CreatePhysicalShipmentCommandHandler(
+            repository, store, [client], repository, collectionTypes: new FixedCollection("postex_drop_off"))
+            .Handle(new CreatePhysicalShipmentCommand(purchase.CartId), CancellationToken.None);
+
+        client.LastRequest!.CollectionType.Should().Be("postex_drop_off");
+    }
+
+    [Fact]
+    public async Task UnavailableCollectionSettingDoesNotCallTheProvider()
+    {
+        var purchase = CreatePreparing();
+        var client = new FakeShipmentClient(PhysicalProductPurchase.PostexProvider);
+        var act = () => new CreatePhysicalShipmentCommandHandler(
+            new FakeRepository(purchase), new FakeDeliveryStore(purchase, SampleAddress()), [client],
+            new FakeRepository(purchase), collectionTypes: new FixedCollection(null))
+            .Handle(new CreatePhysicalShipmentCommand(purchase.CartId), CancellationToken.None);
+
+        (await act.Should().ThrowAsync<DomainException>())
+            .Which.Message.Should().Be(OrderErrors.ShipmentCollectionTypeUnavailable);
+        client.Calls.Should().Be(0);
+        purchase.DeliveryStatus.Should().Be(PhysicalDeliveryStatus.Preparing);
     }
 
     [Fact]
@@ -99,7 +133,7 @@ public sealed class CreatePhysicalShipmentTests
 
         var response = await new CreatePhysicalShipmentCommandHandler(
             repository, store, [client], repository)
-            .Handle(new CreatePhysicalShipmentCommand(purchase.CartId, "pick_up"), CancellationToken.None);
+            .Handle(new CreatePhysicalShipmentCommand(purchase.CartId), CancellationToken.None);
 
         response.DeliveryStatus.Should().Be(nameof(PhysicalDeliveryStatus.Shipped));
         response.TrackingCode.Should().Be("IR-POST-100");
@@ -123,7 +157,7 @@ public sealed class CreatePhysicalShipmentTests
         };
 
         await new CreatePhysicalShipmentCommandHandler(repository, store, [client], repository)
-            .Handle(new CreatePhysicalShipmentCommand(purchase.CartId, "pick_up"), CancellationToken.None);
+            .Handle(new CreatePhysicalShipmentCommand(purchase.CartId), CancellationToken.None);
 
         client.Calls.Should().Be(1);
         client.LastRequest!.Recipient.CityDocumentId.Should().BeNull();
@@ -141,7 +175,7 @@ public sealed class CreatePhysicalShipmentTests
 
         var act = () => new CreatePhysicalShipmentCommandHandler(
             repository, store, [client], repository)
-            .Handle(new CreatePhysicalShipmentCommand(purchase.CartId, "pick_up"), CancellationToken.None);
+            .Handle(new CreatePhysicalShipmentCommand(purchase.CartId), CancellationToken.None);
 
         await act.Should().ThrowAsync<DomainException>();
         client.Calls.Should().Be(0);
@@ -158,7 +192,7 @@ public sealed class CreatePhysicalShipmentTests
 
         var act = () => new CreatePhysicalShipmentCommandHandler(
             repository, store, [client], repository, new FixedOriginCity(573))
-            .Handle(new CreatePhysicalShipmentCommand(purchase.CartId, "pick_up"), CancellationToken.None);
+            .Handle(new CreatePhysicalShipmentCommand(purchase.CartId), CancellationToken.None);
 
         (await act.Should().ThrowAsync<DomainException>())
             .Which.Message.Should().Be(OrderErrors.ShipmentOriginCityMismatch);
@@ -178,7 +212,7 @@ public sealed class CreatePhysicalShipmentTests
 
         var response = await new CreatePhysicalShipmentCommandHandler(
             repository, store, [client], repository, new FixedOriginCity(573))
-            .Handle(new CreatePhysicalShipmentCommand(purchase.CartId, "pick_up"), CancellationToken.None);
+            .Handle(new CreatePhysicalShipmentCommand(purchase.CartId), CancellationToken.None);
 
         response.Outcome.Should().Be(nameof(ShipmentCreateOutcome.Created));
         client.Calls.Should().Be(1);
@@ -194,7 +228,7 @@ public sealed class CreatePhysicalShipmentTests
 
         var act = () => new CreatePhysicalShipmentCommandHandler(
             repository, store, [client], repository)
-            .Handle(new CreatePhysicalShipmentCommand(purchase.CartId, "pick_up"), CancellationToken.None);
+            .Handle(new CreatePhysicalShipmentCommand(purchase.CartId), CancellationToken.None);
 
         (await act.Should().ThrowAsync<DomainException>())
             .Which.Message.Should().Be(OrderErrors.ShipmentParcelRequired);
@@ -212,7 +246,7 @@ public sealed class CreatePhysicalShipmentTests
 
         var act = () => new CreatePhysicalShipmentCommandHandler(
             repository, store, [client], repository)
-            .Handle(new CreatePhysicalShipmentCommand(purchase.CartId, "pick_up"), CancellationToken.None);
+            .Handle(new CreatePhysicalShipmentCommand(purchase.CartId), CancellationToken.None);
 
         await act.Should().ThrowAsync<DomainException>();
         purchase.DeliveryStatus.Should().Be(PhysicalDeliveryStatus.Preparing);
@@ -229,7 +263,7 @@ public sealed class CreatePhysicalShipmentTests
 
         var act = () => new CreatePhysicalShipmentCommandHandler(
             repository, store, [client], repository)
-            .Handle(new CreatePhysicalShipmentCommand(purchase.CartId, "pick_up"), CancellationToken.None);
+            .Handle(new CreatePhysicalShipmentCommand(purchase.CartId), CancellationToken.None);
 
         (await act.Should().ThrowAsync<DomainException>())
             .Which.Message.Should().Be(OrderErrors.ShipmentAlreadyDispatched);
@@ -251,7 +285,7 @@ public sealed class CreatePhysicalShipmentTests
         };
 
         var response = await new CreatePhysicalShipmentCommandHandler(repository, store, [client], repository)
-            .Handle(new CreatePhysicalShipmentCommand(purchase.CartId, "pick_up"), CancellationToken.None);
+            .Handle(new CreatePhysicalShipmentCommand(purchase.CartId), CancellationToken.None);
 
         // مرسولهٔ پرداخت‌نشده نه خطاست و نه ارسال؛ شناسه و نشان انتظار ذخیره می‌شود.
         response.DeliveryStatus.Should().Be(nameof(PhysicalDeliveryStatus.Preparing));
@@ -292,7 +326,7 @@ public sealed class CreatePhysicalShipmentTests
             }
         };
         var handler = new CreatePhysicalShipmentCommandHandler(repository, store, [client], repository);
-        var command = new CreatePhysicalShipmentCommand(purchase.CartId, "pick_up");
+        var command = new CreatePhysicalShipmentCommand(purchase.CartId);
 
         var first = handler.Handle(command, CancellationToken.None);
         await entered.Task.WaitAsync(TimeSpan.FromSeconds(2));
@@ -325,7 +359,7 @@ public sealed class CreatePhysicalShipmentTests
         };
 
         var act = () => new CreatePhysicalShipmentCommandHandler(repository, store, [client], repository)
-            .Handle(new CreatePhysicalShipmentCommand(purchase.CartId, "pick_up"), CancellationToken.None);
+            .Handle(new CreatePhysicalShipmentCommand(purchase.CartId), CancellationToken.None);
 
         (await act.Should().ThrowAsync<DomainException>())
             .Which.Message.Should().Be(OrderErrors.ShipmentOutcomeUnknown);
@@ -347,7 +381,7 @@ public sealed class CreatePhysicalShipmentTests
         };
 
         var handler = new CreatePhysicalShipmentCommandHandler(repository, store, [client], repository);
-        var command = new CreatePhysicalShipmentCommand(purchase.CartId, "pick_up");
+        var command = new CreatePhysicalShipmentCommand(purchase.CartId);
 
         var act = () => handler.Handle(command, CancellationToken.None);
         (await act.Should().ThrowAsync<DomainException>()).Which.Message.Should().Be("رد شد");
@@ -374,7 +408,7 @@ public sealed class CreatePhysicalShipmentTests
         };
 
         var response = await new CreatePhysicalShipmentCommandHandler(repository, store, [client], repository)
-            .Handle(new CreatePhysicalShipmentCommand(purchase.CartId, "pick_up"), CancellationToken.None);
+            .Handle(new CreatePhysicalShipmentCommand(purchase.CartId), CancellationToken.None);
 
         response.DeliveryStatus.Should().Be(nameof(PhysicalDeliveryStatus.Preparing));
         response.Warning.Should().Be(OrderErrors.ShipmentQuantityMismatch);
@@ -413,7 +447,7 @@ public sealed class CreatePhysicalShipmentTests
 
         var response = await new CreatePhysicalShipmentCommandHandler(
             new FakeRepository(gold), store, [client], new FakeRepository(gold))
-            .Handle(new CreatePhysicalShipmentCommand(cartId, "pick_up"), CancellationToken.None);
+            .Handle(new CreatePhysicalShipmentCommand(cartId), CancellationToken.None);
 
         response.CartId.Should().Be(cartId);
         response.DeliveryStatus.Should().Be(nameof(PhysicalDeliveryStatus.Shipped));
@@ -463,7 +497,7 @@ public sealed class CreatePhysicalShipmentTests
 
         await new CreatePhysicalShipmentCommandHandler(
             new FakeRepository(first), store, [client], new FakeRepository(first))
-            .Handle(new CreatePhysicalShipmentCommand(cartId, "pick_up", BoxTypeId: 8), CancellationToken.None);
+            .Handle(new CreatePhysicalShipmentCommand(cartId, BoxTypeId: 8), CancellationToken.None);
 
         client.LastRequest!.Parcel.BoxTypeId.Should().Be(8);
         client.LastRequest.Parcel.LengthCm.Should().Be(25);
@@ -490,7 +524,7 @@ public sealed class CreatePhysicalShipmentTests
 
         await new CreatePhysicalShipmentCommandHandler(
             new FakeRepository(first), store, [client], new FakeRepository(first))
-            .Handle(new CreatePhysicalShipmentCommand(cartId, "pick_up"), CancellationToken.None);
+            .Handle(new CreatePhysicalShipmentCommand(cartId), CancellationToken.None);
 
         client.LastRequest!.Parcel.BoxTypeId.Should().Be(8);
         client.LastRequest.Parcel.LengthCm.Should().Be(25);
@@ -528,7 +562,7 @@ public sealed class CreatePhysicalShipmentTests
         var missingFacts = () => new CreatePhysicalShipmentCommandHandler(
             new FakeRepository(ready), new FakeDeliveryStore([ready, missing], SampleAddress()), [client],
             new FakeRepository(ready))
-            .Handle(new CreatePhysicalShipmentCommand(cartId, "pick_up"), CancellationToken.None);
+            .Handle(new CreatePhysicalShipmentCommand(cartId), CancellationToken.None);
 
         (await missingFacts.Should().ThrowAsync<DomainException>())
             .Which.Message.Should().Be(OrderErrors.ShipmentParcelRequired);
@@ -540,7 +574,7 @@ public sealed class CreatePhysicalShipmentTests
         var deliveredAct = () => new CreatePhysicalShipmentCommandHandler(
             new FakeRepository(ready), new FakeDeliveryStore([ready, delivered], SampleAddress()), [client],
             new FakeRepository(ready))
-            .Handle(new CreatePhysicalShipmentCommand(cartId, "pick_up"), CancellationToken.None);
+            .Handle(new CreatePhysicalShipmentCommand(cartId), CancellationToken.None);
 
         (await deliveredAct.Should().ThrowAsync<DomainException>())
             .Which.Message.Should().Be(OrderErrors.ShipmentAlreadyDispatched);
@@ -555,7 +589,7 @@ public sealed class CreatePhysicalShipmentTests
         var act = () => new CreatePhysicalShipmentCommandHandler(
             new FakeRepository(purchase), new FakeDeliveryStore(purchase, SampleAddress()), [client],
             new FakeRepository(purchase))
-            .Handle(new CreatePhysicalShipmentCommand(purchase.CartId, "pick_up", BoxTypeId: 13), CancellationToken.None);
+            .Handle(new CreatePhysicalShipmentCommand(purchase.CartId, BoxTypeId: 13), CancellationToken.None);
 
         (await act.Should().ThrowAsync<DomainException>())
             .Which.Message.Should().Be(OrderErrors.InvalidBoxTypeId);
@@ -572,7 +606,7 @@ public sealed class CreatePhysicalShipmentTests
         var act = () => new CreatePhysicalShipmentCommandHandler(
             new FakeRepository(purchase), new FakeDeliveryStore(purchase, SampleAddress()), [client],
             new FakeRepository(purchase))
-            .Handle(new CreatePhysicalShipmentCommand(purchase.CartId, "pick_up"), CancellationToken.None);
+            .Handle(new CreatePhysicalShipmentCommand(purchase.CartId), CancellationToken.None);
 
         (await act.Should().ThrowAsync<DomainException>())
             .Which.Message.Should().Be(OrderErrors.ShipmentNoActiveItems);
@@ -638,6 +672,14 @@ public sealed class CreatePhysicalShipmentTests
 
         public Task<ShipmentCreateResult> GetParcelAsync(string idempotencyKey, CancellationToken ct) =>
             Task.FromResult(ReadResult);
+    }
+
+    private sealed class FixedCollection(string? collectionType) : IShippingCollectionReader
+    {
+        public Task<ShippingCollectionRead> ReadAsync(CancellationToken ct) =>
+            Task.FromResult(collectionType is null
+                ? ShippingCollectionRead.Unavailable()
+                : ShippingCollectionRead.Found(collectionType));
     }
 
     private sealed class FixedOriginCity(int? cityId) : IShippingOriginCityReader

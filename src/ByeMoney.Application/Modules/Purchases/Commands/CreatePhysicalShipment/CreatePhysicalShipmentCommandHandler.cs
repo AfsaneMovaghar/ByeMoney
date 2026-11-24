@@ -21,7 +21,8 @@ public sealed class CreatePhysicalShipmentCommandHandler(
     IPhysicalDeliveryStore deliveryStore,
     IEnumerable<IShipmentProviderClient> shipmentClients,
     IUnitOfWork unitOfWork,
-    IShippingOriginCityReader? originCities = null) :
+    IShippingOriginCityReader? originCities = null,
+    IShippingCollectionReader? collectionTypes = null) :
     IRequestHandler<CreatePhysicalShipmentCommand, CreatePhysicalShipmentResponse>
 {
     /// <summary>
@@ -64,10 +65,11 @@ public sealed class CreatePhysicalShipmentCommandHandler(
             throw new DomainException(OrderErrors.ShipmentOriginCityMismatch);
         }
 
+        var collectionType = await ResolveCollectionTypeAsync(ct);
         var claimed = await ClaimAsync(request.CartId, request.BoxTypeId, owner, ct);
 
         var createResult = await client.CreateOrGetParcelAsync(
-            BuildRequest(request.CartId, claimed.Parcel, address, originId, request.CollectionType), ct);
+            BuildRequest(request.CartId, claimed.Parcel, address, originId, collectionType), ct);
 
         if (createResult.Outcome == ShipmentCreateOutcome.Uncertain)
         {
@@ -87,6 +89,27 @@ public sealed class CreatePhysicalShipmentCommandHandler(
         }
 
         return await CommitResultAsync(request.CartId, claimed.Lines, client, createResult, owner, ct);
+    }
+
+    /// <summary>
+    /// روش جمع‌آوری را پیش از رزرو می‌خواند. نبود خواننده فقط در آزمون است و پیش‌فرض مصوب را می‌دهد.
+    /// قطع استرپی مرسوله نمی‌سازد.
+    /// </summary>
+    private async Task<string> ResolveCollectionTypeAsync(CancellationToken ct)
+    {
+        if (collectionTypes is null)
+        {
+            return ShippingCollectionTypes.Default;
+        }
+
+        var read = await collectionTypes.ReadAsync(ct);
+        if (read.Status != ShippingCollectionStatus.Found ||
+            !ShippingCollectionTypes.IsAllowed(read.CollectionType, out var normalized))
+        {
+            throw new DomainException(OrderErrors.ShipmentCollectionTypeUnavailable);
+        }
+
+        return normalized;
     }
 
     /// <summary>اعتبارسنجی دوباره، ساخت بدنهٔ مرسوله و رزرو همهٔ اقلام فعال؛ هیچ فراخوانی واسط اینجا نیست.</summary>

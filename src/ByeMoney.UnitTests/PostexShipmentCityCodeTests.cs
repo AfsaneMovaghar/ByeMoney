@@ -259,19 +259,43 @@ public sealed class PostexShipmentCityCodeTests
         body.RootElement.GetProperty("collection_type").GetString().Should().Be("courier_drop_off");
         var parcel = body.RootElement.GetProperty("parcels").EnumerateArray().Single();
         parcel.GetProperty("ready_to_accept").GetBoolean().Should().BeFalse();
-        parcel.GetProperty("from").GetProperty("location").GetProperty("lat").ValueKind
-            .Should().Be(JsonValueKind.Null);
+        var location = parcel.GetProperty("from").GetProperty("location");
+        location.TryGetProperty("lat", out _).Should().BeFalse();
+        location.TryGetProperty("lon", out _).Should().BeFalse();
     }
 
     [Fact]
-    public async Task DropOffRejectedForMissingOfficeReturnsDomainMessage()
+    public async Task OfficeDropOffOmitsCoordinates()
+    {
+        var http = new RecordingHandler();
+        var client = Client(
+            http,
+            new FakeCityCodeReader { Result = DeliveryCityCodeRead.Found(301) },
+            lat: null,
+            lon: null);
+
+        await client.CreateOrGetParcelAsync(
+            Request("city-mashhad", "postex_drop_off"), CancellationToken.None);
+
+        using var body = JsonDocument.Parse(http.LastPostBody!);
+        body.RootElement.GetProperty("collection_type").GetString().Should().Be("postex_drop_off");
+        var location = body.RootElement.GetProperty("parcels").EnumerateArray().Single()
+            .GetProperty("from").GetProperty("location");
+        location.TryGetProperty("lat", out _).Should().BeFalse();
+        location.TryGetProperty("lon", out _).Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData("courier_drop_off")]
+    [InlineData("postex_drop_off")]
+    public async Task DropOffRejectedForMissingOfficeReturnsDomainMessage(string collectionType)
     {
         const string body = """{"invalid_fields":{"drop_off_location_id":["required"]},"message":"خطا"}""";
         var http = new RecordingHandler { BulkStatus = HttpStatusCode.BadRequest, BulkBody = body };
         var client = Client(http, new FakeCityCodeReader { Result = DeliveryCityCodeRead.Found(301) }, lat: null, lon: null);
 
         var result = await client.CreateOrGetParcelAsync(
-            Request("city-mashhad", "courier_drop_off"), CancellationToken.None);
+            Request("city-mashhad", collectionType), CancellationToken.None);
 
         result.Outcome.Should().Be(ShipmentCreateOutcome.Failed);
         result.ErrorMessage.Should().Be(OrderErrors.ShipmentDropOffOfficeRequired);
@@ -385,7 +409,6 @@ public sealed class PostexShipmentCityCodeTests
         {
             Enabled = true,
             ApiKey = "test-key",
-            CollectionType = "postex_drop_off",
             ReadyToAccept = false,
             Origins = new Dictionary<string, PostexSenderOptions>(StringComparer.OrdinalIgnoreCase)
             {

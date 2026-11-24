@@ -40,7 +40,8 @@
   <data name="ShipmentParcelNotFound" xml:space="preserve"><value>واسط این مرسوله را نمی‌شناسد. اگر پشتیبانی آن را حذف کرده باشد، ارجاع پاک شد و ساخت دوباره مجاز است.</value></data>
   <data name="ShipmentQuantityMismatch" xml:space="preserve"><value>تعداد قلم پس از ساخت مرسوله عوض شده است؛ ارتقای خودکار انجام نشد. کد رهگیری دستی یا بررسی وضعیت را تعیین‌تکلیف کنید.</value></data>
   <data name="ShipmentTrackingCodePending" xml:space="preserve"><value>کد پستی هنوز نیامده.</value></data>
-  <data name="ShipmentCollectionTypeRequired" xml:space="preserve"><value>روش جمع‌آوری باید «پیک بیاید» یا «تحویل به باجهٔ پست» باشد.</value></data>
+  <data name="ShipmentCollectionTypeRequired" xml:space="preserve"><value>روش جمع‌آوری باید پیک، تحویل توسط خودمان یا تحویل در دفتر پست باشد.</value></data>
+  <data name="ShipmentCollectionTypeUnavailable" xml:space="preserve"><value>روش جمع‌آوری از تنظیمات ارسال خوانده نشد؛ مرسوله ساخته نشد.</value></data>
   <data name="ShipmentDropOffOfficeRequired" xml:space="preserve"><value>پستکس تحویل حضوری را بدون شناسهٔ دفتر نپذیرفت. فهرست دفترها در این مرحله نیست.</value></data>
   <data name="PhysicalPurchase_DeliveryBlockedByCarrierReturn" xml:space="preserve"><value>این کالا برگشتی از واسط پستی دارد و تا تعیین تکلیف نهایی نمی‌تواند به تحویل‌شده تغییر کند.</value></data>
   <data name="CarrierReturn_BuyerConfirmationBlocked" xml:space="preserve"><value>مرسولهٔ این سفارش توسط واسط پستی برگشتی اعلام شده و تأیید دریافت توسط خریدار امکان‌پذیر نیست.</value></data>

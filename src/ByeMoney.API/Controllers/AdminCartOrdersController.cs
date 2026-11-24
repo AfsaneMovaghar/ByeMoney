@@ -56,6 +56,6 @@ public sealed class AdminCartOrdersController(ISender sender) : ControllerBase
     {
         return Ok(await sender.Send(
             new CreatePhysicalShipmentCommand(
-                cartId, request?.CollectionType, request?.Provider, request?.BoxTypeId), ct));
+                cartId, request?.Provider, request?.BoxTypeId), ct));
     }
 }

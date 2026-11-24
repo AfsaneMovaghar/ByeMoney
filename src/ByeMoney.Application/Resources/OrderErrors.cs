@@ -46,6 +46,7 @@ public static class OrderErrors
     public static string ShipmentQuantityMismatch => Get(nameof(ShipmentQuantityMismatch));
     public static string ShipmentTrackingCodePending => Get(nameof(ShipmentTrackingCodePending));
     public static string ShipmentCollectionTypeRequired => Get(nameof(ShipmentCollectionTypeRequired));
+    public static string ShipmentCollectionTypeUnavailable => Get(nameof(ShipmentCollectionTypeUnavailable));
     public static string ShipmentDropOffOfficeRequired => Get(nameof(ShipmentDropOffOfficeRequired));
     public static string PhysicalPurchase_DeliveryBlockedByCarrierReturn => Get(nameof(PhysicalPurchase_DeliveryBlockedByCarrierReturn));
     public static string CarrierReturn_BuyerConfirmationBlocked => Get(nameof(CarrierReturn_BuyerConfirmationBlocked));

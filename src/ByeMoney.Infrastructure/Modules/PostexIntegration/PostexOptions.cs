@@ -19,9 +19,6 @@ public sealed class PostexOptions
 
     public int TimeoutSeconds { get; set; } = 20;
 
-    /// <summary>دیگر در ساخت مرسوله خوانده نمی‌شود؛ روش جمع‌آوری از درخواست ادمین می‌آید.</summary>
-    public string CollectionType { get; set; } = "pick_up";
-
     public string DefaultCourier { get; set; } = "IR_POST";
 
     public string DefaultServiceType { get; set; } = "EXPRESS";
