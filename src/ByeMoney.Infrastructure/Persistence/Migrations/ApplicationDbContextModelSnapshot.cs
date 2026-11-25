@@ -871,6 +871,46 @@ namespace ByeMoney.Infrastructure.Migrations
                         });
                 });
 
+            modelBuilder.Entity("ByeMoney.Domain.Modules.Purchases.PhysicalReservationCancellation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("BuyerId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("CartId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("OperationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<Guid>("ReservationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BuyerId");
+
+                    b.HasIndex("CartId");
+
+                    b.HasIndex("OperationId")
+                        .IsUnique();
+
+                    b.ToTable("PhysicalReservationCancellations", (string)null);
+                });
+
             modelBuilder.Entity("ByeMoney.Domain.Modules.Settings.SystemSetting", b =>
                 {
                     b.Property<string>("Key")
@@ -1991,6 +2031,21 @@ namespace ByeMoney.Infrastructure.Migrations
                         });
 
                     b.Navigation("Parcel");
+                });
+
+            modelBuilder.Entity("ByeMoney.Domain.Modules.Purchases.PhysicalReservationCancellation", b =>
+                {
+                    b.HasOne("ByeMoney.Domain.Modules.Identity.Users.User", null)
+                        .WithMany()
+                        .HasForeignKey("BuyerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ByeMoney.Domain.Modules.Purchases.Cart", null)
+                        .WithMany()
+                        .HasForeignKey("CartId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("ByeMoney.Domain.Modules.Wallet.Gifts.GiftGrantRecipient", b =>

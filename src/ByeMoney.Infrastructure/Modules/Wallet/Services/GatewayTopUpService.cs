@@ -98,14 +98,40 @@ public sealed class GatewayTopUpService(
         string evidenceId, string? note, CancellationToken ct = default)
     {
         var topUp = await topUpRequestRepository.GetByClientReferenceCodeAsync(clientReferenceCode, ct);
-        if (topUp is null) return Result<GatewayReviewState>.NotFound(ApplicationErrors.TopUpRequest_NotFound,
-            GatewayTopUpErrorCodes.TopUpNotFound);
+        if (topUp is null)
+        {
+            return Result<GatewayReviewState>.NotFound(ApplicationErrors.TopUpRequest_NotFound,
+                GatewayTopUpErrorCodes.TopUpNotFound);
+        }
+
+        var isReplay = topUp.ReviewAudit.Any(x => x.EventId == evidenceId);
         var result = topUp.ReopenFinancialReview(caseId, evidenceId, note);
-        if (result.IsFailure) return Result<GatewayReviewState>.Conflict(result.ErrorMessage!, GatewayTopUpErrorCodes.ReviewConflict);
+        if (result.IsFailure)
+            return Result<GatewayReviewState>.Conflict(result.ErrorMessage!, GatewayTopUpErrorCodes.ReviewConflict);
+
+        if (isReplay)
+            return Result<GatewayReviewState>.Success(ReviewState(topUp));
+
         topUpRequestRepository.Update(topUp);
-        try { await unitOfWork.SaveChangesAsync(ct); }
+        try
+        {
+            await unitOfWork.SaveChangesAsync(ct);
+        }
         catch (DbUpdateConcurrencyException)
-        { return Result<GatewayReviewState>.Conflict(DomainErrors.TopUpRequest_ReviewConflict, GatewayTopUpErrorCodes.ReviewConflict); }
+        {
+            using var scope = scopeFactory.CreateScope();
+            var fresh = await scope.ServiceProvider.GetRequiredService<ITopUpRequestRepository>()
+                .GetByClientReferenceCodeAsync(clientReferenceCode, ct);
+            if (fresh is not null && fresh.ReviewAudit.Any(x => x.EventId == evidenceId) &&
+                fresh.ReopenFinancialReview(caseId, evidenceId, note).IsSuccess)
+            {
+                return Result<GatewayReviewState>.Success(ReviewState(fresh));
+            }
+
+            return Result<GatewayReviewState>.Conflict(DomainErrors.TopUpRequest_ReviewConflict,
+                GatewayTopUpErrorCodes.ReviewConflict);
+        }
+
         return Result<GatewayReviewState>.Success(ReviewState(topUp));
     }
 

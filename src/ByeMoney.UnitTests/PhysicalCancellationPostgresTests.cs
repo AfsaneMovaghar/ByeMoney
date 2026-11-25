@@ -263,6 +263,217 @@ public sealed class PhysicalCancellationPostgresTests : IAsyncLifetime
     }
 
     [CartPostgresFact]
+    public async Task PaidOperationId_TrimmedReasonReplays_DifferentReasonAndOtherCartConflict()
+    {
+        var cart = await PaidCartAsync([new Line("book", "کتاب فیزیکی", 40m, 0m, 2)], shipping: 0m, coupon: null);
+        var purchase = await PurchaseAsync(cart.Id, "book");
+        var otherCart = await PaidCartAsync([new Line("pen", "خودکار", 50m, 0m, 1)], shipping: 0m, coupon: null);
+
+        var adminOp = Guid.NewGuid();
+        var adminFirst = await SendAsync(_admin.Id.Value,
+            new AdminCancelPhysicalPurchaseCommand(purchase.Id.Value, 1, adminOp, $"  {Reason}  "));
+        adminFirst.IsSuccess.Should().BeTrue();
+
+        var adminReplay = await SendAsync(_admin.Id.Value,
+            new AdminCancelPhysicalPurchaseCommand(purchase.Id.Value, 1, adminOp, Reason));
+        adminReplay.IsSuccess.Should().BeTrue();
+        adminReplay.Value.Should().BeEquivalentTo(adminFirst.Value);
+
+        var adminDiffReason = await SendAsync(_admin.Id.Value,
+            new AdminCancelPhysicalPurchaseCommand(purchase.Id.Value, 1, adminOp, "دلیل دیگر"));
+        adminDiffReason.Status.Should().Be(ResultStatus.Conflict);
+        adminDiffReason.ErrorCode.Should().Be(PhysicalCancellationErrorCodes.Conflict);
+
+        var buyerOp = Guid.NewGuid();
+        var buyerFirst = await SendAsync(_buyer.Id.Value,
+            new CancelMyPhysicalOrderCommand(cart.Id, buyerOp, Reason));
+        buyerFirst.IsSuccess.Should().BeTrue();
+
+        var buyerReplayTrim = await SendAsync(_buyer.Id.Value,
+            new CancelMyPhysicalOrderCommand(cart.Id, buyerOp, $" {Reason} "));
+        buyerReplayTrim.IsSuccess.Should().BeTrue();
+        buyerReplayTrim.Value.Should().BeEquivalentTo(buyerFirst.Value);
+
+        var buyerDiffReason = await SendAsync(_buyer.Id.Value,
+            new CancelMyPhysicalOrderCommand(cart.Id, buyerOp, "دلیل متفاوت"));
+        buyerDiffReason.Status.Should().Be(ResultStatus.Conflict);
+        buyerDiffReason.ErrorCode.Should().Be(PhysicalCancellationErrorCodes.Conflict);
+
+        var otherCartConflict = await SendAsync(_buyer.Id.Value,
+            new CancelMyPhysicalOrderCommand(otherCart.Id, buyerOp, Reason));
+        otherCartConflict.Status.Should().Be(ResultStatus.Conflict);
+        otherCartConflict.ErrorCode.Should().Be(PhysicalCancellationErrorCodes.Conflict);
+    }
+
+    [CartPostgresFact]
+    public async Task UnpaidOperationId_ReplaysAndConflictsAcrossReasonsCartsAndPaidPaths()
+    {
+        var unpaidCart = await ReadyCartAsync([new Line("book", "کتاب فیزیکی", 60m, 0m, 1)], shipping: 0m, coupon: null);
+        var otherUnpaid = await ReadyCartAsync([new Line("pen", "خودکار", 30m, 0m, 1)], shipping: 0m, coupon: null);
+        var paidCart = await PaidCartAsync([new Line("bag", "کیف", 80m, 0m, 1)], shipping: 0m, coupon: null);
+        var paidPurchase = await PurchaseAsync(paidCart.Id, "bag");
+
+        var unpaidOp = Guid.NewGuid();
+        var first = await SendAsync(_buyer.Id.Value,
+            new CancelMyPhysicalOrderCommand(unpaidCart.Id, unpaidOp, $" {Reason} "));
+        first.IsSuccess.Should().BeTrue();
+        first.Value.Outcome.Should().Be(nameof(PhysicalCancellationOutcome.ReservationReleased));
+        (await ReservationCancellationRowsAsync()).Should().Be(1);
+
+        var replay = await SendAsync(_buyer.Id.Value,
+            new CancelMyPhysicalOrderCommand(unpaidCart.Id, unpaidOp, Reason));
+        replay.IsSuccess.Should().BeTrue();
+        replay.Value.Should().BeEquivalentTo(first.Value);
+
+        var diffReason = await SendAsync(_buyer.Id.Value,
+            new CancelMyPhysicalOrderCommand(unpaidCart.Id, unpaidOp, "دلیل دیگر"));
+        diffReason.Status.Should().Be(ResultStatus.Conflict);
+        diffReason.ErrorCode.Should().Be(PhysicalCancellationErrorCodes.Conflict);
+
+        var otherCartConflict = await SendAsync(_buyer.Id.Value,
+            new CancelMyPhysicalOrderCommand(otherUnpaid.Id, unpaidOp, Reason));
+        otherCartConflict.Status.Should().Be(ResultStatus.Conflict);
+        otherCartConflict.ErrorCode.Should().Be(PhysicalCancellationErrorCodes.Conflict);
+
+        // تلاقی پرداخت‌نشده با پرداخت‌شده (خریدار و ادمین)
+        var unpaidToPaidBuyer = await SendAsync(_buyer.Id.Value,
+            new CancelMyPhysicalOrderCommand(paidCart.Id, unpaidOp, Reason));
+        unpaidToPaidBuyer.Status.Should().Be(ResultStatus.Conflict);
+        unpaidToPaidBuyer.ErrorCode.Should().Be(PhysicalCancellationErrorCodes.Conflict);
+
+        var unpaidToPaidAdmin = await SendAsync(_admin.Id.Value,
+            new AdminCancelPhysicalPurchaseCommand(paidPurchase.Id.Value, 1, unpaidOp, Reason));
+        unpaidToPaidAdmin.Status.Should().Be(ResultStatus.Conflict);
+        unpaidToPaidAdmin.ErrorCode.Should().Be(PhysicalCancellationErrorCodes.Conflict);
+
+        // تلاقی پرداخت‌شده (خریدار و ادمین) با پرداخت‌نشده
+        var paidBuyerOp = Guid.NewGuid();
+        (await SendAsync(_buyer.Id.Value, new CancelMyPhysicalOrderCommand(paidCart.Id, paidBuyerOp, Reason))).IsSuccess.Should().BeTrue();
+        var paidBuyerToUnpaid = await SendAsync(_buyer.Id.Value,
+            new CancelMyPhysicalOrderCommand(otherUnpaid.Id, paidBuyerOp, Reason));
+        paidBuyerToUnpaid.Status.Should().Be(ResultStatus.Conflict);
+        paidBuyerToUnpaid.ErrorCode.Should().Be(PhysicalCancellationErrorCodes.Conflict);
+
+        var paidCart2 = await PaidCartAsync([new Line("note", "دفتر", 20m, 0m, 1)], shipping: 0m, coupon: null);
+        var paidPurchase2 = await PurchaseAsync(paidCart2.Id, "note");
+        var paidAdminOp = Guid.NewGuid();
+        (await SendAsync(_admin.Id.Value, new AdminCancelPhysicalPurchaseCommand(paidPurchase2.Id.Value, 1, paidAdminOp, Reason))).IsSuccess.Should().BeTrue();
+        var paidAdminToUnpaid = await SendAsync(_buyer.Id.Value,
+            new CancelMyPhysicalOrderCommand(otherUnpaid.Id, paidAdminOp, Reason));
+        paidAdminToUnpaid.Status.Should().Be(ResultStatus.Conflict);
+        paidAdminToUnpaid.ErrorCode.Should().Be(PhysicalCancellationErrorCodes.Conflict);
+    }
+
+    [CartPostgresFact]
+    public async Task UnpaidCancelledThenReopenedAndPaid_ReplayReturnsOldOutcomeWithoutRefundOrRelease()
+    {
+        var cart = await ReadyCartAsync([new Line("book", "کتاب فیزیکی", 60m, 0m, 1)], shipping: 0m, coupon: null);
+        var op1 = Guid.NewGuid();
+
+        var first = await SendAsync(_buyer.Id.Value, new CancelMyPhysicalOrderCommand(cart.Id, op1, Reason));
+        first.IsSuccess.Should().BeTrue();
+        first.Value.Outcome.Should().Be(nameof(PhysicalCancellationOutcome.ReservationReleased));
+
+        var reopened = await Store.ReopenAsync(cart.Id, _buyer.Id.Value, cart.ReservationId, default);
+        reopened.IsSuccess.Should().BeTrue();
+        var newReservationId = reopened.Value.ReservationId;
+        await Store.SetQuoteAsync(
+            cart.Id,
+            _buyer.Id.Value,
+            [new CartQuoteItem("book", "کتاب فیزیکی", 60m, 0m, 0m, 60m, ProductItemType.Product, null, 1)],
+            0m,
+            null,
+            null,
+            newReservationId,
+            default);
+        (await Store.PayAsync(cart.Id, _buyer.Id.Value, newReservationId, default)).IsSuccess.Should().BeTrue();
+        var balanceAfterPay = await BalanceAsync();
+
+        var replay = await SendAsync(_buyer.Id.Value, new CancelMyPhysicalOrderCommand(cart.Id, op1, Reason));
+        replay.IsSuccess.Should().BeTrue();
+        replay.Value.Outcome.Should().Be(nameof(PhysicalCancellationOutcome.ReservationReleased));
+        replay.Value.TotalRefundInNoor.Should().Be(0m);
+
+        (await BalanceAsync()).Should().Be(balanceAfterPay);
+        (await CancellationRowsAsync()).Should().Be(0);
+        _pricing.Verify(x => x.TransitionAsync(
+            It.IsAny<CartTransitionRequest>(), "release", It.IsAny<CancellationToken>()), Times.Once);
+        _stock.Verify(x => x.RestockAsync(It.IsAny<PhysicalRestockRequest>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [CartPostgresFact]
+    public async Task TwoSequentialUnpaidCancellationsOnSameCart_ReuseFirstWithDifferentReasonConflicts()
+    {
+        var cart = await ReadyCartAsync([new Line("book", "کتاب فیزیکی", 60m, 0m, 1)], shipping: 0m, coupon: null);
+        var op1 = Guid.NewGuid();
+        var op2 = Guid.NewGuid();
+
+        (await SendAsync(_buyer.Id.Value, new CancelMyPhysicalOrderCommand(cart.Id, op1, "لغو اول"))).IsSuccess.Should().BeTrue();
+
+        var reopened = await Store.ReopenAsync(cart.Id, _buyer.Id.Value, cart.ReservationId, default);
+        reopened.IsSuccess.Should().BeTrue();
+        await Store.SetQuoteAsync(
+            cart.Id,
+            _buyer.Id.Value,
+            [new CartQuoteItem("book", "کتاب فیزیکی", 60m, 0m, 0m, 60m, ProductItemType.Product, null, 1)],
+            0m,
+            null,
+            null,
+            reopened.Value.ReservationId,
+            default);
+
+        (await SendAsync(_buyer.Id.Value, new CancelMyPhysicalOrderCommand(cart.Id, op2, "لغو دوم"))).IsSuccess.Should().BeTrue();
+        (await ReservationCancellationRowsAsync()).Should().Be(2);
+
+        var conflict = await SendAsync(_buyer.Id.Value, new CancelMyPhysicalOrderCommand(cart.Id, op1, "دلیل دیگر"));
+        conflict.Status.Should().Be(ResultStatus.Conflict);
+        conflict.ErrorCode.Should().Be(PhysicalCancellationErrorCodes.Conflict);
+    }
+
+    [CartPostgresFact]
+    public async Task UnpaidReleaseUnavailable_PersistsOperationAndSucceedsOnRetry()
+    {
+        var cart = await ReadyCartAsync([new Line("book", "کتاب فیزیکی", 60m, 0m, 1)], shipping: 0m, coupon: null);
+        var op = Guid.NewGuid();
+
+        _pricing
+            .Setup(x => x.TransitionAsync(It.IsAny<CartTransitionRequest>(), "release", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Result.Failure(CartErrors.Unavailable, CartErrorCodes.Unavailable));
+
+        var failed = await SendAsync(_buyer.Id.Value, new CancelMyPhysicalOrderCommand(cart.Id, op, Reason));
+        failed.IsFailure.Should().BeTrue();
+        failed.ErrorCode.Should().Be(PhysicalCancellationErrorCodes.Unavailable);
+        (await ReservationCancellationRowsAsync()).Should().Be(1);
+
+        _pricing
+            .Setup(x => x.TransitionAsync(It.IsAny<CartTransitionRequest>(), "release", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Result.Success());
+
+        var retried = await SendAsync(_buyer.Id.Value, new CancelMyPhysicalOrderCommand(cart.Id, op, Reason));
+        retried.IsSuccess.Should().BeTrue();
+        retried.Value.Outcome.Should().Be(nameof(PhysicalCancellationOutcome.ReservationReleased));
+        (await ReservationCancellationRowsAsync()).Should().Be(1);
+    }
+
+    [CartPostgresFact]
+    public async Task ConcurrentUnpaidCancellations_SameOperationIdAcrossCartsConflictsViaUniqueIndex()
+    {
+        var cart1 = await ReadyCartAsync([new Line("book", "کتاب فیزیکی", 60m, 0m, 1)], shipping: 0m, coupon: null);
+        var cart2 = await ReadyCartAsync([new Line("pen", "خودکار", 30m, 0m, 1)], shipping: 0m, coupon: null);
+        var op = Guid.NewGuid();
+
+        var results = await Task.WhenAll(
+            SendAsync(_buyer.Id.Value, new CancelMyPhysicalOrderCommand(cart1.Id, op, Reason)),
+            SendAsync(_buyer.Id.Value, new CancelMyPhysicalOrderCommand(cart2.Id, op, Reason)));
+
+        results.Count(x => x.IsSuccess).Should().Be(1);
+        var failed = results.Single(x => x.IsFailure);
+        failed.Status.Should().Be(ResultStatus.Conflict);
+        failed.ErrorCode.Should().Be(PhysicalCancellationErrorCodes.Conflict);
+        (await ReservationCancellationRowsAsync()).Should().Be(1);
+    }
+
+    [CartPostgresFact]
     public async Task ConcurrentRequests_RefundOnlyOnce()
     {
         var sameIdCart = await PaidCartAsync([new Line("book", "کتاب فیزیکی", 40m, 20m, 3)], shipping: 30m, coupon: null);
@@ -944,6 +1155,13 @@ public sealed class PhysicalCancellationPostgresTests : IAsyncLifetime
         using var scope = _provider.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
         return await db.Set<PhysicalProductCancellation>().CountAsync();
+    }
+
+    private async Task<int> ReservationCancellationRowsAsync()
+    {
+        using var scope = _provider.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        return await db.Set<PhysicalReservationCancellation>().CountAsync();
     }
 
     private static async Task<PostgresException> CaptureAsync(Func<Task> action)

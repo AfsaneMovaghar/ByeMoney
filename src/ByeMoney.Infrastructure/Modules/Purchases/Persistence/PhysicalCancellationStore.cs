@@ -40,6 +40,11 @@ public sealed class PhysicalCancellationStore(ApplicationDbContext db) : IPhysic
             .OrderBy(x => x.PurchaseId)
             .ToListAsync(ct);
 
+    public Task<PhysicalReservationCancellation?> GetReservationCancellationAsync(Guid operationId, CancellationToken ct) =>
+        db.Set<PhysicalReservationCancellation>()
+            .AsNoTracking()
+            .SingleOrDefaultAsync(x => x.OperationId == operationId, ct);
+
     public async Task<PaymentShares> GetShippingPaymentAsync(Guid cartId, CancellationToken ct)
     {
         // ارسال ستون سهم ندارد؛ بدهی خریدار با مرجع خود سبد در تراکنش پرداخت همان سبد است (D08).
@@ -60,6 +65,8 @@ public sealed class PhysicalCancellationStore(ApplicationDbContext db) : IPhysic
     }
 
     public void Add(PhysicalProductCancellation cancellation) => db.Add(cancellation);
+
+    public void AddReservationCancellation(PhysicalReservationCancellation cancellation) => db.Add(cancellation);
 
     public async Task<PhysicalRestockRequest?> FindPendingRestockAsync(Guid operationId, CancellationToken ct)
     {

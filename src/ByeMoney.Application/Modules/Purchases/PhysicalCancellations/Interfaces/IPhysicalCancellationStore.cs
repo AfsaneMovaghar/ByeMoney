@@ -20,10 +20,14 @@ public interface IPhysicalCancellationStore
 
     Task<IReadOnlyList<PhysicalProductCancellation>> GetOperationAsync(Guid operationId, CancellationToken ct);
 
+    Task<PhysicalReservationCancellation?> GetReservationCancellationAsync(Guid operationId, CancellationToken ct);
+
     /// <summary>سهم عادی و هدیهٔ پرداخت ارسال، از Ledger سطح سبد خریدار.</summary>
     Task<PaymentShares> GetShippingPaymentAsync(Guid cartId, CancellationToken ct);
 
     void Add(PhysicalProductCancellation cancellation);
+
+    void AddReservationCancellation(PhysicalReservationCancellation cancellation);
 
     /// <summary>درخواست برگشت موجودی عملیات، اگر هنوز تأیید نشده باشد؛ در غیر این صورت null.</summary>
     Task<PhysicalRestockRequest?> FindPendingRestockAsync(Guid operationId, CancellationToken ct);

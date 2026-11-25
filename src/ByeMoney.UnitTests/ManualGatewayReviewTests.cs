@@ -7,6 +7,7 @@ using ByeMoney.Application.Modules.Wallet.Constants;
 using ByeMoney.Application.Modules.Wallet.DTOs;
 using ByeMoney.Application.Modules.Wallet.Interfaces;
 using ByeMoney.Application.Modules.Wallet.Services;
+using ByeMoney.Domain.Common;
 using ByeMoney.Domain.Modules.Identity.Constants;
 using ByeMoney.Domain.Resources;
 using ByeMoney.Domain.Modules.Identity.Users;
@@ -17,6 +18,7 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
 
@@ -348,5 +350,124 @@ public class ManualGatewayReviewTests
 
         result.IsFailure.Should().BeTrue();
         topUp.Status.Should().Be(TopUpStatus.Rejected);
+    }
+
+    [Fact]
+    public void ReopenFinancialReview_IsIdempotentOnSameNote_AndConflictsOnDifferentNoteOrAction()
+    {
+        var topUp = TopUp();
+        var resolveEvidence = Evidence();
+        topUp.ResolveManualReview("case-1", FinancialReviewOutcomeCodes.NoMatchingDeposit, null, resolveEvidence, Guid.NewGuid(), null);
+
+        topUp.ReopenFinancialReview("case-1", "ev-1", "مدرک تازه").IsSuccess.Should().BeTrue();
+        var revisionAfterFirstReopen = topUp.ReviewRevision;
+        var auditCountAfterFirstReopen = topUp.ReviewAudit.Count;
+
+        // تکرار یکسان
+        var replay = topUp.ReopenFinancialReview("case-1", "ev-1", "مدرک تازه");
+        replay.IsSuccess.Should().BeTrue();
+        topUp.ReviewRevision.Should().Be(revisionAfterFirstReopen);
+        topUp.Status.Should().Be(TopUpStatus.UnderReview);
+        topUp.ReviewAudit.Should().HaveCount(auditCountAfterFirstReopen);
+
+        // یادداشت متفاوت (حتی فاصلهٔ اضافه، چون بدون نرمال‌سازی ذخیره می‌شود)
+        var noteMismatch = topUp.ReopenFinancialReview("case-1", "ev-1", "یادداشت دیگر");
+        noteMismatch.Status.Should().Be(ResultStatus.Conflict);
+        topUp.ReviewRevision.Should().Be(revisionAfterFirstReopen);
+        topUp.ReviewAudit.Should().HaveCount(auditCountAfterFirstReopen);
+
+        // شناسهٔ متعلق به عمل دیگر (OperationId مربوط به resolve)
+        var wrongAction = topUp.ReopenFinancialReview("case-1", resolveEvidence.OperationId.ToString(), "مدرک تازه");
+        wrongAction.Status.Should().Be(ResultStatus.Conflict);
+        topUp.ReviewRevision.Should().Be(revisionAfterFirstReopen);
+        topUp.ReviewAudit.Should().HaveCount(auditCountAfterFirstReopen);
+    }
+
+    [Fact]
+    public void ReopenFinancialReview_ReplayAfterReResolve_SucceedsAndKeepsCaseClosed()
+    {
+        var topUp = TopUp();
+        var actor = Guid.NewGuid();
+        topUp.ResolveManualReview("case-1", FinancialReviewOutcomeCodes.NoMatchingDeposit, null, Evidence(1), actor, null);
+        topUp.ReopenFinancialReview("case-1", "ev-1", "مدرک تازه").IsSuccess.Should().BeTrue();
+        topUp.ResolveManualReview("case-1", FinancialReviewOutcomeCodes.NoMatchingDeposit, null, Evidence(2), actor, null)
+            .IsSuccess.Should().BeTrue();
+
+        var resolvedAt = topUp.ReviewResolvedAtUtc;
+        var revision = topUp.ReviewRevision;
+        var auditCount = topUp.ReviewAudit.Count;
+
+        var replay = topUp.ReopenFinancialReview("case-1", "ev-1", "مدرک تازه");
+
+        replay.IsSuccess.Should().BeTrue();
+        topUp.Status.Should().Be(TopUpStatus.Unresolved);
+        topUp.ReviewResolvedAtUtc.Should().Be(resolvedAt);
+        topUp.ReviewRevision.Should().Be(revision);
+        topUp.ReviewAudit.Should().HaveCount(auditCount);
+    }
+
+    [Fact]
+    public async Task ReopenReviewAsync_ReturnsReviewCaseConflict_OnNoteMismatch_AndResolvesConcurrencyReplay()
+    {
+        var topUp = TopUp();
+        topUp.ResolveManualReview("case-1", FinancialReviewOutcomeCodes.NoMatchingDeposit, null, Evidence(), Guid.NewGuid(), null);
+
+        var repository = new Mock<ITopUpRequestRepository>();
+        repository.Setup(x => x.GetByClientReferenceCodeAsync(topUp.ClientReferenceCode, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(topUp);
+
+        var unitOfWork = new Mock<IUnitOfWork>();
+        var service = new GatewayTopUpService(repository.Object, Mock.Of<ITopUpSettlementService>(),
+            Mock.Of<INoorCreditService>(), unitOfWork.Object, Mock.Of<IPublisher>(), Mock.Of<IServiceScopeFactory>());
+
+        var first = await service.ReopenReviewAsync(topUp.ClientReferenceCode, "case-1", "ev-1", "یادداشت اول");
+        first.IsSuccess.Should().BeTrue();
+
+        var replay = await service.ReopenReviewAsync(topUp.ClientReferenceCode, "case-1", "ev-1", "یادداشت اول");
+        replay.IsSuccess.Should().BeTrue();
+        unitOfWork.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+
+        var conflict = await service.ReopenReviewAsync(topUp.ClientReferenceCode, "case-1", "ev-1", "یادداشت دوم");
+        conflict.Status.Should().Be(ResultStatus.Conflict);
+        conflict.ErrorCode.Should().Be(GatewayTopUpErrorCodes.ReviewConflict);
+
+        // شبیه‌سازی DbUpdateConcurrencyException که در رکورد تازه ثبت شده است
+        var stale = TopUp();
+        stale.ResolveManualReview("case-1", FinancialReviewOutcomeCodes.NoMatchingDeposit, null, Evidence(), Guid.NewGuid(), null);
+        var fresh = TopUp();
+        fresh.ResolveManualReview("case-1", FinancialReviewOutcomeCodes.NoMatchingDeposit, null, Evidence(), Guid.NewGuid(), null);
+        fresh.ReopenFinancialReview("case-1", "ev-concurrent", "توضیح");
+
+        var staleRepo = new Mock<ITopUpRequestRepository>();
+        staleRepo.Setup(x => x.GetByClientReferenceCodeAsync(stale.ClientReferenceCode, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(stale);
+        var freshRepo = new Mock<ITopUpRequestRepository>();
+        freshRepo.Setup(x => x.GetByClientReferenceCodeAsync(stale.ClientReferenceCode, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(fresh);
+
+        var scopedProvider = new Mock<IServiceProvider>();
+        scopedProvider.Setup(x => x.GetService(typeof(ITopUpRequestRepository))).Returns(freshRepo.Object);
+        var scope = new Mock<IServiceScope>();
+        scope.Setup(x => x.ServiceProvider).Returns(scopedProvider.Object);
+        var scopeFactory = new Mock<IServiceScopeFactory>();
+        scopeFactory.Setup(x => x.CreateScope()).Returns(scope.Object);
+
+        var failingUow = new Mock<IUnitOfWork>();
+        failingUow.Setup(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new DbUpdateConcurrencyException());
+
+        var concurrentService = new GatewayTopUpService(staleRepo.Object, Mock.Of<ITopUpSettlementService>(),
+            Mock.Of<INoorCreditService>(), failingUow.Object, Mock.Of<IPublisher>(), scopeFactory.Object);
+
+        var concurrentReplay = await concurrentService.ReopenReviewAsync(stale.ClientReferenceCode, "case-1", "ev-concurrent", "توضیح");
+        concurrentReplay.IsSuccess.Should().BeTrue();
+
+        var concurrentMismatch = await concurrentService.ReopenReviewAsync(stale.ClientReferenceCode, "case-1", "ev-concurrent", "مغایر");
+        concurrentMismatch.Status.Should().Be(ResultStatus.Conflict);
+        concurrentMismatch.ErrorCode.Should().Be(GatewayTopUpErrorCodes.ReviewConflict);
+
+        var concurrentMissing = await concurrentService.ReopenReviewAsync(stale.ClientReferenceCode, "case-1", "ev-not-saved", "توضیح");
+        concurrentMissing.Status.Should().Be(ResultStatus.Conflict);
+        concurrentMissing.ErrorCode.Should().Be(GatewayTopUpErrorCodes.ReviewConflict);
     }
 }

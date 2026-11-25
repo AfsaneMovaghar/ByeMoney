@@ -1,5 +1,19 @@
 # خلاصهٔ شواهد آزمون و پذیرش
 
+## نگاشت کد `409` در پروکسی تغییر وضعیت تحویل فرانت (`I11-O`) — ۲۵ نوامبر ۲۰۲۶
+
+- **دامنه (`front-end`):** افزودن شاخهٔ `409` (`conflict: true`) به `updatePhysicalPurchaseDeliveryStatus` در `byeMoneyApi.js`، نگاشت `result.conflict` به کد `409` در `PUT /api/admin/physical-purchases/[purchaseId]/delivery-status`، و پوشش `409` در شرط پیام انتقال غیرمجاز `PhysicalDeliveryControl.jsx`.
+- **نتیجه:** Jest محلی فرانت (`3` سوییت: `byeMoneyPhysicalOrders.test.js`، `delivery-status/route.test.js`، `PhysicalDeliveryControl.test.jsx`): **۵۹/۵۹ سبز**.
+- **محدودیت:** آزمون واحد با `fetch` شبیه‌سازی‌شده؛ پذیرش با مرورگر واقعی در بخش «نیازمند تست دستی» پیگیری می‌شود.
+
+## هم‌ترازی تکرار `evidenceId` در بازگشایی رسیدگی مالی درگاه (`I07`) — ۲۵ نوامبر ۲۰۲۶
+
+- **دامنه (`ByeMoney`):**
+  - در `TopUpRequest.ReopenFinancialReview` تکرار `evidenceId` پیش از بررسی وضعیت پرونده بررسی می‌شود؛ تکرار فقط وقتی بی‌اثر (`200`) است که رکورد قبلی در `ReviewAudit` از نوع `"evidence"` در همین پرونده و با `Note` دقیقاً برابر باشد (بدون مقایسهٔ زمان سرور). تغییر `note` یا استفاده از شناسهٔ متعلق به عمل دیگر، تعارض `409` با کد `REVIEW_CASE_CONFLICT` برمی‌گرداند.
+  - در `GatewayTopUpService.ReopenReviewAsync` تکرار بی‌اثر ذخیرهٔ اضافه انجام نمی‌دهد و در `DbUpdateConcurrencyException` رکورد تازه در scope جدید خوانده شده و با همان قاعدهٔ دامنه بررسی می‌شود.
+  - آزمون‌های واحد در `ManualGatewayReviewTests` (تکرار یکسان، `note` متفاوت، شناسهٔ عمل دیگر، تکرار پس از بسته شدن دوباره، و شبیه‌سازی `DbUpdateConcurrencyException`) و ثبت قاعده در بخش `I07` [قرارداد اتصال](../integration/ByeMoney-Strapi-Integration.md).
+- **نتیجه:** `dotnet build ByeMoney.sln -c Release` (۰ خطا، ۰ هشدار) و `ByeMoney.UnitTests` با پیکربندی `Release`: **۸۳۷/۸۳۷ سبز** (`Failed: 0, Skipped: 0`). *(اجرای `Debug` به‌خاطر قفل فایل توسط فرایند در حال اجرای `ByeMoney.API` انجام نشد.)*
+
 ## هم‌ترازی کد خطا و اعتبارسنجی کد رهگیری در `I11-O` — ۲۵ نوامبر ۲۰۲۶
 
 - **دامنه (شاخهٔ `fix/delivery-status-contract`):**
@@ -476,3 +490,20 @@
 - اسناد: بند ۸.۲ `Postex_API` و جملهٔ ساخت مرسوله در I11-O.
 - آزمون: `CreatePhysicalShipmentTests` + `PostexShipmentCityCodeTests` + `OrderSettlementTests` — ۳۹ موفق و ۰ ناموفق.
 - محدودیت: پستکس زنده صدا زده نشد. مرسولهٔ پرداخت‌نشدهٔ قبلی با کلیک دوباره پرداخت نمی‌شود؛ تا وضعیت واسط از «در انتظار پرداخت» خارج شود، ساخت دوم انجام نمی‌شود و خرید `Preparing` می‌ماند. قفل سبد تا پایان مهلت پستکس (پیش‌فرض ۲۰ ثانیه) نگه داشته می‌شود.
+
+## هم‌ترازی تکرار `operationId` در `I09-PC` — ۲۵ نوامبر ۲۰۲۶
+
+- تغییر (بای‌مانی): مقایسهٔ `reason` trim‌شده در بازپخش `operationId` لغوهای پرداخت‌شده (خریدار و ادمین)؛ افزودن موجودیت و جدول `PhysicalReservationCancellations` (مهاجرت افزودنی `AddPhysicalReservationCancellations` با ایندکس یکتا روی `OperationId` و ایندکس روی `CartId`) برای ثبت پایدار لغو پرداخت‌نشده پیش از فراخوانی آزادسازی؛ جست‌وجوی `operationId` در هر دو منبع پیش از تصمیم بر اساس وضعیت سبد و زیر قفل خریدار و سبد؛ بازپخش هوشمند لغو پرداخت‌نشده بر پایهٔ `ReservationId` فعلی (تکرار آزادسازی در همان رزرو با حفظ ۵۰۳، و پاسخ ۲۰۰ بدون دست‌زدن به رزرو تازه یا Ledger در بازگشایی/پرداخت).
+- اسناد: بخش‌های `I09-C` و `I09-PC` در `ByeMoney-Strapi-Integration.md` به‌روزرسانی شدند.
+- آزمون: `dotnet test src/ByeMoney.UnitTests/ByeMoney.UnitTests.csproj -c Release` — ۸۳۴ موفق، ۰ ناموفق، ۰ ردشده (شامل ۵ آزمون جدید در `PhysicalCancellationPostgresTests` برای تعارض دلیل/سبد، تلاقی پرداخت‌نشده و پرداخت‌شده در مسیر خریدار و ادمین، بازگشایی و پرداخت پس از لغو پرداخت‌نشده، دو لغو متوالی، شکست ۵۰۳ و تکرار، و رقابت هم‌زمان روی PostgreSQL).
+- محدودیت: بیلد و آزمون در پیکربندی `Release` اجرا شد (پیکربندی `Debug` به دلیل قفل فایل توسط فرایند در حال اجرای `ByeMoney.API` در دسترس نبود) و مهاجرت جدید هنوز روی دیتابیس توسعهٔ برنامهٔ در حال اجرا اعمال نشده است.
+
+## هم‌ترازی تکرار `evidenceId` در بازگشایی رسیدگی درگاه `I07` — ۲۵ نوامبر ۲۰۲۶
+
+- تغییر (بای‌مانی): در `TopUpRequest.ReopenFinancialReview` و `GatewayTopUpService.ReopenReviewAsync` تطبیق `EventType == "evidence"` و `note` برای تکرار `evidenceId` اضافه شد تا تکرار یکسان `200` بدهد و تغییر `note` یا استفاده از شناسهٔ عملیات دیگر تعارض `409` برگرداند (به همراه مدیریت هم‌زمانی).
+- آزمون: `dotnet test src/ByeMoney.UnitTests/ByeMoney.UnitTests.csproj -c Release --filter "FullyQualifiedName~ManualGatewayReviewTests" --no-restore` — ۲۱ موفق، ۰ ناموفق، ۰ ردشده.
+- محدودیت: در پیکربندی `Release` اجرا شد (فایل‌های `Debug` توسط فرایند در حال اجرای `ByeMoney.API` قفل بود).
+
+## هم‌ترازی کد خطای رسید نامعتبر در خروج نور `I11-W` — ۲۵ نوامبر ۲۰۲۶
+
+- تغییر (قرارداد اتصال): در متن عمومی `I11-W` تصریح شد که خطای تصویر رسید نامعتبر (`400 NOOR_WITHDRAWAL_INVALID_RECEIPT`) استثنای شکل عمومی اعتبارسنجی است و در قالب `{code, error}` برمی‌گردد؛ این مورد با جدول مسیرهای `I11-W`، کد کنترلر و مصرف‌کنندهٔ فرانت هم‌خوان است و تغییری در کد نیاز نداشت.

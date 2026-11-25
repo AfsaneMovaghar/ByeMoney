@@ -68,16 +68,83 @@ public sealed class PhysicalCancellationService(
     public async Task<Result<PhysicalCancellationResponse>> CancelForBuyerAsync(
         Guid buyerId, Guid cartId, Guid operationId, string reason, CancellationToken ct)
     {
-        var cart = VisibleCart(await carts.FindAsync(cartId, buyerId, ct));
-        var invalid = CheckBuyerCart(cart);
-        if (invalid is not null)
+        var initialCart = VisibleCart(await carts.FindAsync(cartId, buyerId, ct));
+        if (initialCart is null)
         {
-            return Copy<PhysicalCancellationResponse>(invalid);
+            return NotFound<PhysicalCancellationResponse>();
         }
 
-        if (cart!.Status != CartStatus.Paid)
+        var normalizedReason = reason.Trim();
+        var stepResult = await store.ExecuteAsync(buyerId, cartId, async () =>
         {
-            // پرداخت ناتمام: فقط رزرو طبق I09-C آزاد می‌شود؛ برگشتی وجود ندارد.
+            var existingPaid = await store.GetOperationAsync(operationId, ct);
+            if (existingPaid.Count > 0)
+            {
+                var sameOperation = existingPaid.All(x =>
+                    x.CartId == cartId &&
+                    x.Actor == PhysicalCancellationActor.Buyer &&
+                    x.PerformedByUserId == new UserId(buyerId) &&
+                    string.Equals(x.Reason, normalizedReason, StringComparison.Ordinal));
+                var replay = await ReplayAsync(existingPaid, sameOperation, ct);
+                return replay.IsSuccess
+                    ? Result<BuyerCancellationStep>.Success(new BuyerCancellationStep(replay.Value, false))
+                    : Copy<BuyerCancellationStep>(replay);
+            }
+
+            var existingUnpaid = await store.GetReservationCancellationAsync(operationId, ct);
+            if (existingUnpaid is not null)
+            {
+                var sameOperation =
+                    existingUnpaid.CartId == cartId &&
+                    existingUnpaid.BuyerId == new UserId(buyerId) &&
+                    string.Equals(existingUnpaid.Reason, normalizedReason, StringComparison.Ordinal);
+                if (!sameOperation)
+                {
+                    return ConflictResult<BuyerCancellationStep>();
+                }
+
+                var currentCart = await store.FindCartAsync(cartId, ct);
+                var needsRelease = currentCart is not null &&
+                    currentCart.Status != CartStatus.Paid &&
+                    currentCart.ReservationId == existingUnpaid.ReservationId;
+                return Result<BuyerCancellationStep>.Success(
+                    new BuyerCancellationStep(ReservationReleasedResponse(operationId, cartId), needsRelease));
+            }
+
+            var cart = VisibleCart(await store.FindCartAsync(cartId, ct));
+            var invalid = CheckBuyerCart(cart);
+            if (invalid is not null)
+            {
+                return Copy<BuyerCancellationStep>(invalid);
+            }
+
+            if (cart!.Status != CartStatus.Paid)
+            {
+                var reservationCancellation = PhysicalReservationCancellation.Create(
+                    operationId, cart.Id, cart.ReservationId, new UserId(buyerId), normalizedReason);
+                store.AddReservationCancellation(reservationCancellation);
+                return Result<BuyerCancellationStep>.Success(
+                    new BuyerCancellationStep(ReservationReleasedResponse(operationId, cartId), true));
+            }
+
+            var purchases = await store.GetPurchasesAsync(cartId, ct);
+            var plan = await PlanAsync(cart, purchases, BuyerTargets(purchases), ct);
+            var applied = await ApplyAsync(
+                plan, buyerId, operationId, PhysicalCancellationActor.Buyer, new UserId(buyerId), normalizedReason, ct);
+            return applied.IsSuccess
+                ? Result<BuyerCancellationStep>.Success(new BuyerCancellationStep(applied.Value, false))
+                : Copy<BuyerCancellationStep>(applied);
+        }, ct);
+
+        if (stepResult.IsFailure)
+        {
+            return Copy<PhysicalCancellationResponse>(stepResult);
+        }
+
+        var step = stepResult.Value;
+        if (step.NeedsReservationRelease)
+        {
+            // پرداخت ناتمام: ردیف عملیات پیش‌تر پایدار شده تا در شکست ۵۰۳ حفظ شود؛ اکنون آزادسازی اجرا می‌شود.
             var released = await cartService.CancelAsync(buyerId, cartId, ct);
             if (released.IsFailure)
             {
@@ -87,34 +154,15 @@ public sealed class PhysicalCancellationService(
                     : ConflictResult<PhysicalCancellationResponse>();
             }
 
-            if (released.Value.Status != nameof(CartStatus.Paid))
+            if (released.Value.Status == nameof(CartStatus.Paid))
             {
-                return Result<PhysicalCancellationResponse>.Success(new PhysicalCancellationResponse(
-                    operationId, cartId, nameof(PhysicalCancellationOutcome.ReservationReleased),
-                    nameof(PhysicalCancellationActor.Buyer), [], 0m, 0m, 0m, null));
+                return ConflictResult<PhysicalCancellationResponse>();
             }
+
+            return Result<PhysicalCancellationResponse>.Success(step.Response);
         }
 
-        var result = await store.ExecuteAsync(buyerId, cartId, async () =>
-        {
-            var existing = await store.GetOperationAsync(operationId, ct);
-            if (existing.Count > 0)
-            {
-                var sameOperation = existing.All(x =>
-                    x.CartId == cartId &&
-                    x.Actor == PhysicalCancellationActor.Buyer &&
-                    x.PerformedByUserId == new UserId(buyerId));
-                return await ReplayAsync(existing, sameOperation, ct);
-            }
-
-            var paidCart = await store.FindCartAsync(cartId, ct);
-            var purchases = await store.GetPurchasesAsync(cartId, ct);
-            var plan = await PlanAsync(paidCart!, purchases, BuyerTargets(purchases), ct);
-            return await ApplyAsync(
-                plan, buyerId, operationId, PhysicalCancellationActor.Buyer, new UserId(buyerId), reason, ct);
-        }, ct);
-
-        return await RestockAfterCommitAsync(result, ct);
+        return await RestockAfterCommitAsync(Result<PhysicalCancellationResponse>.Success(step.Response), ct);
     }
 
     public async Task<Result<PhysicalCancellationResponse>> CancelForAdminAsync(
@@ -126,6 +174,7 @@ public sealed class PhysicalCancellationService(
             return NotFound<PhysicalCancellationResponse>();
         }
 
+        var normalizedReason = reason.Trim();
         var result = await store.ExecuteAsync(owner.BuyerId, owner.CartId, async () =>
         {
             var existing = await store.GetOperationAsync(operationId, ct);
@@ -135,8 +184,15 @@ public sealed class PhysicalCancellationService(
                     existing[0].PurchaseId.Value == purchaseId &&
                     existing[0].Quantity == quantity &&
                     existing[0].Actor == PhysicalCancellationActor.Admin &&
-                    existing[0].PerformedByUserId == new UserId(adminId);
+                    existing[0].PerformedByUserId == new UserId(adminId) &&
+                    string.Equals(existing[0].Reason, normalizedReason, StringComparison.Ordinal);
                 return await ReplayAsync(existing, sameOperation, ct);
+            }
+
+            var existingUnpaid = await store.GetReservationCancellationAsync(operationId, ct);
+            if (existingUnpaid is not null)
+            {
+                return ConflictResult<PhysicalCancellationResponse>();
             }
 
             var cart = await store.FindCartAsync(owner.CartId, ct);
@@ -145,7 +201,7 @@ public sealed class PhysicalCancellationService(
                 return NotFound<PhysicalCancellationResponse>();
             var plan = await PlanAsync(cart, purchases, AdminTargets(purchases, purchaseId, quantity), ct);
             return await ApplyAsync(
-                plan, owner.BuyerId, operationId, PhysicalCancellationActor.Admin, new UserId(adminId), reason, ct);
+                plan, owner.BuyerId, operationId, PhysicalCancellationActor.Admin, new UserId(adminId), normalizedReason, ct);
         }, ct);
 
         return await RestockAfterCommitAsync(result, ct);
@@ -381,4 +437,10 @@ public sealed class PhysicalCancellationService(
         ResultStatus.Conflict => Result<T>.Conflict(failure.ErrorMessage!, failure.ErrorCode),
         _ => Result<T>.Failure(failure.ErrorMessage!, failure.ErrorCode)
     };
+
+    private static PhysicalCancellationResponse ReservationReleasedResponse(Guid operationId, Guid cartId) =>
+        new(operationId, cartId, nameof(PhysicalCancellationOutcome.ReservationReleased),
+            nameof(PhysicalCancellationActor.Buyer), [], 0m, 0m, 0m, null);
+
+    private sealed record BuyerCancellationStep(PhysicalCancellationResponse Response, bool NeedsReservationRelease);
 }

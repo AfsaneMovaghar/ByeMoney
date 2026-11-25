@@ -231,8 +231,16 @@ public class TopUpRequest : BaseEntity<TopUpRequestId>
 
     public Result ReopenFinancialReview(string caseId, string evidenceId, string? note)
     {
-        if (ReviewCaseId != caseId) return Result.Conflict(DomainErrors.TopUpRequest_ReviewConflict);
-        if (ReviewAudit.Any(x => x.EventId == evidenceId && x.EventType == "evidence")) return Result.Success();
+        if (ReviewCaseId != caseId)
+            return Result.Conflict(DomainErrors.TopUpRequest_ReviewConflict);
+
+        var previous = ReviewAudit.FirstOrDefault(x => x.EventId == evidenceId);
+        if (previous is not null)
+        {
+            return previous.EventType == "evidence" && string.Equals(previous.Note, note, StringComparison.Ordinal)
+                ? Result.Success()
+                : Result.Conflict(DomainErrors.TopUpRequest_ReviewConflict);
+        }
         if (ReviewResolvedAtUtc is not null && !ReviewAudit.Any(x => x.EventType == "resolved" && x.Revision == ReviewRevision))
             ReviewAudit = [.. ReviewAudit, new FinancialReviewAudit($"legacy:{caseId}:{ReviewRevision}", "resolved",
                 ReviewRevision, ReviewResolvedAtUtc.Value, null, null, ReviewOutcomeCode,
