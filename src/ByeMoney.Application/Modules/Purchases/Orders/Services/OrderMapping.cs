@@ -42,7 +42,7 @@ public static class OrderMapping
             groupedPurchases.UnionWith(ownedPurchases.Select(purchase => purchase.Id.Value));
             groupedPhysicalPurchases.UnionWith(ownedPhysicalPurchases.Select(purchase => purchase.Id.Value));
             rows.Add(new OrderReadRow(cart.BuyerId.Value,
-                MapCart(cart, ownedPurchases, ownedPhysicalPurchases, ownedTopUps, invalidLink, includeAdminResolutionDetails, externalUserIds)));
+                MapCart(cart, ownedPurchases, ownedPhysicalPurchases, ownedTopUps, invalidLink, snapshot, includeAdminResolutionDetails, externalUserIds)));
         }
 
         var purchasesById = snapshot.Purchases.ToDictionary(purchase => purchase.Id);
@@ -68,22 +68,26 @@ public static class OrderMapping
                 ? OrderFinancialStatus.RequiresReview
                 : IsPaid(purchase) ? OrderFinancialStatus.Paid : OrderFinancialStatus.Processing;
             var item = MapItem(purchase.Snapshot.ExternalProductId, null, null, purchase, status);
+            var shipping = ShippingRefundOf(snapshot, purchase.CartId);
             rows.Add(new OrderReadRow(purchase.BuyerId.Value, new OrderDetails(
                 OrderIdFormat.For(OrderSourceType.Purchase, purchase.Id.Value),
                 OrderSourceType.Purchase.ToString(), purchase.CartId, purchase.CreatedAtUtc,
                 PurchaseUpdatedAt(purchase), status.ToString(), Delivery([item]).ToString(),
-                purchase.Snapshot.PriceInNoorAtPurchaseTime, 1, null, null, null, null, [item], [], null)));
+                purchase.Snapshot.PriceInNoorAtPurchaseTime, 1, null, null, null, null, [item], [], null,
+                CouponCodeOf(snapshot, purchase.CartId), shipping.Regular, shipping.Gift)));
         }
 
         foreach (var physical in snapshot.PhysicalPurchases
             .Where(purchase => !groupedPhysicalPurchases.Contains(purchase.Id.Value)))
         {
             var item = MapPhysicalItem(physical, null, includeAdminResolutionDetails, externalUserIds);
+            var shipping = ShippingRefundOf(snapshot, physical.CartId);
             rows.Add(new OrderReadRow(physical.BuyerId.Value, new OrderDetails(
                 OrderIdFormat.For(OrderSourceType.Purchase, physical.Id.Value),
                 OrderSourceType.Purchase.ToString(), physical.CartId, physical.CreatedAtUtc,
                 PhysicalPurchaseUpdatedAt(physical), OrderFinancialStatus.RequiresReview.ToString(),
-                Delivery([item]).ToString(), physical.PaidAmountInNoor, 1, null, null, null, null, [item], [], null)));
+                Delivery([item]).ToString(), physical.PaidAmountInNoor, 1, null, null, null, null, [item], [], null,
+                CouponCodeOf(snapshot, physical.CartId), shipping.Regular, shipping.Gift)));
         }
 
         return rows;
@@ -91,7 +95,7 @@ public static class OrderMapping
 
     private static OrderDetails MapCart(
         Cart cart, CoursePurchase[] purchases, PhysicalProductPurchase[] physicalPurchases,
-        TopUpRequest[] topUps, bool invalidLink,
+        TopUpRequest[] topUps, bool invalidLink, OrderSnapshot snapshot,
         bool includeAdminResolutionDetails = false,
         IReadOnlyDictionary<Guid, string>? externalUserIds = null)
     {
@@ -132,12 +136,13 @@ public static class OrderMapping
         var summary = hasQuote ? new PurchaseCartSummary(
             cart.OriginalTotal, cart.ItemDiscountInNoor, cart.CouponDiscountInNoor,
             cart.Total, cart.ShippingAmountInNoor) : null;
+        var shipping = ShippingRefundOf(snapshot, cart.Id);
         return new OrderDetails(
             OrderIdFormat.For(OrderSourceType.Cart, cart.Id), OrderSourceType.Cart.ToString(),
             cart.Id, cart.CreatedAtUtc, UpdatedAt(cart.UpdatedAtUtc, purchases, physicalPurchases, topUps),
             status.ToString(), Delivery(items).ToString(), summary?.FinalAmountInNoor, expectedKeys.Length,
             cart.Status.ToString(), cart.ExpiresAtUtc, cart.TopUpRequestId, summary, items, MapTopUps(topUps),
-            CommittedReservationId(cart));
+            CommittedReservationId(cart), cart.CouponCode, shipping.Regular, shipping.Gift);
     }
 
     // A paid cart can no longer be reopened, so its current reservation is the one committed to Strapi.
@@ -355,8 +360,9 @@ public static class OrderMapping
             return OrderDeliveryStatus.Cancelled;
         }
 
-        var delivered = items.Count(item => item.DeliveryStatus == OrderDeliveryStatus.Delivered.ToString());
-        if (items.Count > 0 && delivered == items.Count)
+        var counted = items.Where(item => !IsFullyCancelledPhysical(item)).ToArray();
+        var delivered = counted.Count(item => item.DeliveryStatus == OrderDeliveryStatus.Delivered.ToString());
+        if (counted.Length > 0 && delivered == counted.Length)
         {
             return OrderDeliveryStatus.Delivered;
         }
@@ -364,9 +370,29 @@ public static class OrderMapping
         {
             return OrderDeliveryStatus.PartiallyDelivered;
         }
-        return items.Any(item => item.FinancialStatus == OrderFinancialStatus.Paid.ToString())
+        return counted.Any(item => item.FinancialStatus == OrderFinancialStatus.Paid.ToString())
             ? OrderDeliveryStatus.Pending : OrderDeliveryStatus.NotStarted;
     }
+
+    private static bool IsFullyCancelledPhysical(OrderItem item) =>
+        item.ItemType == nameof(ProductItemType.Product) &&
+        item.CancelledQuantity >= item.Quantity;
+
+    private static string? CouponCodeOf(OrderSnapshot snapshot, Guid? cartId) =>
+        cartId is null
+            ? null
+            : snapshot.Carts.FirstOrDefault(cart => cart.Id == cartId.Value)?.CouponCode;
+
+    private static (decimal Regular, decimal Gift) ShippingRefundOf(OrderSnapshot snapshot, Guid cartId)
+    {
+        var rows = snapshot.PhysicalCancellations.Where(row => row.CartId == cartId).ToArray();
+        return (
+            rows.Sum(row => row.ShippingRegularRefundInNoor),
+            rows.Sum(row => row.ShippingGiftRefundInNoor));
+    }
+
+    private static (decimal Regular, decimal Gift) ShippingRefundOf(OrderSnapshot snapshot, Guid? cartId) =>
+        cartId is null ? (0m, 0m) : ShippingRefundOf(snapshot, cartId.Value);
 
 
     /// <summary>

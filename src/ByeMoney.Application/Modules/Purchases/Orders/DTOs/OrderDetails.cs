@@ -7,7 +7,10 @@ public record OrderDetails(
     string FinancialStatus, string DeliveryStatus, decimal? FinalAmountInNoor, int ItemCount,
     string? CartStatus, DateTime? ExpiresAtUtc, Guid? CurrentTopUpRequestId,
     PurchaseCartSummary? CartSummary, IReadOnlyList<OrderItem> Items,
-    IReadOnlyList<OrderTopUp> TopUps, Guid? ReservationId)
+    IReadOnlyList<OrderTopUp> TopUps, Guid? ReservationId,
+    string? CouponCode = null,
+    decimal ShippingRegularRefundInNoor = 0m,
+    decimal ShippingGiftRefundInNoor = 0m)
 {
     public OrderListItem ToListItem() => new(
         OrderId, SourceType, CartId, CreatedAtUtc, UpdatedAtUtc, FinancialStatus,

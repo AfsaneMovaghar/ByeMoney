@@ -20,10 +20,17 @@ public static class PurchaseHistoryMapping
         ? DeliveryStatus(row.PhysicalDelivery.Value)
         : DeliveryStatus(row.Status);
 
-    public static PurchaseListItem ToListItem(PurchaseReadRow row) => new(
-        row.PurchaseId, row.CartId, row.ItemTitle, row.FinalAmountInNoor,
-        row.PurchasedAtUtc, PurchaseFinancialStatus.Paid.ToString(), DeliveryStatus(row),
-        row.ItemType.ToString(), row.ParentExternalId);
+    public static PurchaseListItem ToListItem(PurchaseReadRow row)
+    {
+        var isProduct = row.ItemType == ProductItemType.Product;
+        return new PurchaseListItem(
+            row.PurchaseId, row.CartId, row.ItemTitle, row.FinalAmountInNoor,
+            row.PurchasedAtUtc, PurchaseFinancialStatus.Paid.ToString(), DeliveryStatus(row),
+            row.ItemType.ToString(), row.ParentExternalId,
+            row.ExternalItemId, row.Quantity,
+            isProduct ? row.CancelledQuantity : 0,
+            isProduct ? row.PhysicalDelivery?.ToString() : null);
+    }
 
     public static AdminPurchaseListItem ToAdminListItem(PurchaseReadRow row)
     {

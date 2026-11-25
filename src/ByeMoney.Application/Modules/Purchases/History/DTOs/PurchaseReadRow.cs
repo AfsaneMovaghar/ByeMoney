@@ -7,4 +7,5 @@ public sealed record PurchaseReadRow(
     DateTime PurchasedAtUtc, CoursePurchaseStatus Status,
     string BuyerExternalUserId, string? BuyerFirstName, string? BuyerLastName,
     ProductItemType ItemType = ProductItemType.Course, string? ParentExternalId = null,
-    PhysicalDeliveryStatus? PhysicalDelivery = null);
+    PhysicalDeliveryStatus? PhysicalDelivery = null,
+    string? ExternalItemId = null, int Quantity = 1, int CancelledQuantity = 0);

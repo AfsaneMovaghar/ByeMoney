@@ -91,7 +91,10 @@ public sealed class PurchaseHistoryReader(ApplicationDbContext db) : IPurchaseHi
                 row.Buyer.LastName,
                 row.Purchase.Snapshot.ItemType,
                 row.Purchase.Snapshot.ExternalParentId,
-                null))
+                null,
+                row.Purchase.Snapshot.ExternalProductId,
+                1,
+                0))
             .ToListAsync(ct);
 
         List<PurchaseReadRow> physicalItems = [];
@@ -113,7 +116,10 @@ public sealed class PurchaseHistoryReader(ApplicationDbContext db) : IPurchaseHi
                     row.Buyer.LastName,
                     ProductItemType.Product,
                     null,
-                    row.Purchase.DeliveryStatus))
+                    row.Purchase.DeliveryStatus,
+                    row.Purchase.ExternalProductId,
+                    row.Purchase.Quantity,
+                    row.Purchase.CancelledQuantity))
                 .ToListAsync(ct);
         }
 
