@@ -471,6 +471,8 @@ public sealed class PhysicalDeliveryHttpPostgresTests : IAsyncLifetime
             .Should().Be(HttpStatusCode.BadRequest);
         (await SendAsync(client, HttpMethod.Put, url, admin, new { status = "Shipped", trackingCode = "**********" }))
             .StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        (await SendAsync(client, HttpMethod.Put, url, admin, new { status = "Shipped", trackingCode = "****1234" }))
+            .StatusCode.Should().Be(HttpStatusCode.BadRequest);
 
         var shipped = await SendAsync(
             client, HttpMethod.Put, url, admin,

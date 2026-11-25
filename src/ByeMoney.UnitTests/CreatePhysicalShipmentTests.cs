@@ -58,6 +58,7 @@ public sealed class CreatePhysicalShipmentTests
     [Theory]
     [InlineData(null)]
     [InlineData("**********")]
+    [InlineData("****1234")]
     public async Task ParcelReferenceWithoutPostalCodeStaysPreparing(string? trackingCode)
     {
         var purchase = CreatePreparing();

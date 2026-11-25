@@ -60,6 +60,8 @@ public sealed class ShipTrackingTests
     [InlineData("")]
     [InlineData("   ")]
     [InlineData("**********")]
+    [InlineData("****1234")]
+    [InlineData("1234****5678")]
     public void ShippedWithoutARealPostalCodeIsRejected(string? trackingCode)
     {
         var purchase = CreatePhysical();
@@ -120,6 +122,8 @@ public sealed class ShipTrackingTests
 
     [Theory]
     [InlineData("**********")]
+    [InlineData("****1234")]
+    [InlineData("1234****5678")]
     [InlineData("   ")]
     public void CorrectingAShippedCodeWithAnUnusableValueIsRejected(string trackingCode)
     {
@@ -190,6 +194,19 @@ public sealed class ShipTrackingTests
 
         result.Outcome.Should().Be(TrackingOutcome.InTransit);
         result.TrackingCode.Should().Be("IR-100");
+    }
+
+    [Theory]
+    [InlineData("****1234")]
+    [InlineData("1234****5678")]
+    public void PostexStatusDropsSemiMaskedBarcode(string maskedTracking)
+    {
+        var result = PostexStatusParser.Parse(
+            $"{{\"parent\":{{\"code\":3}},\"status_code\":11208,\"tracking_number\":\"{maskedTracking}\"}}",
+            200);
+
+        result.Outcome.Should().Be(TrackingOutcome.InTransit);
+        result.TrackingCode.Should().BeNull();
     }
 
     [Fact]

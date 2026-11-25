@@ -472,7 +472,7 @@ public class PhysicalProductPurchase : BaseEntity<PhysicalProductPurchaseId>
     }
 
     /// <summary>
-    /// بارکد قابل‌استفاده نویسهٔ خالی یا فقط ستاره نیست. شمارهٔ داخلی مرسوله در این فیلد نمی‌آید.
+    /// بارکد قابل‌استفاده نویسهٔ خالی یا دارای ستاره نیست. شمارهٔ داخلی مرسوله در این فیلد نمی‌آید.
     /// </summary>
     public static bool IsUsablePostalTrackingCode(string? tracking)
     {
@@ -482,7 +482,7 @@ public class PhysicalProductPurchase : BaseEntity<PhysicalProductPurchaseId>
         }
 
         var trimmed = tracking.Trim();
-        return trimmed.Any(char.IsLetterOrDigit) && !trimmed.All(ch => ch == '*');
+        return trimmed.Any(char.IsLetterOrDigit) && !trimmed.Contains('*');
     }
 
     public void MarkDelivered()

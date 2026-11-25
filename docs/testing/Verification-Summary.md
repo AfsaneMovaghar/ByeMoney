@@ -1,5 +1,14 @@
 # خلاصهٔ شواهد آزمون و پذیرش
 
+## هم‌ترازی کد خطا و اعتبارسنجی کد رهگیری در `I11-O` — ۲۵ نوامبر ۲۰۲۶
+
+- **دامنه (شاخهٔ `fix/delivery-status-contract`):**
+  - افزودن متادیتای `[ProducesResponseType(StatusCodes.Status409Conflict)]` به `AdminPhysicalPurchasesController.UpdateDeliveryStatus` و هم‌ترازی بخش `I11-O` در [قرارداد اتصال](../integration/ByeMoney-Strapi-Integration.md) برای کدهای `409` (تعارض وضعیت فعلی)، `400` (خطای ورودی/کد رهگیری)، `404` و `200` بی‌اثر.
+  - سخت‌گیرتر کردن `PhysicalProductPurchase.IsUsablePostalTrackingCode` برای رد هر کد رهگیری دارای `*` (ماسک کامل یا نیمه‌ماسک) در همهٔ مسیرهای ثبت دستی، اصلاح کد، ساخت مرسوله، بررسی وضعیت و همگام‌سازی خودکار.
+  - افزودن آزمون‌های کد نیمه‌ماسک در `ShipTrackingTests`، `CreatePhysicalShipmentTests` و `PhysicalDeliveryHttpPostgresTests`.
+- **نتیجه:** `ByeMoney.UnitTests` (شامل آزمون‌های واحد و یکپارچهٔ HTTP/PostgreSQL تحویل کالا) با پیکربندی `Release`: **۸۲۸/۸۲۸ سبز** (`Failed: 0, Skipped: 0`). *(اجرای `Debug` به‌خاطر قفل فایل توسط فرایند در حال اجرای `ByeMoney.API` انجام نشد.)*
+- **محدودیت / کار باقی‌مانده:** در فرانت‌اند (`front-end`) تغییری داده نشد؛ پروکسی سروری Next.js برای `delivery-status` پیام خطای `409` را به ادمین می‌رساند ولی شاخهٔ صریح `409` ندارد و کد HTTP را `500` برمی‌گرداند (ثبت‌شده در `P2` [TASKS](../../TASKS.md)).
+
 ## بازبینی هم‌ترازی قراردادها، `I07` و `I09-CH` — ۲۵ نوامبر ۲۰۲۶
 
 - دامنه: بازبینی اجرای ۴ پرامپت هم‌ترازی و پاک‌سازی در بای‌مانی و فرانت‌اند:
