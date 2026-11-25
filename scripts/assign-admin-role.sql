@@ -21,14 +21,18 @@ BEGIN
         INSERT INTO "Users" (
             "Id",
             "ExternalUserId",
+            "UserType",
             "IsActive",
-            "CreatedAtUtc"
+            "CreatedAtUtc",
+            "ProfileSyncedAt"
         )
         VALUES (
             v_internal_user_id,
             v_strapi_document_id,
+            'Normal',
             TRUE,
-            NOW() AT TIME ZONE 'UTC'
+            NOW() AT TIME ZONE 'UTC',
+            '0001-01-01 00:00:00+00'
         );
         RAISE NOTICE 'کاربر جدید با شناسه بای‌مانی % برای شناسه استرپی % ایجاد شد.', v_internal_user_id, v_strapi_document_id;
     ELSE
@@ -36,8 +40,8 @@ BEGIN
     END IF;
 
     -- ۲. تخصیص نقش مدیر (Admin) به کاربر
-    INSERT INTO "UserRoles" ("UserId", "RoleId")
-    VALUES (v_internal_user_id, v_admin_role_id)
+    INSERT INTO "UserRoles" ("UserId", "RoleId", "CreatedAt")
+    SELECT "Id", v_admin_role_id, NOW() FROM "Users" WHERE "ExternalUserId" = v_strapi_document_id
     ON CONFLICT ("UserId", "RoleId") DO NOTHING;
 
     RAISE NOTICE 'نقش Admin با موفقیت به کاربر تخصیص داده شد.';

@@ -305,9 +305,53 @@ public sealed class WelcomeGiftFinancialTests : IAsyncLifetime
         unitOfWorkMock.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 
-    // ۴. آزمون هم‌زمانی روی PostgreSQL مستقل: دو درخواست هم‌زمان برای یک کاربر استرپی
+    // ۴. seed غیرفعال روی PostgreSQL: کاربر تازه کیف پول صفر بدون Ledger WelcomeGift
     [PostgresFact]
-    public async Task WelcomeGift_ConcurrentRequestsForSameUser_ExecutedOnPostgres_CreatesSingleUserAndGift()
+    public async Task WelcomeGift_WhenSeedCampaignDisabled_OnPostgres_ProvisionsWalletWithoutGiftOrLedger()
+    {
+        if (_provider is null) return;
+
+        var externalUserId = "pg-seed-disabled-" + Guid.NewGuid().ToString("N");
+        var tarhElahiMock = new Mock<ITarhElahiIntegrationClient>();
+        tarhElahiMock.Setup(x => x.GetUserAsync(externalUserId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new TarhElahiUserDto
+            {
+                ExternalUserId = externalUserId,
+                PhoneNumber = "09126666666",
+                Email = "seed-off@test.com",
+                FirstName = "Neda",
+                LastName = "Karimi",
+                Confirmed = true,
+                Blocked = false
+            });
+
+        using var scope = _provider.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var provisioningService = CreateProvisioningService(scope, db, tarhElahiMock);
+
+        var result = await provisioningService.EnsureUserFromExternalAsync(externalUserId, CancellationToken.None);
+
+        result.Created.Should().BeTrue();
+        var wallet = await db.Set<Wallet>().SingleAsync(w => w.UserId == result.User.Id);
+        wallet.GiftBalance.Should().Be(0m);
+        wallet.WithdrawableBalance.Should().Be(0m);
+
+        var giftBatchCount = await db.Set<GiftGrantBatch>()
+            .Where(b => b.IdempotencyKey == $"welcome-bonus:{result.User.Id.Value}")
+            .CountAsync();
+        giftBatchCount.Should().Be(0);
+
+        var ledgerForUser = await (
+            from entry in db.Set<LedgerEntry>()
+            join account in db.Set<Account>() on entry.AccountId equals account.Id
+            where entry.ReferenceType == LedgerReferenceType.WelcomeGift && account.UserId == result.User.Id
+            select entry).AnyAsync();
+        ledgerForUser.Should().BeFalse();
+    }
+
+    // ۵. آزمون هم‌زمانی روی PostgreSQL مستقل: دو درخواست هم‌زمان برای یک کاربر استرپی (بدون هدیه وقتی seed غیرفعال است)
+    [PostgresFact]
+    public async Task WelcomeGift_ConcurrentRequestsForSameUser_ExecutedOnPostgres_CreatesSingleUserWithoutDuplicateProvision()
     {
         if (_provider is null) return;
 
@@ -353,11 +397,10 @@ public sealed class WelcomeGiftFinancialTests : IAsyncLifetime
             Task.Run(() => service1.EnsureUserFromExternalAsync(externalUserId, CancellationToken.None)),
             Task.Run(() => service2.EnsureUserFromExternalAsync(externalUserId, CancellationToken.None)));
 
-        // هر دو درخواست موفق‌اند؛ فقط یکی واقعاً کاربر را ساخته و هدیه گرفته است.
+        // هر دو درخواست موفق‌اند؛ فقط یکی واقعاً کاربر را ساخته است.
         results.Count(result => result.Created).Should().Be(1);
         results.Select(result => result.User.Id.Value).Distinct().Should().ContainSingle();
 
-        // در پایگاه داده بررسی شود که دقیقاً یک کاربر، یک کیف پول و یک رکورد هدیه وجود دارد
         using var verifyScope = _provider.CreateScope();
         var verifyDb = verifyScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
@@ -366,18 +409,15 @@ public sealed class WelcomeGiftFinancialTests : IAsyncLifetime
 
         var user = createdUsers.First();
         var wallet = await verifyDb.Set<Wallet>().SingleAsync(w => w.UserId == user.Id);
-        wallet.GiftBalance.Should().Be(50000m);
+        wallet.GiftBalance.Should().Be(0m);
 
-        var giftBatches = await verifyDb.Set<GiftGrantBatch>()
-            .Include(b => b.Recipients)
+        var giftBatchCount = await verifyDb.Set<GiftGrantBatch>()
             .Where(b => b.IdempotencyKey == $"welcome-bonus:{user.Id.Value}")
-            .ToListAsync();
-
-        giftBatches.Should().HaveCount(1);
-        giftBatches.First().Recipients.Should().HaveCount(1);
+            .CountAsync();
+        giftBatchCount.Should().Be(0);
     }
 
-    // ۵. آزمون شکست در میانه روی PostgreSQL مستقل: رول‌بک اتمیک (نه کاربر بدون هدیه و نه هدیه بدون کاربر)
+    // ۶. آزمون شکست در میانه روی PostgreSQL مستقل: رول‌بک اتمیک (نه کاربر بدون هدیه و نه هدیه بدون کاربر)
     [PostgresFact]
     public async Task WelcomeGift_MidwayFailure_ExecutedOnPostgres_RollsBackAllEntities()
     {

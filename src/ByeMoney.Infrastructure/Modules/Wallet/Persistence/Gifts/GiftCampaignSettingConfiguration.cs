@@ -57,7 +57,7 @@ public class GiftCampaignSettingConfiguration : IEntityTypeConfiguration<GiftCam
             CampaignType = GiftCampaignType.Welcome,
             ScopeId = FinancialScope.TarheElahi,
             AmountNoor = 50000m,
-            IsEnabled = true,
+            IsEnabled = false,
             StartDateUtc = (DateTime?)null,
             EndDateUtc = (DateTime?)null,
             UpdatedAtUtc = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc),

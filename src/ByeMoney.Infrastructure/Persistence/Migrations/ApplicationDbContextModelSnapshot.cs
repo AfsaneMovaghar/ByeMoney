@@ -1020,7 +1020,7 @@ namespace ByeMoney.Infrastructure.Migrations
                             AmountNoor = 50000m,
                             CampaignType = "Welcome",
                             CreatedAtUtc = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
-                            IsEnabled = true,
+                            IsEnabled = false,
                             ScopeId = "TARHE_ELAHI",
                             UpdatedAtUtc = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
                         });

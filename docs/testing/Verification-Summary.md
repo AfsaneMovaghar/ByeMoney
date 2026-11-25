@@ -2,6 +2,25 @@
 
 بازبینی و فشرده‌سازی: ۲۰۲۶-۱۱-۰۷. این گزارش فقط نتیجه و محدودیت پذیرش را نگه می‌دارد. شمارش آزمون‌های اجراهای مختلف با هم جمع نمی‌شود. آزمون محلی، ادغام و انتشار سه شاهد مستقل‌اند. کار باقی‌مانده فقط در [TASKS](../../TASKS.md) و [HOTFIXES](../../HOTFIXES.md) است. نام آزمون‌ها، SHA و شرح اجرا در Git است. ثبت تازه فقط تاریخ، نسخه، محیط، دامنه، نتیجه و محدودیت داشته باشد.
 
+## پذیرش دستی محلی (بدون SEP و بدون شارژ پنل پستکس) — ۲۴ نوامبر ۲۰۲۶
+
+- دامنه: سه سرویس روی localhost (بای‌مانی ۵۰۰۰، استرپی ۱۳۳۷، فرانت ۳۰۰۰). JWT کاربر/ادمین با مسیر واقعی ثبت‌نام/ورود استرپی (`node .tmp/acc/*`؛ دادهٔ تست ۴۴۰۱–۴۴۰۳، ۴۵۰۱–۴۵۱۰). پستکس زنده برای ساخت/شارژ و SEP واقعی عمداً اجرا نشد.
+- **شارژ ادمین (API):** `POST /api/admin/topups/assisted` با multipart و کلید تکرار — با رسید → `Confirmed` و یک ردیف Ledger؛ بدون رسید همان؛ تکرار همان کلید → همان پاسخ بدون Ledger اضافه؛ کلید با مبلغ متفاوت → `409`؛ بدون کلید → `۴۰۰`؛ کاربر بدون نقش → `۴۰۳`. شاهد: `wallet-d2-r06.steps2.json`.
+- **SHIP-FIX-2 (HTTP):** تک‌قلم برگشتی → `confirm-delivery` برابر `۴۰۹` و بدون `Delivered` در DB؛ مختلط (یک برگشتی + یک سالم) → `۲۰۰` و `confirmedCount=1`؛ `providerParcelId` در جزئیات/رسید ادمین هست و در پاسخ خریدار نیست (جستجوی مقدار خام)؛ نقش ادمین روی PUT تحویل `۴۰۳`. شاهد: `shipfix2-raw.json`، `shipfix2-part3.json`. سناریوی یکپارچهٔ قدیمی `s2-step6.js` به‌خاطر تغییر دادهٔ تکراری قابل اتکا نیست؛ مرجع همان `shipfix2.js`.
+- **I11-O / تحویل ادمین:** همان اجرا مسیرهای `PUT delivery-status` (Preparing→Shipped→Delivered، قفل پس از Delivered با `۴۰۹`/`۴۰۰`)، `GET` سفارش ادمین/خریدار و RBAC را پوشش داد (توکن استرپی، نه مرورگر).
+- **D2 سفارش دستی ادمین (HTTP، ناقص):** دورهٔ پولی و فصل پولی کاربر موجود → `۲۰۰`/`Paid`؛ لیست `GET /api/admin/orders` سفارش‌ها را نشان می‌دهد؛ فهرست `orders` استرپی برای همان کاربر همچنان ۰. کاربر مسدود، کاربر تازه و دورهٔ رایگان تکراری به‌خاطر دورهٔ از قبل خریده‌شده یا دادهٔ قدیمی `۴۰۹` گرفتند، نه رد صریح «blocked» — برای بستن ردیف باید با کاربر/دورهٔ تازه تکرار شود.
+- **R06:** `purchase` هم‌زمان روی یک سبد → یک موفق؛ خرید مجدد همان دوره → `۴۰۹` در prepare. مسیر Legacy و staging اجرا نشد.
+- **FE-ORDER-02:** Jest `src/app/checkout/result` — ۳۱ موفق. صفحهٔ نتیجه با سفارش واقعی فقط‌کالا در مرورگر باز نشد.
+- **بای‌مانی (بازاجرای محلی):** فیلتر `PhysicalDeliveryHttpPostgresTests|CarrierReturnResolutionTests` — ۲۳ موفق (بدون rebuild به‌خاطر قفل API).
+- **SHIP-FIX-3:** اثرانگشت پستکس در لاگ بای‌مانی و استرپی محلی یکسان (`12ef3ec4…`). پروفایل نمونه در ارسال زنده، Content-Manager و استقرار مقصد انجام نشد.
+- **اجرا نشد (ماند در TASKS):** S3-02 زنده، SEP، شارژ پستکس، C8 سرتاسری فرانت، R01 کامل، R03 callback بانک، BND-08 CSP یک‌ساعته، TASK-ADMIN-GATEWAY-ATTEMPTS-READ با توکن سایت، SHIP-MULTI-ORIGIN در CM، مرورگر پروفایل/ادمین برای برگشتی و FE-ORDER-02، DEPLOY.
+
+## پذیرش آزمون‌های pg استرپی — ۲۴ نوامبر ۲۰۲۶
+
+- دامنه: فقط اجرای آزمون، بدون تغییر کد. `npm run test:pg` در `backend/` روی PostgreSQL 17 محلی با `ORDER_PRICE_TEST_DB` و `PHYSICAL_STOCK_PG_TESTS=1`: چهار فایل (`order-price-hotfix.pg`، `pending-checkout.pg`، `physicalStock.pg.cjs`، `lateSuccessPayment.pg.cjs`)، ۲۴ موفق، ۰ شکست، ۰ ردشده. هر فایل در schema موقت مستقل اجرا و پاک شد؛ دادهٔ `tarhelahi_db` دست نخورد. `npm test` در همان اجرا: jest ۵۰ مجموعه و ۳۷۱ موفق، `test:node` ۹۶ موفق. ردیف TASKS بسته شد.
+- اجرای دوبارهٔ بای‌مانی روی master محلی (Windows، SDK 10.0.400، `dotnet build` بدون خطا): `dotnet test` با `BYEMONEY_CART_PG_TESTS=1` و `BYEMONEY_TEST_CONNECTION_STRING` روی `ByeMoney_Dev` در schema موقت — ۸۱۶ موفق، ۰ شکست، ۰ ردشده. اجرای اول فقط با یک کلید، ۴۷ آزمون را رد کرده بود که با کلید دوم تکرار شد.
+- محدودیت: این دو اجرا ردیف‌های دیگر بخش «نیازمند تست دستی» را نمی‌بندد؛ معیار باقی‌ماندهٔ آن‌ها محیط مقصد، بانک، پستکس زنده، نشست مرورگر واقعی یا تأیید مالک است و در این ماشین انجام نشد.
+
 ## SHIP-FIX-4 — S1-08 و S1-05 — ۲۴ نوامبر ۲۰۲۶
 
 - دامنه: استرپی و بای‌مانی. فرانت، دفترکل، کیف پول و مهاجرت بای‌مانی عوض نشدند. دو فیلد `courierCode` و `serviceType` به تنظیم ارسال استرپی اضافه شد؛ استعلام و پاسخ `collection-type` از همان تنظیم می‌خوانند. ساخت مرسوله کوریر و سرویس را فقط از همین پاسخ می‌گیرد و `added_service` را با سه پرچم `false` می‌فرستد. نبود جعبه یا وزن همان ۴۰۹ و `CART_CONFLICT` است و `lineError` قلم را دارد. `ALREADY_OWNED` و `SALE_STOPPED` همچنان `CART_CONFLICT` کلی می‌مانند. پستکس زنده صدا زده نشد.
@@ -312,7 +331,16 @@
 
 - تغییر: `PostexStatusParser` فقط با `parent.code`/`status_code` تصمیم می‌گیرد (استثناهای ۱۱۳۱۱ و ۱۱۳۱۰ در مسیر می‌مانند). پورت عمومی `IShipmentProviderClient` و پیاده‌سازی `PostexShipmentClient` (اول خواندن `custom-order-no`، بعد `bulk`؛ مبدأ رامسر city_id=۵۷۳؛ نگاشت شهر گیرنده از `cities/all`). فرمان/اندپوینت ادمین `POST /api/admin/physical-purchases/{id}/shipments`؛ فرانت دکمهٔ «ثبت مرسوله در واسط پستی». انتخاب هزینهٔ ثابت/پستکس اسلایس جدا (`SHIP-COST-MODE`).
 - آزمون: `dotnet test` کامل ۶۶۵ موفق و ۰ ناموفق (شامل `ShipTrackingTests`، `CreatePhysicalShipmentTests`، `PhysicalDeliverySyncTests`). فرانت `PhysicalDeliveryControl.test.jsx` ۷ موفق. استعلام زندهٔ مرسولهٔ تستی با کلید Development: HTTP ۲۰۰ و وضعیت `PAYMENT_PENDING` → InTransit.
-- محدودیت: ساخت مرسوله روی قلم Preparing واقعی و پذیرش مرورگر/Swagger و مرسولهٔ Delivered هنوز باز است؛ بارکد تا پرداخت کیف‌پول پستکس ممکن است ماسک بماند.
+
+## SHIP-TRACKING — پذیرش زندهٔ P3 (B/C) — ۲۴ نوامبر ۲۰۲۶
+
+- محیط: `ByeMoney_Dev` روی PostgreSQL محلی؛ API `http://localhost:5000`؛ JWT امضاشده با همان `Strapi:Jwt*` اجرای API (نه توکن مرورگر استرپی).
+- آزمون خودکار (پیش‌نیاز): فیلتر `ShipTrackingTests|PhysicalDeliverySyncTests|CreatePhysicalShipmentTests|PhysicalDeliveryHttpPostgresTests` با `BYEMONEY_CART_PG_TESTS=1` → ۸۳/۸۳ سبز.
+- ساخت مرسولهٔ سطح سبد: `POST /api/admin/carts/{cartId}/shipments` روی سبد پرداخت‌شده با قلم `Preparing` و عوامل مرسوله کامل → HTTP ۲۰۰، `outcome=PendingPayment`، `providerParcelId=9020373643864` (کیف پستکس ناکافی؛ رفتار SHIP-FIX-1).
+- پستکس زنده: استعلام `parcels/9020373643864/status` → HTTP ۲۰۰؛ `PostexStatusParser` → `InTransit` (انتظار پرداخت).
+- Swagger: `PUT delivery-status` خرید ناموجود → ۴۰۴؛ `Shipped` بدون کد → ۴۰۰؛ `POST shipments/refresh` → ۲۰۰؛ `GET orders?awaitingShipment=true` → ۲۰۰.
+- خریدار: `POST /api/me/orders/cart:{cartId}/confirm-delivery` با JWT خریدار پس از `Shipped` دستی با کد `TRACK-LIVE-24` → HTTP ۲۰۰، `confirmedCount=1`.
+- باقی برای بستن ردیف TASKS: نمایش مرورگر (فرانت `localhost:3000` در این اجرا خطای ۵۰۰ روی `/profile/orders`)؛ همگام‌سازی خودکار `Delivered` از پستکس وقتی مرسوله واقعاً تحویل‌شده و بارکد/وضعیت قطعی باشد (پس از شارژ کیف پستکس برای مرسولهٔ `9020373643864`).
 
 ## SHIP-BOX-TYPE — جعبهٔ استاندارد پستکس — ۱۸ نوامبر ۲۰۲۶
 
