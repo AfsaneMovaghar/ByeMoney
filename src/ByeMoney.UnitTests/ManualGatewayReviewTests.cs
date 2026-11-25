@@ -8,12 +8,15 @@ using ByeMoney.Application.Modules.Wallet.DTOs;
 using ByeMoney.Application.Modules.Wallet.Interfaces;
 using ByeMoney.Application.Modules.Wallet.Services;
 using ByeMoney.Domain.Modules.Identity.Constants;
+using ByeMoney.Domain.Resources;
 using ByeMoney.Domain.Modules.Identity.Users;
 using ByeMoney.Domain.Modules.Wallet.TopUps;
 using ByeMoney.Infrastructure.Modules.Wallet.Services;
 using FluentAssertions;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
 
@@ -205,6 +208,16 @@ public class ManualGatewayReviewTests
     }
 
     [Fact]
+    public void ReopenReviewDeclaresTheStateItReturns()
+    {
+        var declared = typeof(GatewayTopUpController).GetMethod(nameof(GatewayTopUpController.ReopenReview))!
+            .GetCustomAttributes(typeof(ProducesResponseTypeAttribute), false)
+            .Cast<ProducesResponseTypeAttribute>()
+            .Single(x => x.StatusCode == StatusCodes.Status200OK);
+        declared.Type.Should().Be(typeof(GatewayReviewState));
+    }
+
+    [Fact]
     public async Task ConfirmedExceptional_Succeeds_AndCreditsViaNoorCreditService()
     {
         var topUp = TopUpRequest.CreateGateway(UserId.New(), 10m, 1000m, FinancialScope.TarheElahi);
@@ -269,6 +282,7 @@ public class ManualGatewayReviewTests
             FinancialReviewOutcomeCodes.ConfirmedExceptional, "ext-tx-2", evidence, Guid.NewGuid(), "Admin");
 
         result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be(GatewayTopUpErrorCodes.ReviewConflict);
         topUp.Status.Should().Be(TopUpStatus.ManuallyRefunded);
     }
 
@@ -294,6 +308,8 @@ public class ManualGatewayReviewTests
             FinancialReviewOutcomeCodes.ConfirmedExceptional, "ext-tx-3", evidence, Guid.NewGuid(), "Admin");
 
         result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be(GatewayTopUpErrorCodes.ReviewStateMismatch);
+        result.ErrorMessage.Should().Be(DomainErrors.TopUpRequest_ReviewStateMismatch);
         topUp.Status.Should().Be(TopUpStatus.Rejected);
     }
 

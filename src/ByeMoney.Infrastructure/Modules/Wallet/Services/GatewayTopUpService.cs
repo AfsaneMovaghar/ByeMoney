@@ -52,7 +52,11 @@ public sealed class GatewayTopUpService(
 
         var isReplay = topUp.ReviewAudit.Any(x => x.EventId == evidence.OperationId.ToString());
         var result = topUp.ResolveManualReview(caseId, outcomeCode, financialReferenceId, evidence, actorUserId, actorName);
-        if (result.IsFailure) return Result<GatewayReviewState>.Conflict(result.ErrorMessage!, GatewayTopUpErrorCodes.ReviewConflict);
+        if (result.IsFailure)
+            return Result<GatewayReviewState>.Conflict(result.ErrorMessage!,
+                result.ErrorMessage == DomainErrors.TopUpRequest_ReviewStateMismatch
+                    ? GatewayTopUpErrorCodes.ReviewStateMismatch
+                    : GatewayTopUpErrorCodes.ReviewConflict);
 
         if (isReplay)
             return Result<GatewayReviewState>.Success(ReviewState(topUp));

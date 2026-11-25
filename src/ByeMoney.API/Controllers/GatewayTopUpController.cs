@@ -32,7 +32,7 @@ public sealed class GatewayTopUpController(ISender sender) : ControllerBase
 
     [HttpPost("v1/gateway-reviews/reopen")]
     [ServiceFilter(typeof(GatewayResultKeyFilter))]
-    [ProducesResponseType(typeof(GatewayReviewResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(GatewayReviewState), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(GatewayErrorResponse), StatusCodes.Status409Conflict)]
     [ProducesResponseType(typeof(GatewayErrorResponse), StatusCodes.Status422UnprocessableEntity)]
     public async Task<IActionResult> ReopenReview(ReopenGatewayReviewRequest request, CancellationToken ct)

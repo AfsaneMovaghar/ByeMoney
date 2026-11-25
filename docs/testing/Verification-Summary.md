@@ -1,5 +1,17 @@
 # خلاصهٔ شواهد آزمون و پذیرش
 
+## بازبینی هم‌ترازی قراردادها، `I07` و `I09-CH` — ۲۵ نوامبر ۲۰۲۶
+
+- دامنه: بازبینی اجرای ۴ پرامپت هم‌ترازی و پاک‌سازی در بای‌مانی و فرانت‌اند:
+  - **`I09-CH` (کامیت `a138977`):** اصلاح پیش‌چک مالکیت فصل‌ها در `CartStore.cs` و `CoursePurchaseRepository.cs` (`ExternalParentId` دیگر خرید کل دوره شمرده نمی‌شود، در حالی که خرید کل دوره همچنان خرید فصل و خرید تکراری همان قلم را با `409 CART_CONFLICT` رد می‌کند) به‌همراه آزمون‌های `CartPostgresTests` و `DuplicatePurchasePreventionTests`.
+  - **`I07` (تغییرات کاری بای‌مانی):** نگاشت `TopUpRequest_ReviewStateMismatch` به `REVIEW_STATE_MISMATCH` در `GatewayTopUpService.ResolveManualReviewAsync` و هم‌ترازی `ProducesResponseType` اکشن `GatewayTopUpController.ReopenReview` به `GatewayReviewState` به‌همراه `ManualGatewayReviewTests`.
+  - **مستندات (`ByeMoney-Strapi-Integration.md`، `ByeMoney-Decisions.md`، `Postex-API.md`):** ثبت `CARRIER_PAYMENT_PENDING` در `I09-PC`، `UNPAID_REJECTED` و شواهد `PAID_AND_CONFIRMED` در `I07`، کدهای `NOOR_WITHDRAWAL_RATE_UNAVAILABLE` و `NOOR_WITHDRAWAL_INVALID_RECEIPT` و وضعیت `NOOR_WITHDRAWAL_AMOUNT_TOO_SMALL` در `I11-W`، شرح اثر انگشت `I11-S`، تطبیق تعریف سفارش رایگان در `D18` و ارجاع والد `7` برای کد `11228`.
+  - **فرانت‌اند (کامیت `4f579b3`):** اصلاح `403` و پذیرش `administrator`/`admin` در مسیرهای سروری ادمین Next.js (شاهد Jest زیر)؛ برچسب `SettlementModal` و پاک‌سازی کلاس‌های `OrdersTable.module.scss` پیش‌تر انجام شده بودند.
+- **نتیجه:**
+  - `ByeMoney.UnitTests` با پیکربندی `Release` (`--no-restore`): **۸۲۱/۸۲۱ سبز** (`Failed: 0, Skipped: 0`). *(اجرای `Debug` به‌خاطر قفل فایل توسط فرایند در حال اجرای `ByeMoney.API` انجام نشد.)*
+  - Jest مسیرهای ادمین فرانت (`6` سوییت، شامل `byemoney-orders`، `orders/manual`، `orders/manual/preview`، `users`، `noor-gifts`، `noor-withdrawals`): **۷۲/۷۲ سبز**.
+- **محدودیت:** پذیرش دیداری مرورگر سناریوهای ۰۲ و ۰۳ و موارد تصمیم‌محور باقی‌مانده در `P1` (`I11-O`، مقایسهٔ `Reason`/`operationId` در `I09-PC`، مقایسهٔ `note` در `ReopenFinancialReview` و کد خطای رسید `I11-W`) همچنان در [TASKS](../../TASKS.md) بازند.
+
 ## مسیرهای سروری ادمین Next.js — وضعیت ۴۰۳ و نقش admin — ۲۵ نوامبر ۲۰۲۶
 
 - دامنه: دروازهٔ `requireAdminJwt` و مسیرهای `GET /api/admin/byemoney-orders`، `GET/POST /api/admin/orders/manual` (به‌همراه پیش‌نمایش)، `GET/POST /api/admin/users`. نقش با `isUserAdmin` در `auth.js` یکسان است (`administrator` و `admin`). برچسب مودال تسویه و سه کلاس CSS نام‌برده در P4 هم بررسی شد.
