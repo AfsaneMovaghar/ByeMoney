@@ -39,7 +39,7 @@
 
 ### P2 — اتصال فرانت و ادمین (مسئول: محمد)
 
-1. - [ ] **اصلاح وضعیت `403` و هم‌ترازی نقش ادمین در مسیرهای سروری Next.js (ارتقا از خارج از اسکوپ ۲۰۲۶-۱۱-۲۵):** در `GET /api/admin/byemoney-orders`، `GET /api/admin/orders/manual` و `GET/POST /api/admin/users`، کاربر لاگین‌شدهٔ غیرادمین به‌جای `403 Forbidden` پاسخ `401 Unauthorized` می‌گیرد؛ همچنین `requireAdminJwt` و `byemoney-orders/route.js` فقط `role.type === 'administrator'` را می‌پذیرند در حالی که `isUserAdmin()` در `auth.js` و `previewAdminCart` در استرپی هر دو نقش `administrator` و `admin` را می‌پذیرند. محل: `front-end/src/app/api/admin/byemoney-orders/route.js`، `front-end/src/app/api/admin/orders/manual/route.js`، `front-end/src/app/api/admin/users/route.js`، `front-end/src/lib/admin/byeMoneyAdminRoute.js`. پذیرش: کاربر لاگین‌شدهٔ غیرادمین `403` بگیرد و هر دو نقش `administrator` و `admin` به‌صورت یکسان پذیرفته شوند. (مبدأ: [سناریوی دستی ۰۳](docs/testing/manual/03-panel-profile-orders-and-admin.md)).
+(در حال حاضر مورد باز ندارد.)
 
 ### نیازمند تست دستی (کد انجام شده؛ پیش از استقرار)
 
@@ -91,8 +91,8 @@
 
 - [ ] [پلن](docs/archive/Task-Plans.md#plan-admin-order-ops) **TASK-ADMIN-ORDER-OPS-REVIEW:** تعیین عملیات معتبر مدیریت سفارش (وضعیت، تأیید رسید، حذف، گروهی، اکسل) برای سفارش‌های بای‌مانی؛ تا آن زمان در پنل فقط‌مشاهده‌اند (تغییر وضعیت ارسال کالا مستثناست).
 - [ ] [پلن](docs/archive/Task-Plans.md#plan-legacy-c2c-migration) **TASK-MIGRATION-LEGACY-CARD-TO-CARD-TOPUPS:** گزارش فقط‌خواندنی تعداد، مبلغ و وضعیت فیش سفارش‌های باز، سپس تعیین ابطال/انقضا و مهاجرت با تصمیم تجاری (بدون حذف فیزیکی رکورد مالی).
-- [ ] **حذف کد مردهٔ checkout قدیمی استرپی و هم‌نام‌سازی مسیر ادمین (ارتقا از خارج از اسکوپ):** (۱) پس از بستن checkout استرپی، حذف `createCheckout` و `pending-checkout` و آزمون‌هایشان با حفظ `discountedPrice` که در سبد بای‌مانی زنده است؛ (۲) پس از حذف route سفارش قدیمی ادمین (`api/admin/orders`)، هم‌نام‌سازی `src/app/api/admin/byemoney-orders`؛ (۳) پاک‌سازی کلاس‌های بلااستفاده در `OrdersTable.module.scss` (`action_btn--receipt`، `settlementPanel--open`، `timeline--final`).
-- [ ] **اصلاحات جزئی سند و برچسب UI (ارتقا از خارج از اسکوپ):** (۱) تغییر برچسب «عنوان دوره» به «عنوان دورهٔ تسویه» در `SettlementModal` فرانت؛ (۲) اصلاح ارجاع والد کد ۱۱۲۲۸ (۷ یا ۸) در `docs/reference/Postex-API.md`؛ (۳) تطبیق تعریف سفارش رایگان در D18 (مسیر سبد قیمت پس از محاسبهٔ صفر را رایگان می‌گیرد، نه `isFree`).
+- [ ] **حذف کد مردهٔ checkout قدیمی استرپی و هم‌نام‌سازی مسیر ادمین (ارتقا از خارج از اسکوپ):** (۱) پس از بستن checkout استرپی، حذف `createCheckout` و `pending-checkout` و آزمون‌هایشان با حفظ `discountedPrice` که در سبد بای‌مانی زنده است؛ (۲) پس از حذف route سفارش قدیمی ادمین (`api/admin/orders`)، هم‌نام‌سازی `src/app/api/admin/byemoney-orders`.
+- [ ] **اصلاحات جزئی سند و برچسب UI (ارتقا از خارج از اسکوپ):** (۱) اصلاح ارجاع والد کد ۱۱۲۲۸ (۷ یا ۸) در `docs/reference/Postex-API.md`؛ (۲) تطبیق تعریف سفارش رایگان در D18 (مسیر سبد قیمت پس از محاسبهٔ صفر را رایگان می‌گیرد، نه `isFree`).
 - [ ] **صفحه‌بندی و رسید ادمین:** فهرست و رسید سفارش ادمین هنوز همهٔ سوابق محلی را می‌خوانند؛ اگر حجم زیاد شد فیلتر خریدار در دیتابیس بررسی شود (ظرفیت اندازه‌گیری نشده).
 
 ---

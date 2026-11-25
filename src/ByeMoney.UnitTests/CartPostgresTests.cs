@@ -196,6 +196,63 @@ public sealed class CartPostgresTests : IAsyncLifetime
     }
 
     [CartPostgresFact]
+    public async Task OwningChapterAllowsWholeCourseCheckoutAndPayment()
+    {
+        var chapterId = Guid.NewGuid().ToString();
+        var parentId = "chaptered-course-" + Guid.NewGuid().ToString("N")[..8];
+
+        var chapterCart = Cart.Create(Guid.NewGuid(), _buyer.Id.Value, _buyer.ExternalUserId, [chapterId], null, FinancialScope.TarheElahi);
+        await Store.CreateAsync(chapterCart, default);
+        chapterCart = await Store.SetQuoteAsync(chapterCart.Id, _buyer.Id.Value,
+            [new(chapterId, "فصل ۱", 100, 0, 0, 100, ProductItemType.CourseChapter, parentId)],
+            chapterCart.ReservationId, default);
+        (await Store.PayAsync(chapterCart.Id, _buyer.Id.Value, chapterCart.ReservationId, default)).IsSuccess.Should().BeTrue();
+
+        _pricing.Setup(x => x.PrepareAsync(It.IsAny<CartQuoteRequest>(), It.IsAny<CancellationToken>()))
+            .Returns<CartQuoteRequest, CancellationToken>((req, _) => Task.FromResult(Result<CartQuote>.Success(
+                new CartQuote(req.CartId, req.BuyerExternalUserId, req.CouponCode,
+                    [new(parentId, "دوره فصلی", 100, 0, 0, 100, ProductItemType.Course)],
+                    OriginalTotalInNoor: 100, PriceInNoor: 100))));
+
+        using var scope = _provider.CreateScope();
+        var service = scope.ServiceProvider.GetRequiredService<CartService>();
+
+        // 1. Repurchasing the same chapter is still rejected
+        var duplicateChapter = await service.PrepareAsync(_buyer.Id.Value, Guid.NewGuid(),
+            [new CartItemInput(chapterId, ProductItemType.CourseChapter, 1)], null, default);
+        duplicateChapter.IsSuccess.Should().BeFalse();
+        duplicateChapter.ErrorCode.Should().Be(CartErrorCodes.Conflict);
+
+        // 2. Purchasing the whole parent course after owning only one chapter succeeds at remaining price
+        var wholeCourseCartId = Guid.NewGuid();
+        var prepared = await service.PrepareAsync(_buyer.Id.Value, wholeCourseCartId, [parentId], null, default);
+        prepared.IsSuccess.Should().BeTrue();
+        prepared.Value.Status.Should().Be(nameof(CartStatus.Ready));
+        prepared.Value.PriceInNoor.Should().Be(100m);
+
+        var paid = await service.PurchaseAsync(_buyer.Id.Value, wholeCourseCartId, default);
+        paid.IsSuccess.Should().BeTrue();
+        paid.Value.Status.Should().Be(nameof(CartStatus.Paid));
+        (await Financials()).Should().Be((800m, 2, 200m, 0m));
+
+        // 3. After owning the whole course, buying the whole course again or another chapter is rejected
+        var duplicateCourse = await service.PrepareAsync(_buyer.Id.Value, Guid.NewGuid(), [parentId], null, default);
+        duplicateCourse.IsSuccess.Should().BeFalse();
+        duplicateCourse.ErrorCode.Should().Be(CartErrorCodes.Conflict);
+
+        var otherChapterId = Guid.NewGuid().ToString();
+        _pricing.Setup(x => x.PrepareAsync(It.IsAny<CartQuoteRequest>(), It.IsAny<CancellationToken>()))
+            .Returns<CartQuoteRequest, CancellationToken>((req, _) => Task.FromResult(Result<CartQuote>.Success(
+                new CartQuote(req.CartId, req.BuyerExternalUserId, req.CouponCode,
+                    [new(otherChapterId, "فصل ۲", 100, 0, 0, 100, ProductItemType.CourseChapter, parentId)],
+                    OriginalTotalInNoor: 100, PriceInNoor: 100))));
+        var otherChapter = await service.PrepareAsync(_buyer.Id.Value, Guid.NewGuid(),
+            [new CartItemInput(otherChapterId, ProductItemType.CourseChapter, 1)], null, default);
+        otherChapter.IsSuccess.Should().BeFalse();
+        otherChapter.ErrorCode.Should().Be(CartErrorCodes.Conflict);
+    }
+
+    [CartPostgresFact]
     public async Task StrapiRejectionOfWholeChapteredCoursePreventsPayment()
     {
         var cart = await Ready(["chaptered-parent"]);

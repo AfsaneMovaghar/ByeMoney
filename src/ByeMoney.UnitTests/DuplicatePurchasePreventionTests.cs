@@ -46,6 +46,8 @@ public class DuplicatePurchasePreventionTests
 
         userRepoMock.Setup(r => r.GetByIdAsync(new UserId(buyerId), It.IsAny<CancellationToken>()))
             .ReturnsAsync(user);
+        settingsMock.Setup(s => s.GetRialToNoorConversionRateAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(10_000m);
 
         // Buyer already owns "course-123" in ByeMoney
         purchasesMock.Setup(r => r.HasPurchasedAnyAsync(
@@ -94,6 +96,8 @@ public class DuplicatePurchasePreventionTests
 
         userRepoMock.Setup(r => r.GetByIdAsync(new UserId(buyerId), It.IsAny<CancellationToken>()))
             .ReturnsAsync(user);
+        settingsMock.Setup(s => s.GetRialToNoorConversionRateAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(10_000m);
 
         // Not in ByeMoney DB
         purchasesMock.Setup(r => r.HasPurchasedAnyAsync(
@@ -323,6 +327,143 @@ public class DuplicatePurchasePreventionTests
             user.ExternalUserId,
             It.IsAny<ProductSnapshot>(),
             It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task PrepareCart_WhenBuyerOwnsOnlyOneChapterOfChapteredCourse_ShouldAllowWholeCourseCheckoutAtRemainingPrice()
+    {
+        // Arrange (I09-CH: owning CH1 must not block whole course C2; Strapi prices remaining chapters)
+        var buyerId = Guid.NewGuid();
+        var cartId = Guid.NewGuid();
+        var user = User.CreateFromStrapi("strapi-user-chapter", "09123456789", confirmed: true, blocked: false);
+
+        var storeMock = new Mock<ICartStore>();
+        var pricingMock = new Mock<ICartPricingClient>();
+        var userRepoMock = new Mock<IUserRepository>();
+        var walletRepoMock = new Mock<IWalletRepository>();
+        var settingsMock = new Mock<ISystemSettingRepository>();
+        var purchasesMock = new Mock<ICoursePurchaseRepository>();
+        var topUpsMock = new Mock<ITopUpRequestRepository>();
+
+        userRepoMock.Setup(r => r.GetByIdAsync(new UserId(buyerId), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(user);
+        settingsMock.Setup(s => s.GetRialToNoorConversionRateAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(10_000m);
+
+        // Owning CH1 (with ExternalParentId = C2) does NOT count as owning C2
+        purchasesMock.Setup(r => r.HasPurchasedAnyAsync(
+                new UserId(buyerId),
+                It.Is<IReadOnlyCollection<string>>(ids => ids.Contains("C2")),
+                It.IsAny<IReadOnlyCollection<string>?>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+
+        var cart = Cart.Create(cartId, buyerId, user.ExternalUserId, new[] { "C2" }, null, FinancialScope.TarheElahi);
+        storeMock.Setup(s => s.CreateAsync(It.IsAny<Cart>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Result<Cart>.Success(cart));
+
+        var quoteItems = new[]
+        {
+            new CartQuoteItem("C2", "Chaptered Course", 10m, 0m, 0m, 10m, ProductItemType.Course)
+        };
+        pricingMock.Setup(p => p.PrepareAsync(It.IsAny<CartQuoteRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Result<CartQuote>.Success(new CartQuote(
+                cart.ReservationId,
+                user.ExternalUserId,
+                null,
+                quoteItems,
+                OriginalTotalInNoor: 10m,
+                PriceInNoor: 10m)));
+
+        var readyCart = Cart.Create(cartId, buyerId, user.ExternalUserId, new[] { "C2" }, null, FinancialScope.TarheElahi);
+        readyCart.SetQuote(quoteItems);
+        storeMock.Setup(s => s.SetQuoteAsync(
+                cartId,
+                buyerId,
+                It.IsAny<IReadOnlyList<CartQuoteItem>>(),
+                0m,
+                null,
+                null,
+                null,
+                null,
+                null,
+                cart.ReservationId,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(readyCart);
+
+        pricingMock.Setup(p => p.TransitionAsync(It.IsAny<CartTransitionRequest>(), "check", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Result.Success());
+
+        var service = new CartService(
+            storeMock.Object,
+            pricingMock.Object,
+            userRepoMock.Object,
+            walletRepoMock.Object,
+            settingsMock.Object,
+            purchasesMock.Object,
+            topUpsMock.Object);
+
+        // Act
+        var result = await service.PrepareAsync(buyerId, cartId, new[] { "C2" }, null, CancellationToken.None);
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Status.Should().Be(nameof(CartStatus.Ready));
+        result.Value.PriceInNoor.Should().Be(10m);
+        pricingMock.Verify(p => p.PrepareAsync(It.IsAny<CartQuoteRequest>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task PrepareCart_WhenBuyerOwnsAllChaptersAndStrapiReturnsAlreadyOwned_ShouldReturnConflict()
+    {
+        // Arrange (I09-CH: owning all chapters makes Strapi return 409 ALREADY_OWNED -> CART_CONFLICT)
+        var buyerId = Guid.NewGuid();
+        var cartId = Guid.NewGuid();
+        var user = User.CreateFromStrapi("strapi-user-all-chapters", "09123456789", confirmed: true, blocked: false);
+
+        var storeMock = new Mock<ICartStore>();
+        var pricingMock = new Mock<ICartPricingClient>();
+        var userRepoMock = new Mock<IUserRepository>();
+        var walletRepoMock = new Mock<IWalletRepository>();
+        var settingsMock = new Mock<ISystemSettingRepository>();
+        var purchasesMock = new Mock<ICoursePurchaseRepository>();
+        var topUpsMock = new Mock<ITopUpRequestRepository>();
+
+        userRepoMock.Setup(r => r.GetByIdAsync(new UserId(buyerId), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(user);
+        settingsMock.Setup(s => s.GetRialToNoorConversionRateAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(10_000m);
+
+        purchasesMock.Setup(r => r.HasPurchasedAnyAsync(
+                new UserId(buyerId),
+                It.Is<IReadOnlyCollection<string>>(ids => ids.Contains("C2")),
+                It.IsAny<IReadOnlyCollection<string>?>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+
+        var cart = Cart.Create(cartId, buyerId, user.ExternalUserId, new[] { "C2" }, null, FinancialScope.TarheElahi);
+        storeMock.Setup(s => s.CreateAsync(It.IsAny<Cart>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Result<Cart>.Success(cart));
+
+        pricingMock.Setup(p => p.PrepareAsync(It.IsAny<CartQuoteRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Result<CartQuote>.Conflict(CartErrors.Conflict, CartErrorCodes.Conflict));
+
+        var service = new CartService(
+            storeMock.Object,
+            pricingMock.Object,
+            userRepoMock.Object,
+            walletRepoMock.Object,
+            settingsMock.Object,
+            purchasesMock.Object,
+            topUpsMock.Object);
+
+        // Act
+        var result = await service.PrepareAsync(buyerId, cartId, new[] { "C2" }, null, CancellationToken.None);
+
+        // Assert
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be(CartErrorCodes.Conflict);
+        storeMock.Verify(s => s.FailAsync(cartId, buyerId, false, cart.ReservationId, It.IsAny<CancellationToken>()), Times.Once);
     }
 }
 

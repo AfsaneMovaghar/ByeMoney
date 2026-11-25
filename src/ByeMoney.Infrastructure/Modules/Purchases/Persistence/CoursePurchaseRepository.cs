@@ -21,8 +21,7 @@ public class CoursePurchaseRepository : BaseRepository<CoursePurchase, CoursePur
     {
         return await DbSet
             .AnyAsync(cp => cp.BuyerId == buyerId &&
-                (cp.Snapshot.ExternalProductId == externalCourseId ||
-                 (cp.Snapshot.ExternalParentId != null && cp.Snapshot.ExternalParentId == externalCourseId)), ct);
+                cp.Snapshot.ExternalProductId == externalCourseId, ct);
     }
 
     public async Task<bool> HasPurchasedAnyAsync(
@@ -42,13 +41,11 @@ public class CoursePurchaseRepository : BaseRepository<CoursePurchase, CoursePur
         {
             return await query.AnyAsync(cp =>
                 productIds.Contains(cp.Snapshot.ExternalProductId) ||
-                (cp.Snapshot.ExternalParentId != null && productIds.Contains(cp.Snapshot.ExternalParentId)) ||
                 (cp.Snapshot.ItemType == ProductItemType.Course && parentIds.Contains(cp.Snapshot.ExternalProductId)), ct);
         }
 
         return await query.AnyAsync(cp =>
-            productIds.Contains(cp.Snapshot.ExternalProductId) ||
-            (cp.Snapshot.ExternalParentId != null && productIds.Contains(cp.Snapshot.ExternalParentId)), ct);
+            productIds.Contains(cp.Snapshot.ExternalProductId), ct);
     }
 
     public async Task<Result> ExecutePurchaseTransactionAsync(

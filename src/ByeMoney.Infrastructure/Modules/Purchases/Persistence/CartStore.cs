@@ -206,11 +206,9 @@ public sealed class CartStore(IServiceScopeFactory scopes) : ICartStore
                 var alreadyPurchased = productIds.Length > 0 && (parentIds.Length > 0
                     ? await purchaseQuery.AnyAsync(x =>
                         productIds.Contains(x.Snapshot.ExternalProductId) ||
-                        (x.Snapshot.ExternalParentId != null && productIds.Contains(x.Snapshot.ExternalParentId)) ||
                         (x.Snapshot.ItemType == ProductItemType.Course && parentIds.Contains(x.Snapshot.ExternalProductId)), ct)
                     : await purchaseQuery.AnyAsync(x =>
-                        productIds.Contains(x.Snapshot.ExternalProductId) ||
-                        (x.Snapshot.ExternalParentId != null && productIds.Contains(x.Snapshot.ExternalParentId)), ct));
+                        productIds.Contains(x.Snapshot.ExternalProductId), ct));
 
                 if (alreadyPurchased)
                 {
