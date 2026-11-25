@@ -23,6 +23,7 @@
 | کارهای باز و معیار پذیرش هر کار | [TASKS](../TASKS.md) |
 | باگ مستقل سایت زندهٔ طرح الهی | [HOTFIXES](../HOTFIXES.md) — مسئول پیگیری: محمد |
 | روش آزمون، پذیرش و بازگشت نسخه | [پذیرش و انتشار](testing/05-Acceptance-Release.md) + D12 و I15 |
+| داده و سناریوی تست دستی | [بستهٔ تست دستی](testing/manual/README.md) |
 | شاهد آزمون و نتیجهٔ اجرا | [گزارش شواهد](testing/Verification-Summary.md) |
 | مستندات API پستکس | [مرجع پستکس](reference/Postex-API.md) |
 | سابقه: پلن‌های اجراشده و بازبینی‌ها | [آرشیو](archive/README.md) — سند فعال نیست |

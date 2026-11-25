@@ -115,4 +115,5 @@ src/ByeMoney.API/logs
 !/docs/testing/
 !/docs/prompts/
 !/docs/*/*.md
+!/docs/*/*/*.md
 /.vscode
