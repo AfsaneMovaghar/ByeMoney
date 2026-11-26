@@ -1,5 +1,24 @@
 # خلاصهٔ شواهد آزمون و پذیرش
 
+## بستن مسیرهای بدون احراز سفارش قدیمی و مسدودکردن اعطای دسترسی از سفارش تازه در استرپی (`AUDIT-SEC-01` / `LOG-001` و `AUDIT-LEGACY-01` / `LOG-007`) — ۲۶ نوامبر ۲۰۲۶
+
+- **دامنه (`backend`، شاخهٔ `byeMoney`):**
+  - **`AUDIT-SEC-01` (`LOG-001` / `HF18`، `M6`):** حذف `auth: false` از مسیرهای `export-excel`، `revenue-stats`، `sync-excel` و `bulk-settle` در `src/api/order/routes/01-custom-order.js` و اعمال `canManageOrders` (`api-token` یا نقش `administrator`) در چهار عمل کنترلر `src/api/order/controllers/order.js`؛ انتقال مسیر پیش‌فرض خروجی `generateAndSaveExcelReport` در `src/api/order/services/excel-export.js` از `public/uploads/exports` به `storage/exports` (خارج از `public/`).
+  - **`AUDIT-LEGACY-01` (`LOG-007`):** مسدودکردن ثبت سفارش جدید دارای `order.course-order-item` (یا `courseId`/`chapterId`/`chapterIntegrationId`) یا وضعیت پرداخت‌شده (`paid`، `confirmed`، `processing`، `shipped`، `delivered` / `paymentStatus=paid`) در `order.create` کنترلر سفارش حتی با `api-token` یا نقش `administrator`؛ حذف فراخوانی `syncUserPurchases` از `afterCreate` در `src/api/order/content-types/order/lifecycles.js` تا ساخت مستقیم سفارش در Content-Manager هم دسترسی دوره یا فصل ندهد.
+  - آزمون‌های واحد در `tests/api/order/orderSecurityAndLegacyGuard.test.js` و به‌روزرسانی آزمون `afterCreate` در `tests/order-price-hotfix.test.js`.
+- **نتیجه:** اجرای کامل `npm --prefix backend test`: Jest (`51` سوییت، **۴۰۲/۴۰۲ سبز**) و `node --test` (**۹۶/۹۶ سبز**، ۰ شکست).
+- **محدودیت:** آزمون در برابر داده‌های شبیه‌سازی‌شده انجام شد؛ روی سرور استرپی زنده پس از استقرار بررسی شود.
+
+## پذیرش دستی مرورگر و پنل (محلی / بدون پستکس زنده و SEP) — ۲۶ نوامبر ۲۰۲۶
+
+- **دامنه (`ByeMoney` + `backend` + `front-end` روی localhost):** پذیرش دستی بخش «الف» از [TASKS](../../TASKS.md) با نشست واقعی مرورگر در `http://localhost:3000`، `costMode=fixed` (۵ نور، ارسال رایگان بالای ۱۰۰ نور) و کاربران تست (`09121000001`، `09120000001`، `09120000002`، `09120000003`، `09120000004`):
+  - **پروفایل، پنل ادمین و سفارش دستی (`D2` و `I11-O`):** بررسی دیداری `/profile/orders`، `/admin/orders`، نمایش `shippingAddress` روی سفارش‌های کالایی و ساخت کاربر جدید در فرم پنل ادمین.
+  - **خرید دوره، فصل، سبد مختلط و نتیجهٔ خرید (`R01` / `سناریوی ۰۲` و `FE-ORDER-02`):** بررسی دیداری «دوره‌های من»، صفحهٔ دورهٔ فصلی (فصل ۱ خریداری‌شده و فصل ۲ قابل خرید)، جریان سبد در `/cart` (انتخاب/تغییر آدرس، سبد جایگزین) و صفحهٔ `/checkout/result` برای خرید فقط‌کالا و مختلط با کیف پول.
+  - **پذیرش `SHIP-FIX-2` در مرورگر:** نمایش نشان برگشتی، متن تأیید جزئی، لینک امن رهگیری و کنترل هشدار پستی (`11304`) در پروفایل کاربر و کارت مدیر.
+  - **شارژ ادمین و لغو فیزیکی (`C8`):** ثبت شارژ از فرم پنل ادمین و آزمون سرتاسری لغو فیزیکی/جزئی و برگشت نور و موجودی در فرانت.
+- **نتیجه:** همهٔ ۶ مورد بخش «الف» (پذیرش مرورگر و پنل) توسط کاربر در مرورگر تأیید شدند و از بخش «نیازمند تست دستی» [TASKS](../../TASKS.md) بسته شدند.
+- **محدودیت / باقی‌مانده:** بخش‌های «ب» (پستکس زنده و Content-Manager) و «پ» (درگاه SEP، توکن/CSP و محیط مقصد) در این دور تست نشده‌اند و همچنان در [TASKS](../../TASKS.md) باز می‌مانند.
+
 ## آماده‌سازی استقرار بای‌مانی روی لیارا (`DEPLOY-01` گام ۱–۲) — ۲۵ نوامبر ۲۰۲۶
 
 - **دامنه (`ByeMoney`):**

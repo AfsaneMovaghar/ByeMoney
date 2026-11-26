@@ -96,7 +96,7 @@ public class TarhElahiIntegrationClient : ITarhElahiIntegrationClient
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to connect to TarhElahi while fetching {EntityType} '{Identifier}'.", entityType, identifier);
-            throw new TarhElahiUnavailableException(
+            نthrow new TarhElahiUnavailableException(
                 $"Tarh-e-Elahi service is currently unavailable or timed out while fetching {entityType}.",
                 ex);
         }
