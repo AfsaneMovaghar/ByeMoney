@@ -187,5 +187,7 @@ namespace ByeMoney.API.Resources {
         }
         public static string TopUpReceipt_InvalidFile => ResourceManager.GetString("TopUpReceipt_InvalidFile", resourceCulture)!;
         public static string TopUpRequest_InvalidIdempotencyKey => ResourceManager.GetString("TopUpRequest_InvalidIdempotencyKey", resourceCulture)!;
+        public static string Middleware_ForbiddenTitle => ResourceManager.GetString("Middleware_ForbiddenTitle", resourceCulture)!;
+        public static string Auth_UserInactiveMessage => ResourceManager.GetString("Auth_UserInactiveMessage", resourceCulture)!;
     }
 }

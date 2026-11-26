@@ -39,15 +39,19 @@ public class RbacClaimsTransformation(IUserAuthorizationService userAuthorizatio
         claimsIdentity.AddClaim(new Claim(AppClaimTypes.TransformedMarker, "true"));
         claimsIdentity.AddClaim(new Claim(ClaimTypes.NameIdentifier, userAuth.UserId.ToString()));
         claimsIdentity.AddClaim(new Claim(AppClaimTypes.InternalUserId, userAuth.UserId.ToString()));
+        claimsIdentity.AddClaim(new Claim(AppClaimTypes.IsActive, userAuth.IsActive ? "true" : "false"));
 
-        foreach (var role in userAuth.Roles)
+        if (userAuth.IsActive)
         {
-            claimsIdentity.AddClaim(new Claim(ClaimTypes.Role, role));
-        }
+            foreach (var role in userAuth.Roles)
+            {
+                claimsIdentity.AddClaim(new Claim(ClaimTypes.Role, role));
+            }
 
-        foreach (var permission in userAuth.Permissions)
-        {
-            claimsIdentity.AddClaim(new Claim(AppClaimTypes.Permission, permission));
+            foreach (var permission in userAuth.Permissions)
+            {
+                claimsIdentity.AddClaim(new Claim(AppClaimTypes.Permission, permission));
+            }
         }
 
         principal.AddIdentity(claimsIdentity);

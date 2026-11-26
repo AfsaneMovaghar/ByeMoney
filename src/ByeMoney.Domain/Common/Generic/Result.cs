@@ -17,4 +17,5 @@ public class Result<T> : Result
     public new static Result<T> Failure(string errorMessage, string? errorCode = null) => new(false, default, errorMessage, ResultStatus.Failure, errorCode);
     public new static Result<T> NotFound(string? errorMessage = null, string? errorCode = null) => new(false, default, errorMessage ?? DomainErrors.Common_EntityNotFound, ResultStatus.NotFound, errorCode);
     public new static Result<T> Conflict(string errorMessage, string? errorCode = null) => new(false, default, errorMessage, ResultStatus.Conflict, errorCode);
+    public new static Result<T> Forbidden(string errorMessage, string? errorCode = null) => new(false, default, errorMessage, ResultStatus.Forbidden, errorCode);
 }

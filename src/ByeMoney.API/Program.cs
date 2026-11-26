@@ -55,6 +55,7 @@ try
     }
 
     app.UseAuthentication();
+    app.UseMiddleware<ByeMoney.API.Middleware.ActiveUserMiddleware>();
     app.UseAuthorization();
 
     app.MapControllers();

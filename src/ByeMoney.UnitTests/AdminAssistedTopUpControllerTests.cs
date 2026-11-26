@@ -79,13 +79,13 @@ public class AdminAssistedTopUpControllerTests
     }
 
     [Fact]
-    public async Task Create_DelegatesReceiptCleanupWhenBeneficiaryIsMissing()
+    public async Task Create_DelegatesReceiptCleanupAndReturns403WhenBeneficiaryIsInactive()
     {
         var topUpService = new Mock<IAdminAssistedTopUpService>();
         var receipts = CreateReceipts();
         var sender = new Mock<ISender>();
         sender.Setup(x => x.Send(It.IsAny<CreateAdminCardToCardTopUpCommand>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(Result<CreateTopUpRequestResponse>.NotFound(ApplicationErrors.TopUpRequest_InactiveBeneficiary));
+            .ReturnsAsync(Result<CreateTopUpRequestResponse>.Forbidden(ApplicationErrors.TopUpRequest_InactiveBeneficiary));
         var currentUser = new Mock<ICurrentUserService>();
         currentUser.SetupGet(x => x.UserId).Returns(Guid.NewGuid());
         var controller = new AdminAssistedTopUpController(sender.Object, currentUser.Object, receipts.Object, topUpService.Object);
@@ -93,7 +93,8 @@ public class AdminAssistedTopUpControllerTests
         var request = new AdminAssistedTopUpApiRequest("beneficiary", 100_000m, CreateFormFile(), null);
         var result = await controller.Create(request, "same-key", CancellationToken.None);
 
-        result.Should().BeOfType<NotFoundObjectResult>();
+        var objectResult = result.Should().BeOfType<ObjectResult>().Subject;
+        objectResult.StatusCode.Should().Be(StatusCodes.Status403Forbidden);
         topUpService.Verify(x => x.DeleteUnreferencedReceiptAsync("receipt-id", "same-key", It.IsAny<CancellationToken>()), Times.Once);
     }
 

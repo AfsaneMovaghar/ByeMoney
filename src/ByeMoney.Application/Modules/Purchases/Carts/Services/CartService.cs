@@ -5,6 +5,7 @@ using ByeMoney.Application.Modules.Purchases.Orders.DTOs;
 using ByeMoney.Application.Modules.Purchases.Carts.Interfaces;
 using ByeMoney.Application.Modules.Settings.Interfaces;
 using ByeMoney.Application.Modules.Identity.Users.Interfaces;
+using ByeMoney.Application.Resources;
 using ByeMoney.Domain.Common.Generic;
 using ByeMoney.Application.Modules.Purchases.Interfaces;
 using ByeMoney.Application.Modules.Purchases.Services;
@@ -116,9 +117,14 @@ public sealed class CartService(
         CancellationToken ct)
     {
         var user = await users.GetByIdAsync(new UserId(buyerId), ct);
-        if (user is null || !user.IsActive)
+        if (user is null)
         {
             return Result<CartResponse>.Conflict(CartErrors.Conflict, CartErrorCodes.Conflict);
+        }
+
+        if (!user.IsActive)
+        {
+            return Result<CartResponse>.Forbidden(ApplicationErrors.Gift_UserBlocked, CartErrorCodes.UserInactive);
         }
 
         var courseExternalIds = items

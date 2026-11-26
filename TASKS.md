@@ -31,11 +31,8 @@
 
 > یادداشت git ارسال (تطبیق ۲۰۲۶-۱۱-۲۳): FIX-1، FIX-2 و FIX-3 روی `master` محلی ادغام شده‌اند (دو کامیت جلوتر از `origin`، بدون push)؛ مهاجرت `AddCarrierAlertAndTrackingUrl` بعد از `AddCarrierParcelState` روی همین `master` است. کدنویسی SHIP-FIX-4 (S1-05 و S1-08) روی شاخهٔ جاری انجام شده است.
 >
-> `AUDIT-LEGACY-01` و `AUDIT-SEC-01` در ۲۰۲۶-۱۱-۲۶ بسته شدند و شاهدشان در [گزارش شواهد](docs/testing/Verification-Summary.md) ثبت شد.
+> `AUDIT-LEGACY-01`، `AUDIT-SEC-01` و `AUDIT-AUTH-01` در ۲۰۲۶-۱۱-۲۶ بسته شدند و شاهدشان در [گزارش شواهد](docs/testing/Verification-Summary.md) ثبت شد.
 
-- [ ] **`AUDIT-AUTH-01` (`LOG-010`) — همگام‌سازی وضعیت مسدودسازی کاربر استرپی با `IsActive` در بای‌مانی** (شاخهٔ پیشنهادی: `fix/sync-blocked-user-status`):
-  - دامنه: `UserProvisioningService.EnsureUserFromExternalAsync`، بررسی JWT / فعال‌بودن کاربر، و `AdminGrantGiftNoorCommandHandler` در بای‌مانی.
-  - معیار پذیرش: هم‌ترازی پرچم `blocked` استرپی با `IsActive` بای‌مانی حتی برای کاربران موجود؛ رد عملیات مالی/ادمین (هدیه، شارژ به‌نیابت، سفارش دستی) و درخواست‌های احراز هویت‌شده با کد `403` برای کاربران غیرفعال یا مسدودشده.
 - [ ] **`AUDIT-SHIP-01` (`GAP-002`) — تعیین تکلیف مالی مرسولهٔ بسته‌شده بدون تسویه (`ClosedWithoutSettlement`)** (شاخهٔ پیشنهادی: `fix/closed-without-settlement-refund`):
   - دامنه: `PhysicalProductPurchase` / `AdminPhysicalPurchasesController` در بای‌مانی و پنل ادمین.
   - معیار پذیرش: افزودن مسیر صریح و idempotent برای برگشت نور در سطح قلم (همراه `operationId` و بازتاب در `refundedAmountInNoor`) پس از `ClosedWithoutSettlement`، یا دست‌کم نمایش هشدار روشن «نیاز به تسویهٔ دستی» در پنل ادمین و پیش‌نمایش تسویه (پیش از کدنویسی، رویکرد با مالک تأیید شود).

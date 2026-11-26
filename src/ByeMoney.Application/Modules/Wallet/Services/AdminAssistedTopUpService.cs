@@ -37,7 +37,7 @@ public sealed class AdminAssistedTopUpService(
         }
 
         if (beneficiary is not { IsActive: true })
-            return Result<CreateTopUpRequestResponse>.NotFound(ApplicationErrors.TopUpRequest_InactiveBeneficiary);
+            return Result<CreateTopUpRequestResponse>.Forbidden(ApplicationErrors.TopUpRequest_InactiveBeneficiary);
 
         var rate = await settings.GetRialToNoorConversionRateAsync(ct);
         if (rate <= 0)

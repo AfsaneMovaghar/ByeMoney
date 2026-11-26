@@ -144,6 +144,7 @@ public class AdminAssistedTopUpTests
             ChargeType.AdminAssistedCardToCard), CancellationToken.None);
 
         result.IsSuccess.Should().BeFalse();
+        result.Status.Should().Be(ByeMoney.Domain.Common.ResultStatus.Forbidden);
         topUps.Verify(x => x.AddAsync(It.IsAny<TopUpRequest>(), It.IsAny<CancellationToken>()), Times.Never);
         settlement.Verify(x => x.SettleAsync(It.IsAny<TopUpRequest>(), It.IsAny<CancellationToken>()), Times.Never);
     }

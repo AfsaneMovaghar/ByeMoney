@@ -25,6 +25,7 @@ public static class CartHttpResults
             {
                 ResultStatus.NotFound => StatusCodes.Status404NotFound,
                 ResultStatus.Conflict => StatusCodes.Status409Conflict,
+                ResultStatus.Forbidden => StatusCodes.Status403Forbidden,
                 _ => StatusCodes.Status400BadRequest
             };
 

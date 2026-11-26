@@ -22,4 +22,5 @@ public class Result
     public static Result Failure(string errorMessage, string? errorCode = null) => new(false, errorMessage, ResultStatus.Failure, errorCode);
     public static Result NotFound(string? errorMessage = null, string? errorCode = null) => new(false, errorMessage ?? DomainErrors.Common_EntityNotFound, ResultStatus.NotFound, errorCode);
     public static Result Conflict(string errorMessage, string? errorCode = null) => new(false, errorMessage, ResultStatus.Conflict, errorCode);
+    public static Result Forbidden(string errorMessage, string? errorCode = null) => new(false, errorMessage, ResultStatus.Forbidden, errorCode);
 }
