@@ -22,14 +22,26 @@ public sealed class UserProvisioningServiceTests
     private const string ExternalUserId = "strapi-doc-provisioning-1";
 
     [Fact]
-    public async Task EnsureUser_WhenUserExists_ReturnsExistingUserWithoutStrapiCallOrGift()
+    public async Task EnsureUser_WhenUserExists_SyncsBlockedStatusFromStrapiWithoutGrantingGift()
     {
-        var existingUser = User.CreateFromStrapi(ExternalUserId, confirmed: true);
+        var existingUser = User.CreateFromStrapi(ExternalUserId, confirmed: true, blocked: false);
         var userRepository = new Mock<IUserRepository>();
         userRepository.Setup(x => x.GetByExternalUserIdAsync(ExternalUserId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(existingUser);
 
         var tarhElahiClient = new Mock<ITarhElahiIntegrationClient>();
+        tarhElahiClient.Setup(x => x.GetUserAsync(ExternalUserId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new TarhElahiUserDto
+            {
+                ExternalUserId = ExternalUserId,
+                PhoneNumber = "09120000000",
+                Email = "provisioning@test.com",
+                FirstName = "Ali",
+                LastName = "Rezaei",
+                Confirmed = true,
+                Blocked = true
+            });
+
         var welcomeGift = new Mock<IWelcomeGiftService>();
         var unitOfWork = new Mock<IUnitOfWork>();
 
@@ -40,8 +52,63 @@ public sealed class UserProvisioningServiceTests
 
         result.Created.Should().BeFalse();
         result.User.Should().BeSameAs(existingUser);
-        tarhElahiClient.Verify(x => x.GetUserAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        result.User.IsActive.Should().BeFalse();
+        tarhElahiClient.Verify(x => x.GetUserAsync(ExternalUserId, It.IsAny<CancellationToken>()), Times.Once);
+        userRepository.Verify(x => x.Update(existingUser), Times.Once);
         welcomeGift.Verify(x => x.GrantWelcomeGiftIfEligibleAsync(It.IsAny<User>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        unitOfWork.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task EnsureUser_WhenExistingBlockedUserIsUnblockedInStrapi_RestoresIsActiveTrue()
+    {
+        var existingUser = User.CreateFromStrapi(ExternalUserId, confirmed: true, blocked: true);
+        existingUser.IsActive.Should().BeFalse();
+
+        var userRepository = new Mock<IUserRepository>();
+        userRepository.Setup(x => x.GetByExternalUserIdAsync(ExternalUserId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(existingUser);
+
+        var tarhElahiClient = new Mock<ITarhElahiIntegrationClient>();
+        tarhElahiClient.Setup(x => x.GetUserAsync(ExternalUserId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(CreateStrapiUser());
+
+        var welcomeGift = new Mock<IWelcomeGiftService>();
+        var unitOfWork = new Mock<IUnitOfWork>();
+
+        using var context = CreateUnconnectedContext();
+        var service = CreateService(userRepository, unitOfWork, tarhElahiClient, welcomeGift, context);
+
+        var result = await service.EnsureUserFromExternalAsync(ExternalUserId);
+
+        result.Created.Should().BeFalse();
+        result.User.IsActive.Should().BeTrue();
+        userRepository.Verify(x => x.Update(existingUser), Times.Once);
+        unitOfWork.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task EnsureUser_WhenUserExistsAndStrapiUnavailable_FailsClosedWithServiceUnavailable()
+    {
+        var existingUser = User.CreateFromStrapi(ExternalUserId, confirmed: true, blocked: false);
+        var userRepository = new Mock<IUserRepository>();
+        userRepository.Setup(x => x.GetByExternalUserIdAsync(ExternalUserId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(existingUser);
+
+        var tarhElahiClient = new Mock<ITarhElahiIntegrationClient>();
+        tarhElahiClient.Setup(x => x.GetUserAsync(ExternalUserId, It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new TarhElahiUnavailableException("Tarh-e-Elahi is unavailable."));
+
+        var welcomeGift = new Mock<IWelcomeGiftService>();
+        var unitOfWork = new Mock<IUnitOfWork>();
+
+        using var context = CreateUnconnectedContext();
+        var service = CreateService(userRepository, unitOfWork, tarhElahiClient, welcomeGift, context);
+
+        var act = async () => await service.EnsureUserFromExternalAsync(ExternalUserId);
+
+        await act.Should().ThrowAsync<TarhElahiUnavailableException>();
+        userRepository.Verify(x => x.Update(It.IsAny<User>()), Times.Never);
         unitOfWork.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
     }
 

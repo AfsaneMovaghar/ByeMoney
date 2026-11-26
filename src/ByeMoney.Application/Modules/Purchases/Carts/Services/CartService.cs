@@ -5,6 +5,7 @@ using ByeMoney.Application.Modules.Purchases.Orders.DTOs;
 using ByeMoney.Application.Modules.Purchases.Carts.Interfaces;
 using ByeMoney.Application.Modules.Settings.Interfaces;
 using ByeMoney.Application.Modules.Identity.Users.Interfaces;
+using ByeMoney.Application.Resources;
 using ByeMoney.Domain.Common.Generic;
 using ByeMoney.Application.Modules.Purchases.Interfaces;
 using ByeMoney.Application.Modules.Purchases.Services;
@@ -116,9 +117,14 @@ public sealed class CartService(
         CancellationToken ct)
     {
         var user = await users.GetByIdAsync(new UserId(buyerId), ct);
-        if (user is null || !user.IsActive)
+        if (user is null)
         {
             return Result<CartResponse>.Conflict(CartErrors.Conflict, CartErrorCodes.Conflict);
+        }
+
+        if (!user.IsActive)
+        {
+            return Result<CartResponse>.Forbidden(ApplicationErrors.Gift_UserBlocked, CartErrorCodes.UserInactive);
         }
 
         var courseExternalIds = items
@@ -385,7 +391,11 @@ public sealed class CartService(
 
         var paid = cart.Status == CartStatus.Paid;
         var purchaseIds = paid
-            ? cart.Items.Select(x => CartPurchaseIds.For(id, x.ExternalItemId).Value).ToArray()
+            ? cart.Items
+                .OrderBy(x => CanonicalItemType(x.ItemType), StringComparer.Ordinal)
+                .ThenBy(x => x.ExternalItemId, StringComparer.Ordinal)
+                .Select(x => CartPurchaseIds.For(id, x.ExternalItemId).Value)
+                .ToArray()
             : null;
 
         var result = await pricing.TransitionAsync(
@@ -395,6 +405,14 @@ public sealed class CartService(
 
         await store.RecordSynchronizationAsync(id, buyerId, result.IsSuccess, result.ErrorCode, cart.ReservationId, ct);
     }
+
+    private static string CanonicalItemType(ProductItemType type) => type switch
+    {
+        ProductItemType.Course => "course",
+        ProductItemType.CourseChapter => "course_chapter",
+        ProductItemType.Product => "product",
+        _ => throw new ArgumentOutOfRangeException(nameof(type), type, "Unsupported cart item type.")
+    };
 
     public async Task ProcessAsync(Cart cart, CancellationToken ct)
     {

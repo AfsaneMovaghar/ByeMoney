@@ -23,11 +23,12 @@ public class UserAuthorizationService(ApplicationDbContext context) : IUserAutho
 
     public async Task<UserPermissionsDto?> GetPermissionsByUserIdAsync(UserId userId, CancellationToken ct = default)
     {
-        var userExists = await _context.Set<User>()
+        var user = await _context.Set<User>()
             .AsNoTracking()
-            .AnyAsync(u => u.Id == userId, ct);
+            .Select(u => new { u.Id, u.IsActive })
+            .FirstOrDefaultAsync(u => u.Id == userId, ct);
 
-        if (!userExists)
+        if (user is null)
             return null;
 
         var userRoles = await _context.Set<UserRole>()
@@ -55,6 +56,7 @@ public class UserAuthorizationService(ApplicationDbContext context) : IUserAutho
         return new UserPermissionsDto
         {
             UserId = userId,
+            IsActive = user.IsActive,
             Roles = roles,
             Permissions = permissions
         };

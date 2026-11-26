@@ -5,5 +5,6 @@ public enum ResultStatus
     Success,
     NotFound,
     Failure,
-    Conflict
+    Conflict,
+    Forbidden
 }

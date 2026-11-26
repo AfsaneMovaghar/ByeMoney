@@ -1,4 +1,4 @@
-﻿namespace ByeMoney.Domain.Modules.Identity.Constants;
+namespace ByeMoney.Domain.Modules.Identity.Constants;
 
 public static class AppClaimTypes
 {
@@ -7,4 +7,5 @@ public static class AppClaimTypes
     public const string Permission = "permission";
     public const string TransformedMarker = "urn:byemoney:transformed";
     public const string StrapiId = "id";
+    public const string IsActive = "is_active";
 }

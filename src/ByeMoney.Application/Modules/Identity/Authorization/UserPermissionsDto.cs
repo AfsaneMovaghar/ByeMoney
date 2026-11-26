@@ -5,6 +5,7 @@ namespace ByeMoney.Application.Modules.Identity.Authorization;
 public class UserPermissionsDto
 {
     public UserId UserId { get; set; }
+    public bool IsActive { get; set; } = true;
     public IReadOnlyCollection<string> Roles { get; set; } = [];
     public IReadOnlyCollection<string> Permissions { get; set; } = [];
 }

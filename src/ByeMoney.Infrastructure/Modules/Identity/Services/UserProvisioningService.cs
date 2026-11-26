@@ -37,16 +37,27 @@ public sealed class UserProvisioningService(
     public async Task<UserProvisioningResult> EnsureUserFromExternalAsync(string externalUserId, CancellationToken ct = default)
     {
         var existing = await userRepository.GetByExternalUserIdAsync(externalUserId, ct);
-        if (existing is not null)
-        {
-            return new UserProvisioningResult(existing, Created: false);
-        }
-
         var strapiUser = await GetUserFromStrapiWithTransientRetryAsync(externalUserId, ct);
 
         if (strapiUser is null)
         {
             throw new NotFoundException(string.Format(ApplicationErrors.User_NotFoundInTarhElahi, externalUserId));
+        }
+
+        if (existing is not null)
+        {
+            existing.SyncProfile(
+                phone: strapiUser.PhoneNumber,
+                email: strapiUser.Email,
+                firstName: strapiUser.FirstName,
+                lastName: strapiUser.LastName,
+                confirmed: strapiUser.Confirmed,
+                blocked: strapiUser.Blocked);
+
+            userRepository.Update(existing);
+            await unitOfWork.SaveChangesAsync(ct);
+
+            return new UserProvisioningResult(existing, Created: false);
         }
 
         var newUser = User.CreateFromStrapi(

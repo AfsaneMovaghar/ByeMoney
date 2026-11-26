@@ -109,6 +109,15 @@ public sealed class AdminCartOrderHttpPostgresTests : IAsyncLifetime
         _pricing
             .Setup(x => x.TransitionAsync(It.IsAny<CartTransitionRequest>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(Result.Success());
+        _tarhElahi
+            .Setup(x => x.GetUserAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string externalUserId, CancellationToken _) =>
+                new ByeMoney.Application.Modules.TarhElahiIntegration.DTOs.TarhElahiUserDto
+                {
+                    ExternalUserId = externalUserId,
+                    Confirmed = true,
+                    Blocked = false
+                });
     }
 
     public async Task DisposeAsync()

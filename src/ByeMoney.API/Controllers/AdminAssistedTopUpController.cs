@@ -94,6 +94,7 @@ public class AdminAssistedTopUpController(
         {
             ResultStatus.NotFound => NotFound(new AdminAssistedTopUpErrorResponse(result.ErrorMessage)),
             ResultStatus.Conflict => Conflict(new AdminAssistedTopUpErrorResponse(result.ErrorMessage)),
+            ResultStatus.Forbidden => StatusCode(StatusCodes.Status403Forbidden, new AdminAssistedTopUpErrorResponse(result.ErrorMessage)),
             _ => BadRequest(new AdminAssistedTopUpErrorResponse(result.ErrorMessage))
         };
     }

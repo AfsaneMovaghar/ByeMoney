@@ -102,4 +102,6 @@
   </data>
   <data name="TopUpReceipt_InvalidFile" xml:space="preserve"><value>تصویر رسید معتبر و حداکثر ۱۰ مگابایت لازم است.</value></data>
   <data name="TopUpRequest_InvalidIdempotencyKey" xml:space="preserve"><value>کلید تکرار درخواست باید بین ۱ تا ۱۰۰ نویسه باشد.</value></data>
+  <data name="Middleware_ForbiddenTitle" xml:space="preserve"><value>دسترسی غیرمجاز</value></data>
+  <data name="Auth_UserInactiveMessage" xml:space="preserve"><value>حساب کاربری غیرفعال یا مسدود است.</value></data>
 </root>

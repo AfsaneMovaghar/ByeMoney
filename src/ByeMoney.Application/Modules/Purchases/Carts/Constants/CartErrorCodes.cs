@@ -8,4 +8,5 @@ public static class CartErrorCodes
     public const string InsufficientBalance = "CART_INSUFFICIENT_BALANCE";
     public const string Unavailable = "CART_UNAVAILABLE";
     public const string StockUnavailable = "CART_STOCK_UNAVAILABLE";
+    public const string UserInactive = "CART_USER_INACTIVE";
 }

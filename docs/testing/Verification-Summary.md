@@ -1,5 +1,77 @@
 # خلاصهٔ شواهد آزمون و پذیرش
 
+## همگام‌سازی وضعیت مسدودسازی کاربر استرپی و رد متمرکز با `403` (`AUDIT-AUTH-01` / `LOG-010`) — ۲۶ نوامبر ۲۰۲۶
+
+- **دامنه (`ByeMoney`، شاخهٔ `fix/sync-blocked-user-status`):**
+  - **تأمین و همگام‌سازی کاربر (`UserProvisioningService.EnsureUserFromExternalAsync`):** برای کاربران موجود نیز وضعیت فعلی از استرپی خوانده و `IsActive = confirmed && !blocked` (بدون دخالت `isMobileVerified`) با زمان `DateTime.UtcNow` به‌روزرسانی می‌شود؛ در صورت قطع یا خطای استرپی، به‌جای اتکا به دادهٔ کهنه، خطای `503` برگردانده می‌شود (fail-closed).
+  - **رد متمرکز با `403` (`RbacClaimsTransformation` + `ActiveUserMiddleware`):** ادعای `is_active` در تبدیل نقش‌ها ثبت می‌شود (و در صورت غیرفعال‌بودن، نقش‌ها/مجوزها افزوده نمی‌شوند) و میان‌افزار `ActiveUserMiddleware` پس از `UseAuthentication` هر درخواست احراز هویت‌شدهٔ کاربر غیرفعال/مسدود را روی مسیرهای `[Authorize]` با کد `403` رد می‌کند، بدون اثر بر مسیرهای `AllowAnonymous` یا احراز هویت `X-Service-Key`.
+  - **یکدست‌سازی مسیرهای مالی/ادمین:** افزودن `ResultStatus.Forbidden` به `Result`/`Result<T>`؛ در `AdminAssistedTopUpService` و `CartService.PrepareCoreAsync` (سفارش دستی ادمین) ذی‌نفع مسدود/غیرفعال با `403` رد می‌شود و در اهدای دسته‌ای هدیه (`AdminGrantGiftNoorCommandHandler`) خطای مسدودبودن برای همان ذی‌نفع برگردانده می‌شود.
+- **نتیجه:**
+  - `ByeMoney.UnitTests` با پیکربندی `Release`: **۸۵۱/۸۵۱ سبز** (`Failed: 0, Skipped: 0`). *(اجرای `Debug` به‌خاطر قفل فایل توسط فرایند در حال اجرای `ByeMoney.API` انجام نشد.)*
+  - پوشش آزمون‌های افزوده‌شده/به‌روزشده: همگام‌سازی وضعیت کاربر موجود (فعال ↔ مسدود)، رفتار fail-closed هنگام قطع استرپی، رد ذی‌نفع مسدود در شارژ به‌نیابت و سفارش دستی با `403`، حذف مجوزها و پاسخ `403` میان‌افزار برای توکن کاربر غیرفعال، و عبوردادن مسیرهای `AllowAnonymous`/بدون توکن.
+
+## بستن دسترسی عمومی و کاربر عادی به سفارش‌های قدیمی و فهرست کوپن در استرپی (`AUDIT-SEC-02` / `LOG-008`، `LOG-009`) — ۲۶ نوامبر ۲۰۲۶
+
+- **دامنه (`backend`، شاخهٔ `byeMoney`):**
+  - **`LOG-008` (سفارش‌ها):** افزودن policy `global::is-admin-or-api-token` به همهٔ مسیرهای هستهٔ سفارش (`find`، `findOne`، `create`، `update`، `delete`) در `src/api/order/routes/order.js` و افزودن گارد `canManageOrders` به `find` و `findOne` در `src/api/order/controllers/order.js`؛ مسیر پروکسی Next.js (`front-end/src/app/api/orders/route.js`) و `ordersApi.js` با `STRAPI_API_TOKEN` (`api-token`) متصل می‌مانند.
+  - **`LOG-009` (کوپن‌ها):** افزودن policy `global::is-admin-or-api-token` به مسیرهای هستهٔ کوپن (`find`، `findOne`، `create`، `update`، `delete`) در `src/api/coupon/routes/coupon.js` با حفظ `auth: false` و محدودیت نرخ روی `POST /api/coupons/validate` در `src/api/coupon/routes/01-custom-coupon.js`.
+  - **پاک‌سازی مجوزهای دیتابیس استرپی:** افزودن `revokeSensitivePublicPermissions` در `src/services/securityPermissions.js` و فراخوانی در `bootstrap` (`src/index.js`) برای حذف مجوزهای حساس سفارش و کوپن از نقش‌های `public` و `authenticated` در `plugin::users-permissions.permission`.
+- **نتیجه:**
+  - آزمون‌های واحد `tests/api/order/orderAndCouponPublicAccess.test.js`: **۱۷/۱۷ سبز**.
+  - مجموعهٔ کامل آزمون‌های `backend` (`npm test`): Jest (**۶۲ سوییت، ۴۷۰/۴۷۰ سبز**) و `node --test` (**۱۰۴/۱۰۴ سبز**، ۰ شکست).
+- **محدودیت:** آزمون‌ها با شبیه‌سازی Strapi انجام شدند؛ در اجرای زندهٔ استرپی هنگام بالا آمدن `bootstrap` مجوزهای دیتابیس پاک می‌شوند و درخواست‌های بدون توکن/کاربر عادی باید `401`/`403` بگیرند.
+
+## ماتریس عملیات مدیریت سفارش بای‌مانی (`TASK-ADMIN-ORDER-OPS-REVIEW`) — ۲۶ نوامبر ۲۰۲۶
+
+- **دامنه (تحلیلی-مستنداتی):** بررسی و تطبیق عملیات پنل ادمین سفارش‌ها با کنترلرهای `AdminOrdersController`، `AdminPhysicalPurchasesController`، `AdminPhysicalCancellationsController` و `AdminOrderSettlementsController` و تصمیم مالک:
+  - عملیات معتبر و موجود: مشاهده/جستجو/جزئیات/رسید، تغییر وضعیت ارسال کالا، لغو کالای فیزیکی پیش از ارسال، و تسویهٔ گروهی.
+  - عملیات نامعتبر روی سفارش بای‌مانی: تغییر دستی وضعیت سفارش/پرداخت، تأیید/رد رسید کارت‌به‌کارت روی سفارش، و حذف تکی/گروهی.
+  - تصمیم مالک: خروجی اکسل سفارش بای‌مانی در فاز اول نیاز نیست؛ سفارش‌های قدیمی استرپی (از جمله پرداخت‌نشده‌های قدیمی) در فهرست جداگانهٔ Legacy می‌مانند.
+  - نکتهٔ هم‌ترازی مجوزها (`RequireNoorInject` روی لغو کالا) پیش‌تر در `RBAC-05` (۱۰ نوامبر ۲۰۲۶) در اسناد و ماتریس مجوزها ثبت شده بود.
+- **نتیجه:** ماتریس در `D10` سند `ByeMoney-Decisions.md` ثبت و ردیف `TASK-ADMIN-ORDER-OPS-REVIEW` از `TASKS.md` بسته و حذف شد. (بدون تغییر کد.)
+
+## رفع ناهم‌خوانی ترتیب `purchaseIds` و `restock` در سبد مختلط (`AUDIT-CART-01` / `LOG-006`) — ۲۶ نوامبر ۲۰۲۶
+
+- **دامنه (`ByeMoney` + `backend`، شاخهٔ `fix/mixed-cart-restock-order`):**
+  - **`ByeMoney` (`CartService.SynchronizeAsync`):** نگاشت صریح `ProductItemType` به کلید سیمی استرپی (`course`، `course_chapter`، `product`) و مرتب‌سازی `purchaseIds` با `StringComparer.Ordinal` بر اساس `(canonicalType, ExternalItemId)` در زمان `commit` تا با ترتیب `physicalCartQuote.selection` در استرپی یکسان باشد؛ ترتیب `Cart.Items` و تخصیص مالی دست‌نخورده ماند.
+  - **آزمون‌ها:** افزودن `MixedCartSynchronizeOrderTests` در بای‌مانی و `tests/services/physicalCartMixedRestock.test.js` در استرپی برای سبد مختلط با `product.externalId < chapter.externalId < course.externalId` (پوشش `commit`، لغو جزئی/کامل، `restock`، تلاش مجدد idempotent با `operationId` یکسان و رد برگشت بیش از تعداد خرید).
+- **نتیجه:**
+  - `ByeMoney.UnitTests` با پیکربندی `Release`: **۸۴۱/۸۴۱ سبز** (`Failed: 0, Skipped: 0`). *(اجرای `Debug` به‌خاطر قفل فایل توسط فرایند در حال اجرای `ByeMoney.API` انجام نشد.)*
+  - `backend` Jest (`tests/api tests/services tests/config`): **۶۱ سوییت، ۴۵۳/۴۵۳ سبز**؛ و `node --test`: **۹۶/۹۶ سبز** (`0` شکست).
+- **محدودیت:** آزمون استرپی با شبیه‌ساز تراکنش درون‌حافظه انجام شد؛ در محیط واقعی با نشست زنده نیز بررسی شود.
+
+## اصلاح چرخهٔ شارژ درگاه سپ و بازیابی آن (`AUDIT-GW-01` / `LOG-002` تا `LOG-005`) — ۲۶ نوامبر ۲۰۲۶
+
+- **دامنه (هر سه پروژه، شاخهٔ `fix/gateway-topup-recovery`):**
+  - **`LOG-002` (`ByeMoney` + `front-end`):** در `src/app/api/payment/request/route.js` اگر تلاش دارای توکن صادرشده یا در جریان باشد، شکست دریافت توکن جدید دیگر رویداد `Unpaid` نمی‌فرستد و وضعیت تلاش را خراب نمی‌کند. در `GatewayTopUpService.RecordResultAsync` هنگام دریافت `Verified` روی شارژ `Rejected` (با حفظ گاردهای `ManualRefundReference` و `ReverseSucceeded`)، شواهد بانکی (`HasVerifiedHistory`، `ExternalTransactionId`، `GatewayResultCode`) و پروندهٔ `BANK_CONFLICT` در دیتابیس ذخیره شده و سپس پاسخ تعارض `409` (`TOPUP_REQUIRES_REVIEW`) بدون واریز خودکار نور برگردانده می‌شود.
+  - **`LOG-003` (`front-end` + `backend`):** در `src/lib/processGatewayTopUpCallback.js` هر callback دارای `RefNum` حتی خارج از `token_issued` یا شکست قفل `claimAttempt` هم verify می‌شود (و در صورت رد قبلی با نبود بازپرداخت دستی، مسیر برگشت ایمن را می‌رود). در کنترلر `gateway-payment-attempt` استرپی، رویدادهای callback تا تحویل واقعی به بای‌مانی در وضعیت `pending` می‌مانند (`deliveryStatus` فقط برای `reverse_intent` به‌صورت `delivered` ساخته می‌شود).
+  - **`LOG-004` (`front-end` + `ByeMoney`):** در `processGatewayTopUpCallback.js` کد `۲` سپ پس از تطبیق مشخصات و مبلغ با snapshot به‌عنوان `Verified` ثبت و ارسال می‌شود تا یک‌بار تسویه شود یا سابقهٔ `HasVerifiedHistory` برای شارژ استثنایی ثبت بماند.
+  - **`LOG-005` (`backend`):** در `src/services/gatewayTopUpRecovery.js` در شاخهٔ خطای `409`، اگر وضعیت فعلی تلاش `confirmed` یا `reversed` باشد، به `financial_review` برگردانده نمی‌شود.
+- **نتیجه:**
+  - `ByeMoney.UnitTests` با پیکربندی `Release` (شامل آزمون‌های Postgres و `GatewayResultRecordingTests`): **۸۴۰/۸۴۰ سبز** (`Failed: 0, Skipped: 0`). *(اجرای `Debug` به‌خاطر قفل فایل توسط فرایند در حال اجرای `ByeMoney.API` انجام نشد.)*
+  - `backend` (`npm --prefix backend test`): Jest کامل (**۴۰۴+ تست سبز**) و `node --test` (**۹۶/۹۶ سبز**، ۰ شکست).
+  - `front-end`: Jest مسیرهای پرداخت (`request/route.test.js`، `verify/route.test.js`، `verify/latePayment.test.js`، `gatewayTopUp.test.js`): **۴۵/۴۵ سبز** (`Failed: 0`).
+- **محدودیت:** آزمون‌ها با شبیه‌سازی درگاه سپ انجام شدند؛ پذیرش با درگاه واقعی سپ در محیط مقصد در بخش «نیازمند تست دستی» باز می‌ماند.
+
+## بستن مسیرهای بدون احراز سفارش قدیمی و مسدودکردن اعطای دسترسی از سفارش تازه در استرپی (`AUDIT-SEC-01` / `LOG-001` و `AUDIT-LEGACY-01` / `LOG-007`) — ۲۶ نوامبر ۲۰۲۶
+
+- **دامنه (`backend`، شاخهٔ `byeMoney`):**
+  - **`AUDIT-SEC-01` (`LOG-001` / `HF18`، `M6`):** حذف `auth: false` از مسیرهای `export-excel`، `revenue-stats`، `sync-excel` و `bulk-settle` در `src/api/order/routes/01-custom-order.js` و اعمال `canManageOrders` (`api-token` یا نقش `administrator`) در چهار عمل کنترلر `src/api/order/controllers/order.js`؛ انتقال مسیر پیش‌فرض خروجی `generateAndSaveExcelReport` در `src/api/order/services/excel-export.js` از `public/uploads/exports` به `storage/exports` (خارج از `public/`).
+  - **`AUDIT-LEGACY-01` (`LOG-007`):** مسدودکردن ثبت سفارش جدید دارای `order.course-order-item` (یا `courseId`/`chapterId`/`chapterIntegrationId`) یا وضعیت پرداخت‌شده (`paid`، `confirmed`، `processing`، `shipped`، `delivered` / `paymentStatus=paid`) در `order.create` کنترلر سفارش حتی با `api-token` یا نقش `administrator`؛ حذف فراخوانی `syncUserPurchases` از `afterCreate` در `src/api/order/content-types/order/lifecycles.js` تا ساخت مستقیم سفارش در Content-Manager هم دسترسی دوره یا فصل ندهد.
+  - آزمون‌های واحد در `tests/api/order/orderSecurityAndLegacyGuard.test.js` و به‌روزرسانی آزمون `afterCreate` در `tests/order-price-hotfix.test.js`.
+- **نتیجه:** اجرای کامل `npm --prefix backend test`: Jest (`51` سوییت، **۴۰۲/۴۰۲ سبز**) و `node --test` (**۹۶/۹۶ سبز**، ۰ شکست).
+- **محدودیت:** آزمون در برابر داده‌های شبیه‌سازی‌شده انجام شد؛ روی سرور استرپی زنده پس از استقرار بررسی شود.
+
+## پذیرش دستی مرورگر و پنل (محلی / بدون پستکس زنده و SEP) — ۲۶ نوامبر ۲۰۲۶
+
+- **دامنه (`ByeMoney` + `backend` + `front-end` روی localhost):** پذیرش دستی بخش «الف» از [TASKS](../../TASKS.md) با نشست واقعی مرورگر در `http://localhost:3000`، `costMode=fixed` (۵ نور، ارسال رایگان بالای ۱۰۰ نور) و کاربران تست (`09121000001`، `09120000001`، `09120000002`، `09120000003`، `09120000004`):
+  - **پروفایل، پنل ادمین و سفارش دستی (`D2` و `I11-O`):** بررسی دیداری `/profile/orders`، `/admin/orders`، نمایش `shippingAddress` روی سفارش‌های کالایی و ساخت کاربر جدید در فرم پنل ادمین.
+  - **خرید دوره، فصل، سبد مختلط و نتیجهٔ خرید (`R01` / `سناریوی ۰۲` و `FE-ORDER-02`):** بررسی دیداری «دوره‌های من»، صفحهٔ دورهٔ فصلی (فصل ۱ خریداری‌شده و فصل ۲ قابل خرید)، جریان سبد در `/cart` (انتخاب/تغییر آدرس، سبد جایگزین) و صفحهٔ `/checkout/result` برای خرید فقط‌کالا و مختلط با کیف پول.
+  - **پذیرش `SHIP-FIX-2` در مرورگر:** نمایش نشان برگشتی، متن تأیید جزئی، لینک امن رهگیری و کنترل هشدار پستی (`11304`) در پروفایل کاربر و کارت مدیر.
+  - **شارژ ادمین و لغو فیزیکی (`C8`):** ثبت شارژ از فرم پنل ادمین و آزمون سرتاسری لغو فیزیکی/جزئی و برگشت نور و موجودی در فرانت.
+- **نتیجه:** همهٔ ۶ مورد بخش «الف» (پذیرش مرورگر و پنل) توسط کاربر در مرورگر تأیید شدند و از بخش «نیازمند تست دستی» [TASKS](../../TASKS.md) بسته شدند.
+- **محدودیت / باقی‌مانده:** بخش‌های «ب» (پستکس زنده و Content-Manager) و «پ» (درگاه SEP، توکن/CSP و محیط مقصد) در این دور تست نشده‌اند و همچنان در [TASKS](../../TASKS.md) باز می‌مانند.
+
 ## آماده‌سازی استقرار بای‌مانی روی لیارا (`DEPLOY-01` گام ۱–۲) — ۲۵ نوامبر ۲۰۲۶
 
 - **دامنه (`ByeMoney`):**

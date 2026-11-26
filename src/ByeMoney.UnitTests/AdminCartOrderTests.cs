@@ -182,6 +182,21 @@ public sealed class AdminCartOrderTests
         pricing.Verify(x => x.TransitionAsync(It.IsAny<CartTransitionRequest>(), "commit", It.IsAny<CancellationToken>()), Times.Never);
     }
 
+    [Fact]
+    public async Task BlockedBeneficiary_ReturnsForbidden_WithoutCreatingCartOrCharging()
+    {
+        var buyer = User.CreateFromStrapi("beneficiary", confirmed: true, blocked: true);
+        var store = new Mock<ICartStore>();
+        var pricing = new Mock<ICartPricingClient>();
+
+        var result = await Handler(buyer, store, pricing).Handle(Command(), default);
+
+        result.Status.Should().Be(ResultStatus.Forbidden);
+        result.ErrorCode.Should().Be(CartErrorCodes.UserInactive);
+        store.Verify(x => x.CreateAsync(It.IsAny<Cart>(), It.IsAny<CancellationToken>()), Times.Never);
+        pricing.Verify(x => x.TransitionAsync(It.IsAny<CartTransitionRequest>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
     private static AdminCartOrderCommand Command(
         Guid? cartId = null,
         CartItemInput[]? items = null,
