@@ -1,5 +1,16 @@
 # خلاصهٔ شواهد آزمون و پذیرش
 
+## بستن دسترسی عمومی و کاربر عادی به سفارش‌های قدیمی و فهرست کوپن در استرپی (`AUDIT-SEC-02` / `LOG-008`، `LOG-009`) — ۲۶ نوامبر ۲۰۲۶
+
+- **دامنه (`backend`، شاخهٔ `byeMoney`):**
+  - **`LOG-008` (سفارش‌ها):** افزودن policy `global::is-admin-or-api-token` به همهٔ مسیرهای هستهٔ سفارش (`find`، `findOne`، `create`، `update`، `delete`) در `src/api/order/routes/order.js` و افزودن گارد `canManageOrders` به `find` و `findOne` در `src/api/order/controllers/order.js`؛ مسیر پروکسی Next.js (`front-end/src/app/api/orders/route.js`) و `ordersApi.js` با `STRAPI_API_TOKEN` (`api-token`) متصل می‌مانند.
+  - **`LOG-009` (کوپن‌ها):** افزودن policy `global::is-admin-or-api-token` به مسیرهای هستهٔ کوپن (`find`، `findOne`، `create`، `update`، `delete`) در `src/api/coupon/routes/coupon.js` با حفظ `auth: false` و محدودیت نرخ روی `POST /api/coupons/validate` در `src/api/coupon/routes/01-custom-coupon.js`.
+  - **پاک‌سازی مجوزهای دیتابیس استرپی:** افزودن `revokeSensitivePublicPermissions` در `src/services/securityPermissions.js` و فراخوانی در `bootstrap` (`src/index.js`) برای حذف مجوزهای حساس سفارش و کوپن از نقش‌های `public` و `authenticated` در `plugin::users-permissions.permission`.
+- **نتیجه:**
+  - آزمون‌های واحد `tests/api/order/orderAndCouponPublicAccess.test.js`: **۱۷/۱۷ سبز**.
+  - مجموعهٔ کامل آزمون‌های `backend` (`npm test`): Jest (**۶۲ سوییت، ۴۷۰/۴۷۰ سبز**) و `node --test` (**۱۰۴/۱۰۴ سبز**، ۰ شکست).
+- **محدودیت:** آزمون‌ها با شبیه‌سازی Strapi انجام شدند؛ در اجرای زندهٔ استرپی هنگام بالا آمدن `bootstrap` مجوزهای دیتابیس پاک می‌شوند و درخواست‌های بدون توکن/کاربر عادی باید `401`/`403` بگیرند.
+
 ## ماتریس عملیات مدیریت سفارش بای‌مانی (`TASK-ADMIN-ORDER-OPS-REVIEW`) — ۲۶ نوامبر ۲۰۲۶
 
 - **دامنه (تحلیلی-مستنداتی):** بررسی و تطبیق عملیات پنل ادمین سفارش‌ها با کنترلرهای `AdminOrdersController`، `AdminPhysicalPurchasesController`، `AdminPhysicalCancellationsController` و `AdminOrderSettlementsController` و تصمیم مالک:

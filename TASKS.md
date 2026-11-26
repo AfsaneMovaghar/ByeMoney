@@ -25,11 +25,7 @@
 
 ### P0 — خطای مالی، امنیت بحرانی یا ناسازگاری داده شناخته‌شده
 
-> `AUDIT-CART-01` در ۲۰۲۶-۱۱-۲۶ بسته شد و شاهد آن در [گزارش شواهد](docs/testing/Verification-Summary.md) ثبت شد.
-
-- [ ] **`AUDIT-SEC-02` (`LOG-008`، `LOG-009`) — [امنیتی بحرانی] بستن دسترسی عمومی به سفارش‌های قدیمی و فهرست کوپن در استرپی** (شاخهٔ پیشنهادی: `fix/strapi-public-orders-coupons`):
-  - دامنه: مجوزهای نقش‌های استرپی و `order.find` / `order.findOne` / `coupon.find`.
-  - معیار پذیرش: حذف مجوزهای `Public` و `Authenticated` از `order.find` و `order.findOne` (حفظ دسترسی فقط از طریق توکن ادمین/سرویس و پروکسی محدود به مالک در Next.js)؛ حذف مجوز `Public` از `coupon.find` با حفظ کارکرد `POST /api/coupons/validate`.
+> `AUDIT-CART-01` و `AUDIT-SEC-02` در ۲۰۲۶-۱۱-۲۶ بسته شدند و شاهدشان در [گزارش شواهد](docs/testing/Verification-Summary.md) ثبت شد. (در حال حاضر مورد باز ندارد.)
 
 ### P1 — بک‌اند مالی، کالا و هم‌ترازی قرارداد
 
