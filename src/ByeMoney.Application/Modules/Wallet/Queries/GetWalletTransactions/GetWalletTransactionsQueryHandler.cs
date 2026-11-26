@@ -40,6 +40,10 @@ public sealed class GetWalletTransactionsQueryHandler(
             ? row.ReferenceId
             : null;
 
+        var paymentMethod = topUpId is not null
+            ? row.PaymentMethod?.ToString()
+            : null;
+
         return new WalletTransactionItem(
             row.TransactionId,
             row.ReferenceType.ToString(),
@@ -47,6 +51,7 @@ public sealed class GetWalletTransactionsQueryHandler(
             row.GiftAmountNoor,
             row.CreatedAtUtc,
             orderId,
-            topUpId);
+            topUpId,
+            paymentMethod);
     }
 }

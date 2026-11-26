@@ -1,4 +1,5 @@
 using ByeMoney.Domain.Modules.Wallet.Ledgers;
+using ByeMoney.Domain.Modules.Wallet.TopUps;
 
 namespace ByeMoney.Application.Modules.Wallet.Transactions.DTOs;
 
@@ -12,4 +13,5 @@ public sealed record WalletTransactionRow(
     decimal AmountNoor,
     decimal GiftAmountNoor,
     DateTime CreatedAtUtc,
-    Guid? OrderCartId);
+    Guid? OrderCartId,
+    PaymentMethod? PaymentMethod = null);

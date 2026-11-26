@@ -11,4 +11,5 @@ public sealed record WalletTransactionItem(
     decimal GiftAmountNoor,
     DateTime CreatedAtUtc,
     string? OrderId,
-    string? TopUpId);
+    string? TopUpId,
+    string? PaymentMethod = null);

@@ -3,6 +3,7 @@ using ByeMoney.Application.Modules.Wallet.Transactions.Interfaces;
 using ByeMoney.Domain.Modules.Identity.Users;
 using ByeMoney.Domain.Modules.Purchases;
 using ByeMoney.Domain.Modules.Wallet.Ledgers;
+using ByeMoney.Domain.Modules.Wallet.TopUps;
 using ByeMoney.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using WalletEntity = ByeMoney.Domain.Modules.Wallet.Wallets.Wallet;
@@ -60,6 +61,22 @@ public sealed class WalletTransactionReader(ApplicationDbContext db) : IWalletTr
         var referenceIds = await LoadReferenceIdsAsync(accountEntries, transactionIds, ct);
         var orderCartIds = await LoadOrderCartIdsAsync(transactionIds, ct);
 
+        var topUpIdsByTransaction = pageRows
+            .Where(row => row.ReferenceType == LedgerReferenceType.TopUp)
+            .Select(row => new
+            {
+                row.TransactionId,
+                Parsed = Guid.TryParse(referenceIds.GetValueOrDefault(row.TransactionId), out var guid)
+                    ? new TopUpRequestId(guid)
+                    : (TopUpRequestId?)null
+            })
+            .Where(x => x.Parsed.HasValue)
+            .ToDictionary(x => x.TransactionId, x => x.Parsed!.Value);
+
+        var paymentMethods = await LoadTopUpPaymentMethodsAsync(
+            topUpIdsByTransaction.Values.Distinct().ToArray(),
+            ct);
+
         var items = pageRows
             .Select(row => new WalletTransactionRow(
                 row.TransactionId,
@@ -68,7 +85,11 @@ public sealed class WalletTransactionReader(ApplicationDbContext db) : IWalletTr
                 row.AmountNoor,
                 row.GiftAmountNoor,
                 row.CreatedAtUtc,
-                orderCartIds.TryGetValue(row.TransactionId, out var cartId) ? cartId : null))
+                orderCartIds.TryGetValue(row.TransactionId, out var cartId) ? cartId : null,
+                topUpIdsByTransaction.TryGetValue(row.TransactionId, out var topUpId) &&
+                    paymentMethods.TryGetValue(topUpId, out var method)
+                    ? method
+                    : null))
             .ToArray();
 
         return new WalletTransactionPage<WalletTransactionRow>(items, page, pageSize, totalCount);
@@ -119,5 +140,20 @@ public sealed class WalletTransactionReader(ApplicationDbContext db) : IWalletTr
         }
 
         return result;
+    }
+
+    private async Task<Dictionary<TopUpRequestId, PaymentMethod>> LoadTopUpPaymentMethodsAsync(
+        TopUpRequestId[] topUpIds, CancellationToken ct)
+    {
+        if (topUpIds.Length == 0)
+        {
+            return [];
+        }
+
+        return await db.Set<TopUpRequest>()
+            .AsNoTracking()
+            .Where(topUp => topUpIds.Contains(topUp.Id))
+            .Select(topUp => new { topUp.Id, topUp.PaymentMethod })
+            .ToDictionaryAsync(topUp => topUp.Id, topUp => topUp.PaymentMethod, ct);
     }
 }

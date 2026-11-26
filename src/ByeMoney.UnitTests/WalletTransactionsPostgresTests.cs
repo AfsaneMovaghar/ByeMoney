@@ -6,7 +6,9 @@ using ByeMoney.Application.Modules.Wallet.Queries.GetWalletBalance;
 using ByeMoney.Application.Modules.Wallet.Queries.GetWalletTransactions;
 using ByeMoney.Application.Modules.Wallet.Transactions.DTOs;
 using ByeMoney.Domain.Modules.Identity.Users;
+using ByeMoney.Domain.Modules.Wallet;
 using ByeMoney.Domain.Modules.Wallet.Ledgers;
+using ByeMoney.Domain.Modules.Wallet.TopUps;
 using ByeMoney.Domain.Modules.Wallet.Wallets;
 using ByeMoney.Infrastructure;
 using ByeMoney.Infrastructure.Persistence;
@@ -178,6 +180,46 @@ public sealed class WalletTransactionsPostgresTests : IAsyncLifetime
             .Validate(new GetWalletTransactionsQuery(page, pageSize));
 
         result.IsValid.Should().BeFalse();
+    }
+
+    [PostgresFact]
+    public async Task Transactions_ResolveTopUpPaymentMethod_AndNullForNonTopUpOrMissing()
+    {
+        var gatewayTopUp = TopUpRequest.CreateGateway(_buyer.Id, 40m, 10000m, FinancialScope.TarheElahi);
+        var assistedTopUp = TopUpRequest.CreateAdminCardToCard(
+            _buyer.Id, _other.Id, 20000m, 10000m, null, "idem-" + Guid.NewGuid().ToString("N"), FinancialScope.TarheElahi);
+        using (var scope = _provider.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            db.AddRange(gatewayTopUp, assistedTopUp);
+            await db.SaveChangesAsync();
+        }
+
+        var missingTopUpId = Guid.NewGuid().ToString();
+        await CreditAsync(_buyer.Id, 40m, LedgerBalanceType.Regular, LedgerReferenceType.TopUp, gatewayTopUp.Id.ToString());
+        await CreditAsync(_buyer.Id, 20m, LedgerBalanceType.Regular, LedgerReferenceType.TopUp, assistedTopUp.Id.ToString());
+        await CreditAsync(_buyer.Id, 10m, LedgerBalanceType.Regular, LedgerReferenceType.TopUp, missingTopUpId);
+        await CreditAsync(_buyer.Id, 15m, LedgerBalanceType.Gift, LedgerReferenceType.AdminGrant, null);
+
+        var page = await TransactionsAsync(_buyer, page: 1, pageSize: 20);
+
+        page.Items.Should().HaveCount(4);
+        page.Items.Single(x => x.TopUpId == gatewayTopUp.Id.ToString()).PaymentMethod.Should().Be("Gateway");
+        page.Items.Single(x => x.TopUpId == assistedTopUp.Id.ToString()).PaymentMethod.Should().Be("CardToCard");
+        page.Items.Single(x => x.TopUpId == missingTopUpId).PaymentMethod.Should().BeNull();
+        page.Items.Single(x => x.Type == nameof(LedgerReferenceType.AdminGrant)).PaymentMethod.Should().BeNull();
+    }
+
+    [PostgresFact]
+    public async Task Transactions_PageWithoutTopUps_SucceedsWithNullPaymentMethod()
+    {
+        await CreditAsync(_buyer.Id, 25m, LedgerBalanceType.Gift, LedgerReferenceType.AdminGrant, null);
+        await DebitPurchaseAsync(_buyer.Id, 10m);
+
+        var page = await TransactionsAsync(_buyer, page: 1, pageSize: 20);
+
+        page.Items.Should().HaveCount(2);
+        page.Items.Should().OnlyContain(x => x.PaymentMethod == null);
     }
 
     private async Task CreditAsync(
