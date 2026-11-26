@@ -1,5 +1,18 @@
 # خلاصهٔ شواهد آزمون و پذیرش
 
+## اصلاح چرخهٔ شارژ درگاه سپ و بازیابی آن (`AUDIT-GW-01` / `LOG-002` تا `LOG-005`) — ۲۶ نوامبر ۲۰۲۶
+
+- **دامنه (هر سه پروژه، شاخهٔ `fix/gateway-topup-recovery`):**
+  - **`LOG-002` (`ByeMoney` + `front-end`):** در `src/app/api/payment/request/route.js` اگر تلاش دارای توکن صادرشده یا در جریان باشد، شکست دریافت توکن جدید دیگر رویداد `Unpaid` نمی‌فرستد و وضعیت تلاش را خراب نمی‌کند. در `GatewayTopUpService.RecordResultAsync` هنگام دریافت `Verified` روی شارژ `Rejected` (با حفظ گاردهای `ManualRefundReference` و `ReverseSucceeded`)، شواهد بانکی (`HasVerifiedHistory`، `ExternalTransactionId`، `GatewayResultCode`) و پروندهٔ `BANK_CONFLICT` در دیتابیس ذخیره شده و سپس پاسخ تعارض `409` (`TOPUP_REQUIRES_REVIEW`) بدون واریز خودکار نور برگردانده می‌شود.
+  - **`LOG-003` (`front-end` + `backend`):** در `src/lib/processGatewayTopUpCallback.js` هر callback دارای `RefNum` حتی خارج از `token_issued` یا شکست قفل `claimAttempt` هم verify می‌شود (و در صورت رد قبلی با نبود بازپرداخت دستی، مسیر برگشت ایمن را می‌رود). در کنترلر `gateway-payment-attempt` استرپی، رویدادهای callback تا تحویل واقعی به بای‌مانی در وضعیت `pending` می‌مانند (`deliveryStatus` فقط برای `reverse_intent` به‌صورت `delivered` ساخته می‌شود).
+  - **`LOG-004` (`front-end` + `ByeMoney`):** در `processGatewayTopUpCallback.js` کد `۲` سپ پس از تطبیق مشخصات و مبلغ با snapshot به‌عنوان `Verified` ثبت و ارسال می‌شود تا یک‌بار تسویه شود یا سابقهٔ `HasVerifiedHistory` برای شارژ استثنایی ثبت بماند.
+  - **`LOG-005` (`backend`):** در `src/services/gatewayTopUpRecovery.js` در شاخهٔ خطای `409`، اگر وضعیت فعلی تلاش `confirmed` یا `reversed` باشد، به `financial_review` برگردانده نمی‌شود.
+- **نتیجه:**
+  - `ByeMoney.UnitTests` با پیکربندی `Release` (شامل آزمون‌های Postgres و `GatewayResultRecordingTests`): **۸۴۰/۸۴۰ سبز** (`Failed: 0, Skipped: 0`). *(اجرای `Debug` به‌خاطر قفل فایل توسط فرایند در حال اجرای `ByeMoney.API` انجام نشد.)*
+  - `backend` (`npm --prefix backend test`): Jest کامل (**۴۰۴+ تست سبز**) و `node --test` (**۹۶/۹۶ سبز**، ۰ شکست).
+  - `front-end`: Jest مسیرهای پرداخت (`request/route.test.js`، `verify/route.test.js`، `verify/latePayment.test.js`، `gatewayTopUp.test.js`): **۴۵/۴۵ سبز** (`Failed: 0`).
+- **محدودیت:** آزمون‌ها با شبیه‌سازی درگاه سپ انجام شدند؛ پذیرش با درگاه واقعی سپ در محیط مقصد در بخش «نیازمند تست دستی» باز می‌ماند.
+
 ## بستن مسیرهای بدون احراز سفارش قدیمی و مسدودکردن اعطای دسترسی از سفارش تازه در استرپی (`AUDIT-SEC-01` / `LOG-001` و `AUDIT-LEGACY-01` / `LOG-007`) — ۲۶ نوامبر ۲۰۲۶
 
 - **دامنه (`backend`، شاخهٔ `byeMoney`):**

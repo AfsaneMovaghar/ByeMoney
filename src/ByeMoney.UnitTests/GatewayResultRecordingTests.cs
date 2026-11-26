@@ -3,6 +3,7 @@ using ByeMoney.Application.Modules.Wallet.Commands.RecordGatewayResult;
 using ByeMoney.Application.Modules.Wallet.Constants;
 using ByeMoney.Application.Modules.Wallet.Interfaces;
 using ByeMoney.Application.Modules.Wallet.Services;
+using ByeMoney.Domain.Common;
 using ByeMoney.Domain.Modules.Identity.Users;
 using ByeMoney.Domain.Modules.Wallet.TopUps;
 using ByeMoney.Infrastructure.Modules.Wallet.Services;
@@ -112,15 +113,52 @@ public sealed class GatewayResultRecordingTests
     [Fact]
     public async Task VerifiedOutcomeCannotConfirmRejectedTopUp()
     {
-        var (service, topUp, settlement, _) = Create();
+        var (service, topUp, settlement, unitOfWork) = Create();
         await service.RecordResultAsync(Command(topUp, GatewayResultKinds.Unpaid, "unpaid-1"));
 
         var result = await service.RecordResultAsync(Command(topUp, GatewayResultKinds.Verified, "verify-2"));
 
-        result.IsSuccess.Should().BeTrue();
+        result.Status.Should().Be(ResultStatus.Conflict);
+        result.ErrorCode.Should().Be(GatewayTopUpErrorCodes.TopUpRequiresReview);
         topUp.Status.Should().Be(TopUpStatus.Rejected);
+        topUp.HasVerifiedHistory.Should().BeTrue();
+        topUp.ExternalTransactionId.Should().Be("bank-ref");
+        topUp.GatewayResultCode.Should().Be("0");
         topUp.ReviewReasonCode.Should().Be(FinancialReviewReasonCodes.BankConflict);
+        unitOfWork.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.AtLeast(2));
         settlement.Verify(x => x.SettleAsync(It.IsAny<TopUpRequest>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task VerifiedWithSepResultCode2SettlesPendingTopUpAndPersistsEvidenceOnRejectedTopUp()
+    {
+        var (pendingService, pendingTopUp, pendingSettlement, _) = Create();
+        var pendingVerify = Command(pendingTopUp, GatewayResultKinds.Verified, "verify-code2-pending") with
+        {
+            BankResultCode = "2"
+        };
+
+        var pendingResult = await pendingService.RecordResultAsync(pendingVerify);
+
+        pendingResult.IsSuccess.Should().BeTrue();
+        pendingSettlement.Verify(x => x.SettleAsync(pendingTopUp, It.IsAny<CancellationToken>()), Times.Once);
+
+        var (rejectedService, rejectedTopUp, rejectedSettlement, _) = Create();
+        await rejectedService.RecordResultAsync(Command(rejectedTopUp, GatewayResultKinds.Unpaid, "unpaid-code2"));
+        var rejectedVerify = Command(rejectedTopUp, GatewayResultKinds.Verified, "verify-code2-rejected") with
+        {
+            BankResultCode = "2"
+        };
+
+        var rejectedResult = await rejectedService.RecordResultAsync(rejectedVerify);
+
+        rejectedResult.Status.Should().Be(ResultStatus.Conflict);
+        rejectedResult.ErrorCode.Should().Be(GatewayTopUpErrorCodes.TopUpRequiresReview);
+        rejectedTopUp.HasVerifiedHistory.Should().BeTrue();
+        rejectedTopUp.GatewayResultCode.Should().Be("2");
+        rejectedTopUp.ExternalTransactionId.Should().Be("bank-ref");
+        rejectedTopUp.ReviewReasonCode.Should().Be(FinancialReviewReasonCodes.BankConflict);
+        rejectedSettlement.Verify(x => x.SettleAsync(It.IsAny<TopUpRequest>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
