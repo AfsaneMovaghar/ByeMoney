@@ -385,7 +385,11 @@ public sealed class CartService(
 
         var paid = cart.Status == CartStatus.Paid;
         var purchaseIds = paid
-            ? cart.Items.Select(x => CartPurchaseIds.For(id, x.ExternalItemId).Value).ToArray()
+            ? cart.Items
+                .OrderBy(x => CanonicalItemType(x.ItemType), StringComparer.Ordinal)
+                .ThenBy(x => x.ExternalItemId, StringComparer.Ordinal)
+                .Select(x => CartPurchaseIds.For(id, x.ExternalItemId).Value)
+                .ToArray()
             : null;
 
         var result = await pricing.TransitionAsync(
@@ -395,6 +399,14 @@ public sealed class CartService(
 
         await store.RecordSynchronizationAsync(id, buyerId, result.IsSuccess, result.ErrorCode, cart.ReservationId, ct);
     }
+
+    private static string CanonicalItemType(ProductItemType type) => type switch
+    {
+        ProductItemType.Course => "course",
+        ProductItemType.CourseChapter => "course_chapter",
+        ProductItemType.Product => "product",
+        _ => throw new ArgumentOutOfRangeException(nameof(type), type, "Unsupported cart item type.")
+    };
 
     public async Task ProcessAsync(Cart cart, CancellationToken ct)
     {

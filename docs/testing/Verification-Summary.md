@@ -1,5 +1,15 @@
 # خلاصهٔ شواهد آزمون و پذیرش
 
+## رفع ناهم‌خوانی ترتیب `purchaseIds` و `restock` در سبد مختلط (`AUDIT-CART-01` / `LOG-006`) — ۲۶ نوامبر ۲۰۲۶
+
+- **دامنه (`ByeMoney` + `backend`، شاخهٔ `fix/mixed-cart-restock-order`):**
+  - **`ByeMoney` (`CartService.SynchronizeAsync`):** نگاشت صریح `ProductItemType` به کلید سیمی استرپی (`course`، `course_chapter`، `product`) و مرتب‌سازی `purchaseIds` با `StringComparer.Ordinal` بر اساس `(canonicalType, ExternalItemId)` در زمان `commit` تا با ترتیب `physicalCartQuote.selection` در استرپی یکسان باشد؛ ترتیب `Cart.Items` و تخصیص مالی دست‌نخورده ماند.
+  - **آزمون‌ها:** افزودن `MixedCartSynchronizeOrderTests` در بای‌مانی و `tests/services/physicalCartMixedRestock.test.js` در استرپی برای سبد مختلط با `product.externalId < chapter.externalId < course.externalId` (پوشش `commit`، لغو جزئی/کامل، `restock`، تلاش مجدد idempotent با `operationId` یکسان و رد برگشت بیش از تعداد خرید).
+- **نتیجه:**
+  - `ByeMoney.UnitTests` با پیکربندی `Release`: **۸۴۱/۸۴۱ سبز** (`Failed: 0, Skipped: 0`). *(اجرای `Debug` به‌خاطر قفل فایل توسط فرایند در حال اجرای `ByeMoney.API` انجام نشد.)*
+  - `backend` Jest (`tests/api tests/services tests/config`): **۶۱ سوییت، ۴۵۳/۴۵۳ سبز**؛ و `node --test`: **۹۶/۹۶ سبز** (`0` شکست).
+- **محدودیت:** آزمون استرپی با شبیه‌ساز تراکنش درون‌حافظه انجام شد؛ در محیط واقعی با نشست زنده نیز بررسی شود.
+
 ## اصلاح چرخهٔ شارژ درگاه سپ و بازیابی آن (`AUDIT-GW-01` / `LOG-002` تا `LOG-005`) — ۲۶ نوامبر ۲۰۲۶
 
 - **دامنه (هر سه پروژه، شاخهٔ `fix/gateway-topup-recovery`):**
