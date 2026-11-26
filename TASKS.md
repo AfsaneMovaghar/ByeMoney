@@ -74,7 +74,7 @@
 
 ### P3 — استقرار و عملیات محیط مقصد
 
-1. - [ ] [پلن](docs/archive/Task-Plans.md#plan-deploy-01) **DEPLOY-01 — تنظیمات استقرار بای‌مانی (۲۰۲۶-۱۱-۰۴؛ بازبینی ۲۰۲۶-۱۱-۱۸):** انتشار به لیارا به درخواست مالک متوقف است تا تصمیم انتشار و اطلاعات پنل آماده شود؛ تا آن زمان فایلی ساخته نمی‌شود. پلتفرم آمادهٔ `dotnet` لیارا نسخهٔ ۱۰ را دارد، پس فایل پیش‌فرض `liara.json` است (بک `node` و فرانت `next` بدون Dockerfile؛ Dockerfile فقط اگر پلتفرم آماده solution ریشه را نساخت لازم می‌شود). باقی پس از تصمیم انتشار: ساخت اپ و PostgreSQL در پنل، env (connection string، JWT مشترک، کلیدهای سرویس، CORS) و بالا آمدن health با توکن واقعی.
+1. - [ ] [پلن](docs/archive/Task-Plans.md#plan-deploy-01) **DEPLOY-01 — تنظیمات استقرار بای‌مانی (۲۰۲۶-۱۱-۰۴؛ بازبینی ۲۰۲۶-۱۱-۱۸):** `liara.json` (پلتفرم `dotnet` نسخهٔ `10.0`، پورت ۵۰۰۰، دیسک‌های `receipts/` و `logs/`) و انتقال originهای localhost به `appsettings.Development.json` در ۲۵ نوامبر انجام شد (شاهد در [گزارش شواهد](docs/testing/Verification-Summary.md)). باقی پس از تصمیم انتشار: ساخت اپ و PostgreSQL در پنل، env (connection string، JWT مشترک، کلیدهای سرویس، CORS) و بالا آمدن health با توکن واقعی.
 2. - [ ] [پلن](docs/archive/Task-Plans.md#plan-deploy-01) **SEC-08 — اسرار و CORS محیط مقصد (وابسته به DEPLOY-01):** کلیدهای پروداکشن جدا از توسعه (`BYEMONEY_SERVICE_KEY`، `STRAPI_TO_BYEMONEY_SERVICE_KEY`، `FRONTEND_TO_BYEMONEY_SERVICE_KEY`، `Strapi:JwtSecret`/`JwtIssuer`/`JwtAudience` هم‌مقدار با استرپی، SMS و درگاه)، `CORS_ORIGINS` فقط با دامنهٔ واقعی، و نبود اسرار در ایمیج یا لاگ.
 2. - [ ] [پلن](docs/archive/Task-Plans.md#plan-deploy-02) **DEPLOY-02 — ادغام شاخه‌ها و ثبت نسخه:** فرانت (شاخهٔ `ByeMoney`) و بک (شاخهٔ `byeMoney`) جلوتر از `master` هستند و بای‌مانی روی `master` محلی است (push نشده). باقی: push بای‌مانی، حل اختلاف شاخه‌ها با `master` و ثبت کامیت نهایی هر سه پروژه برای انتشار.
 4. - [ ] [پلن](docs/archive/Task-Plans.md#plan-deploy-03) **DEPLOY-03 — migration و نقش ادمین در محیط مقصد:** اجرای migrationهای بای‌مانی و استرپی (از جمله `top_up_request_id`) روی دیتابیس مقصد و اجرای `scripts/assign-admin-role.sql` برای ادمین‌های واقعی (همهٔ ۸ مجوز، RBAC-03). ردیف کمپین Welcome فقط به‌صورت seed غیرفعال (`۵۰٬۰۰۰ نور`، `IsEnabled=false`) باشد و سقف اهدای دسته‌ای در صورت نبود `GiftSettings:MaxUsersPerBatch` روی ۱۰۰ بماند.
@@ -127,7 +127,7 @@
 
 > موارد کشف‌شده حین تسک‌های دیگر که در همان تسک اجرا نشدند. هر ردیف: تاریخ، شرح کوتاه، محل، تسک مبدأ. پس از رسیدگی یا انتقال به اولویت‌ها، ردیف حذف شود.
 
-(همهٔ موارد تا ۲۰۲۵-۱۱-۲۵ بررسی و به P1، P2، P4 یا «مؤجل تا پس از فاز اول» منتقل شدند.)
+- **۲۰۲۶-۱۱-۲۵ (`DEPLOY-01`):** `appsettings.Development.json` با وجود ignore هنوز ردیابی می‌شود (کلیدهای توسعه در تاریخچهٔ git هستند)؛ حذف از ردیابی و پاک‌سازی تاریخچه، پیش از انتشار واقعی لازم است. همچنین یکتایی متغیر env `BYEMONEY_SERVICE_KEY` با بخش `TarhElahi:ServiceKey` در `AddTarhElahiIntegrationModule` (fallback روی هم) هنگام بازبینی SEC-08 شفاف‌سازی شود.
 
 ---
 

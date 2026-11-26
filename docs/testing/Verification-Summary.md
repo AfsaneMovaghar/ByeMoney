@@ -1,5 +1,13 @@
 # خلاصهٔ شواهد آزمون و پذیرش
 
+## آماده‌سازی استقرار بای‌مانی روی لیارا (`DEPLOY-01` گام ۱–۲) — ۲۵ نوامبر ۲۰۲۶
+
+- **دامنه (`ByeMoney`):**
+  - ساخت `liara.json` در ریشهٔ Solution با `platform: dotnet`، `dotnet.version: 10.0`، پورت ۵۰۰۰ و دو دیسک با مسیر نسبی (`receipts/` برای رسیدهای خصوصی و `logs/` برای لاگ). طبق مستندات لیارا (۲۰۲۶-۱۱-۲۵)، پوشهٔ Solution پشتیبانی می‌شود و liara.json باید در همان پوشه باشد؛ دیسک .NET مسیر نسبی می‌گیرد. پلتفرم آمادهٔ dotnet نسخهٔ ۱۰.۰ را فهرست کرده است؛ Dockerfile لازم نشد.
+  - انتقال `Cors:AllowedOrigins` و `TarhElahi:BaseUrl` از `appsettings.json` پایه به `appsettings.Development.json`، تا در محیط مقصد originهای localhost پیش‌فرض نیایند و CORS فقط با env پروداکشن تعیین شود. مقدار env آرایه اندیس‌به‌اندیس override می‌کند؛ اکنون پایه هیچ origin ندارند و مقدار خالی به `AllowAnyOrigin` نمی‌رسد (در پروداکشن باید env ست شود).
+- **نتیجه:** `dotnet build ByeMoney.sln -c Release`: ۰ خطا، ۰ هشدار. `ByeMoney.UnitTests` با پیکربندی `Release`: **۸۳۷/۸۳۷ سبز** (`Failed: 0, Skipped: 0`).
+- **محدودیت / باقی‌مانده:** ساخت اپ و PostgreSQL در پنل لیارا، تنظیم env پروداکشن (اسرار، connection string، CORS، `TarhElahi:BaseUrl`)، استقرار واقعی، health check و توکن واقعی، به تصمیم انتشار مالک وابسته است و در بخش «نیازمند تست دستی / P3» باقی می‌ماند. آزمون `docker build` انجام نشد، چون Dockerfile لازم نشد.
+
 ## نگاشت کد `409` در پروکسی تغییر وضعیت تحویل فرانت (`I11-O`) — ۲۵ نوامبر ۲۰۲۶
 
 - **دامنه (`front-end`):** افزودن شاخهٔ `409` (`conflict: true`) به `updatePhysicalPurchaseDeliveryStatus` در `byeMoneyApi.js`، نگاشت `result.conflict` به کد `409` در `PUT /api/admin/physical-purchases/[purchaseId]/delivery-status`، و پوشش `409` در شرط پیام انتقال غیرمجاز `PhysicalDeliveryControl.jsx`.
