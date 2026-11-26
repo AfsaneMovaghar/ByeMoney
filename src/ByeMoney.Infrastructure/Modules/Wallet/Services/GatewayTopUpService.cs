@@ -316,7 +316,9 @@ public sealed class GatewayTopUpService(
                     if (saveResult.IsFailure)
                         return saveResult;
                 }
-                return Result.Success();
+                return Result.Conflict(
+                    DomainErrors.TopUpRequest_CannotConfirmRejected,
+                    GatewayTopUpErrorCodes.TopUpRequiresReview);
             }
 
             var outcome = await ConfirmAsync(new ConfirmGatewayTopUpCommand(command.ClientReferenceCode,

@@ -2,8 +2,10 @@ using ByeMoney.Application;
 using ByeMoney.Application.Common.Interfaces;
 using ByeMoney.Application.Modules.Wallet.Commands.ConfirmGatewayTopUp;
 using ByeMoney.Application.Modules.Wallet.Commands.RecordGatewayResult;
+using ByeMoney.Application.Modules.Wallet.Constants;
 using ByeMoney.Application.Modules.Wallet.DTOs;
 using ByeMoney.Application.Modules.Wallet.Interfaces;
+using ByeMoney.Domain.Common;
 using ByeMoney.Domain.Modules.Identity.Users;
 using ByeMoney.Domain.Modules.Purchases;
 using ByeMoney.Domain.Modules.Wallet.Ledgers;
@@ -262,11 +264,15 @@ public sealed class TopUpNoorCreditPostgresTests : IAsyncLifetime
             var res = await gateway.RecordResultAsync(new RecordGatewayResultCommand(
                 currentTopUp.ClientReferenceCode, GatewayName, "evt-verified", GatewayResultKinds.Verified,
                 "ext-tx-exc-1", "bank-ref-exc-1", "0", amountRial, amountRial, DateTime.UtcNow));
-            res.IsSuccess.Should().BeTrue();
+            res.Status.Should().Be(ResultStatus.Conflict);
+            res.ErrorCode.Should().Be(GatewayTopUpErrorCodes.TopUpRequiresReview);
         }
 
         currentTopUp = await ReloadTopUpAsync(currentTopUp);
         currentTopUp.Status.Should().Be(TopUpStatus.Rejected);
+        currentTopUp.HasVerifiedHistory.Should().BeTrue();
+        currentTopUp.ExternalTransactionId.Should().Be("ext-tx-exc-1");
+        currentTopUp.GatewayResultCode.Should().Be("0");
         currentTopUp.ReviewCaseId.Should().NotBeNull();
         currentTopUp.ReviewReasonCode.Should().Be(FinancialReviewReasonCodes.BankConflict);
 

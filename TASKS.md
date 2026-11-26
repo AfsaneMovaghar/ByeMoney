@@ -25,14 +25,6 @@
 
 ### P0 — خطای مالی یا ناسازگاری داده شناخته‌شده
 
-- [ ] **AUDIT-GW-01 (`LOG-002`، `LOG-003`، `LOG-004`، `LOG-005`) — اصلاح چرخهٔ شارژ درگاه سپ و بازیابی آن (شاخهٔ پیشنهادی: `fix/gateway-topup-recovery`):**
-  - محل: بای‌مانی (`GatewayTopUpService.RecordResultAsync`، `TopUpRequest.RecordGatewayResult` / `HasVerifiedHistory`)، فرانت (`src/app/api/payment/request/route.js`، `src/lib/processGatewayTopUpCallback.js`) و استرپی (`backend/src/services/gatewayTopUpRecovery.js`، کنترلر `gateway-payment-attempt`).
-  - معیار پذیرش (مطابق `I07`، `D17`، `D19`):
-    - **`LOG-002`:** `Unpaid` ناشی از شکست دریافت توکن نباید شارژ دارای توکن معتبر را رد کند؛ و اگر `Verified` پس از رد شدن با مبلغ برابر snapshot رسید، یا تسویهٔ یک‌باره انجام شود یا پاسخ خطا برگردد تا بازیابی تلاش را `confirmed` ثبت نکند و پرونده برای شارژ استثنایی باز بماند.
-    - **`LOG-003`:** callback دارای `RefNum` خارج از وضعیت `token_issued` هم verify شود و رویداد callback در استرپی تا تحویل نتیجهٔ واقعی `delivered` نشود؛ در صورت رد قبلی شارژ، برگشت بانک یا ثبت پرونده با سابقهٔ تأیید انجام شود.
-    - **`LOG-004`:** کد `۲` سپ (تأیید تکراری بانک) پس از تطبیق مبلغ با snapshot، مثل verify موفق یک‌بار شارژ شود یا دست‌کم سابقهٔ `Verified` (`HasVerifiedHistory`) بسازد تا مسیر شارژ استثنایی مسدود نشود.
-    - **`LOG-005`:** در خطای `409` بازیابی استرپی، اگر وضعیت تلاش از قبل `confirmed` است، رویداد کهنه وضعیت تلاش را به `financial_review` برنگرداند.
-  - نیازمند آزمون خودکار مالی برای همهٔ چهار سناریو.
 - [ ] **AUDIT-CART-01 (`LOG-006`) — رفع ناهم‌خوانی ترتیب `purchaseIds` / `restock` در سبد مختلط (شاخهٔ پیشنهادی: `fix/mixed-cart-restock-order`):**
   - محل: بای‌مانی (`Cart.Items`، `CartService.SynchronizeAsync`) و استرپی (`physicalCartQuote.selection`، `physicalCartService.restock`).
   - معیار پذیرش (مطابق `I09-PH`، `I09-PC`): استفاده از ترتیب پایدار یکسان در هر دو سمت یا تطبیق بر اساس شناسهٔ قلم به‌جای ایندکس آرایه، به‌طوری‌که در لغو کل یا جزئی سبد مختلط هر `purchaseId` دقیقاً به همان ردیف رزروشده برسد و موجودی اشتباه یا گیرکرده رخ ندهد.
