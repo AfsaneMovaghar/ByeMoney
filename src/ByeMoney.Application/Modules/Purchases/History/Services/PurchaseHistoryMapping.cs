@@ -67,7 +67,7 @@ public static class PurchaseHistoryMapping
                 discount,
                 cart?.CouponCode,
                 physical.PaidAmountInNoor,
-                null,
+                physical.ReferenceRialPerNoorAtPurchaseTime,
                 physical.CreatedAtUtc,
                 PurchaseFinancialStatus.Paid.ToString(),
                 DeliveryStatus(physical.DeliveryStatus),

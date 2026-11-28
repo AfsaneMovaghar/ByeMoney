@@ -96,7 +96,8 @@ public static class OrderMapping
                 OrderSourceType.Purchase.ToString(), physical.CartId, physical.CreatedAtUtc,
                 PhysicalPurchaseUpdatedAt(physical), OrderFinancialStatus.RequiresReview.ToString(),
                 Delivery([item]).ToString(), physical.PaidAmountInNoor, 1, null, null, null, null, [item], [], null,
-                CouponCodeOf(snapshot, physical.CartId), shipping.Regular, shipping.Gift)));
+                CouponCodeOf(snapshot, physical.CartId), shipping.Regular, shipping.Gift,
+                physical.ReferenceRialPerNoorAtPurchaseTime)));
         }
 
         return rows;
@@ -158,7 +159,7 @@ public static class OrderMapping
             status.ToString(), Delivery(items).ToString(), summary?.FinalAmountInNoor, expectedKeys.Length,
             cart.Status.ToString(), cart.ExpiresAtUtc, cart.TopUpRequestId, summary, items, MapTopUps(topUps),
             CommittedReservationId(cart), cart.CouponCode, shipping.Regular, shipping.Gift,
-            PaidReferenceRate(status, purchases));
+            PaidReferenceRate(status, purchases, physicalPurchases));
     }
 
     // A paid cart can no longer be reopened, so its current reservation is the one committed to Strapi.
@@ -247,9 +248,13 @@ public static class OrderMapping
             ReferenceRialPerNoorAtPurchaseTime: PaidReferenceRate(status, purchases));
     }
 
-    private static decimal? PaidReferenceRate(OrderFinancialStatus status, IEnumerable<CoursePurchase> purchases) =>
+    private static decimal? PaidReferenceRate(
+        OrderFinancialStatus status,
+        IEnumerable<CoursePurchase> purchases,
+        IEnumerable<PhysicalProductPurchase>? physicalPurchases = null) =>
         status == OrderFinancialStatus.Paid
             ? purchases.Select(purchase => purchase.Snapshot.ReferenceRialPerNoorAtPurchaseTime)
+                .Concat(physicalPurchases?.Select(purchase => purchase.ReferenceRialPerNoorAtPurchaseTime) ?? [])
                 .FirstOrDefault(rate => rate.HasValue)
             : null;
 

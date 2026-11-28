@@ -88,6 +88,10 @@ public class PhysicalProductPurchaseConfiguration : IEntityTypeConfiguration<Phy
         });
         builder.Property(x => x.UnitPriceInNoor).HasPrecision(18, 4).IsRequired();
         builder.Property(x => x.PaidAmountInNoor).HasPrecision(18, 4).IsRequired();
+        builder.Property(x => x.ReferenceRialPerNoorAtPurchaseTime)
+            .HasColumnName("ReferenceRialPerNoorAtPurchaseTime")
+            .HasPrecision(18, 0)
+            .IsRequired(false);
         builder.Property(x => x.RegularAmountInNoor).HasPrecision(18, 4);
         builder.Property(x => x.GiftAmountInNoor).HasPrecision(18, 4);
         builder.Property(x => x.LedgerTransactionId);

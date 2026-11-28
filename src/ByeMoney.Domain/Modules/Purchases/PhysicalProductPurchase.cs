@@ -24,6 +24,9 @@ public class PhysicalProductPurchase : BaseEntity<PhysicalProductPurchaseId>
     public decimal UnitPriceInNoor { get; private set; }
     public decimal PaidAmountInNoor { get; private set; }
 
+    /// <summary>نرخ مرجع ریال به‌ازای یک نور هنگام خرید؛ صرفاً اطلاعاتی و مستقل از محاسبات مالی.</summary>
+    public decimal? ReferenceRialPerNoorAtPurchaseTime { get; private set; }
+
     /// <summary>سهم نور عادی پرداخت واقعی این قلم؛ برای خریدهای پیش از ثبت سهم null است.</summary>
     public decimal? RegularAmountInNoor { get; private set; }
 
@@ -182,7 +185,8 @@ public class PhysicalProductPurchase : BaseEntity<PhysicalProductPurchaseId>
         decimal unitPriceInNoor,
         decimal paidAmountInNoor,
         string scopeId,
-        ParcelFacts? parcel = null)
+        ParcelFacts? parcel = null,
+        decimal? referenceRialPerNoorAtPurchaseTime = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(externalProductId);
         ArgumentException.ThrowIfNullOrWhiteSpace(productTitle);
@@ -215,7 +219,8 @@ public class PhysicalProductPurchase : BaseEntity<PhysicalProductPurchaseId>
             Parcel = parcel,
             Quantity = quantity,
             UnitPriceInNoor = unitPriceInNoor,
-            PaidAmountInNoor = paidAmountInNoor
+            PaidAmountInNoor = paidAmountInNoor,
+            ReferenceRialPerNoorAtPurchaseTime = referenceRialPerNoorAtPurchaseTime
         };
     }
 

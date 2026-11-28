@@ -63,7 +63,7 @@ public static class OrderReceiptMapping
         return new OrderReceiptItem(
             purchaseId, item.ExternalItemId, item.Title ?? item.ExternalItemId, item.ItemType,
             item.ParentExternalId, item.Quantity, item.PriceInNoor, baseAmount, baseAmount - finalAmount,
-            finalAmount, course?.Snapshot.ReferenceRialPerNoorAtPurchaseTime, item.DeliveryStatus,
+            finalAmount, course?.Snapshot.ReferenceRialPerNoorAtPurchaseTime ?? physical?.ReferenceRialPerNoorAtPurchaseTime, item.DeliveryStatus,
             item.PhysicalDeliveryStatus, item.PurchasedAtUtc ?? orderCreatedAtUtc, deliveredAt,
             item.CancelledQuantity, item.RefundedRegularInNoor, item.RefundedGiftInNoor,
             item.TrackingCode, item.TrackingProvider, item.ShippedAtUtc,

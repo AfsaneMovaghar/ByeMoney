@@ -92,7 +92,8 @@ public static class CartPayment
                     item.PriceInNoor,
                     amount,
                     cart.ScopeId,
-                    parcel);
+                    parcel,
+                    referenceRate);
 
                 if (amount == 0)
                 {
