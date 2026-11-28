@@ -1429,10 +1429,11 @@ function Invoke-SeedBuyers {
     $city = Get-FirstCity
 
     # شماره‌های آزاد با یک خواندن فقط‌خواندنی از استرپی پیدا می‌شوند؛ ورودهای ناموفق پشت‌سرهم ساخته نمی‌شوند.
-    $usedPhones = @(Invoke-Psql -Database $StrapiDatabase -Sql "SELECT username FROM up_users WHERE username LIKE '091200000__';") |
+    # بازهٔ دوتایی ۰۰–۹۹ پر شده است؛ شماره‌های یازده‌رقمی 09120000xxx تا 09120000999 ادامه می‌دهند.
+    $usedPhones = @(Invoke-Psql -Database $StrapiDatabase -Sql "SELECT username FROM up_users WHERE username LIKE '09120000%';") |
         ForEach-Object { ([string]$_).Trim() } |
         Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
-    $freePhones = @(@(11..99) | ForEach-Object { '091200000{0:D2}' -f $_ } | Where-Object { $usedPhones -notcontains $_ })
+    $freePhones = @(@(11..999) | ForEach-Object { '09120000{0:D3}' -f $_ } | Where-Object { $_.Length -eq 11 -and $usedPhones -notcontains $_ })
     if ($freePhones.Count -lt $script:CartBuyerRoles.Count) {
         throw "شمارهٔ آزاد برای ساخت خریداران کافی نیست ($($freePhones.Count) عدد)."
     }
