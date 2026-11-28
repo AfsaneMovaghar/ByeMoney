@@ -11,10 +11,12 @@ public record OrderDetails(
     IReadOnlyList<OrderTopUp> TopUps, Guid? ReservationId,
     string? CouponCode = null,
     decimal ShippingRegularRefundInNoor = 0m,
-    decimal ShippingGiftRefundInNoor = 0m)
+    decimal ShippingGiftRefundInNoor = 0m,
+    decimal? ReferenceRialPerNoorAtPurchaseTime = null)
 {
     public OrderListItem ToListItem() => new(
         OrderId, SourceType, CartId, CreatedAtUtc, UpdatedAtUtc, FinancialStatus,
         DeliveryStatus, FinalAmountInNoor, ItemCount,
-        OrderCarrierReturnStatus.For(this));
+        OrderCarrierReturnStatus.For(this),
+        ReferenceRialPerNoorAtPurchaseTime);
 }

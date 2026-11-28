@@ -79,7 +79,8 @@ public static class OrderMapping
                 OrderSourceType.Purchase.ToString(), purchase.CartId, purchase.CreatedAtUtc,
                 PurchaseUpdatedAt(purchase), status.ToString(), Delivery([item]).ToString(),
                 purchase.Snapshot.PriceInNoorAtPurchaseTime, 1, null, null, null, null, [item], [], null,
-                CouponCodeOf(snapshot, purchase.CartId), shipping.Regular, shipping.Gift)));
+                CouponCodeOf(snapshot, purchase.CartId), shipping.Regular, shipping.Gift,
+                PaidReferenceRate(status, [purchase]))));
         }
 
         foreach (var physical in snapshot.PhysicalPurchases
@@ -156,7 +157,8 @@ public static class OrderMapping
             cart.Id, cart.CreatedAtUtc, UpdatedAt(cart.UpdatedAtUtc, purchases, physicalPurchases, topUps),
             status.ToString(), Delivery(items).ToString(), summary?.FinalAmountInNoor, expectedKeys.Length,
             cart.Status.ToString(), cart.ExpiresAtUtc, cart.TopUpRequestId, summary, items, MapTopUps(topUps),
-            CommittedReservationId(cart), cart.CouponCode, shipping.Regular, shipping.Gift);
+            CommittedReservationId(cart), cart.CouponCode, shipping.Regular, shipping.Gift,
+            PaidReferenceRate(status, purchases));
     }
 
     // A paid cart can no longer be reopened, so its current reservation is the one committed to Strapi.
@@ -241,8 +243,15 @@ public static class OrderMapping
             OrderSourceType.TopUpCheckout.ToString(), null, topUp.CreatedAtUtc,
             UpdatedAt(topUp.UpdatedAt ?? topUp.CreatedAtUtc, purchases, [], [topUp]),
             status.ToString(), Delivery(items).ToString(), items.Sum(item => item.FinalAmountInNoor),
-            items.Length, null, null, topUp.Id.Value, null, items, MapTopUps([topUp]), null);
+            items.Length, null, null, topUp.Id.Value, null, items, MapTopUps([topUp]), null,
+            ReferenceRialPerNoorAtPurchaseTime: PaidReferenceRate(status, purchases));
     }
+
+    private static decimal? PaidReferenceRate(OrderFinancialStatus status, IEnumerable<CoursePurchase> purchases) =>
+        status == OrderFinancialStatus.Paid
+            ? purchases.Select(purchase => purchase.Snapshot.ReferenceRialPerNoorAtPurchaseTime)
+                .FirstOrDefault(rate => rate.HasValue)
+            : null;
 
     private static OrderItem MapItem(
         string externalId, string? title, decimal? basePrice, CoursePurchase? purchase,

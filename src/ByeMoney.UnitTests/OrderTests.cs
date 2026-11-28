@@ -246,6 +246,30 @@ public sealed class OrderTests
         reader.VerifyAll();
     }
 
+    [Fact]
+    public async Task ListItemIncludesStoredReferenceRateOnlyForPaidOrders()
+    {
+        var unpaidCart = QuotedCart();
+        var paidPurchase = CoursePurchase.Create(
+            _buyer.Id,
+            ProductSnapshot.Create("rated-course", "دوره با نرخ", 15, referenceRialPerNoorAtPurchaseTime: 10m),
+            FinancialScope.TarheElahi);
+        paidPurchase.MarkDebited(Guid.NewGuid());
+        Set(paidPurchase, nameof(CoursePurchase.CreatedAtUtc), unpaidCart.CreatedAtUtc.AddMinutes(1));
+        var snapshot = Snapshot([unpaidCart], [], [paidPurchase]);
+        var reader = new Mock<IOrderReader>(MockBehavior.Strict);
+        reader.Setup(service => service.ReadAsync(_buyer.Id.Value, null, FinancialScope.TarheElahi, default)).ReturnsAsync(snapshot);
+        var current = new Mock<ICurrentUserService>();
+        current.SetupGet(service => service.UserId).Returns(_buyer.Id.Value);
+
+        var page = await new GetMyOrdersQueryHandler(reader.Object, current.Object)
+            .Handle(new GetMyOrdersQuery(new OrderFilter()), default);
+
+        page.Items.Should().HaveCount(2);
+        page.Items.Single(x => x.FinancialStatus == "Paid").ReferenceRialPerNoorAtPurchaseTime.Should().Be(10m);
+        page.Items.Single(x => x.FinancialStatus == "AwaitingPayment").ReferenceRialPerNoorAtPurchaseTime.Should().BeNull();
+    }
+
     [Theory]
     [InlineData("3", null, null)]
     [InlineData(null, "Returned", null)]
@@ -463,6 +487,110 @@ public sealed class OrderTests
         page.Items.Should().ContainSingle().Which.ItemCount.Should().Be(2);
         details.Order.FinancialStatus.Should().Be("Paid");
         details.Order.Items.Should().HaveCount(2);
+    }
+
+    [Fact]
+    public async Task AdminListFiltersNeedsCarrierActionAndExposesClosedParcelRefundStatus()
+    {
+        var pendingReturnCart = SingleProductCart("p-ret", 100);
+        var pendingReturnPurchase = ShippedProductPurchase(pendingReturnCart, "p-ret", 100, withShares: true);
+        pendingReturnPurchase.MarkCarrierReturned(DateTime.UtcNow.AddHours(-2));
+
+        var pendingAlertCart = SingleProductCart("p-alrt", 100);
+        var pendingAlertPurchase = ShippedProductPurchase(pendingAlertCart, "p-alrt", 100, withShares: true);
+        pendingAlertPurchase.MarkCarrierAlert(PhysicalProductPurchase.DamagedParcelStatusCode, DateTime.UtcNow.AddHours(-2));
+
+        var notRefundedCart = SingleProductCart("p-notref", 100);
+        var notRefundedPurchase = ShippedProductPurchase(notRefundedCart, "p-notref", 100, withShares: true);
+        notRefundedPurchase.MarkCarrierReturned(DateTime.UtcNow.AddHours(-3));
+        notRefundedPurchase.ResolveCarrierReturn(CarrierReturnResolution.ClosedWithoutSettlement, "Billed", Guid.NewGuid(), DateTime.UtcNow.AddHours(-1));
+
+        var settledCart = SingleProductCart("p-settled", 100);
+        var settledPurchase = ShippedProductPurchase(settledCart, "p-settled", 100, withShares: true);
+        settledPurchase.MarkCarrierReturned(DateTime.UtcNow.AddHours(-3));
+        settledPurchase.ResolveCarrierReturn(CarrierReturnResolution.ClosedWithoutSettlement, "Settled", Guid.NewGuid(), DateTime.UtcNow.AddHours(-1));
+
+        var noSharesCart = SingleProductCart("p-noshares", 100);
+        var noSharesPurchase = ShippedProductPurchase(noSharesCart, "p-noshares", 100, withShares: false);
+        noSharesPurchase.MarkCarrierReturned(DateTime.UtcNow.AddHours(-3));
+        noSharesPurchase.ResolveCarrierReturn(CarrierReturnResolution.ClosedWithoutSettlement, "No shares", Guid.NewGuid(), DateTime.UtcNow.AddHours(-1));
+
+        var refundedCart = SingleProductCart("p-ref", 100);
+        var refundedPurchase = ShippedProductPurchase(refundedCart, "p-ref", 100, withShares: true);
+        refundedPurchase.MarkCarrierReturned(DateTime.UtcNow.AddHours(-3));
+        refundedPurchase.ResolveCarrierReturn(CarrierReturnResolution.ClosedWithoutSettlement, "Refunded", Guid.NewGuid(), DateTime.UtcNow.AddHours(-2));
+        refundedPurchase.RecordClosedParcelRefund(new PaymentShares(100, 0), DateTime.UtcNow.AddHours(-1));
+
+        var multiCart = Cart.Create(Guid.NewGuid(), _buyer.Id.Value, _buyer.ExternalUserId, [
+            new CartItemInput("m1", ProductItemType.Product, 1),
+            new CartItemInput("m2", ProductItemType.Product, 1)
+        ], null, FinancialScope.TarheElahi);
+        multiCart.SetQuote([
+            new CartQuoteItem("m1", "کالای ۱", 100, 0, 0, 100, ProductItemType.Product, Quantity: 1),
+            new CartQuoteItem("m2", "کالای ۲", 100, 0, 0, 100, ProductItemType.Product, Quantity: 1)
+        ]);
+        multiCart.MarkPaid();
+        var multiPending = ShippedProductPurchase(multiCart, "m1", 100, withShares: true);
+        multiPending.MarkCarrierReturned(DateTime.UtcNow.AddHours(-2));
+        var multiNotRefunded = ShippedProductPurchase(multiCart, "m2", 100, withShares: true);
+        multiNotRefunded.MarkCarrierReturned(DateTime.UtcNow.AddHours(-3));
+        multiNotRefunded.ResolveCarrierReturn(CarrierReturnResolution.ClosedWithoutSettlement, "Closed", Guid.NewGuid(), DateTime.UtcNow.AddHours(-1));
+
+        var settledOrderId = OrderIdFormat.For(OrderSourceType.Cart, settledCart.Id);
+        var snapshot = new OrderSnapshot(
+            [pendingReturnCart, pendingAlertCart, notRefundedCart, settledCart, noSharesCart, refundedCart, multiCart],
+            [],
+            [],
+            [new OrderBuyer(_buyer.Id.Value, _buyer.ExternalUserId, null)],
+            [pendingReturnPurchase, pendingAlertPurchase, notRefundedPurchase, settledPurchase, noSharesPurchase, refundedPurchase, multiPending, multiNotRefunded],
+            [],
+            SettledOrderIds: new HashSet<string>(StringComparer.Ordinal) { settledOrderId });
+
+        var reader = new Mock<IOrderReader>();
+        reader.Setup(item => item.ReadAsync(null, null, It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync(snapshot);
+        var user = new Mock<ICurrentUserService>();
+        user.SetupGet(item => item.UserId).Returns(Guid.NewGuid());
+        var handler = new GetAdminOrdersQueryHandler(reader.Object, user.Object);
+
+        var allPage = await handler.Handle(new GetAdminOrdersQuery(new AdminOrderFilter(Page: 1, PageSize: 20)), default);
+        allPage.TotalCount.Should().Be(7);
+        allPage.Items.Single(x => x.CartId == settledCart.Id).ClosedParcelRefundStatus.Should().Be("ManualReview");
+        allPage.Items.Single(x => x.CartId == noSharesCart.Id).ClosedParcelRefundStatus.Should().Be("ManualReview");
+        allPage.Items.Single(x => x.CartId == refundedCart.Id).ClosedParcelRefundStatus.Should().Be("Refunded");
+        allPage.Items.Single(x => x.CartId == notRefundedCart.Id).ClosedParcelRefundStatus.Should().Be("NotRefunded");
+
+        var actionPage = await handler.Handle(new GetAdminOrdersQuery(new AdminOrderFilter(Page: 1, PageSize: 20, NeedsCarrierAction: true)), default);
+        actionPage.TotalCount.Should().Be(4);
+        actionPage.Items.Select(x => x.CartId).Should().BeEquivalentTo([
+            pendingReturnCart.Id, pendingAlertCart.Id, notRefundedCart.Id, multiCart.Id
+        ]);
+
+        var multiRow = actionPage.Items.Single(x => x.CartId == multiCart.Id);
+        multiRow.CarrierReturnStatus.Should().Be("PendingReview");
+        multiRow.ClosedParcelRefundStatus.Should().Be("NotRefunded");
+    }
+
+    private Cart SingleProductCart(string productId, decimal price)
+    {
+        var cart = Cart.Create(Guid.NewGuid(), _buyer.Id.Value, _buyer.ExternalUserId, [
+            new CartItemInput(productId, ProductItemType.Product, 1)
+        ], null, FinancialScope.TarheElahi);
+        cart.SetQuote([new CartQuoteItem(productId, "کالا", price, 0, 0, price, ProductItemType.Product, Quantity: 1)]);
+        cart.MarkPaid();
+        return cart;
+    }
+
+    private PhysicalProductPurchase ShippedProductPurchase(Cart cart, string productId, decimal paid, bool withShares)
+    {
+        var purchase = PhysicalProductPurchase.Create(
+            PhysicalProductPurchaseId.New(), cart.Id, _buyer.Id, productId, "کالا", 1, paid, paid, FinancialScope.TarheElahi);
+        purchase.MarkDebited(Guid.NewGuid());
+        if (withShares)
+        {
+            purchase.RecordPaymentShares(new PaymentShares(paid, 0));
+        }
+        purchase.MarkShipped("1234567890", "Manual", null);
+        return purchase;
     }
 
     private Cart SameIdCart(int productQuantity, decimal productCouponDiscount)

@@ -1,5 +1,17 @@
 # خلاصهٔ شواهد آزمون و پذیرش
 
+## شفاف‌سازی واحد «نور» و «تومان» در فهرست سفارش‌های پروفایل (`AUDIT-UI-01` / `UI-002`) — ۲۸ نوامبر ۲۰۲۶
+
+- **دامنه (`ByeMoney` + `front-end`):**
+  - **بک‌اند بای‌مانی (`OrderListItem` / `OrderDetails` / `OrderMapping`):** افزودن فیلد اختیاری و افزودنی `referenceRialPerNoorAtPurchaseTime` به DTO فهرست سفارش‌های کاربر (`GET /api/me/orders`)؛ مقدار فقط برای سفارش‌های `Paid` از Snapshot خریدهای همان سفارش خوانده می‌شود و برای سفارش‌های پرداخت‌نشده یا فاقد نرخ ذخیره‌شده `null` می‌ماند (بدون جایگزینی با نرخ زنده و بدون تغییر پایگاه‌داده/migration).
+  - **مسیر Next.js (`front-end/src/app/api/orders/route.js`):** عبور فیلد `referenceRialPerNoorAtPurchaseTime` روی سفارش‌های نگاشته‌شدهٔ بای‌مانی (`null` در نبود مقدار).
+  - **فرانت‌اند (`PriceWithHint.jsx` و `OrdersList.jsx`):** افزودن پراپ `tomanPerNoorOverride` به `PriceWithHint`؛ در `OrdersList` نمایش معادل تومانی برای سفارش‌های بای‌مانی دارای `referenceRialPerNoorAtPurchaseTime > 0` با نرخ ذخیره‌شده (`referenceRialPerNoorAtPurchaseTime / 10`)، پنهان‌ماندن راهنمای تومانی برای سفارش‌های `Paid` فاقد نرخ ذخیره‌شده (پایبندی به قاعدهٔ I11-P)، مجاز بودن fallback نرخ زنده فقط برای سفارش‌های پرداخت‌نشده، و حفظ نمایش «تومان» برای سفارش‌های قدیمی استراپی.
+  - **مستند قرارداد:** ثبت فیلد افزودنی در بخش I11-T سند `ByeMoney-Strapi-Integration.md`.
+- **نتیجهٔ آزمون‌های خودکار:**
+  - `ByeMoney.UnitTests` با پیکربندی `Release`: **۸۶۹/۸۶۹ سبز** (`Failed: 0, Skipped: 0`، شامل آزمون جدید `OrderTests.ListItemIncludesStoredReferenceRateOnlyForPaidOrders`). *(اجرای `Debug` به‌خاطر قفل فایل توسط فرایند در حال اجرای `ByeMoney.API` انجام نشد.)*
+  - `front-end` Jest (`OrdersList.test.jsx`، `accountOrders.test.jsx`، `ordersApi.test.js`): **۳ سوییت، ۲۵/۲۵ سبز** (`OrdersList.test.jsx`: **۹/۹ سبز**).
+- **پذیرش دستی مرورگر (۲۸ نوامبر ۲۰۲۶):** صفحهٔ `/profile/orders` در مرورگر توسط کاربر بررسی و نمایش صحیح مبالغ و معادل تومانی تأیید شد. ردیف `AUDIT-UI-01` در `TASKS.md` بسته و حذف شد.
+
 ## پذیرش دستی برگشت نور قلم بسته‌شده بدون تسویه (`SHIP-CLOSED-REFUND`) — ۲۷ نوامبر ۲۰۲۶
 
 - **دامنه (پنل ادمین محلی):** کاربر سه سفارش نمونه را در `/admin/orders` دید و نمایش را درست اعلام کرد.

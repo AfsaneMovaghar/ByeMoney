@@ -20,7 +20,11 @@ public sealed class GetAdminOrdersQueryHandler(IOrderReader reader, ICurrentUser
         _ = BuyerId;
         var snapshot = await reader.ReadAsync(null, request.Filter.BuyerExternalUserId, FinancialScope.TarheElahi, ct);
         var buyers = snapshot.Buyers.ToDictionary(buyer => buyer.Id);
-        var page = OrderPaging.Page(OrderMapping.Build(snapshot), request.Filter.ToFilter(), request.Filter.AwaitingShipment);
+        var page = OrderPaging.Page(
+            OrderMapping.Build(snapshot, includeAdminResolutionDetails: true),
+            request.Filter.ToFilter(),
+            request.Filter.AwaitingShipment,
+            request.Filter.NeedsCarrierAction);
         var refundsByCart = OrderRefunds.ByCart(snapshot);
         var items = page.Items.Select(row =>
         {
@@ -29,12 +33,13 @@ public sealed class GetAdminOrdersQueryHandler(IOrderReader reader, ICurrentUser
             var refunded = OrderRefunds.For(order, refundsByCart);
             var carrierReturnStatus = OrderCarrierReturnStatus.For(order);
             var carrierAlertStatus = OrderCarrierAlertStatus.For(order);
+            var closedParcelRefundStatus = OrderClosedParcelRefundStatus.For(order);
 
             return new AdminOrderListItem(order.OrderId, order.SourceType, order.CartId,
                 order.CreatedAtUtc, order.UpdatedAtUtc, order.FinancialStatus, order.DeliveryStatus,
                 order.FinalAmountInNoor, order.ItemCount, order.TopUps.Count, buyer.ExternalUserId,
                 string.IsNullOrWhiteSpace(buyer.DisplayName) ? null : buyer.DisplayName, refunded,
-                carrierReturnStatus, carrierAlertStatus);
+                carrierReturnStatus, carrierAlertStatus, closedParcelRefundStatus);
         }).ToArray();
         return new PurchasePage<AdminOrderListItem>(items, page.Page, page.PageSize, page.TotalCount);
     }

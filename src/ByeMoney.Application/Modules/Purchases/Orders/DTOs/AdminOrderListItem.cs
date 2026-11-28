@@ -6,4 +6,5 @@ public sealed record AdminOrderListItem(
     int TopUpAttemptCount, string BuyerExternalUserId, string? BuyerDisplayName,
     decimal RefundedAmountInNoor,
     string CarrierReturnStatus = "None",
-    string CarrierAlertStatus = "None");
+    string CarrierAlertStatus = "None",
+    string ClosedParcelRefundStatus = "None");
