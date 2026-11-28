@@ -31,17 +31,10 @@
 
 > یادداشت git ارسال (تطبیق ۲۰۲۶-۱۱-۲۳): FIX-1، FIX-2 و FIX-3 روی `master` محلی ادغام شده‌اند (دو کامیت جلوتر از `origin`، بدون push)؛ مهاجرت `AddCarrierAlertAndTrackingUrl` بعد از `AddCarrierParcelState` روی همین `master` است. کدنویسی SHIP-FIX-4 (S1-05 و S1-08) روی شاخهٔ جاری انجام شده است.
 >
-> `AUDIT-LEGACY-01`، `AUDIT-SEC-01` و `AUDIT-AUTH-01` در ۲۰۲۶-۱۱-۲۶ بسته شدند و شاهدشان در [گزارش شواهد](docs/testing/Verification-Summary.md) ثبت شد.
-
-- [ ] **`AUDIT-CART-02` (`UI-001`) — انتقال پیام خطای واقعی `prepare` استرپی در تعارض سبد کالا** (شاخهٔ پیشنهادی: `fix/cart-conflict-error-message`):
-  - دامنه: `CartService.SynchronizeAsync` در بای‌مانی (نگاشت خطای `prepare` استرپی).
-  - معیار پذیرش: انتقال پیام یا `lineError` قابل اقدامِ `prepare` استرپی (به‌ویژه `CART_SHIPPING_UNAVAILABLE`) در پاسخ `409 CART_CONFLICT` به‌جای پیام عمومی «یکی از دوره‌ها قبلاً خریداری شده است».
+> `AUDIT-LEGACY-01`، `AUDIT-SEC-01` و `AUDIT-AUTH-01` در ۲۰۲۶-۱۱-۲۶ و `AUDIT-CART-02` در ۲۰۲۶-۱۱-۲۷ بسته شدند و شاهدشان در [گزارش شواهد](docs/testing/Verification-Summary.md) ثبت شد. (در حال حاضر مورد باز ندارد.)
 
 ### P2 — اتصال فرانت و ادمین (مسئول: محمد)
 
-- [ ] **`SHIP-CLOSED-REFUND` (فرانت‌اند) — نمایش وضعیت و دکمهٔ برگشت دستی مرسولهٔ بسته‌شده بدون تسویه**:
-  - دامنه: پنل سفارش‌های ادمین (`ByeMoneyOrders` / `ByeMoneyOrderPanel` + route سروری Next) و جزئیات سفارش خریدار (`/profile/orders`).
-  - معیار پذیرش: فراخوانی `POST /api/admin/physical-purchases/{purchaseId}/closed-parcel-refund` از route سروری Next، نمایش وضعیت‌های `NotRefunded` / `Refunded` / `ManualReview` برای ادمین، و نمایش وضعیت `Refunded` با مبلغ و زمان (بدون `closedParcelRefundReason`) برای خریدار.
 - [ ] **`AUDIT-UI-01` (`UI-002`) — شفاف‌سازی واحد «نور» و «تومان» در فهرست سفارش‌های پروفایل**:
   - دامنه: صفحهٔ `/profile/orders` در فرانت‌اند.
   - معیار پذیرش: نمایش واحد یکسان یا نمایش معادل تومانی در کنار مبالغ نوری با استفاده از نرخ ذخیره‌شده، به‌طوری‌که سفارش‌های قدیمی و بای‌مانی به‌روشنی قابل مقایسه باشند.
@@ -52,7 +45,7 @@
 
 #### الف — پذیرش مرورگر و پنل (محلی / نشست واقعی)
 
-(در حال حاضر مورد باز ندارد؛ همهٔ ۶ مورد مرورگر و پنل در ۲۶ نوامبر ۲۰۲۶ تأیید شدند.)
+- [ ] **پذیرش دستی `SHIP-CLOSED-REFUND` (۲۰۲۶-۱۱-۲۶):** بک‌اند و آزمون‌های PostgreSQL کامل و سبز هستند؛ باقی: تست دستی Swagger/پنل برای برگشت دستی نور قلم `ClosedWithoutSettlement` (نمایش `NotRefunded` / `Refunded` / `ManualReview` در ادمین، `Refunded` بدون علت در خریدار، و هم‌ترازی `refundedAmountInNoor`).
 
 #### ب — پذیرش زندهٔ پستکس و Content-Manager (با کلید واقعی و تأیید مالک)
 

@@ -269,6 +269,52 @@ public sealed class CartPricingClientTests
     }
 
     [Theory]
+    [InlineData("CART_SHIPPING_UNAVAILABLE", "برآورد هزینهٔ ارسال از پستکس ممکن نیست. هیچ سرویس دهنده پستی امکان ارسال این مرسوله را ندارد")]
+    [InlineData("CART_CONFLICT", "حداقل دو کالا در سبد از مبدأهای متفاوت هستند.")]
+    public async Task ConflictWithoutLineErrorForwardsActionableMessage(string wireCode, string message)
+    {
+        var body = $$"""{"code":"{{wireCode}}","error":"{{message}}"}""";
+        var client = Client(new CapturingHandler(body, HttpStatusCode.Conflict));
+
+        var result = await client.PrepareAsync(
+            new CartQuoteRequest(CartId, "buyer", null, [new CartItemInput("p", ProductItemType.Product, 2)]), default);
+
+        result.Status.Should().Be(ResultStatus.Conflict);
+        result.ErrorCode.Should().Be(CartErrorCodes.Conflict);
+        result.ErrorMessage.Should().Be(message);
+        result.Should().NotBeAssignableTo<ICartStockFailure>();
+        result.Should().NotBeAssignableTo<ICartConflictLineFailure>();
+
+        var copied = CartFailureCopy.Copy<CartResponse>(result);
+        copied.ErrorCode.Should().Be(CartErrorCodes.Conflict);
+        copied.ErrorMessage.Should().Be(message);
+
+        var http = CartHttpResults.From(copied);
+        var objectResult = http.Should().BeOfType<ObjectResult>().Subject;
+        objectResult.StatusCode.Should().Be(StatusCodes.Status409Conflict);
+        var response = objectResult.Value.Should().BeOfType<CartErrorResponse>().Subject;
+        response.Code.Should().Be(CartErrorCodes.Conflict);
+        response.Error.Should().Be(message);
+        response.LineError.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task ConflictWithNonStockLineErrorForwardsMessageAndLineError()
+    {
+        const string message = "فروش این دوره متوقف شده است.";
+        const string body = """{"code":"CART_CONFLICT","error":"فروش این دوره متوقف شده است.","lineError":{"externalId":"c","type":"course","quantity":1,"reason":"SALE_STOPPED"}}""";
+        var client = Client(new CapturingHandler(body, HttpStatusCode.Conflict));
+
+        var result = await client.PrepareAsync(new CartQuoteRequest(CartId, "buyer", null, [new CartItemInput("c")]), default);
+
+        result.Status.Should().Be(ResultStatus.Conflict);
+        result.ErrorCode.Should().Be(CartErrorCodes.Conflict);
+        result.ErrorMessage.Should().Be(message);
+        var line = ((ICartConflictLineFailure)result).LineError;
+        line.Should().Be(new CartLineError("c", "SALE_STOPPED", Type: "course", Quantity: 1));
+    }
+
+    [Theory]
     [InlineData("""{"code":"CART_CONFLICT","error":"x"}""")]
     [InlineData("""{"code":"CART_UNAVAILABLE","error":"x","lineError":{"externalId":"c","type":"course","quantity":1,"reason":"ALREADY_OWNED"}}""")]
     [InlineData("""{"code":"CART_UNAVAILABLE","error":"x","lineError":{"externalId":"p","reason":"INSUFFICIENT_STOCK"}}""")]
@@ -284,6 +330,22 @@ public sealed class CartPricingClientTests
         result.Status.Should().Be(ResultStatus.Conflict);
         result.ErrorCode.Should().Be(CartErrorCodes.Conflict);
         result.Should().NotBeAssignableTo<ICartStockFailure>();
+    }
+
+    [Theory]
+    [InlineData("""{"code":"CART_CONFLICT","error":"   "}""")]
+    [InlineData("""{"code":"CART_CONFLICT"}""")]
+    [InlineData("not json")]
+    [InlineData("")]
+    public async Task EmptyOrMalformedConflictFallsBackToGenericConflictMessage(string body)
+    {
+        var client = Client(new CapturingHandler(body, HttpStatusCode.Conflict));
+
+        var result = await client.PrepareAsync(new CartQuoteRequest(CartId, "buyer", null, [new CartItemInput("c")]), default);
+
+        result.Status.Should().Be(ResultStatus.Conflict);
+        result.ErrorCode.Should().Be(CartErrorCodes.Conflict);
+        result.ErrorMessage.Should().Be(CartErrors.Conflict);
     }
 
     private static CartPricingClient Client(HttpMessageHandler handler) =>

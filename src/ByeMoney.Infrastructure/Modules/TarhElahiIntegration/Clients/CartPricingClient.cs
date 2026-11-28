@@ -228,7 +228,15 @@ public sealed class CartPricingClient(HttpClient http) : ICartPricingClient
             var parcel = ParcelGapLine(body?.LineError);
             if (parcel is not null && !string.IsNullOrWhiteSpace(body?.Error))
             {
-                return CartConflictLineFailure<T>.Create(body!.Error!, parcel);
+                return CartConflictLineFailure<T>.Create(body!.Error!.Trim(), parcel);
+            }
+
+            if (!string.IsNullOrWhiteSpace(body?.Error))
+            {
+                var line = ConflictLine(body!.LineError);
+                return line is not null
+                    ? CartConflictLineFailure<T>.Create(body.Error!.Trim(), line)
+                    : Result<T>.Conflict(body.Error!.Trim(), CartErrorCodes.Conflict);
             }
         }
 
@@ -281,6 +289,20 @@ public sealed class CartPricingClient(HttpClient http) : ICartPricingClient
         }
 
         return new CartLineError(line.ExternalId, line.Reason!, Type: line.Type, Quantity: quantity);
+    }
+
+    private static CartLineError? ConflictLine(TarhElahiCartLineError? line)
+    {
+        if (line is null ||
+            string.IsNullOrWhiteSpace(line.ExternalId) ||
+            string.IsNullOrWhiteSpace(line.Reason))
+        {
+            return null;
+        }
+
+        var type = string.IsNullOrWhiteSpace(line.Type) ? null : line.Type.Trim();
+        var quantity = line.Quantity is int q && q >= 1 ? q : (int?)null;
+        return new CartLineError(line.ExternalId.Trim(), line.Reason.Trim(), Type: type, Quantity: quantity);
     }
 
     private static Result<T> Failure<T>(HttpStatusCode status) => status switch

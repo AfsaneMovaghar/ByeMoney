@@ -5,6 +5,7 @@ using ByeMoney.Application.Modules.Purchases.Carts.Interfaces;
 using ByeMoney.Application.Modules.Purchases.Carts.Services;
 using ByeMoney.Application.Modules.Purchases.Commands.AdminCancelPhysicalPurchase;
 using ByeMoney.Application.Modules.Purchases.Commands.AdminRefundClosedParcel;
+using ByeMoney.Application.Modules.Purchases.Commands.CancelMyPhysicalOrder;
 using ByeMoney.Application.Modules.Purchases.Commands.ConfirmMyPhysicalDelivery;
 using ByeMoney.Application.Modules.Purchases.Commands.ResolveCarrierAlert;
 using ByeMoney.Application.Modules.Purchases.Commands.ResolveCarrierReturn;
@@ -21,8 +22,10 @@ using ByeMoney.Application.Modules.Purchases.PhysicalCancellations.DTOs;
 using ByeMoney.Application.Modules.Purchases.PhysicalCancellations.Interfaces;
 using ByeMoney.Application.Modules.Purchases.PhysicalCancellations.Services;
 using ByeMoney.Application.Modules.Purchases.Queries.GetAdminOrder;
+using ByeMoney.Application.Modules.Purchases.Queries.GetAdminOrderReceipt;
 using ByeMoney.Application.Modules.Purchases.Queries.GetAdminOrders;
 using ByeMoney.Application.Modules.Purchases.Queries.GetMyOrder;
+using ByeMoney.Application.Modules.Purchases.Queries.GetMyOrderReceipt;
 using ByeMoney.Application.Modules.Purchases.Settlements.Interfaces;
 using ByeMoney.Application.Modules.Purchases.Settlements.Services;
 using ByeMoney.Application.Modules.Wallet.Interfaces;
@@ -401,6 +404,10 @@ public sealed class ClosedParcelRefundPostgresTests : IAsyncLifetime
             var actShip = () => sender.Send(new UpdatePhysicalDeliveryStatusCommand(
                 purchase.Id.Value, nameof(PhysicalDeliveryStatus.Shipped), "9999999999", PhysicalProductPurchase.ManualProvider));
             await actShip.Should().ThrowAsync<ConflictDomainException>();
+
+            var actDeliver = () => sender.Send(new UpdatePhysicalDeliveryStatusCommand(
+                purchase.Id.Value, nameof(PhysicalDeliveryStatus.Delivered)));
+            await actDeliver.Should().ThrowAsync<ConflictDomainException>();
         }
 
         // ۳. تأیید خریدار پس از برگشت رد می‌شود
@@ -458,6 +465,18 @@ public sealed class ClosedParcelRefundPostgresTests : IAsyncLifetime
                 p2.Id.Value, 1, opId, "تلاش استفاده مجدد شناسه"));
             reuseInCancel.IsFailure.Should().BeTrue();
             reuseInCancel.ErrorCode.Should().Be(PhysicalCancellationErrorCodes.Conflict);
+        }
+
+        // استفادهٔ مجدد همان operationId در لغو رزرو (سبد پرداخت‌نشده) نیز باید رد شود
+        var unpaidCart = await ReadyCartAsync([new Line("book-u3", "کتاب ۳", 40m, 0m, 1)], shipping: 0m);
+        _currentUser.Set(_buyer.Id);
+        using (var scope = _provider.CreateScope())
+        {
+            var sender = scope.ServiceProvider.GetRequiredService<ISender>();
+            var reuseInReservationCancel = await sender.Send(new CancelMyPhysicalOrderCommand(
+                unpaidCart.Id, opId, "تلاش استفاده مجدد در لغو رزرو"));
+            reuseInReservationCancel.IsFailure.Should().BeTrue();
+            reuseInReservationCancel.ErrorCode.Should().Be(PhysicalCancellationErrorCodes.Conflict);
         }
 
         // و برعکس: استفادهٔ شناسهٔ لغو عادی یا شناسهٔ تراکنش دفتر کل در برگشت جدید باید رد شود
@@ -556,6 +575,10 @@ public sealed class ClosedParcelRefundPostgresTests : IAsyncLifetime
             item.ClosedParcelRefundedAtUtc.Should().NotBeNull();
             item.ClosedParcelRefundReason.Should().Be(RefundReason);
             adminAfter.Order.DeliveryStatus.Should().NotBe(OrderDeliveryStatus.Cancelled.ToString());
+
+            var adminReceipt = await sender.Send(new GetAdminOrderReceiptQuery(orderId));
+            adminReceipt.Items.Single().RefundedRegularInNoor.Should().Be(30m);
+            adminReceipt.Items.Single().RefundedGiftInNoor.Should().Be(40m);
         }
 
         _currentUser.Set(_buyer.Id);
@@ -569,12 +592,16 @@ public sealed class ClosedParcelRefundPostgresTests : IAsyncLifetime
             item.ClosedParcelRefundedAtUtc.Should().NotBeNull();
             item.ClosedParcelRefundReason.Should().BeNull();
             buyerAfter.DeliveryStatus.Should().NotBe(OrderDeliveryStatus.Cancelled.ToString());
+
+            var buyerReceipt = await sender.Send(new GetMyOrderReceiptQuery(orderId));
+            buyerReceipt.Items.Single().RefundedRegularInNoor.Should().Be(30m);
+            buyerReceipt.Items.Single().RefundedGiftInNoor.Should().Be(40m);
         }
     }
 
     private sealed record Line(string ExternalId, string Title, decimal Price, decimal Discount, int Quantity);
 
-    private async Task<Cart> PaidCartAsync(Line[] lines, decimal shipping)
+    private async Task<Cart> ReadyCartAsync(Line[] lines, decimal shipping)
     {
         using var scope = _provider.CreateScope();
         var store = scope.ServiceProvider.GetRequiredService<ICartStore>();
@@ -601,6 +628,14 @@ public sealed class ClosedParcelRefundPostgresTests : IAsyncLifetime
             .ToArray();
 
         await store.SetQuoteAsync(cart.Id, _buyer.Id.Value, quote, shipping, null, null, cart.ReservationId, default);
+        return cart;
+    }
+
+    private async Task<Cart> PaidCartAsync(Line[] lines, decimal shipping)
+    {
+        var cart = await ReadyCartAsync(lines, shipping);
+        using var scope = _provider.CreateScope();
+        var store = scope.ServiceProvider.GetRequiredService<ICartStore>();
         (await store.PayAsync(cart.Id, _buyer.Id.Value, cart.ReservationId, default)).IsSuccess.Should().BeTrue();
         return cart;
     }
