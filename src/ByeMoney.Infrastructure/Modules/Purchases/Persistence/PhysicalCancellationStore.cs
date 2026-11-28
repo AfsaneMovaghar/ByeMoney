@@ -45,6 +45,10 @@ public sealed class PhysicalCancellationStore(ApplicationDbContext db) : IPhysic
             .AsNoTracking()
             .SingleOrDefaultAsync(x => x.OperationId == operationId, ct);
 
+    public async Task<bool> IsOperationIdUsedElsewhereAsync(Guid operationId, CancellationToken ct) =>
+        await db.Set<ClosedParcelRefund>().AnyAsync(x => x.OperationId == operationId, ct) ||
+        await db.Set<LedgerEntry>().AnyAsync(x => x.TransactionId == operationId, ct);
+
     public async Task<PaymentShares> GetShippingPaymentAsync(Guid cartId, CancellationToken ct)
     {
         // ارسال ستون سهم ندارد؛ بدهی خریدار با مرجع خود سبد در تراکنش پرداخت همان سبد است (D08).

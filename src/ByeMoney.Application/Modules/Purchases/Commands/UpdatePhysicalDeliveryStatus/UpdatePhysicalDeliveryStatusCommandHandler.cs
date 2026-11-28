@@ -31,6 +31,11 @@ public sealed class UpdatePhysicalDeliveryStatusCommandHandler(
             }
             else
             {
+                if (purchase.HasClosedParcelRefund)
+                {
+                    purchase.MarkDelivered();
+                }
+
                 if (purchase.HasUnresolvedCarrierReturn || purchase.HasClosedWithoutSettlementReturn)
                 {
                     throw new DomainException(OrderErrors.PhysicalPurchase_DeliveryBlockedByCarrierReturn);

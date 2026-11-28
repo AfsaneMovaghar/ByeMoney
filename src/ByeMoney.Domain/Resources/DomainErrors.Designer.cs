@@ -317,5 +317,7 @@ namespace ByeMoney.Domain.Resources {
         public static string Wallet_CreditAmountMustBePositive => ResourceManager.GetString("Wallet_CreditAmountMustBePositive", resourceCulture)!;
         public static string FinancialScope_Invalid => ResourceManager.GetString("FinancialScope_Invalid", resourceCulture)!;
         public static string Ledger_AccountsMustShareScope => ResourceManager.GetString("Ledger_AccountsMustShareScope", resourceCulture)!;
+        public static string PhysicalProductPurchase_ClosedParcelRefundLocked => ResourceManager.GetString("PhysicalProductPurchase_ClosedParcelRefundLocked", resourceCulture)!;
+        public static string PhysicalProductPurchase_ClosedParcelRefundInvalid => ResourceManager.GetString("PhysicalProductPurchase_ClosedParcelRefundInvalid", resourceCulture)!;
     }
 }

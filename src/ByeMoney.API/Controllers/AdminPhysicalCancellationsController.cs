@@ -1,5 +1,6 @@
 using ByeMoney.API.Contracts.Purchases;
 using ByeMoney.Application.Modules.Purchases.Commands.AdminCancelPhysicalPurchase;
+using ByeMoney.Application.Modules.Purchases.Commands.AdminRefundClosedParcel;
 using ByeMoney.Application.Modules.Purchases.Commands.ResolvePhysicalRestock;
 using ByeMoney.Application.Modules.Purchases.Commands.RetryPhysicalRestock;
 using ByeMoney.Application.Modules.Purchases.PhysicalCancellations.DTOs;
@@ -69,6 +70,22 @@ public sealed class AdminPhysicalCancellationsController(ISender sender) : Contr
     {
         var command = new AdminCancelPhysicalPurchaseCommand(
             purchaseId, request.Quantity, request.OperationId, request.Reason);
+        var result = await sender.Send(command, ct);
+        return PhysicalCancellationHttp.Respond(this, result);
+    }
+
+    /// <summary>برگشت دستی و تکرارپذیر نور برای قلم بسته‌شده بدون تسویه (ClosedWithoutSettlement).</summary>
+    [HttpPost("{purchaseId:guid}/closed-parcel-refund")]
+    [ProducesResponseType(typeof(ClosedParcelRefundResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(PhysicalCancellationErrorResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(PhysicalCancellationErrorResponse), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(PhysicalCancellationErrorResponse), StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> RefundClosedParcel(
+        Guid purchaseId,
+        [FromBody] AdminClosedParcelRefundApiRequest request,
+        CancellationToken ct)
+    {
+        var command = new AdminRefundClosedParcelCommand(purchaseId, request.OperationId, request.Reason);
         var result = await sender.Send(command, ct);
         return PhysicalCancellationHttp.Respond(this, result);
     }

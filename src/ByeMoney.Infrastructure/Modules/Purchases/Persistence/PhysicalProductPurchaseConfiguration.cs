@@ -115,6 +115,7 @@ public class PhysicalProductPurchaseConfiguration : IEntityTypeConfiguration<Phy
             .HasMaxLength(PhysicalProductPurchase.CarrierReturnResolutionNoteMaxLength);
         builder.Property(x => x.CarrierAlertResolvedAtUtc);
         builder.Property(x => x.CarrierAlertResolvedByUserId);
+        builder.Property(x => x.ClosedParcelRefundedAtUtc);
         builder.Property(x => x.TrackingUrl).HasMaxLength(PhysicalProductPurchase.TrackingUrlMaxLength);
         builder.Property(x => x.TrackingCode).HasMaxLength(PhysicalProductPurchase.TrackingCodeMaxLength);
         builder.Property(x => x.TrackingProvider).HasMaxLength(PhysicalProductPurchase.TrackingProviderMaxLength);

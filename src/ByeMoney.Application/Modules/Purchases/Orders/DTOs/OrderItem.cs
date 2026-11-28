@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using ByeMoney.Application.Modules.Purchases.PhysicalCancellations.Constants;
 using ByeMoney.Domain.Modules.Purchases;
 
 namespace ByeMoney.Application.Modules.Purchases.Orders.DTOs;
@@ -37,4 +38,11 @@ public sealed record OrderItem(
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     string? CarrierAlertResolvedByExternalUserId = null,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    string? ProviderParcelId = null);
+    string? ProviderParcelId = null,
+    string ClosedParcelRefundStatus = ClosedParcelRefundStatuses.None,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    DateTime? ClosedParcelRefundedAtUtc = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    decimal? ClosedParcelRefundAmountInNoor = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    string? ClosedParcelRefundReason = null);

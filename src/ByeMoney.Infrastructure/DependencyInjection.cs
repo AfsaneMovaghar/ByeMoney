@@ -46,6 +46,7 @@ public static class DependencyInjection
         services.AddScoped<ByeMoney.Application.Modules.Purchases.Carts.Interfaces.ICartStore, CartStore>();
         services.AddHostedService<CartRecoveryBackgroundService>();
         services.AddScoped<ByeMoney.Application.Modules.Purchases.PhysicalCancellations.Interfaces.IPhysicalCancellationStore, PhysicalCancellationStore>();
+        services.AddScoped<ByeMoney.Application.Modules.Purchases.PhysicalCancellations.Interfaces.IClosedParcelRefundStore, ClosedParcelRefundStore>();
         services.AddScoped<ByeMoney.Application.Modules.Purchases.Orders.Interfaces.IPhysicalDeliveryStore, PhysicalDeliveryStore>();
         services.AddScoped<ByeMoney.Application.Modules.Purchases.Settlements.Interfaces.IOrderSettlementStore, OrderSettlementStore>();
         services.AddScoped<

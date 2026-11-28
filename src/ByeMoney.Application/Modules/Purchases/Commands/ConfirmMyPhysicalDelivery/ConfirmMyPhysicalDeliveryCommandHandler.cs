@@ -53,10 +53,11 @@ public sealed class ConfirmMyPhysicalDeliveryCommandHandler(
                 .ToArray();
 
             var confirmable = shipped
-                .Where(purchase => purchase.CarrierReturnedAtUtc == null)
+                .Where(purchase => purchase.CarrierReturnedAtUtc == null && !purchase.HasClosedParcelRefund)
                 .ToArray();
 
-            if (confirmable.Length == 0 && shipped.Any(purchase => purchase.CarrierReturnedAtUtc != null))
+            if (confirmable.Length == 0 &&
+                shipped.Any(purchase => purchase.CarrierReturnedAtUtc != null || purchase.HasClosedParcelRefund))
             {
                 throw new ConflictDomainException(OrderErrors.CarrierReturn_BuyerConfirmationBlocked);
             }

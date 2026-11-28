@@ -70,8 +70,9 @@ public sealed class PhysicalDeliveryStore(ApplicationDbContext db) : IPhysicalDe
         {
             // هشدار حل‌نشده و بسته‌شده بدون تسویه تحویل خودکار نمی‌شوند؛ همگام‌سازی همچنان آن‌ها را می‌خواند.
             query = query.Where(x =>
-                x.CarrierAlertCode == null ||
-                x.CarrierAlertResolution == CarrierReturnResolution.DeliveryConfirmed);
+                x.ClosedParcelRefundedAtUtc == null &&
+                (x.CarrierAlertCode == null ||
+                 x.CarrierAlertResolution == CarrierReturnResolution.DeliveryConfirmed));
         }
 
         if (providerKeys.Length > 0)

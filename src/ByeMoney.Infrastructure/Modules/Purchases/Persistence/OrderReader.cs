@@ -44,7 +44,18 @@ public sealed class OrderReader(ApplicationDbContext db) : IOrderReader
             .Select(purchase => purchase.Id);
         var cancellations = await db.Set<PhysicalProductCancellation>().AsNoTracking()
             .Where(cancellation => physicalPurchaseIds.Contains(cancellation.PurchaseId)).ToListAsync(ct);
+        var closedParcelRefunds = await db.Set<ClosedParcelRefund>().AsNoTracking()
+            .Where(refund => physicalPurchaseIds.Contains(refund.PurchaseId)).ToListAsync(ct);
+        var settledOrderIds = await db.Set<OrderSettlementItem>().AsNoTracking()
+            .Join(
+                db.Set<OrderSettlementPeriod>().AsNoTracking().Where(period => period.ScopeId == scopeId),
+                item => item.PeriodId,
+                period => period.Id,
+                (item, _) => item.OrderId)
+            .ToListAsync(ct);
         await transaction.CommitAsync(ct);
-        return new OrderSnapshot(carts, topUps, purchases, buyers, physicalPurchases, cancellations);
+        return new OrderSnapshot(
+            carts, topUps, purchases, buyers, physicalPurchases, cancellations,
+            closedParcelRefunds, settledOrderIds.ToHashSet(StringComparer.Ordinal));
     }
 }

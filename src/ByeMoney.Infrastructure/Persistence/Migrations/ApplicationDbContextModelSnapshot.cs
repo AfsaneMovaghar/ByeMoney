@@ -396,6 +396,67 @@ namespace ByeMoney.Infrastructure.Migrations
                         });
                 });
 
+            modelBuilder.Entity("ByeMoney.Domain.Modules.Purchases.ClosedParcelRefund", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("CartId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<decimal>("GiftRefundInNoor")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)");
+
+                    b.Property<Guid>("OperationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("PerformedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("PurchaseId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<decimal>("RegularRefundInNoor")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)");
+
+                    b.Property<string>("ScopeId")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CartId");
+
+                    b.HasIndex("OperationId")
+                        .IsUnique();
+
+                    b.HasIndex("PerformedByUserId");
+
+                    b.HasIndex("PurchaseId")
+                        .IsUnique();
+
+                    b.ToTable("ClosedParcelRefunds", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_ClosedParcelRefunds_NonNegativeRefunds", "\"RegularRefundInNoor\" >= 0 AND \"GiftRefundInNoor\" >= 0 AND \"RegularRefundInNoor\" + \"GiftRefundInNoor\" > 0");
+
+                            t.HasCheckConstraint("CK_ClosedParcelRefunds_ScopeId", "\"ScopeId\" IN ('TARHE_ELAHI', 'BUYMONEY')");
+                        });
+                });
+
             modelBuilder.Entity("ByeMoney.Domain.Modules.Purchases.CoursePurchase", b =>
                 {
                     b.Property<Guid>("Id")
@@ -734,6 +795,9 @@ namespace ByeMoney.Infrastructure.Migrations
 
                     b.Property<Guid>("CartId")
                         .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("ClosedParcelRefundedAtUtc")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("timestamp with time zone");
@@ -1834,6 +1898,27 @@ namespace ByeMoney.Infrastructure.Migrations
                     b.Navigation("Items");
 
                     b.Navigation("ShippingAddress");
+                });
+
+            modelBuilder.Entity("ByeMoney.Domain.Modules.Purchases.ClosedParcelRefund", b =>
+                {
+                    b.HasOne("ByeMoney.Domain.Modules.Purchases.Cart", null)
+                        .WithMany()
+                        .HasForeignKey("CartId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ByeMoney.Domain.Modules.Identity.Users.User", null)
+                        .WithMany()
+                        .HasForeignKey("PerformedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ByeMoney.Domain.Modules.Purchases.PhysicalProductPurchase", null)
+                        .WithMany()
+                        .HasForeignKey("PurchaseId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("ByeMoney.Domain.Modules.Purchases.CoursePurchase", b =>

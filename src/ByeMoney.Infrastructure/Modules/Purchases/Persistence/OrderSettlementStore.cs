@@ -1,4 +1,6 @@
 using ByeMoney.Application.Modules.Purchases.History.DTOs;
+using ByeMoney.Application.Modules.Purchases.Orders.Constants;
+using ByeMoney.Application.Modules.Purchases.Orders.Services;
 using ByeMoney.Application.Modules.Purchases.Settlements.DTOs;
 using ByeMoney.Application.Modules.Purchases.Settlements.Interfaces;
 using ByeMoney.Domain.Modules.Identity.Users;
@@ -55,12 +57,26 @@ public sealed class OrderSettlementStore(ApplicationDbContext db) : IOrderSettle
 
     public async Task<bool> TryAddAsync(OrderSettlementPeriod period, CancellationToken ct)
     {
-        db.Add(period);
-
         try
         {
-            // SaveChanges دوره و همهٔ سفارش‌ها را در یک تراکنش ذخیره می‌کند؛ نقض کلید یعنی هیچ ردیفی ثبت نشده است.
+            await using var tx = await db.Database.BeginTransactionAsync(ct);
+            var cartIds = await ResolveCartIdsAsync(period.Items, ct);
+
+            // هم‌ترازسازی با قفل سبد در لغو، تحویل و برگشت مرسولهٔ بسته‌شده (D10) تا سفارش هم‌زمان تسویه و برگشت نشود.
+            foreach (var cartId in cartIds)
+            {
+                await PurchaseAdvisoryLocks.LockCartAsync(db, cartId, ct);
+            }
+
+            if (cartIds.Length > 0 && await HasSettlementBlockerAsync(cartIds, ct))
+            {
+                db.ChangeTracker.Clear();
+                return false;
+            }
+
+            db.Add(period);
             await db.SaveChangesAsync(ct);
+            await tx.CommitAsync(ct);
             return true;
         }
         catch (DbUpdateException ex) when (ex.InnerException is PostgresException
@@ -73,6 +89,53 @@ public sealed class OrderSettlementStore(ApplicationDbContext db) : IOrderSettle
             return false;
         }
     }
+
+    private async Task<Guid[]> ResolveCartIdsAsync(IReadOnlyCollection<OrderSettlementItem> items, CancellationToken ct)
+    {
+        var cartIds = new HashSet<Guid>();
+        var purchaseIds = new List<PhysicalProductPurchaseId>();
+
+        foreach (var item in items)
+        {
+            if (!OrderIdFormat.TryParse(item.OrderId, out var source, out var id))
+            {
+                continue;
+            }
+
+            if (source == OrderSourceType.Cart)
+            {
+                cartIds.Add(id);
+            }
+            else if (source == OrderSourceType.Purchase)
+            {
+                purchaseIds.Add(new PhysicalProductPurchaseId(id));
+            }
+        }
+
+        if (purchaseIds.Count > 0)
+        {
+            var resolved = await db.Set<PhysicalProductPurchase>()
+                .AsNoTracking()
+                .Where(x => purchaseIds.Contains(x.Id))
+                .Select(x => x.CartId)
+                .ToListAsync(ct);
+            foreach (var cartId in resolved)
+            {
+                cartIds.Add(cartId);
+            }
+        }
+
+        return cartIds.OrderBy(x => x).ToArray();
+    }
+
+    private async Task<bool> HasSettlementBlockerAsync(Guid[] cartIds, CancellationToken ct) =>
+        await db.Set<ClosedParcelRefund>().AnyAsync(x => cartIds.Contains(x.CartId), ct) ||
+        await db.Set<PhysicalProductPurchase>().AnyAsync(x =>
+            cartIds.Contains(x.CartId) &&
+            x.CancelledQuantity < x.Quantity &&
+            (x.ClosedParcelRefundedAtUtc != null ||
+             (x.CarrierReturnedAtUtc != null && x.CarrierReturnResolution != CarrierReturnResolution.DeliveryConfirmed) ||
+             (x.CarrierAlertCode != null && x.CarrierAlertResolution != CarrierReturnResolution.DeliveryConfirmed)), ct);
 
     public Task<OrderSettlementPeriodResponse?> FindPeriodAsync(Guid periodId, string scopeId, CancellationToken ct)
     {

@@ -21,4 +21,9 @@
   <data name="Warning_FreeShippingRemoved" xml:space="preserve"><value>ارسال رایگان این سفارش با لغو حذف می‌شود و دوباره محاسبه نمی‌شود.</value></data>
   <data name="Warning_ShippingNotRefunded" xml:space="preserve"><value>هزینهٔ ارسال فقط در لغو کامل مرسوله پیش از ارسال برمی‌گردد؛ در این لغو برگشت ارسال نیست.</value></data>
   <data name="Warning_CarrierPaymentPending" xml:space="preserve"><value>مرسولهٔ پرداخت‌نشده در پستکس می‌ماند؛ اگر کیف پول پستکس شارژ شود ممکن است کرایه خودکار پرداخت شود و پیک اعزام شود. تا پاک‌سازی این مرسوله با پشتیبانی پستکس، کیف پول پستکس را شارژ نکنید.</value></data>
+  <data name="ClosedParcelRefund_NotEligible" xml:space="preserve"><value>این قلم در وضعیت «بسته‌شده بدون تسویه» بدون مسئلهٔ باز یا تحویل تأییدشده نیست.</value></data>
+  <data name="ClosedParcelRefund_AlreadyRefunded" xml:space="preserve"><value>برگشت نور این مرسولهٔ بسته‌شده قبلاً ثبت شده است.</value></data>
+  <data name="ClosedParcelRefund_NoRemainingAmount" xml:space="preserve"><value>این قلم ماندهٔ قابل برگشت ندارد.</value></data>
+  <data name="ClosedParcelRefund_AlreadySettled" xml:space="preserve"><value>این سفارش قبلاً در یک دورهٔ تسویه ثبت شده است و برگشت دستی آن باید خارج از سفارش پیگیری شود.</value></data>
+  <data name="ClosedParcelRefund_Conflict" xml:space="preserve"><value>این شناسهٔ عملیات یا وضعیت فعلی قلم با برگشت درخواستی سازگار نیست.</value></data>
 </root>

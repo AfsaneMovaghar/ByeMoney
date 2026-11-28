@@ -160,7 +160,8 @@ public sealed class PhysicalDeliverySyncService(
                 foreach (var purchase in targets)
                 {
                     if (purchase.DeliveryStatus != PhysicalDeliveryStatus.Preparing ||
-                        purchase.RemainingQuantity == 0)
+                        purchase.RemainingQuantity == 0 ||
+                        purchase.HasClosedParcelRefund)
                     {
                         continue;
                     }
@@ -214,7 +215,9 @@ public sealed class PhysicalDeliverySyncService(
             var count = 0;
             foreach (var purchase in await LoadParcelTargetsAsync(group, ct))
             {
-                if (purchase.CarrierReturnedAtUtc.HasValue || purchase.RemainingQuantity == 0)
+                if (purchase.CarrierReturnedAtUtc.HasValue ||
+                    purchase.RemainingQuantity == 0 ||
+                    purchase.HasClosedParcelRefund)
                 {
                     continue;
                 }
@@ -263,7 +266,8 @@ public sealed class PhysicalDeliverySyncService(
                 if (purchase is null ||
                     purchase.DeliveryStatus != PhysicalDeliveryStatus.Shipped ||
                     purchase.CarrierReturnedAtUtc.HasValue ||
-                    purchase.ExcludedFromAutomaticDeliveryByAlert)
+                    purchase.ExcludedFromAutomaticDeliveryByAlert ||
+                    purchase.HasClosedParcelRefund)
                 {
                     return 0;
                 }
@@ -300,7 +304,8 @@ public sealed class PhysicalDeliverySyncService(
                     if (purchase.DeliveryStatus != PhysicalDeliveryStatus.Shipped ||
                         purchase.RemainingQuantity == 0 ||
                         purchase.CarrierReturnedAtUtc.HasValue ||
-                        purchase.ExcludedFromAutomaticDeliveryByAlert)
+                        purchase.ExcludedFromAutomaticDeliveryByAlert ||
+                        purchase.HasClosedParcelRefund)
                     {
                         continue;
                     }
@@ -358,7 +363,9 @@ public sealed class PhysicalDeliverySyncService(
             var count = 0;
             foreach (var purchase in await LoadParcelTargetsAsync(group, ct))
             {
-                if (purchase.CarrierAlertCode.HasValue || purchase.RemainingQuantity == 0)
+                if (purchase.CarrierAlertCode.HasValue ||
+                    purchase.RemainingQuantity == 0 ||
+                    purchase.HasClosedParcelRefund)
                 {
                     continue;
                 }
