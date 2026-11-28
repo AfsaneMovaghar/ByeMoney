@@ -200,12 +200,34 @@ public sealed class PhysicalDeliveryAndOrderReceiptTests
         product.FinalAmountInNoor.Should().Be(ProductAmount);
         product.PhysicalDeliveryStatus.Should().Be("Delivered");
         product.DeliveredAtUtc.Should().Be(physical.DeliveredAtUtc);
-        product.ReferenceRialPerNoorAtPurchaseTime.Should().BeNull();
+        product.ReferenceRialPerNoorAtPurchaseTime.Should().Be(12000m);
 
         var courseItem = receipt.Items.Single(item => item.ItemType == "Course");
         courseItem.BaseAmountInNoor.Should().Be(100m);
         courseItem.FinalAmountInNoor.Should().Be(CourseAmount);
         courseItem.PhysicalDeliveryStatus.Should().BeNull();
+        courseItem.ReferenceRialPerNoorAtPurchaseTime.Should().Be(12000m);
+
+        var adminReceipt = OrderReceiptMapping.Build(order, snapshot, includeAdminCarrierFields: true)!;
+        adminReceipt.Items.Single(item => item.ItemType == "Product").ReferenceRialPerNoorAtPurchaseTime.Should().Be(12000m);
+    }
+
+    [Fact]
+    public void PhysicalReceiptsReturnStoredReferenceRateOrNullWithoutAffectingFinancials()
+    {
+        var rated = PayMixedCart(referenceRate: 14500m);
+        var ratedPhysical = rated.Payment.PhysicalPurchases.Single();
+        var ratedReceipt = PurchaseHistoryMapping.ToReceipt(new PurchaseReceiptData(null, rated.Cart, ratedPhysical));
+        ratedReceipt.ReferenceRialPerNoorAtPurchaseTime.Should().Be(14500m);
+
+        var unrated = PayMixedCart(referenceRate: null);
+        var unratedPhysical = unrated.Payment.PhysicalPurchases.Single();
+        var unratedReceipt = PurchaseHistoryMapping.ToReceipt(new PurchaseReceiptData(null, unrated.Cart, unratedPhysical));
+        unratedReceipt.ReferenceRialPerNoorAtPurchaseTime.Should().BeNull();
+
+        var unratedOrder = OrderMapping.Build(Snapshot(unrated)).Single().Details;
+        var unratedOrderReceipt = OrderReceiptMapping.Build(unratedOrder, Snapshot(unrated))!;
+        unratedOrderReceipt.Items.Single(x => x.ItemType == "Product").ReferenceRialPerNoorAtPurchaseTime.Should().BeNull();
     }
 
     [Fact]
@@ -480,7 +502,7 @@ public sealed class PhysicalDeliveryAndOrderReceiptTests
 
     private static PhysicalProductPurchase CreatePhysical(decimal paid) => PhysicalProductPurchase.Create(PhysicalProductPurchaseId.New(), Guid.NewGuid(), new UserId(Guid.NewGuid()), "product-1", "Book", 2, 50m, paid, FinancialScope.TarheElahi);
 
-    private static PaidMixedCart PayMixedCart()
+    private static PaidMixedCart PayMixedCart(decimal? referenceRate = 12000m)
     {
         var buyer = new UserId(Guid.NewGuid());
         var account = Account.CreateUserAccount(buyer, FinancialScope.TarheElahi);
@@ -496,7 +518,10 @@ public sealed class PhysicalDeliveryAndOrderReceiptTests
         ], shippingAmountInNoor: Shipping);
 
         var payment = CartPayment.Apply(
-            cart, new ProvisionedUserWallet(account, wallet), Account.CreateSystemAccount(FinancialScope.TarheElahi));
+            cart,
+            new ProvisionedUserWallet(account, wallet),
+            Account.CreateSystemAccount(FinancialScope.TarheElahi),
+            referenceRate);
         return new PaidMixedCart(cart, wallet, payment);
     }
 

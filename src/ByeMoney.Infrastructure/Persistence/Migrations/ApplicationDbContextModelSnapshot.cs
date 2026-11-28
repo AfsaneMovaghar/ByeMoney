@@ -840,6 +840,11 @@ namespace ByeMoney.Infrastructure.Migrations
                     b.Property<int>("Quantity")
                         .HasColumnType("integer");
 
+                    b.Property<decimal?>("ReferenceRialPerNoorAtPurchaseTime")
+                        .HasPrecision(18)
+                        .HasColumnType("numeric(18,0)")
+                        .HasColumnName("ReferenceRialPerNoorAtPurchaseTime");
+
                     b.Property<decimal>("RefundedGiftInNoor")
                         .ValueGeneratedOnAdd()
                         .HasPrecision(18, 4)

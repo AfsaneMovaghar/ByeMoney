@@ -270,6 +270,68 @@ public sealed class OrderTests
         page.Items.Single(x => x.FinancialStatus == "AwaitingPayment").ReferenceRialPerNoorAtPurchaseTime.Should().BeNull();
     }
 
+    [Fact]
+    public void OrderLevelReferenceRateCoversPhysicalOnlyMixedLegacyMixedAndStandalonePurchase()
+    {
+        // 1. Physical-only paid cart
+        var physicalOnlyCart = Cart.Create(Guid.NewGuid(), _buyer.Id.Value, "buyer-ext", [
+            new CartItemInput("product-1", ProductItemType.Product, 1)
+        ], null, FinancialScope.TarheElahi);
+        physicalOnlyCart.SetQuote([new CartQuoteItem("product-1", "Book", 50m, 0m, 0m, 50m, ProductItemType.Product, null, 1)], shippingAmountInNoor: 10m);
+        physicalOnlyCart.MarkPaid();
+        var physicalOnlyPurchase = PhysicalProductPurchase.Create(
+            PhysicalProductPurchaseId.New(),
+            physicalOnlyCart.Id, _buyer.Id, "product-1", "Book", 1, 50m, 50m, FinancialScope.TarheElahi,
+            referenceRialPerNoorAtPurchaseTime: 1200m);
+        physicalOnlyPurchase.MarkDebited(physicalOnlyCart.Id);
+        var physicalOnlyDetails = OrderMapping.Build(new OrderSnapshot([physicalOnlyCart], [], [], [], [physicalOnlyPurchase], [])).Single().Details;
+        physicalOnlyDetails.ReferenceRialPerNoorAtPurchaseTime.Should().Be(1200m);
+        physicalOnlyDetails.ToListItem().ReferenceRialPerNoorAtPurchaseTime.Should().Be(1200m);
+
+        // 2. Mixed paid cart (both have rate)
+        var mixedCart = Cart.Create(Guid.NewGuid(), _buyer.Id.Value, "buyer-ext", [
+            new CartItemInput("course-1", ProductItemType.Course, 1),
+            new CartItemInput("product-2", ProductItemType.Product, 1)
+        ], null, FinancialScope.TarheElahi);
+        mixedCart.SetQuote([
+            new CartQuoteItem("course-1", "Course", 100m, 0m, 0m, 100m, ProductItemType.Course, null, 1),
+            new CartQuoteItem("product-2", "Book 2", 50m, 0m, 0m, 50m, ProductItemType.Product, null, 1)
+        ]);
+        mixedCart.MarkPaid();
+        var mixedCourse = CoursePurchase.Create(_buyer.Id, ProductSnapshot.Create("course-1", "Course", 100m, referenceRialPerNoorAtPurchaseTime: 1500m), FinancialScope.TarheElahi, purchaseId: CoursePurchaseId.New());
+        mixedCourse.AttachToCart(mixedCart.Id);
+        mixedCourse.MarkDebited(mixedCart.Id);
+        var mixedPhysical = PhysicalProductPurchase.Create(PhysicalProductPurchaseId.New(), mixedCart.Id, _buyer.Id, "product-2", "Book 2", 1, 50m, 50m, FinancialScope.TarheElahi, referenceRialPerNoorAtPurchaseTime: 1500m);
+        mixedPhysical.MarkDebited(mixedCart.Id);
+        var mixedDetails = OrderMapping.Build(new OrderSnapshot([mixedCart], [], [mixedCourse], [], [mixedPhysical], [])).Single().Details;
+        mixedDetails.ReferenceRialPerNoorAtPurchaseTime.Should().Be(1500m);
+
+        // 3. Legacy mixed paid cart (course has rate, physical has null) -> keeps course rate
+        var legacyCart = Cart.Create(Guid.NewGuid(), _buyer.Id.Value, "buyer-ext", [
+            new CartItemInput("course-legacy", ProductItemType.Course, 1),
+            new CartItemInput("product-legacy", ProductItemType.Product, 1)
+        ], null, FinancialScope.TarheElahi);
+        legacyCart.SetQuote([
+            new CartQuoteItem("course-legacy", "Course", 100m, 0m, 0m, 100m, ProductItemType.Course, null, 1),
+            new CartQuoteItem("product-legacy", "Book", 50m, 0m, 0m, 50m, ProductItemType.Product, null, 1)
+        ]);
+        legacyCart.MarkPaid();
+        var legacyCourse = CoursePurchase.Create(_buyer.Id, ProductSnapshot.Create("course-legacy", "Course", 100m, referenceRialPerNoorAtPurchaseTime: 1800m), FinancialScope.TarheElahi, purchaseId: CoursePurchaseId.New());
+        legacyCourse.AttachToCart(legacyCart.Id);
+        legacyCourse.MarkDebited(legacyCart.Id);
+        var legacyPhysical = PhysicalProductPurchase.Create(PhysicalProductPurchaseId.New(), legacyCart.Id, _buyer.Id, "product-legacy", "Book", 1, 50m, 50m, FinancialScope.TarheElahi, referenceRialPerNoorAtPurchaseTime: null);
+        legacyPhysical.MarkDebited(legacyCart.Id);
+        var legacyDetails = OrderMapping.Build(new OrderSnapshot([legacyCart], [], [legacyCourse], [], [legacyPhysical], [])).Single().Details;
+        legacyDetails.ReferenceRialPerNoorAtPurchaseTime.Should().Be(1800m);
+
+        // 4. Standalone physical purchase (SourceType == Purchase)
+        var standalone = PhysicalProductPurchase.Create(PhysicalProductPurchaseId.New(), Guid.NewGuid(), _buyer.Id, "product-orphan", "Orphan", 1, 40m, 40m, FinancialScope.TarheElahi, referenceRialPerNoorAtPurchaseTime: 2100m);
+        var standaloneDetails = OrderMapping.Build(new OrderSnapshot([], [], [], [], [standalone], [])).Single().Details;
+        standaloneDetails.SourceType.Should().Be("Purchase");
+        standaloneDetails.ReferenceRialPerNoorAtPurchaseTime.Should().Be(2100m);
+        standaloneDetails.ToListItem().ReferenceRialPerNoorAtPurchaseTime.Should().Be(2100m);
+    }
+
     [Theory]
     [InlineData("3", null, null)]
     [InlineData(null, "Returned", null)]

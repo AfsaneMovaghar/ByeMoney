@@ -145,4 +145,68 @@ public sealed class CartPaymentTests
             purchase.Status.Should().Be(CoursePurchaseStatus.NotificationSent);
         }
     }
+
+    [Fact]
+    public void MixedAndFreePhysicalCarts_RecordReferenceRateWithoutAffectingFinancials()
+    {
+        var buyer = new UserId(Guid.NewGuid());
+        var account = Account.CreateUserAccount(buyer, FinancialScope.TarheElahi);
+        var wallet = Wallet.Create(account.Id, buyer, FinancialScope.TarheElahi);
+        wallet.ApplyCredit(1000m);
+
+        var mixed = Cart.Create(Guid.NewGuid(), buyer.Value, "buyer-mixed", [
+            new CartItemInput("course-1", ProductItemType.Course, 1),
+            new CartItemInput("chapter-1", ProductItemType.CourseChapter, 1),
+            new CartItemInput("product-1", ProductItemType.Product, 2)
+        ], null, FinancialScope.TarheElahi);
+        mixed.SetQuote([
+            new("course-1", "دوره", 100m, 0m, 0m, 100m, ProductItemType.Course, null, 1),
+            new("chapter-1", "فصل", 50m, 0m, 0m, 50m, ProductItemType.CourseChapter, "course-2", 1),
+            new("product-1", "کتاب", 40m, 0m, 0m, 80m, ProductItemType.Product, null, 2)
+        ], shippingAmountInNoor: 20m);
+
+        var payment = CartPayment.Apply(
+            mixed,
+            new ProvisionedUserWallet(account, wallet),
+            Account.CreateSystemAccount(FinancialScope.TarheElahi),
+            referenceRate: 321m);
+
+        payment.Purchases.Should().HaveCount(2)
+            .And.OnlyContain(x => x.Snapshot.ReferenceRialPerNoorAtPurchaseTime == 321m);
+        payment.PhysicalPurchases.Should().ContainSingle()
+            .Which.ReferenceRialPerNoorAtPurchaseTime.Should().Be(321m);
+        wallet.WithdrawableBalance.Should().Be(750m);
+        payment.LedgerEntries.Where(x => x.Amount < 0).Sum(x => -x.Amount).Should().Be(250m);
+
+        var freePhysical = Cart.Create(Guid.NewGuid(), buyer.Value, "buyer-free-phys", [
+            new CartItemInput("product-free", ProductItemType.Product, 1)
+        ], "FREE", FinancialScope.TarheElahi);
+        freePhysical.SetQuote([
+            new("product-free", "کتاب هدیه", 50m, 0m, 50m, 0m, ProductItemType.Product, null, 1)
+        ], shippingAmountInNoor: 0m);
+
+        var freePayment = CartPayment.Apply(
+            freePhysical,
+            new ProvisionedUserWallet(account, wallet),
+            system: null,
+            referenceRate: 654m);
+        freePayment.PhysicalPurchases.Should().ContainSingle()
+            .Which.ReferenceRialPerNoorAtPurchaseTime.Should().Be(654m);
+
+        var nullRateCart = Cart.Create(Guid.NewGuid(), buyer.Value, "buyer-null-rate", [
+            new CartItemInput("product-null", ProductItemType.Product, 1)
+        ], null, FinancialScope.TarheElahi);
+        nullRateCart.SetQuote([
+            new("product-null", "کتاب بدون نرخ", 30m, 0m, 0m, 30m, ProductItemType.Product, null, 1)
+        ], shippingAmountInNoor: 0m);
+
+        var nullPayment = CartPayment.Apply(
+            nullRateCart,
+            new ProvisionedUserWallet(account, wallet),
+            Account.CreateSystemAccount(FinancialScope.TarheElahi),
+            referenceRate: null);
+        nullPayment.PhysicalPurchases.Should().ContainSingle()
+            .Which.ReferenceRialPerNoorAtPurchaseTime.Should().BeNull();
+        wallet.WithdrawableBalance.Should().Be(720m);
+    }
 }
