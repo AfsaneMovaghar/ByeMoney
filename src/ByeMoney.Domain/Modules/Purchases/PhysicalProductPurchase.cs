@@ -88,6 +88,23 @@ public class PhysicalProductPurchase : BaseEntity<PhysicalProductPurchaseId>
     /// <summary>مرسوله برگشتی با تصمیم عدم تسویه بسته شده و برای همیشه از تسویه و تحویل خارج است.</summary>
     public bool HasClosedWithoutSettlementReturn => CarrierReturnedAtUtc != null && CarrierReturnResolution == Purchases.CarrierReturnResolution.ClosedWithoutSettlement;
 
+    /// <summary>هشدار خسارت یا مفقودی با تصمیم عدم تسویه بسته شده است.</summary>
+    public bool HasClosedWithoutSettlementAlert => CarrierAlertCode != null && CarrierAlertResolution == Purchases.CarrierReturnResolution.ClosedWithoutSettlement;
+
+    /// <summary>زمان ثبت برگشت دستی نور برای قلم بسته‌شده بدون تسویه.</summary>
+    public DateTime? ClosedParcelRefundedAtUtc { get; private set; }
+
+    /// <summary>برای این قلم برگشت دستی نور مرسولهٔ بسته‌شده ثبت شده است.</summary>
+    public bool HasClosedParcelRefund => ClosedParcelRefundedAtUtc.HasValue;
+
+    /// <summary>آیا قلم بدون مسیر باز یا «تحویل تأیید شد»، در وضعیت ClosedWithoutSettlement است.</summary>
+    public bool IsClosedWithoutSettlementEligible() =>
+        (HasClosedWithoutSettlementReturn || HasClosedWithoutSettlementAlert) &&
+        CarrierReturnResolution != Purchases.CarrierReturnResolution.DeliveryConfirmed &&
+        CarrierAlertResolution != Purchases.CarrierReturnResolution.DeliveryConfirmed &&
+        !HasUnresolvedCarrierReturn &&
+        !HasUnresolvedCarrierAlert;
+
     /// <summary>هشدار خسارت یا مفقودی هنوز تعیین‌تکلیف نشده است. تأیید خریدار آن را نمی‌بندد.</summary>
     public bool HasUnresolvedCarrierAlert => CarrierAlertCode != null && CarrierAlertResolution == null;
 
@@ -235,6 +252,11 @@ public class PhysicalProductPurchase : BaseEntity<PhysicalProductPurchaseId>
     public void MarkShipped(
         string? trackingCode = null, string? trackingProvider = null, string? providerParcelId = null)
     {
+        if (HasClosedParcelRefund)
+        {
+            throw new ConflictDomainException(DomainErrors.PhysicalProductPurchase_ClosedParcelRefundLocked);
+        }
+
         if (DeliveryStatus == PhysicalDeliveryStatus.Delivered)
         {
             // پس از تحویل، کد رهگیری و وضعیت قفل است.
@@ -487,6 +509,11 @@ public class PhysicalProductPurchase : BaseEntity<PhysicalProductPurchaseId>
 
     public void MarkDelivered()
     {
+        if (HasClosedParcelRefund)
+        {
+            throw new ConflictDomainException(DomainErrors.PhysicalProductPurchase_ClosedParcelRefundLocked);
+        }
+
         if (DeliveryStatus == PhysicalDeliveryStatus.Delivered)
         {
             return;
@@ -497,7 +524,7 @@ public class PhysicalProductPurchase : BaseEntity<PhysicalProductPurchaseId>
             throw InvalidDeliveryTransition(PhysicalDeliveryStatus.Delivered);
         }
 
-        if (HasUnresolvedCarrierReturn || HasClosedWithoutSettlementReturn)
+        if (HasUnresolvedCarrierReturn || HasClosedWithoutSettlementReturn || HasClosedWithoutSettlementAlert)
         {
             throw new DomainException(DomainErrors.PhysicalProductPurchase_DeliveryBlockedByCarrierReturn);
         }
@@ -513,7 +540,7 @@ public class PhysicalProductPurchase : BaseEntity<PhysicalProductPurchaseId>
     /// </summary>
     public void MarkCarrierReturned(DateTime detectedAtUtc)
     {
-        if (CarrierReturnedAtUtc.HasValue)
+        if (CarrierReturnedAtUtc.HasValue || HasClosedParcelRefund)
         {
             return;
         }
@@ -532,7 +559,7 @@ public class PhysicalProductPurchase : BaseEntity<PhysicalProductPurchaseId>
     /// </summary>
     public void MarkCarrierAlert(int statusCode, DateTime detectedAtUtc)
     {
-        if (CarrierAlertCode.HasValue)
+        if (CarrierAlertCode.HasValue || HasClosedParcelRefund)
         {
             return;
         }
@@ -559,6 +586,11 @@ public class PhysicalProductPurchase : BaseEntity<PhysicalProductPurchaseId>
     /// </summary>
     public void ResolveCarrierAlert(CarrierReturnResolution resolution, string note, Guid adminUserId, DateTime utcNow)
     {
+        if (HasClosedParcelRefund)
+        {
+            throw new ConflictDomainException(DomainErrors.PhysicalProductPurchase_ClosedParcelRefundLocked);
+        }
+
         if (!CarrierAlertCode.HasValue)
         {
             throw new DomainException(DomainErrors.PhysicalProductPurchase_NotCarrierAlert);
@@ -598,6 +630,11 @@ public class PhysicalProductPurchase : BaseEntity<PhysicalProductPurchaseId>
     /// </summary>
     public void ResolveCarrierReturn(CarrierReturnResolution resolution, string note, Guid adminUserId, DateTime utcNow)
     {
+        if (HasClosedParcelRefund)
+        {
+            throw new ConflictDomainException(DomainErrors.PhysicalProductPurchase_ClosedParcelRefundLocked);
+        }
+
         if (!CarrierReturnedAtUtc.HasValue)
         {
             throw new DomainException(DomainErrors.PhysicalProductPurchase_NotCarrierReturned);
@@ -658,6 +695,42 @@ public class PhysicalProductPurchase : BaseEntity<PhysicalProductPurchaseId>
         RefundedRegularInNoor += refund.RegularInNoor;
         RefundedGiftInNoor += refund.GiftInNoor;
         UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// ماندهٔ قابل برگشت سهم‌های عادی و هدیه پس از کسر برگشت‌های قبلی؛ برای خرید بدون سهم ثبت‌شده null است.
+    /// </summary>
+    public PaymentShares? RemainingRefundableShares() =>
+        HasPaymentShares
+            ? new PaymentShares(
+                RegularAmountInNoor!.Value - RefundedRegularInNoor,
+                GiftAmountInNoor!.Value - RefundedGiftInNoor)
+            : null;
+
+    /// <summary>
+    /// ثبت برگشت دستی نور برای مرسولهٔ بسته‌شده بدون تسویه؛ CancelledQuantity و DeliveryStatus دست نمی‌خورند.
+    /// </summary>
+    public void RecordClosedParcelRefund(PaymentShares refund, DateTime utcNow)
+    {
+        var exceedsShares = !HasPaymentShares ||
+            RefundedRegularInNoor + refund.RegularInNoor > RegularAmountInNoor!.Value ||
+            RefundedGiftInNoor + refund.GiftInNoor > GiftAmountInNoor!.Value;
+
+        if (HasClosedParcelRefund ||
+            !IsClosedWithoutSettlementEligible() ||
+            refund.RegularInNoor < 0 ||
+            refund.GiftInNoor < 0 ||
+            refund.TotalInNoor <= 0 ||
+            exceedsShares)
+        {
+            throw new DomainException(DomainErrors.PhysicalProductPurchase_ClosedParcelRefundInvalid);
+        }
+
+        var microsecondTimestamp = utcNow.AddTicks(-(utcNow.Ticks % TimeSpan.TicksPerMicrosecond));
+        RefundedRegularInNoor += refund.RegularInNoor;
+        RefundedGiftInNoor += refund.GiftInNoor;
+        ClosedParcelRefundedAtUtc = microsecondTimestamp;
+        UpdatedAt = microsecondTimestamp;
     }
 
     private static string? NormalizeTrackingCode(string? trackingCode)

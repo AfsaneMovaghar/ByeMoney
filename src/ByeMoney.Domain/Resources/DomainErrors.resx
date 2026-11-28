@@ -166,4 +166,6 @@
   <data name="Wallet_CreditAmountMustBePositive" xml:space="preserve"><value>مبلغ افزایش موجودی باید بزرگتر از صفر باشد.</value></data>
   <data name="FinancialScope_Invalid" xml:space="preserve"><value>محدودهٔ مالی نامعتبر است.</value></data>
   <data name="Ledger_AccountsMustShareScope" xml:space="preserve"><value>دو طرف ثبت دفتر کل باید در یک محدودهٔ مالی باشند.</value></data>
+  <data name="PhysicalProductPurchase_ClosedParcelRefundLocked" xml:space="preserve"><value>برای این قلم برگشت نور مرسولهٔ بسته‌شده ثبت شده است و امکان تغییر وضعیت، کد رهگیری یا تعیین‌تکلیف وجود ندارد.</value></data>
+  <data name="PhysicalProductPurchase_ClosedParcelRefundInvalid" xml:space="preserve"><value>این قلم شرایط ثبت برگشت دستی مرسولهٔ بسته‌شده را ندارد یا سهم پرداخت آن ثبت نشده است.</value></data>
 </root>

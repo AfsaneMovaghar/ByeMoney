@@ -22,6 +22,8 @@ public interface IPhysicalCancellationStore
 
     Task<PhysicalReservationCancellation?> GetReservationCancellationAsync(Guid operationId, CancellationToken ct);
 
+    Task<bool> IsOperationIdUsedElsewhereAsync(Guid operationId, CancellationToken ct);
+
     /// <summary>سهم عادی و هدیهٔ پرداخت ارسال، از Ledger سطح سبد خریدار.</summary>
     Task<PaymentShares> GetShippingPaymentAsync(Guid cartId, CancellationToken ct);
 

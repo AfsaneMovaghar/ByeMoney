@@ -7,4 +7,6 @@ public sealed record OrderSnapshot(
     IReadOnlyList<Cart> Carts, IReadOnlyList<TopUpRequest> TopUps,
     IReadOnlyList<CoursePurchase> Purchases, IReadOnlyList<OrderBuyer> Buyers,
     IReadOnlyList<PhysicalProductPurchase> PhysicalPurchases,
-    IReadOnlyList<PhysicalProductCancellation> PhysicalCancellations);
+    IReadOnlyList<PhysicalProductCancellation> PhysicalCancellations,
+    IReadOnlyList<ClosedParcelRefund>? ClosedParcelRefunds = null,
+    IReadOnlySet<string>? SettledOrderIds = null);

@@ -33,15 +33,15 @@
 >
 > `AUDIT-LEGACY-01`، `AUDIT-SEC-01` و `AUDIT-AUTH-01` در ۲۰۲۶-۱۱-۲۶ بسته شدند و شاهدشان در [گزارش شواهد](docs/testing/Verification-Summary.md) ثبت شد.
 
-- [ ] **`AUDIT-SHIP-01` (`GAP-002`) — تعیین تکلیف مالی مرسولهٔ بسته‌شده بدون تسویه (`ClosedWithoutSettlement`)** (شاخهٔ پیشنهادی: `fix/closed-without-settlement-refund`):
-  - دامنه: `PhysicalProductPurchase` / `AdminPhysicalPurchasesController` در بای‌مانی و پنل ادمین.
-  - معیار پذیرش: افزودن مسیر صریح و idempotent برای برگشت نور در سطح قلم (همراه `operationId` و بازتاب در `refundedAmountInNoor`) پس از `ClosedWithoutSettlement`، یا دست‌کم نمایش هشدار روشن «نیاز به تسویهٔ دستی» در پنل ادمین و پیش‌نمایش تسویه (پیش از کدنویسی، رویکرد با مالک تأیید شود).
 - [ ] **`AUDIT-CART-02` (`UI-001`) — انتقال پیام خطای واقعی `prepare` استرپی در تعارض سبد کالا** (شاخهٔ پیشنهادی: `fix/cart-conflict-error-message`):
   - دامنه: `CartService.SynchronizeAsync` در بای‌مانی (نگاشت خطای `prepare` استرپی).
   - معیار پذیرش: انتقال پیام یا `lineError` قابل اقدامِ `prepare` استرپی (به‌ویژه `CART_SHIPPING_UNAVAILABLE`) در پاسخ `409 CART_CONFLICT` به‌جای پیام عمومی «یکی از دوره‌ها قبلاً خریداری شده است».
 
 ### P2 — اتصال فرانت و ادمین (مسئول: محمد)
 
+- [ ] **`SHIP-CLOSED-REFUND` (فرانت‌اند) — نمایش وضعیت و دکمهٔ برگشت دستی مرسولهٔ بسته‌شده بدون تسویه**:
+  - دامنه: پنل سفارش‌های ادمین (`ByeMoneyOrders` / `ByeMoneyOrderPanel` + route سروری Next) و جزئیات سفارش خریدار (`/profile/orders`).
+  - معیار پذیرش: فراخوانی `POST /api/admin/physical-purchases/{purchaseId}/closed-parcel-refund` از route سروری Next، نمایش وضعیت‌های `NotRefunded` / `Refunded` / `ManualReview` برای ادمین، و نمایش وضعیت `Refunded` با مبلغ و زمان (بدون `closedParcelRefundReason`) برای خریدار.
 - [ ] **`AUDIT-UI-01` (`UI-002`) — شفاف‌سازی واحد «نور» و «تومان» در فهرست سفارش‌های پروفایل**:
   - دامنه: صفحهٔ `/profile/orders` در فرانت‌اند.
   - معیار پذیرش: نمایش واحد یکسان یا نمایش معادل تومانی در کنار مبالغ نوری با استفاده از نرخ ذخیره‌شده، به‌طوری‌که سفارش‌های قدیمی و بای‌مانی به‌روشنی قابل مقایسه باشند.
@@ -106,6 +106,7 @@
   - فریز روش جمع‌آوری (`collectionType`) روی سبد در زمان استعلام به‌جای خواندن زنده هنگام ساخت مرسوله (تغییر schema/قرارداد؛ در فاز اول هنگام وجود سفارش `Preparing` تنظیم تغییر داده نشود).
   - نقطهٔ دریافت وبهوک پستکس پس از تأیید قرارداد مستند پستکس (`S4-01`) یا کوتاه‌کردن فاصلهٔ پویش `ExternalTrackingBackgroundService`؛ ذخیرهٔ تاریخچهٔ تلاش «بررسی وضعیت»؛ پویش جداگانه و فهرست سراسری مرسوله‌های یتیم/در انتظار پرداخت در پنل ادمین (شامل تلاقی نادر ثبت دستی کد رهگیری حین ساخت)؛ `mark-ready` و دریافت لیبل در پنل؛ `GetShippedAsync` با فیلد «آخرین تلاش» برای جلوگیری از گیرکردن صف ۵۰تایی؛ پاک‌سازی/بازبینی کاهش تعداد پس از ساخت مرسوله؛ نمایش `tracking_url` روی مرسوله‌های قدیمی پیش از خواندن کامل.
   - اعلان `Shipped` و `Delivered` به کاربر؛ ثبت شناسهٔ ادمین انجام‌دهندهٔ تغییر تحویل (هماهنگ با Audit کلی)؛ تغییر مبدأ مهلت ۳۰روزهٔ تحویل خودکار از `ShippedAtUtc` به زمان آخرین تغییر وضعیت پستکس (در صورت نیاز).
+  - برگشت خودکار نور برای مرسولهٔ بسته‌شده با `ClosedWithoutSettlement` (در فاز اول با تصمیم مالک فقط برگشت دستی صریح `SHIP-CLOSED-REFUND` فعال است).
 - **دیتابیس، دامنه و بازآرایی کد (پیشنهاد تطبیق ۲۰۲۶-۱۱-۰۲):**
   - `DB-06` (یکسان‌سازی نرخ ریال به نور در `TopUpRequests`/`CoursePurchases`/`SystemSettings`، وابسته به A1/E4)؛ `DB-11` تا `DB-15` (ستون‌های زمان، حذف کد تکراری `Result`/`BaseEntity`/`DomainException.cs`، یکتایی `GiftGrantRecipients(BatchId, UserId)`، جداسازی `TopUpReviewCases` در صورت رشد D19)؛ `DB-08` (حذف Shadow Property `BuyerId` پس از ارتقای EF Core)؛ قید Check روی مبالغ ریالی/نوری (`DB-02`).
   - `CLEANUP-01` (انتقال منطق مالی از `CartStore` به Application)؛ `OrderSettlementCandidateService` و `OrderSettlementStore.GetSettledOrderIdsAsync` (خواندن غیرحافظه‌ای در حجم بالا).

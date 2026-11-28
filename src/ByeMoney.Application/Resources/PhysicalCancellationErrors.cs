@@ -24,6 +24,11 @@ public static class PhysicalCancellationErrors
     public static string WarningFreeShippingRemoved => Get("Warning_FreeShippingRemoved");
     public static string WarningShippingNotRefunded => Get("Warning_ShippingNotRefunded");
     public static string WarningCarrierPaymentPending => Get("Warning_CarrierPaymentPending");
+    public static string ClosedParcelRefundNotEligible => Get("ClosedParcelRefund_NotEligible");
+    public static string ClosedParcelRefundAlreadyRefunded => Get("ClosedParcelRefund_AlreadyRefunded");
+    public static string ClosedParcelRefundNoRemainingAmount => Get("ClosedParcelRefund_NoRemainingAmount");
+    public static string ClosedParcelRefundAlreadySettled => Get("ClosedParcelRefund_AlreadySettled");
+    public static string ClosedParcelRefundConflict => Get("ClosedParcelRefund_Conflict");
 
     private static string Get(string name) => Resources.GetString(name)
         ?? throw new MissingManifestResourceException(name);

@@ -2,6 +2,7 @@ using ByeMoney.Application.Modules.Purchases.History.DTOs;
 using ByeMoney.Application.Modules.Purchases.Orders.Constants;
 using ByeMoney.Application.Modules.Purchases.Orders.DTOs;
 using ByeMoney.Application.Modules.Purchases.EventHandlers;
+using ByeMoney.Application.Modules.Purchases.PhysicalCancellations.Constants;
 using ByeMoney.Domain.Modules.Purchases;
 using ByeMoney.Domain.Modules.Wallet.TopUps;
 
@@ -26,6 +27,9 @@ public static class OrderMapping
         var externalUserIds = includeAdminResolutionDetails
             ? snapshot.Buyers.ToDictionary(b => b.Id, b => b.ExternalUserId)
             : null;
+        var closedRefundsByPurchase = snapshot.ClosedParcelRefunds?
+            .ToDictionary(refund => refund.PurchaseId.Value);
+        var settledOrderIds = snapshot.SettledOrderIds;
 
         foreach (var cart in snapshot.Carts)
         {
@@ -42,7 +46,8 @@ public static class OrderMapping
             groupedPurchases.UnionWith(ownedPurchases.Select(purchase => purchase.Id.Value));
             groupedPhysicalPurchases.UnionWith(ownedPhysicalPurchases.Select(purchase => purchase.Id.Value));
             rows.Add(new OrderReadRow(cart.BuyerId.Value,
-                MapCart(cart, ownedPurchases, ownedPhysicalPurchases, ownedTopUps, invalidLink, snapshot, includeAdminResolutionDetails, externalUserIds)));
+                MapCart(cart, ownedPurchases, ownedPhysicalPurchases, ownedTopUps, invalidLink, snapshot,
+                    includeAdminResolutionDetails, externalUserIds, closedRefundsByPurchase, settledOrderIds)));
         }
 
         var purchasesById = snapshot.Purchases.ToDictionary(purchase => purchase.Id);
@@ -80,10 +85,13 @@ public static class OrderMapping
         foreach (var physical in snapshot.PhysicalPurchases
             .Where(purchase => !groupedPhysicalPurchases.Contains(purchase.Id.Value)))
         {
-            var item = MapPhysicalItem(physical, null, includeAdminResolutionDetails, externalUserIds);
+            var orderId = OrderIdFormat.For(OrderSourceType.Purchase, physical.Id.Value);
+            var isOrderSettled = settledOrderIds?.Contains(orderId) ?? false;
+            var item = MapPhysicalItem(physical, null, includeAdminResolutionDetails, externalUserIds,
+                closedRefundsByPurchase, isOrderSettled);
             var shipping = ShippingRefundOf(snapshot, physical.CartId);
             rows.Add(new OrderReadRow(physical.BuyerId.Value, new OrderDetails(
-                OrderIdFormat.For(OrderSourceType.Purchase, physical.Id.Value),
+                orderId,
                 OrderSourceType.Purchase.ToString(), physical.CartId, physical.CreatedAtUtc,
                 PhysicalPurchaseUpdatedAt(physical), OrderFinancialStatus.RequiresReview.ToString(),
                 Delivery([item]).ToString(), physical.PaidAmountInNoor, 1, null, null, null, null, [item], [], null,
@@ -97,8 +105,12 @@ public static class OrderMapping
         Cart cart, CoursePurchase[] purchases, PhysicalProductPurchase[] physicalPurchases,
         TopUpRequest[] topUps, bool invalidLink, OrderSnapshot snapshot,
         bool includeAdminResolutionDetails = false,
-        IReadOnlyDictionary<Guid, string>? externalUserIds = null)
+        IReadOnlyDictionary<Guid, string>? externalUserIds = null,
+        IReadOnlyDictionary<Guid, ClosedParcelRefund>? closedRefundsByPurchase = null,
+        IReadOnlySet<string>? settledOrderIds = null)
     {
+        var cartOrderId = OrderIdFormat.For(OrderSourceType.Cart, cart.Id);
+        var isOrderSettled = settledOrderIds?.Contains(cartOrderId) ?? false;
         var requested = RequestedItems(cart);
         var expectedKeys = requested.Select(item => new OrderItemKey(item.ExternalId, item.Type)).Distinct().ToArray();
         var purchasedKeys = purchases.Select(KeyOf).Concat(physicalPurchases.Select(KeyOf)).ToArray();
@@ -122,7 +134,9 @@ public static class OrderMapping
                 : null;
             if (physical is not null)
             {
-                return MapPhysicalItem(physical, quote, includeAdminResolutionDetails, externalUserIds);
+                return MapPhysicalItem(
+                    physical, quote, includeAdminResolutionDetails, externalUserIds,
+                    closedRefundsByPurchase, isOrderSettled);
             }
 
             var purchase = purchases.FirstOrDefault(item => KeyOf(item) == key);
@@ -253,7 +267,9 @@ public static class OrderMapping
         PhysicalProductPurchase physical,
         CartItem? quote,
         bool includeAdminResolutionDetails = false,
-        IReadOnlyDictionary<Guid, string>? externalUserIds = null)
+        IReadOnlyDictionary<Guid, string>? externalUserIds = null,
+        IReadOnlyDictionary<Guid, ClosedParcelRefund>? closedRefundsByPurchase = null,
+        bool isOrderSettled = false)
     {
         var paid = IsPaid(physical);
         var status = paid ? OrderFinancialStatus.Paid : OrderFinancialStatus.Processing;
@@ -292,6 +308,18 @@ public static class OrderMapping
             }
         }
 
+        ClosedParcelRefund? closedParcelRefund = null;
+        closedRefundsByPurchase?.TryGetValue(physical.Id.Value, out closedParcelRefund);
+        var closedParcelRefundedAtUtc = physical.ClosedParcelRefundedAtUtc ?? closedParcelRefund?.CreatedAtUtc;
+        decimal? closedParcelRefundAmount = closedParcelRefund is not null
+            ? closedParcelRefund.RegularRefundInNoor + closedParcelRefund.GiftRefundInNoor
+            : physical.HasClosedParcelRefund
+                ? physical.RefundedRegularInNoor + physical.RefundedGiftInNoor
+                : null;
+        var closedParcelRefundStatus = ResolveClosedParcelRefundStatus(
+            physical, includeAdminResolutionDetails, isOrderSettled);
+        var closedParcelRefundReason = includeAdminResolutionDetails ? closedParcelRefund?.Reason : null;
+
         return new OrderItem(physical.ExternalProductId, physical.ProductTitle,
             quote?.PriceInNoor ?? physical.UnitPriceInNoor, physical.PaidAmountInNoor,
             physical.Id.Value, physical.LedgerTransactionId, physical.CreatedAtUtc,
@@ -305,7 +333,37 @@ public static class OrderMapping
             physical.TrackingUrl,
             physical.CarrierAlertCode, physical.CarrierAlertAtUtc, physical.CarrierAlertResolution?.ToString(),
             alertNote, alertResolvedAtUtc, alertResolvedByExternalUserId,
-            providerParcelId);
+            providerParcelId,
+            closedParcelRefundStatus,
+            closedParcelRefundedAtUtc,
+            closedParcelRefundAmount,
+            closedParcelRefundReason);
+    }
+
+    private static string ResolveClosedParcelRefundStatus(
+        PhysicalProductPurchase physical,
+        bool includeAdminResolutionDetails,
+        bool isOrderSettled)
+    {
+        if (physical.HasClosedParcelRefund)
+        {
+            return ClosedParcelRefundStatuses.Refunded;
+        }
+
+        if (!includeAdminResolutionDetails || !physical.IsClosedWithoutSettlementEligible())
+        {
+            return ClosedParcelRefundStatuses.None;
+        }
+
+        var remaining = physical.RemainingRefundableShares();
+        if (remaining is not null && remaining.Value.TotalInNoor <= 0m)
+        {
+            return ClosedParcelRefundStatuses.None;
+        }
+
+        return !physical.HasPaymentShares || isOrderSettled
+            ? ClosedParcelRefundStatuses.ManualReview
+            : ClosedParcelRefundStatuses.NotRefunded;
     }
 
     /// <summary>
@@ -326,7 +384,11 @@ public static class OrderMapping
                 CarrierAlertResolutionNote = null,
                 CarrierAlertResolvedAtUtc = null,
                 CarrierAlertResolvedByExternalUserId = null,
-                ProviderParcelId = null
+                ProviderParcelId = null,
+                ClosedParcelRefundStatus = item.ClosedParcelRefundedAtUtc.HasValue
+                    ? ClosedParcelRefundStatuses.Refunded
+                    : ClosedParcelRefundStatuses.None,
+                ClosedParcelRefundReason = null
             }).ToArray()
         };
 
@@ -420,7 +482,8 @@ public static class OrderMapping
     private static DateTime PhysicalPurchaseUpdatedAt(PhysicalProductPurchase purchase) => new[]
     {
         purchase.CreatedAtUtc, purchase.UpdatedAt ?? purchase.CreatedAtUtc,
-        purchase.ShippedAtUtc ?? purchase.CreatedAtUtc, purchase.DeliveredAtUtc ?? purchase.CreatedAtUtc
+        purchase.ShippedAtUtc ?? purchase.CreatedAtUtc, purchase.DeliveredAtUtc ?? purchase.CreatedAtUtc,
+        purchase.ClosedParcelRefundedAtUtc ?? purchase.CreatedAtUtc
     }.Max();
 
     private static DateTime UpdatedAt(

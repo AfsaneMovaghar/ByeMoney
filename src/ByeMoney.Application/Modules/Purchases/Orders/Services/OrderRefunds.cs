@@ -9,10 +9,25 @@ namespace ByeMoney.Application.Modules.Purchases.Orders.Services;
 /// </summary>
 public static class OrderRefunds
 {
-    public static IReadOnlyDictionary<Guid, decimal> ByCart(OrderSnapshot snapshot) =>
-        snapshot.PhysicalCancellations
+    public static IReadOnlyDictionary<Guid, decimal> ByCart(OrderSnapshot snapshot)
+    {
+        var totals = snapshot.PhysicalCancellations
             .GroupBy(cancellation => cancellation.CartId)
             .ToDictionary(group => group.Key, group => group.Sum(TotalRefund));
+
+        if (snapshot.ClosedParcelRefunds is { Count: > 0 })
+        {
+            foreach (var group in snapshot.ClosedParcelRefunds.GroupBy(refund => refund.CartId))
+            {
+                var closedTotal = group.Sum(TotalClosedRefund);
+                totals[group.Key] = totals.TryGetValue(group.Key, out var existing)
+                    ? existing + closedTotal
+                    : closedTotal;
+            }
+        }
+
+        return totals;
+    }
 
     public static decimal For(OrderDetails order, IReadOnlyDictionary<Guid, decimal> refundsByCart)
     {
@@ -28,4 +43,7 @@ public static class OrderRefunds
     private static decimal TotalRefund(PhysicalProductCancellation cancellation) =>
         cancellation.RegularRefundInNoor + cancellation.GiftRefundInNoor +
         cancellation.ShippingRegularRefundInNoor + cancellation.ShippingGiftRefundInNoor;
+
+    private static decimal TotalClosedRefund(ClosedParcelRefund refund) =>
+        refund.RegularRefundInNoor + refund.GiftRefundInNoor;
 }

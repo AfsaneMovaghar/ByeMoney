@@ -25,7 +25,8 @@ public static class OrderSettlementRule
 
         var remainingPhysical = remainingItems.Where(IsPhysical).ToArray();
         if (remainingPhysical.Any(BlocksSettlementDueToCarrierReturn) ||
-            remainingPhysical.Any(BlocksSettlementDueToCarrierAlert))
+            remainingPhysical.Any(BlocksSettlementDueToCarrierAlert) ||
+            remainingPhysical.Any(item => item.ClosedParcelRefundedAtUtc.HasValue))
         {
             return false;
         }

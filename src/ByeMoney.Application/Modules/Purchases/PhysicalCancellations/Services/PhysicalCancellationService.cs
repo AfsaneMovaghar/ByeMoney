@@ -111,6 +111,11 @@ public sealed class PhysicalCancellationService(
                     new BuyerCancellationStep(ReservationReleasedResponse(operationId, cartId), needsRelease));
             }
 
+            if (await store.IsOperationIdUsedElsewhereAsync(operationId, ct))
+            {
+                return ConflictResult<BuyerCancellationStep>();
+            }
+
             var cart = VisibleCart(await store.FindCartAsync(cartId, ct));
             var invalid = CheckBuyerCart(cart);
             if (invalid is not null)
@@ -190,7 +195,7 @@ public sealed class PhysicalCancellationService(
             }
 
             var existingUnpaid = await store.GetReservationCancellationAsync(operationId, ct);
-            if (existingUnpaid is not null)
+            if (existingUnpaid is not null || await store.IsOperationIdUsedElsewhereAsync(operationId, ct))
             {
                 return ConflictResult<PhysicalCancellationResponse>();
             }
